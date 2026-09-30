@@ -503,7 +503,7 @@ fi
 do_claude="$WANT_CLAUDE"
 if [[ -z "$do_claude" ]]; then
   if [[ -t 0 || -e /dev/tty ]]; then
-    read -r -p "Install the AI usage backend for the quota widget (Claude + Codex + OpenCode, 0 tokens)? [y/N] " ans </dev/tty || ans=""
+    read -r -p "Install the AI usage backend for the quota widget (Claude + Codex + OpenCode + Copilot, 0 tokens)? [y/N] " ans </dev/tty || ans=""
     case "${ans,,}" in y|yes) do_claude="yes" ;; *) do_claude="no" ;; esac
   else
     do_claude="no"

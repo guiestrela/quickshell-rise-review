@@ -685,7 +685,7 @@ Item {
         popupOpened("aiUsageVisible")
         if (aiUsageVisible) refreshAiUsage()
     }
-    property string aiTool: "claude"   // "claude", "codex", or "opencode" — icon shown in the bar
+    property string aiTool: "claude"   // "claude", "codex", "opencode", or "copilot" — icon shown in the bar
 
     // ── AI usage data (single source of truth) ───────────────────
     // The bar pill (ClaudeWidget) and the AiUsagePanel both render from these —
@@ -734,6 +734,23 @@ Item {
     property var    aiOcModels: []
     property int    aiClockTick: 0
 
+    // ── Copilot: the metered resource is `premium_interactions`, a MONTHLY
+    //    allowance of premium requests that resets on the 1st — Copilot has no
+    //    Claude/Codex-style 5h/7d window. It therefore carries a single generic
+    //    window (43200 min → "30d") plus the raw credit counters. ──
+    property bool   aiCpHas: false
+    property bool   aiCpFresh: false
+    property int    aiCpPct: 0
+    property string aiCpLabel: ""
+    property int    aiCpResetTs: 0
+    property string aiCpPlan: ""
+    property string aiCpSku: ""
+    property bool   aiCpUnlimited: false
+    property int    aiCpCreditsUsed: 0
+    property int    aiCpCreditsEntitlement: 0
+    property string aiCpLimitReachedType: ""
+    property string aiCpStatus: ""
+
     // F15: clamp an external 0..1 utilization to a 0–100 int (a negative/over-range value would
     // otherwise produce wrong text and negative/overwide usage bars)
     function aiPct(v) { return Math.max(0, Math.min(100, Math.round((parseFloat(v) || 0) * 100))) }
@@ -744,6 +761,44 @@ Item {
         if (minutes > 0 && minutes % 1440 === 0) return (minutes / 1440) + "d"
         if (minutes > 0 && minutes % 60 === 0) return (minutes / 60) + "h"
         return minutes > 0 ? minutes + "m" : "window"
+    }
+
+    function aiResetCopilotUsage() {
+        aiCpHas = false; aiCpFresh = false
+        aiCpPct = 0; aiCpLabel = ""
+        aiCpResetTs = 0; aiCpPlan = ""; aiCpSku = ""
+        aiCpUnlimited = false
+        aiCpCreditsUsed = 0; aiCpCreditsEntitlement = 0
+        aiCpLimitReachedType = ""; aiCpStatus = ""
+    }
+
+    // Copilot writes the same schemaVersion-3 bucket/window shape as Codex, so the
+    // generic window normalizer is reused instead of re-deriving percentages.
+    function aiApplyCopilotCache(d, ageOk) {
+        if (!d) { theme.aiResetCopilotUsage(); return }
+        var windows = theme.aiCodexWindowsFromArray(d.windows)
+        if (windows.length === 0) windows = theme.aiCodexWindowsFromArray((d.buckets || [])[0] ? ((d.buckets || [])[0]).windows : [])
+        theme.aiCpHas = windows.length > 0
+        theme.aiCpFresh = ageOk && d._source !== "stale"
+        theme.aiCpPlan = String(d._plan || "")
+        theme.aiCpSku = String(d._sku || "")
+        theme.aiCpUnlimited = d._unlimited === true
+        theme.aiCpCreditsUsed = parseInt(d._credits_used) || 0
+        theme.aiCpCreditsEntitlement = parseInt(d._credits_entitlement) || 0
+        theme.aiCpLimitReachedType = String(d._limit_reached_type || "")
+        theme.aiCpStatus = String(d.status || "")
+        if (windows.length === 0) {
+            theme.aiCpPct = 0; theme.aiCpLabel = ""; theme.aiCpResetTs = 0
+            return
+        }
+        // Copilot reports exactly one window; take the widest as the headline one.
+        var best = windows[0]
+        for (var i = 1; i < windows.length; i++) {
+            if (windows[i].minutes > best.minutes) best = windows[i]
+        }
+        theme.aiCpPct = best.pct
+        theme.aiCpLabel = best.label
+        theme.aiCpResetTs = best.resetTs
     }
 
     function aiResetCodexUsage() {
@@ -971,6 +1026,24 @@ Item {
     }
 
     Process {
+        id: aiReadCopilot
+        command: ["bash", "-c",
+            "f=\"$HOME/.cache/copilot-usage.json\"; stat -c %Y \"$f\" 2>/dev/null; cat \"$f\" 2>/dev/null"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var raw = this.text, nl = raw.indexOf("\n")
+                var mtime = nl > 0 ? (parseInt(raw.substring(0, nl)) || 0) : 0
+                var ageOk = mtime > 0 && (Date.now() / 1000 - mtime) < 900
+                try {
+                    theme.aiApplyCopilotCache(JSON.parse((nl > 0 ? raw.substring(nl + 1) : "").trim()), ageOk)
+                } catch (e) {
+                    theme.aiResetCopilotUsage()
+                }
+            }
+        }
+    }
+
+    Process {
         id: aiReadOpenCode
         command: ["bash", "-c",
             "f=\"$HOME/.cache/opencode-usage.json\"; stat -c %Y \"$f\" 2>/dev/null; cat \"$f\" 2>/dev/null"]
@@ -1014,6 +1087,9 @@ Item {
         }
         if (!only || aiTool === "opencode") {
             aiReadOpenCode.running = false; aiReadOpenCode.running = true
+        }
+        if (!only || aiTool === "copilot") {
+            aiReadCopilot.running = false; aiReadCopilot.running = true
         }
     }
 
@@ -1661,12 +1737,13 @@ Item {
     property bool modNordVpn:    false
     property bool modWallpapers: false
     property string nordVpnStatus: "Unknown"
-    function refreshNordVpnStatus() { nordVpnStatusController.refresh() }
+    readonly property var nordVpnStatusController: nordVpnController
+    function refreshNordVpnStatus() { nordVpnController.refresh() }
     NordVpnController {
-        id: nordVpnStatusController
+        id: nordVpnController
         enabled: theme.modNordVpn
         refreshInterval: 15000
-        onVpnStateChanged: theme.nordVpnStatus = nordVpnStatusController.vpnState
+        onVpnStateChanged: theme.nordVpnStatus = nordVpnController.vpnState
     }
     property string networkMode: "none"   // mirrored from NetworkWidget: wifi/ethernet/none
     // Centralized status indicators. These live on Theme so BarSlot-per-monitor

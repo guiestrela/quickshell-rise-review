@@ -1,0 +1,8 @@
+[Unit]
+Description=GitHub Copilot usage (premium requests, feeds the Quickshell quota widget)
+
+[Service]
+Type=oneshot
+ExecStart=%h/.local/bin/copilot-usage
+StandardOutput=journal
+StandardError=journal

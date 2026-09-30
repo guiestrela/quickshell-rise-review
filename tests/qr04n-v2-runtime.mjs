@@ -25,8 +25,7 @@ try {
   assert.deepEqual(actionArgv, [
     ["connect"], ["disconnect"], ["connect", "Canada"], ["pause", "15m"],
     ["set", "firewall", "off"], ["set", "killswitch", "on"],
-    ["set", "threatprotectionlite", "on"], ["set", "autoconnect", "off"],
-    ["set", "technology", "OpenVPN"], ["set", "protocol", "TCP"]
+    ["set", "autoconnect", "off"], ["set", "technology", "OpenVPN"]
   ], `recorded argv: ${JSON.stringify(argv)}`);
   assert.equal(argv[0]?.[0], "status", "first CLI call must be the single shared status query");
   assert.equal(argv[1]?.[0], "settings", "initial cycle must query settings exactly once after status");

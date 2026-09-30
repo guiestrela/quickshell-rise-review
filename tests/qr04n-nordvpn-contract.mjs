@@ -45,7 +45,7 @@ for (const variant of variants) {
     const controller = read("versions/V1/modules/NordVpnController.qml");
     const variantRoot = read("versions/V1/VariantRoot.qml");
     assert.ok(controller.includes('"connect"') && controller.includes('"disconnect"') && controller.includes('"pause"'), "V1 controller must own fixed-argv actions");
-    assert.ok(controller.includes('"set", "protocol"'), "V1 protocol method must be implemented");
+    assert.ok(controller.includes('"set", "protocol"') === false, "V1 unsupported protocol must not be implemented as CLI argv");
     assert.ok(theme.includes("readonly property string vpnState:") && theme.includes("readonly property bool vpnBusy:"), "Theme must expose shared controller state");
     assert.equal((theme.match(/NordVpnController\s*\{/g) || []).length, 1, "Theme must instantiate exactly one controller per root, not per monitor");
     assert.ok(widget.includes('setPanelAnchor("vpn"') && theme.includes('else if (name === "vpn") vpnBarX = x'), "VPN panel must own its bar anchor");

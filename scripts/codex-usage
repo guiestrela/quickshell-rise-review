@@ -111,7 +111,7 @@ def fetch_rpc() -> dict | None:
         return None
     try:
         proc = subprocess.Popen(
-            [codex, "-s", "read-only", "-a", "untrusted", "app-server"],
+            [codex, "-s", "read-only", "-a", "never", "app-server"],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL, text=True, env=ENV)
     except Exception as e:
@@ -667,7 +667,11 @@ def scan_activity() -> tuple[int, int, dict[int, dict]]:
 
 
 def main():
-    data = fetch_env() or fetch_rpc() or fetch_rollout()
+    data = fetch_env() or fetch_rpc()
+    # Historical session snapshots must not replace an existing live reading
+    # when RPC fails. Use rollout only to bootstrap a missing cache.
+    if not data and not CACHE_FILE.exists():
+        data = fetch_rollout()
 
     if not data:
         # keep the last numbers on screen, marked stale

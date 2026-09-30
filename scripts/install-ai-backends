@@ -49,6 +49,17 @@ else
   warn "OpenCode has no local database yet; its usage data will appear after you run OpenCode."
 fi
 
+# Copilot's metered quota is the monthly premium-request allowance, read from the
+# same /copilot_internal/user snapshot the CLI and the editors use.
+if command -v gh >/dev/null 2>&1 && gh auth token >/dev/null 2>&1; then
+  install -m 755 "$src/scripts/copilot-usage" "$bindst/copilot-usage"
+  install -m 644 "$src/systemd/copilot-usage.service" "$unitdst/copilot-usage.service"
+  install -m 644 "$src/systemd/copilot-usage.timer" "$unitdst/copilot-usage.timer"
+  info "GitHub Copilot usage collector installed."
+else
+  warn "'gh' is not authenticated; skipping the Copilot usage collector. Run 'gh auth login' and rerun this script to add it."
+fi
+
 systemctl --user daemon-reload || warn "Could not reload the user systemd manager."
 for provider in claude opencode; do
   systemctl --user enable --now "$provider-usage.timer" >/dev/null 2>&1 \
@@ -58,12 +69,19 @@ if command -v codex >/dev/null 2>&1; then
   systemctl --user enable --now codex-usage.timer >/dev/null 2>&1 \
     || warn "Could not enable codex-usage.timer; check that the user systemd manager is running."
 fi
+if command -v gh >/dev/null 2>&1 && gh auth token >/dev/null 2>&1; then
+  systemctl --user enable --now copilot-usage.timer >/dev/null 2>&1 \
+    || warn "Could not enable copilot-usage.timer; check that the user systemd manager is running."
+fi
 
 # Prime caches so the widget can show available data without waiting for the timer.
 "$bindst/claude-usage" >/dev/null 2>&1 || true
 "$bindst/opencode-usage" >/dev/null 2>&1 || true
 if command -v codex >/dev/null 2>&1; then
   "$bindst/codex-usage" >/dev/null 2>&1 || true
+fi
+if command -v gh >/dev/null 2>&1 && gh auth token >/dev/null 2>&1; then
+  "$bindst/copilot-usage" >/dev/null 2>&1 || true
 fi
 
 info "AI usage collectors are installed. Enable 'AI usage' in Rise's Control Panel."

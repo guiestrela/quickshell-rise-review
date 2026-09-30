@@ -15,6 +15,8 @@ Item {
     property string vpnMessage: ""
     property string vpnActionMessage: ""
     property var vpnSettings: ({})
+    property var countryOptions: []
+    property string countriesState: "Unavailable"
     property int statusQueryCount: 0
     property int settingsQueryCount: 0
     readonly property bool vpnConnected: vpnState === "Connected"
@@ -41,6 +43,22 @@ Item {
     function refreshSettings() {
         _startQuery("settings")
     }
+    function refreshCountries() {
+        if (!enabled || countriesProcess.running) return false
+        countriesState = "Loading"
+        countriesProcess.running = true
+        return true
+    }
+    function setAutoConnect(isEnabled, country) {
+        if (!canMutate || countriesState !== "Ready") return false
+        var selected = String(country || "").trim()
+        if (isEnabled && countryOptions.indexOf(selected) < 0) return false
+        var argv = isEnabled
+            ? [cli, "set", "autoconnect", "enabled", selected]
+            : [cli, "set", "autoconnect", "disabled"]
+        vpnActionMessage = "Updating auto-connect…"
+        return _runAction(argv)
+    }
 
     function connectVpn() {
         if (!canMutate) return false
@@ -56,7 +74,8 @@ Item {
     }
     function connectVpnCountry(country) {
         var target = String(country || "").trim()
-        if (!/^[a-zA-Z0-9][a-zA-Z0-9 -]{0,39}$/.test(target) || !canMutate) {
+        if (!/^[A-Za-z][A-Za-z_ -]{0,63}$/.test(target)
+                || countriesState !== "Ready" || countryOptions.indexOf(target) < 0 || !canMutate) {
             vpnMessage = "Enter a valid country name or code"
             return false
         }
@@ -129,12 +148,17 @@ Item {
     }
 
     onEnabledChanged: {
-        if (!enabled) {
-            if (queryProcess.running) queryProcess.running = false
-            vpnState = "Unknown"
-            vpnCountry = ""
-            vpnServer = ""
-        }
+            if (!enabled) {
+                if (queryProcess.running) queryProcess.running = false
+                if (countriesProcess.running) countriesProcess.running = false
+                countriesState = "Unavailable"
+                countryOptions = []
+                vpnState = "Unknown"
+                vpnCountry = ""
+                vpnServer = ""
+            } else {
+                refreshCountries()
+            }
     }
 
     Process {
@@ -196,6 +220,31 @@ Item {
             else controller.vpnActionMessage = "NordVPN command failed"
             refreshTimer.restart()
             settingsTimer.restart()
+        }
+    }
+
+    Process {
+        id: countriesProcess
+        command: [controller.cli, "countries"]
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+        var lines = String(this.text || "").split("\n")
+                var unique = []
+                for (var i = 0; i < lines.length && unique.length < 300; i++) {
+                    var name = lines[i].trim()
+                    if (/^[A-Za-z0-9_ -]{1,64}$/.test(name) && unique.indexOf(name) < 0)
+                        unique.push(name)
+                }
+                controller.countryOptions = unique
+                controller.countriesState = unique.length ? "Ready" : "Empty"
+            }
+        }
+        onExited: function(exitCode) {
+            if (exitCode !== 0) {
+                controller.countryOptions = []
+                controller.countriesState = "Error"
+            }
         }
     }
 

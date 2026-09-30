@@ -60,15 +60,25 @@ Window {
             function() { return host.controller.pauseVpn("15m") },
             function() { return host.controller.setVpnSetting("firewall") },
             function() { return host.controller.setVpnSetting("kill-switch") },
-            function() { return host.controller.setVpnSetting("threat-protection-lite") },
             function() { return host.controller.setVpnSetting("auto-connect") },
-            function() { return host.controller.setVpnSetting("technology") },
-            function() { return host.controller.setVpnSetting("protocol") }
+            function() { return host.controller.setVpnSetting("technology") }
         ]
         if (host.step >= actions.length) {
             verify(!host.controller.connectVpnCountry("../bad"), "invalid country was accepted")
             verify(!host.controller.pauseVpn("99h"), "invalid pause duration was accepted")
             verify(!host.controller.setVpnSetting("arbitrary"), "non-allowlisted setting was accepted")
+            verify(!host.controller.setVpnSetting("protocol") && !host.controller.setVpnSetting("threat-protection-lite"), "unsupported setting accepted")
+            verify(host.controller.vpnActionMessage.indexOf("Not supported by NordVPN CLI 5.4.0") >= 0, "unsupported capability reason missing")
+            host.controller.vpnState = "Unknown"
+            verify(!host.controller.connectVpn() && !host.controller.disconnectVpn(), "connection action accepted in Unknown")
+            verify(!host.controller.connectVpnCountry("Canada"), "country action accepted in Unknown")
+            verify(!host.controller.pauseVpn("5m"), "pause accepted in Unknown")
+            verify(!host.controller.setVpnSetting("firewall"), "setting accepted in Unknown")
+            verify(!host.controller.setDnsServers("1.1.1.1") && !host.controller.resetDnsServers(), "DNS accepted in Unknown")
+            verify(!host.panel.testToggleHandler.enabled && !host.panel.testGoHandler.enabled, "mutating UI enabled in Unknown")
+            host.panel.testToggleHandler.clicked(null); host.panel.testGoHandler.clicked(null)
+            host.panel.testDnsSetHandler.clicked(null); host.panel.testDnsResetHandler.clicked(null)
+            host.controller.vpnState = "Connected"
             console.log("QR04N_V2_WIRING_QML_PASS real widget/panel/controller; stub-only argv; invalid inputs rejected")
             Qt.exit(0)
             return

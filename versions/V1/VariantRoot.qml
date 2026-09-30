@@ -258,7 +258,7 @@ Item {
     TrayPanel { root: theme }
     NotificationPanel { root: theme }
     NetworkPanel { root: theme }
-    NordVPNPanel { root: theme; controller: theme }
+    NordVPNPanel { root: theme; controller: theme.nordVpnStatusController }
     BluetoothPanel { root: theme }
     BatteryPanel { root: theme }
     BrightnessPanel { root: theme }

@@ -32,7 +32,7 @@ Window {
     property color color01: "#ff6666"
     property var calls: []
     property var controller: ({
-        vpnState: "Connected", vpnCountry: "US", vpnConnected: true, vpnBusy: false,
+        vpnState: "Connected", vpnCountry: "US", vpnConnected: true, vpnBusy: false, canMutate: true,
         vpnSettings: ({ firewall: "enabled", "kill-switch": "disabled", "threat-protection-lite": "disabled", "auto-connect": "enabled", technology: "NordLynx", protocol: "udp" }),
         vpnActionMessage: "", vpnMessage: "",
         connectVpn: function() { host.calls.push(["connectVpn"]) },
@@ -88,7 +88,7 @@ Window {
                 if (!host.panel || !host.panel.visible || host.networkVisible) throw new Error("panel did not open independently")
                 host.fire("vpn-toggle")
                 host.expectCalls([["disconnectVpn"]], "connected toggle")
-                host.controller = Object.assign({}, host.controller, { vpnConnected: false, vpnState: "Disconnected" })
+                host.controller = Object.assign({}, host.controller, { vpnConnected: false, vpnState: "Disconnected", canMutate: true })
                 host.panel.controller = host.controller
                 host.fire("vpn-toggle")
                 host.expectCalls([["connectVpn"]], "disconnected toggle")
@@ -103,13 +103,16 @@ Window {
                 country.accepted()
                 host.expectCalls([["connectVpnCountry", "Japan"]], "country Enter/accepted")
 
-                var settings = ["firewall", "kill-switch", "threat-protection-lite", "auto-connect", "technology"]
+                var settings = ["firewall", "kill-switch", "auto-connect", "technology"]
                 for (var i = 0; i < settings.length; ++i) {
                     host.fire("vpn-setting-" + settings[i])
                     host.expectCalls([["setVpnSetting", settings[i]]], "setting " + settings[i])
                 }
-                host.fire("vpn-protocol")
-                host.expectCalls([["setVpnSetting", "protocol"]], "protocol")
+                var unsupportedThreat = host.panel.testTargets["vpn-setting-threat-protection-lite"]
+                var unsupportedProtocol = host.panel.testProtocolHandler
+                if (!unsupportedThreat || unsupportedThreat.enabled || unsupportedProtocol.enabled) throw new Error("unsupported controls must be disabled")
+                unsupportedThreat.clicked(null); unsupportedProtocol.clicked(null)
+                host.expectCalls([], "unsupported settings must not dispatch")
 
                 var pauses = ["5m", "15m", "30m", "1h", "24h"]
                 for (var j = 0; j < pauses.length; ++j) {
@@ -131,7 +134,7 @@ Window {
         interval: 250
         onTriggered: {
             if (host.vpnVisible || host.networkVisible || host.panel.visible) { console.error("QR04N_PANEL_FAIL independent close"); Qt.exit(1); return }
-            console.log("QR04N_PANEL_QML_PASS isolated signal-handler coverage: toggle x2, country go/accepted, 5 settings, protocol, 5 pauses, close")
+            console.log("QR04N_PANEL_QML_PASS isolated signal-handler coverage: toggle x2, country go/accepted, 4 settings, unsupported controls disabled, 5 pauses, close")
             Qt.exit(0)
         }
     }

@@ -1,17 +1,44 @@
 import QtQuick
 
+// NordVPN pill: shield glyph (Material Design, verified present in the theme
+// font JetBrainsMono Nerd Font) + short state label. nordVpnStatusText and
+// activate() are kept because the isolated harness asserts on them.
 Item {
     id: nordVpnWidget
     required property var root
+
+    readonly property bool connected:    root.nordVpnStatus === "Connected"
+    readonly property bool disconnected: root.nordVpnStatus === "Disconnected"
+    readonly property bool unavailable:   root.nordVpnStatus === "Unavailable"
+
     readonly property string nordVpnStatusText: {
-        if (root.nordVpnStatus === "Connected") return "NordVPN ON"
-        if (root.nordVpnStatus === "Disconnected") return "NordVPN OFF"
-        if (root.nordVpnStatus === "Unavailable") return "NordVPN N/A"
+        if (connected) return "NordVPN ON"
+        if (disconnected) return "NordVPN OFF"
+        if (unavailable) return "NordVPN N/A"
         return "NordVPN …"
     }
 
-    visible: root.modNordVpn
-    implicitWidth: visible ? statusPill.implicitWidth : 0
+    readonly property string shortLabel: {
+        if (connected) return "ON"
+        if (disconnected) return "OFF"
+        if (unavailable) return "N/A"
+        return "VPN"
+    }
+
+    readonly property string shieldGlyph: {
+        if (connected) return String.fromCodePoint(0xF0565)    // md-shield_check
+        if (disconnected) return String.fromCodePoint(0xF099E)    // md-shield_off
+        if (unavailable) return String.fromCodePoint(0xF0ECC)    // md-shield_alert
+        return String.fromCodePoint(0xF099D)    // md-shield_lock
+    }
+
+    readonly property color shieldColor: connected ? root.seal : root.sumi
+    readonly property string tooltipText: connected ? "NordVPN connected"
+        : disconnected ? "NordVPN disconnected"
+        : unavailable ? "NordVPN unavailable" : "NordVPN status checking"
+
+    implicitWidth: root.modNordVpn ? row.implicitWidth + 18 : 0
+    visible: implicitWidth > 0.5
     implicitHeight: 28
     property alias testClickHandler: widgetClick
 
@@ -22,30 +49,49 @@ Item {
     }
 
     Rectangle {
-        id: statusPill
-        anchors.centerIn: parent
-        implicitWidth: statusLabel.implicitWidth + 14
+        x: 0; anchors.verticalCenter: parent.verticalCenter
+        width: Math.round(row.width) + 18
         height: 22
         radius: nordVpnWidget.root.pillRadius
         color: nordVpnWidget.root.fillIdle
-        border.color: nordVpnWidget.root.nordVpnStatus === "Connected"
-            ? nordVpnWidget.root.seal : nordVpnWidget.root.pillBorder
+        border.color: nordVpnWidget.root.pillBorder
         border.width: nordVpnWidget.root.pillBorderW
+    }
+
+    Row {
+        id: row
+        anchors.centerIn: parent
+        spacing: 4
+
+        UiText {
+            anchors.verticalCenter: parent.verticalCenter
+            text: nordVpnWidget.shieldGlyph
+            color: nordVpnWidget.shieldColor
+            font.family: nordVpnWidget.root.mono
+            font.pixelSize: 13
+            Behavior on color { ColorAnimation { duration: 200 } }
+        }
 
         Text {
-            id: statusLabel
-            anchors.centerIn: parent
-            text: nordVpnWidget.nordVpnStatusText
-            color: nordVpnWidget.root.nordVpnStatus === "Connected"
-                ? nordVpnWidget.root.seal : nordVpnWidget.root.sumi
+            anchors.verticalCenter: parent.verticalCenter
+            text: nordVpnWidget.shortLabel
+            color: nordVpnWidget.shieldColor
             font.family: nordVpnWidget.root.mono
-            font.pixelSize: 9
-        }
-        MouseArea {
-            id: widgetClick
-            anchors.fill: parent
-            cursorShape: Qt.PointingHandCursor
-            onClicked: nordVpnWidget.activate()
+            font.pixelSize: 11
+            font.letterSpacing: 0.5
+            Behavior on color { ColorAnimation { duration: 200 } }
         }
     }
+
+    MouseArea {
+        id: widgetClick
+        anchors.fill: parent
+        hoverEnabled: true
+        cursorShape: Qt.PointingHandCursor
+        onEntered: tip.show()
+        onExited: tip.hide()
+        onClicked: nordVpnWidget.activate()
+    }
+
+    TooltipMixin { id: tip; root: nordVpnWidget.root; owner: nordVpnWidget; text: nordVpnWidget.tooltipText }
 }

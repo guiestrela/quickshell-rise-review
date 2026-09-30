@@ -3,8 +3,8 @@ import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 
-// Combined AI-usage pill (Claude Code + OpenAI Codex + OpenCode). The bar shows ONE tool
-// (root.aiTool) as a themed-tinted SVG with a bottom-up usage fill; the tooltip
+// Combined AI-usage pill (Claude Code + OpenAI Codex + OpenCode + GitHub Copilot). The bar
+// shows ONE tool (root.aiTool) as a themed-tinted SVG with a bottom-up usage fill; the tooltip
 // shows all tracked tools; clicking opens the AiUsagePanel where the tool can be switched.
 // Gating is unchanged: root.modClaude is the on/off toggle for the whole pill.
 Item {
@@ -14,12 +14,17 @@ Item {
     // ── which tool the bar pill displays ──
     readonly property bool isCodex: root.aiTool === "codex"
     readonly property bool isOpenCode: root.aiTool === "opencode"
-    readonly property bool isLogo: isCodex || isOpenCode
-    readonly property url  logoSource: Qt.resolvedUrl(isOpenCode ? "../assets/opencode-mark.svg" : "../assets/codex.svg")
+    readonly property bool isCopilot: root.aiTool === "copilot"
+    readonly property bool isLogo: isCodex || isOpenCode || isCopilot
+    readonly property url  logoSource: Qt.resolvedUrl(
+        isCopilot  ? "../assets/copilot.svg"
+      : isOpenCode ? "../assets/opencode-mark.svg"
+      : "../assets/codex.svg")
     readonly property var  logoSourceSize: isOpenCode ? Qt.size(20, 12) : Qt.size(56, 56)
     readonly property int  codexMarkSize: 14
     readonly property int  ocMarkW: 20
     readonly property int  ocMarkH: 12
+    readonly property int  cpMarkSize: 15
 
     // ── Claude: process detection is local (drives the pill's visibility); all
     //    usage data comes from root.ai* — the single shared parse in Theme.qml that
@@ -72,25 +77,50 @@ Item {
     readonly property int    ocToday:     root.aiOcToday
     readonly property bool   ocHas:       root.aiOcHas
 
+    // ── Copilot: one monthly premium-request window, not a 5h/7d pair ──
+    property bool cpActive: false
+    readonly property bool   cpFresh:     root.aiCpFresh
+    readonly property int    cpPct:       root.aiCpPct
+    readonly property string cpLabel:     root.aiCpLabel
+    readonly property int    cpResetTs:   root.aiCpResetTs
+    readonly property string cpPlan:      root.aiCpPlan
+    readonly property bool   cpUnlimited: root.aiCpUnlimited
+    readonly property int    cpUsed:      root.aiCpCreditsUsed
+    readonly property int    cpEntitlement: root.aiCpCreditsEntitlement
+    readonly property bool   cpHas:       root.aiCpHas
+    readonly property string cpCredits:   (root.aiCpCreditsUsed || 0) + " / " + (root.aiCpCreditsEntitlement || 0) + " premium requests"
+
     // ── per-tool signal (active OR fresh non-zero usage) ──
     readonly property bool clSignal: clActive || (clPct5h > 0 && clFresh)
     readonly property bool cxSignal: cxActive || (cxPrimaryPct > 0 && cxFresh)
     readonly property bool ocSignal: ocActive || ((ocPct5h > 0 || ocToday > 0) && ocFresh)
+    // an unlimited Copilot plan has nothing to chart, so only "running" counts
+    readonly property bool cpSignal: cpActive || (!cpUnlimited && cpPct > 0 && cpFresh)
 
     // ── selected-tool display values ──
-    readonly property int  pct5h:   isOpenCode ? ocPct5h : (isCodex ? cxPrimaryPct : clPct5h)
+    readonly property int  pct5h:   isCopilot ? cpPct
+                                : isOpenCode ? ocPct5h
+                                : isCodex ? cxPrimaryPct : clPct5h
     readonly property int  pct5hStep: Math.round(pct5h / 5) * 5
-    readonly property bool selFresh: isOpenCode ? ocFresh : (isCodex ? cxFresh : clFresh)
-    readonly property bool selSignal: isOpenCode ? ocSignal : (isCodex ? cxSignal : clSignal)
-    readonly property bool blocked:  (isCodex || isOpenCode) ? false : clBlocked
+    readonly property bool selHas: isCopilot ? cpHas
+                               : isOpenCode ? ocHas
+                               : isCodex ? cxHas : clHas
+    readonly property bool selFresh: isCopilot ? cpFresh
+                                 : isOpenCode ? ocFresh
+                                 : isCodex ? cxFresh : clFresh
+    readonly property bool selSignal: isCopilot ? cpSignal
+                                  : isOpenCode ? ocSignal
+                                  : isCodex ? cxSignal : clSignal
+    readonly property bool blocked:  (isCodex || isOpenCode || isCopilot) ? false : clBlocked
     readonly property color contentColor: root.widgetContentColor("G7", root.widgetIconColor)
 
     // show whenever the gate is on AND either tool has a signal — the pill stays
     // reachable (to open the panel + switch) even if the selected tool is idle
-    readonly property bool shown: (clSignal || cxSignal || ocSignal) && root.modClaude
+    readonly property bool shown: (selHas || clSignal || cxSignal || ocSignal || cpSignal) && root.modClaude
 
     readonly property string tooltipText: {
         var lines = []
+        if (selHas && !selFresh) lines.push("Last known usage · stale")
         if (clHas || clActive) {
             lines.push("Claude Code")
             var cr = root.aiFmtReset(clReset5hTs)
@@ -120,6 +150,17 @@ Item {
             if (ocToday > 0) lines.push("today: " + (ocToday / 1e6).toFixed(2) + "M tok")
             if (ocModel) lines.push(ocModel)
         }
+        if (cpHas || cpActive) {
+            if (lines.length) lines.push("")
+            lines.push("GitHub Copilot" + (cpPlan ? "  (" + cpPlan + ")" : ""))
+            if (cpUnlimited) {
+                lines.push("Premium requests: unlimited")
+            } else {
+                var cpr = root.aiFmtReset(cpResetTs)
+                lines.push((cpLabel || "30d") + ": " + cpPct + "%" + (cpr ? "  (resets in " + cpr + ")" : ""))
+                if (cpEntitlement > 0) lines.push(cpCredits)
+            }
+        }
         return lines.length ? lines.join("\n") : "AI usage"
     }
 
@@ -146,6 +187,12 @@ Item {
         stdout: StdioCollector { onStreamFinished: { rootMod.cxActive = (this.text.trim() === "1") } }
     }
     Process {
+        id: detectCopilot
+        // exclude our own poller (`copilot-usage`, a python script) and the grep itself
+        command: ["bash", "-c", "pgrep -xa copilot 2>/dev/null | grep -vq copilot-usage && echo 1 || echo 0"]
+        stdout: StdioCollector { onStreamFinished: { rootMod.cpActive = (this.text.trim() === "1") } }
+    }
+    Process {
         id: detectOpenCode
         command: ["bash", "-c", "ps -eo args | grep -E '(^|/| )opencode( |$)|opencode-ai' | grep -vE 'grep|opencode-usage' >/dev/null && echo 1 || echo 0"]
         stdout: StdioCollector { onStreamFinished: { rootMod.ocActive = (this.text.trim() === "1") } }
@@ -156,6 +203,7 @@ Item {
             detectClaude.running = false; detectClaude.running = true
             detectCodex.running = false;  detectCodex.running = true
             detectOpenCode.running = false; detectOpenCode.running = true
+            detectCopilot.running = false; detectCopilot.running = true
         }
     }
 
@@ -170,9 +218,11 @@ Item {
             id: iconItem
             anchors.verticalCenter: parent.verticalCenter
             implicitWidth: rootMod.isOpenCode ? rootMod.ocMarkW
-                : (rootMod.isCodex ? rootMod.codexMarkSize : 15)
+                : (rootMod.isCodex ? rootMod.codexMarkSize
+                : (rootMod.isCopilot ? rootMod.cpMarkSize : 15))
             implicitHeight: rootMod.isOpenCode ? rootMod.ocMarkH
-                : (rootMod.isCodex ? rootMod.codexMarkSize : 15)
+                : (rootMod.isCodex ? rootMod.codexMarkSize
+                : (rootMod.isCopilot ? rootMod.cpMarkSize : 15))
             width: implicitWidth
             height: implicitHeight
 
@@ -266,7 +316,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.blocked
                 ? "BLK"
-                : (rootMod.selSignal ? String(rootMod.pct5h).padStart(2, "0") + "%" : "··")
+                : (rootMod.selHas ? String(rootMod.pct5h).padStart(2, "0") + "%" : "··")
             color: rootMod.contentColor
             font.family: root.mono
             font.pixelSize: 12

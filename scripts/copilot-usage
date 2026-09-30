@@ -1,0 +1,185 @@
+#!/usr/bin/env python3
+"""
+GitHub Copilot premium-request quota for the Quickshell AI usage widget.
+
+Copilot has no Claude/Codex-style 5h/7d window: the metered resource is
+`premium_interactions`, a monthly allowance of premium requests that resets on
+the 1st. This script reads the authoritative snapshot the Copilot CLI and the
+editors themselves use (GET /copilot_internal/user), reusing the GitHub token
+that `gh` already holds — no browser, no cookie, no extra scope, 0 tokens.
+
+It writes ~/.cache/copilot-usage.json using the same schemaVersion-3
+bucket/window shape the widget already understands, so the monthly allowance
+renders through the generic window path (label "30d", real reset countdown).
+"""
+import json
+import os
+import subprocess
+import sys
+import time
+import urllib.error
+import urllib.request
+from datetime import datetime, timezone
+from pathlib import Path
+
+ENDPOINT = "https://api.github.com/copilot_internal/user"
+CACHE_FILE = Path.home() / ".cache" / "copilot-usage.json"
+
+# premium_interactions is billed monthly; the widget's generic window label maps
+# 43200 minutes to "30d" (see Theme.qml aiWindowLabel).
+WINDOW_MINUTES = 43_200
+WINDOW_LABEL = "30d"
+
+# The snapshot only reports the metered quota the account actually has. Chat and
+# completions come back unlimited:true, which is not a usage number to chart.
+METERED_QUOTA = "premium_interactions"
+
+
+def gh_token() -> str | None:
+    """Reuse the GitHub token `gh` already stores; no new credential is created."""
+    for env in ("GH_TOKEN", "GITHUB_TOKEN"):
+        value = os.environ.get(env, "").strip()
+        if value:
+            return value
+    try:
+        out = subprocess.run(["gh", "auth", "token"], capture_output=True,
+                             text=True, timeout=10)
+        token = out.stdout.strip()
+        if out.returncode == 0 and token:
+            return token
+    except Exception:
+        pass
+    return None
+
+
+def fetch(token: str) -> dict | None:
+    req = urllib.request.Request(ENDPOINT, headers={
+        "Authorization":  f"Bearer {token}",
+        "Accept":         "application/vnd.github+json",
+        "X-GitHub-Api-Version": "2022-11-28",
+        "Editor-Version": "vscode/1.99.0",
+        "Copilot-Integration-Id": "vscode-chat",
+        "User-Agent":     "quickshell-rise-copilot-usage",
+    })
+    try:
+        with urllib.request.urlopen(req, timeout=15) as r:
+            return json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        sys.stderr.write(f"HTTP {e.code}: {e.reason}\n")
+    except Exception as e:
+        sys.stderr.write(f"fetch error: {e}\n")
+    return None
+
+
+def iso_ts(value: str) -> int:
+    try:
+        return int(datetime.fromisoformat(
+            str(value).replace("Z", "+00:00")).timestamp())
+    except Exception:
+        return 0
+
+
+def quota_plan_label(data: dict) -> str:
+    plan = str(data.get("copilot_plan") or "").strip()
+    sku = str(data.get("access_type_sku") or "").strip()
+    labels = {
+        "individual": "Individual",
+        "business": "Business",
+        "enterprise": "Enterprise",
+    }
+    base = labels.get(plan, plan)
+    if sku and sku not in ("", "pay_as_you_go"):
+        base = f"{base} · {sku.replace('_', ' ')}"
+    return base
+
+
+def stale_last() -> None:
+    """Keep the last good numbers on screen when the fetch fails."""
+    if not CACHE_FILE.exists():
+        return
+    try:
+        cur = json.loads(CACHE_FILE.read_text())
+        cur["_source"] = "stale"
+        CACHE_FILE.write_text(json.dumps(cur))
+    except Exception:
+        pass
+
+
+def main() -> None:
+    token = gh_token()
+    data = fetch(token) if token else None
+    if not data:
+        if not token:
+            sys.stderr.write("no GitHub token (gh auth login)\n")
+        stale_last()
+        return
+
+    snaps = data.get("quota_snapshots") or {}
+    metered = snaps.get(METERED_QUOTA) or {}
+
+    # An unlimited quota has no percentage to report; keep the window at 0 so the
+    # pill stays readable instead of showing a fabricated number.
+    unlimited = bool(metered.get("unlimited"))
+    entitlement = float(metered.get("entitlement") or 0)
+    credits_used = float(metered.get("credits_used") or 0)
+    utilization = 0.0
+    if not unlimited and entitlement > 0:
+        utilization = min(1.0, max(0.0, credits_used / entitlement))
+
+    reset = iso_ts(data.get("quota_reset_date_utc") or "")
+    if reset <= 0:
+        reset = int(datetime.now(timezone.utc).timestamp()) + 86_400
+
+    window = {
+        "kind": "primary",
+        "minutes": WINDOW_MINUTES,
+        "label": WINDOW_LABEL,
+        "utilization": round(utilization, 4),
+        "reset": reset,
+    }
+    bucket = {
+        "id": "copilot",
+        "label": "GitHub Copilot",
+        "isGeneral": True,
+        "plan": quota_plan_label(data),
+        "windows": [window],
+    }
+
+    if unlimited:
+        status = "allowed"
+        reached = ""
+    elif utilization >= 1.0:
+        status = "rejected"
+        reached = "premium_requests_exhausted"
+    elif utilization >= 0.9:
+        status = "allowed_warning"
+        reached = ""
+    else:
+        status = "allowed"
+        reached = ""
+
+    out = {
+        "schemaVersion": 3,
+        "buckets": [bucket],
+        "windows": [window],
+        "updated_at": datetime.now().strftime("%H:%M:%S"),
+        "_source": "api",
+        "_plan": quota_plan_label(data),
+        "_sku": str(data.get("access_type_sku") or ""),
+        "_quota_bucket": METERED_QUOTA,
+        "_quota_window": WINDOW_LABEL,
+        "_credits_used": int(credits_used),
+        "_credits_entitlement": int(entitlement),
+        "_tokens_used": int(credits_used),
+        "_window_limit": int(entitlement),
+        "_unlimited": unlimited,
+        "_limit_reached_type": reached,
+        "_rate_per_hour": 0,
+        "_today_tokens": 0,
+        "status": status,
+    }
+    CACHE_FILE.write_text(json.dumps(out))
+
+
+if __name__ == "__main__":
+    main()

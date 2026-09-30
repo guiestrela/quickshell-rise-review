@@ -66,9 +66,46 @@ PanelWindow {
     readonly property bool   ocFresh:     root.aiOcFresh
     readonly property bool   ocHas:       root.aiOcHas
     readonly property var    ocModels:    root.aiOcModels
-    readonly property bool   showClaude:  root.aiTool === "claude"
-    readonly property bool   showCodex:   root.aiTool === "codex"
-    readonly property bool   showOpenCode: root.aiTool === "opencode"
+    property var availableTools: []
+    property bool authChecked: false
+    function applyAuthStatus(states) {
+        var tools = [ { id: "claude", label: "Claude" }, { id: "codex", label: "Codex" }, { id: "opencode", label: "OpenCode" }, { id: "copilot", label: "Copilot" } ]
+        // OpenCode stays available explicitly requested, including local/no-login use.
+        availableTools = tools.filter(function(tool) { return tool.id === "opencode" || (states && states[tool.id] === true) })
+        authChecked = true
+        if (availableTools.length > 0 && !availableTools.some(function(tool) { return tool.id === aiPanel.root.aiTool }))
+            aiPanel.root.aiTool = availableTools[0].id
+    }
+    Process {
+        id: authStatusProcess
+        command: [Quickshell.env("HOME") + "/.local/bin/rise-ai-auth-status"]
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { aiPanel.applyAuthStatus(JSON.parse(this.text)) }
+                catch (e) { aiPanel.applyAuthStatus({}) }
+            }
+        }
+    }
+    Timer {
+        interval: 60000; repeat: true; triggeredOnStart: true
+        running: aiPanel.root.aiUsageVisible
+        onTriggered: { if (!authStatusProcess.running) authStatusProcess.running = true }
+    }
+
+    readonly property bool   showClaude:  availableTools.length > 0 && root.aiTool === "claude"
+    readonly property bool   showCodex:   availableTools.length > 0 && root.aiTool === "codex"
+    readonly property bool   showOpenCode: availableTools.length > 0 && root.aiTool === "opencode"
+
+    readonly property bool   cpPct:       root.aiCpPct
+    readonly property string cpLabel:     root.aiCpLabel
+    readonly property int    cpResetTs:   root.aiCpResetTs
+    readonly property string cpPlan:      root.aiCpPlan
+    readonly property bool   cpUnlimited: root.aiCpUnlimited
+    readonly property int    cpUsed:      root.aiCpCreditsUsed
+    readonly property int    cpEntitlement: root.aiCpCreditsEntitlement
+    readonly property bool   cpFresh:     root.aiCpFresh
+    readonly property bool   cpHas:       root.aiCpHas
+    readonly property bool   showCopilot: availableTools.length > 0 && root.aiTool === "copilot"
 
     readonly property real reveal: root.aiUsageReveal
     visible: reveal > 0.001
@@ -119,16 +156,20 @@ PanelWindow {
         property string k: ""
         property string v: ""
         width: parent ? parent.width : 0
+        spacing: 8
         UiText {
             text: k; color: aiPanel.root.sumiHi
             font.family: aiPanel.root.mono; font.pixelSize: 11
-            width: parent.width * 0.45
+            width: Math.max(0, (parent.width - parent.spacing) * 0.45)
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
         }
         UiText {
             text: v; color: aiPanel.root.ink
             font.family: aiPanel.root.mono; font.pixelSize: 11
-            width: parent.width * 0.55; horizontalAlignment: Text.AlignRight
-            elide: Text.ElideRight
+            width: Math.max(0, (parent.width - parent.spacing) * 0.55); horizontalAlignment: Text.AlignRight
+            wrapMode: Text.Wrap
+            textFormat: Text.PlainText
         }
     }
 
@@ -264,16 +305,24 @@ PanelWindow {
                     }
                 }
 
+                UiText {
+                    visible: aiPanel.availableTools.length === 0
+                    width: parent.width
+                    text: aiPanel.authChecked ? "No AI service logged in" : "Checking login…"
+                    color: aiPanel.root.sumiHi
+                    font.family: aiPanel.root.mono; font.pixelSize: 11
+                    wrapMode: Text.WordWrap
+                }
                 // ── segmented switch: which tool the bar shows ──
                 Row {
                     width: parent.width
                     height: 28
                     spacing: 6
                     Repeater {
-                        model: [ { id: "claude", label: "Claude" }, { id: "codex", label: "Codex" }, { id: "opencode", label: "OpenCode" } ]
+                        model: aiPanel.availableTools
                         Rectangle {
                             required property var modelData
-                            width: root.evenW((parent.width - 12) / 3)
+                            width: root.evenW((parent.width - Math.max(0, aiPanel.availableTools.length - 1) * 6) / Math.max(1, aiPanel.availableTools.length))
                             height: 28; radius: root.panelButtonRadius
                             readonly property bool active: root.aiTool === modelData.id
                             color: active ? root.fillActive
@@ -426,6 +475,54 @@ PanelWindow {
                         todayLabel: modelData.todayLabel || "0"
                         pct: parseInt(modelData.pct) || 0
                     }
+                }
+
+                // ── GitHub Copilot ──
+                Item {
+                    visible: aiPanel.showCopilot
+                    width: parent.width; height: Math.max(16, copilotTitle.implicitHeight)
+                    UiText {
+                        id: copilotTitle
+                        anchors.left: parent.left; anchors.right: copilotFreshness.left; anchors.rightMargin: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        wrapMode: Text.WordWrap
+                        textFormat: Text.PlainText
+                        text: "GitHub Copilot" + (aiPanel.cpPlan ? "  · " + aiPanel.cpPlan : "")
+                        color: root.ink
+                        font.family: root.mono; font.pixelSize: 12; font.weight: Font.Medium
+                    }
+                    UiText {
+                        id: copilotFreshness
+                        anchors.right: parent.right; anchors.top: parent.top
+                        text: aiPanel.cpFresh ? "live" : "stale"
+                        color: aiPanel.cpFresh ? root.sumi : root.sealRaw
+                        font.family: root.mono; font.pixelSize: 10
+                    }
+                }
+                UiText {
+                    visible: aiPanel.showCopilot && !aiPanel.cpHas
+                    width: parent.width
+                    text: "no data — run gh auth login"
+                    color: root.sumiHi; font.family: root.mono; font.pixelSize: 11
+                }
+                UsageRow {
+                    visible: aiPanel.showCopilot && aiPanel.cpHas && !aiPanel.cpUnlimited
+                    label: aiPanel.cpLabel || "30d"
+                    pct: aiPanel.cpPct
+                    dim: !aiPanel.cpFresh
+                }
+                DetailRow {
+                    visible: aiPanel.showCopilot && aiPanel.cpHas && aiPanel.cpUnlimited
+                    k: "Premium requests"; v: "unlimited"
+                }
+                DetailRow {
+                    visible: aiPanel.showCopilot && aiPanel.cpHas && !aiPanel.cpUnlimited
+                    k: (aiPanel.cpLabel || "30d") + " resets in"
+                    v: root.aiFmtResetDetail(aiPanel.cpResetTs) || "—"
+                }
+                DetailRow {
+                    visible: aiPanel.showCopilot && aiPanel.cpHas && aiPanel.cpEntitlement > 0
+                    k: "Premium requests"; v: aiPanel.cpUsed + " / " + aiPanel.cpEntitlement
                 }
             }
         }

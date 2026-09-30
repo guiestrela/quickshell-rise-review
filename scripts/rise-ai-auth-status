@@ -1,0 +1,42 @@
+#!/usr/bin/env python3
+"""Read CLI authentication status. Emit booleans only, never command output."""
+import concurrent.futures
+import json
+import re
+import shutil
+import subprocess
+
+COMMANDS = {
+    'codex': ['codex', 'login', 'status'],
+    'claude': ['claude', 'auth', 'status', '--json'],
+    'opencode': ['opencode', 'auth', 'list'],
+    'copilot': ['gh', 'auth', 'status', '--active', '--hostname', 'github.com'],
+}
+
+def logged_in(tool, code, output):
+    if code != 0:
+        return False
+    if tool == 'claude':
+        try:
+            return json.loads(output).get('loggedIn') is True
+        except (ValueError, AttributeError):
+            return False
+    if tool == 'opencode':
+        text = re.sub(r'\x1b\[[0-9;]*[a-zA-Z]', '', output)
+        return any(int(n) > 0 for n in re.findall(r'\b(\d+) (?:credentials?|environment variables?)\b', text))
+    return tool in ('codex', 'copilot')
+
+def probe(tool):
+    command = COMMANDS[tool]
+    executable = shutil.which(command[0])
+    if not executable:
+        return tool, False
+    try:
+        p = subprocess.run([executable, *command[1:]], text=True, capture_output=True, timeout=10)
+        return tool, logged_in(tool, p.returncode, p.stdout + p.stderr)
+    except (OSError, subprocess.TimeoutExpired):
+        return tool, False
+
+if __name__ == '__main__':
+    with concurrent.futures.ThreadPoolExecutor(max_workers=4) as pool:
+        print(json.dumps(dict(pool.map(probe, COMMANDS)), separators=(',', ':')))
