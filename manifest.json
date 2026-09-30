@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "io.github.guiestrela.quickshell-rise",
+  "name": "Quickshell Rise",
+  "version": "1.0.0",
+  "author": "Guiestrela",
+  "license": "MIT",
+  "description": "A full Omarchy bar with the Quickshell Rise design, system panels, and integrated services.",
+  "homepage": "https://github.com/guiestrela/quickshell-dots",
+  "repository": "https://github.com/guiestrela/quickshell-dots",
+  "kinds": ["bar"],
+  "entryPoints": {
+    "bar": "Bar.qml"
+  }
+}

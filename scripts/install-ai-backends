@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+# Install the optional local usage collectors for the AI quota widget.
+# Usage: scripts/install-ai-backends [repository-root]
+set -euo pipefail
+
+src="${1:-$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)}"
+bindst="$HOME/.local/bin"
+unitdst="$HOME/.config/systemd/user"
+
+info() { printf '==> %s\n' "$*"; }
+warn() { printf '!! %s\n' "$*" >&2; }
+
+command -v python3 >/dev/null 2>&1 || {
+  warn "python3 is required for the AI usage collectors."
+  exit 1
+}
+
+mkdir -p "$bindst" "$unitdst"
+
+# Migrate away from the previous split Claude collectors, when present.
+systemctl --user disable --now claude-usage-cookie.timer claude-usage-calc.timer >/dev/null 2>&1 || true
+rm -f "$unitdst"/claude-usage-cookie.* "$unitdst"/claude-usage-calc.* \
+      "$bindst"/claude-usage-cookie "$bindst"/claude-usage-calc
+
+install -m 755 "$src/scripts/claude-usage" "$bindst/claude-usage"
+install -m 644 "$src/systemd/claude-usage.service" "$unitdst/claude-usage.service"
+install -m 644 "$src/systemd/claude-usage.timer" "$unitdst/claude-usage.timer"
+if [[ -f "$HOME/.claude/.credentials.json" ]]; then
+  info "Claude usage collector installed."
+else
+  warn "Claude Code is not logged in yet; run 'claude' and sign in to populate its usage data."
+fi
+
+if command -v codex >/dev/null 2>&1; then
+  install -m 755 "$src/scripts/codex-usage" "$bindst/codex-usage"
+  install -m 644 "$src/systemd/codex-usage.service" "$unitdst/codex-usage.service"
+  install -m 644 "$src/systemd/codex-usage.timer" "$unitdst/codex-usage.timer"
+  info "Codex usage collector installed."
+else
+  warn "Codex CLI was not found; skipping its usage collector. Install Codex and rerun this script to add it."
+fi
+
+install -m 755 "$src/scripts/opencode-usage" "$bindst/opencode-usage"
+install -m 644 "$src/systemd/opencode-usage.service" "$unitdst/opencode-usage.service"
+install -m 644 "$src/systemd/opencode-usage.timer" "$unitdst/opencode-usage.timer"
+if command -v opencode >/dev/null 2>&1 || [[ -e "$HOME/.local/share/opencode/opencode.db" ]]; then
+  info "OpenCode usage collector installed."
+else
+  warn "OpenCode has no local database yet; its usage data will appear after you run OpenCode."
+fi
+
+systemctl --user daemon-reload || warn "Could not reload the user systemd manager."
+for provider in claude opencode; do
+  systemctl --user enable --now "$provider-usage.timer" >/dev/null 2>&1 \
+    || warn "Could not enable $provider-usage.timer; check that the user systemd manager is running."
+done
+if command -v codex >/dev/null 2>&1; then
+  systemctl --user enable --now codex-usage.timer >/dev/null 2>&1 \
+    || warn "Could not enable codex-usage.timer; check that the user systemd manager is running."
+fi
+
+# Prime caches so the widget can show available data without waiting for the timer.
+"$bindst/claude-usage" >/dev/null 2>&1 || true
+"$bindst/opencode-usage" >/dev/null 2>&1 || true
+if command -v codex >/dev/null 2>&1; then
+  "$bindst/codex-usage" >/dev/null 2>&1 || true
+fi
+
+info "AI usage collectors are installed. Enable 'AI usage' in Rise's Control Panel."
