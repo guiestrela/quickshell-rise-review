@@ -26,7 +26,7 @@ Item {
         radius: root.pillRadius
         color: root.pill
         border.color: root.pillBorder
-        border.width: root.pillBorderW
+        border.width: 0
         PillShadow { theme: root }
     }
     Row {
