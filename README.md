@@ -21,7 +21,7 @@ folders. Its bar styling and interactions follow the Quickshell Rise design.
 Add the repository as an Omarchy plugin and select it as the active bar:
 
 ```bash
-omarchy plugin add https://github.com/guiestrela/quickshell-dots.git
+omarchy plugin add https://github.com/guiestrela/quickshell-rise-review.git
 omarchy plugin enable io.github.guiestrela.quickshell-rise
 bash "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/scripts/install-ai-backends"
 omarchy restart shell
