@@ -54,9 +54,8 @@ Item {
         height: 22
         radius: nordVpnWidget.root.pillRadius
         color: nordVpnWidget.root.pill
-        border.color: nordVpnWidget.root.pillBorder
-        border.width: nordVpnWidget.root.pillBorderW
-        PillShadow { theme: nordVpnWidget.root }
+        border.color: "transparent"
+        border.width: 0
     }
 
     Row {

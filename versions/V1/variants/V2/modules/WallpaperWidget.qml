@@ -26,7 +26,7 @@ Item {
         height: root.pillH
         radius: root.pillRadius
         color: root.pill
-        border.color: root.pillBorder
+        border.color: "transparent"
         border.width: root.pillBorderW
         PillShadow { theme: root }
     }
