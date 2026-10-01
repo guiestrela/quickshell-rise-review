@@ -26,13 +26,18 @@ PanelWindow {
 
     function strip(t) { return (t || "").replace(/_([^_])/, "$1") }   // drop GTK mnemonic underscore
 
-    // DBusMenu submenus are often populated lazily after the provider receives
-    // AboutToShow. QsMenuOpener can inspect the root menu, but changing its
-    // handle alone does not send that event. Let Quickshell open nested menus
-    // natively so the provider can populate Pause, Settings and connection lists.
+    // DBusMenu submenus can load asynchronously. QsMenuAnchor waits for the
+    // selected handle to expose its menu before displaying it.
     function openSubmenu(entryHandle, anchorItem) {
-        var point = anchorItem.mapToItem(null, anchorItem.width, anchorItem.height / 2)
-        entryHandle.display(trayMenu, Math.round(point.x), Math.round(point.y))
+        if (submenuAnchor.visible) submenuAnchor.close()
+        submenuAnchor.menu = entryHandle
+        submenuAnchor.anchor.item = anchorItem
+        submenuAnchor.open()
+    }
+
+    QsMenuAnchor {
+        id: submenuAnchor
+        menu: null
     }
 
     Connections {
