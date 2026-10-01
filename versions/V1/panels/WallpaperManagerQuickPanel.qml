@@ -111,7 +111,7 @@ PanelWindow {
         height: Math.min(content.implicitHeight + 28, panel.height - 32)
         color: panel.root.paper
         border.color: panel.root.pillBorder
-        border.width: panel.root.pillBorderW
+        border.width: 0
         radius: panel.root.pillRadius
         focus: panel.visible
         Keys.onEscapePressed: panel.dismiss()
