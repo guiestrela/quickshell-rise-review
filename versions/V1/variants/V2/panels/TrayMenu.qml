@@ -26,18 +26,20 @@ PanelWindow {
 
     function strip(t) { return (t || "").replace(/_([^_])/, "$1") }   // drop GTK mnemonic underscore
 
-    // DBusMenu submenus can load asynchronously. QsMenuAnchor waits for the
-    // selected handle to expose its menu before displaying it.
-    function openSubmenu(entryHandle, anchorItem) {
-        if (submenuAnchor.visible) submenuAnchor.close()
-        submenuAnchor.menu = entryHandle
-        submenuAnchor.anchor.item = anchorItem
-        submenuAnchor.open()
+    // DBusMenu providers often populate submenu children only after receiving
+    // the entry's opened event. Emit it explicitly, then render its children
+    // in this themed panel instead of opening a native popup behind the overlay.
+    function openSubmenu(entryHandle) {
+        if (!entryHandle) return
+        if (typeof entryHandle.opened === "function") entryHandle.opened()
+        trayMenu.menuStack = trayMenu.menuStack.concat([entryHandle])
     }
 
-    QsMenuAnchor {
-        id: submenuAnchor
-        menu: null
+    function goBack() {
+        if (trayMenu.menuStack.length <= 1) return
+        var current = trayMenu.currentHandle
+        if (current && typeof current.closed === "function") current.closed()
+        trayMenu.menuStack = trayMenu.menuStack.slice(0, -1)
     }
 
     Connections {
@@ -160,7 +162,7 @@ PanelWindow {
                     id: backMa
                     anchors.fill: parent; hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: trayMenu.menuStack = trayMenu.menuStack.slice(0, -1)
+                    onClicked: trayMenu.goBack()
                 }
             }
             Rectangle {
@@ -245,7 +247,7 @@ PanelWindow {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 if (entry.modelData.hasChildren) {
-                                    trayMenu.openSubmenu(entry.modelData, entry)
+                                    trayMenu.openSubmenu(entry.modelData)
                                 } else {
                                     entry.modelData.triggered()
                                     root.trayMenuVisible = false
