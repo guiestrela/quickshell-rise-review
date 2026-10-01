@@ -93,6 +93,24 @@ for (const [name, path] of variants) {
     assert.equal(api.configFor(rejected, 'DP-1', '/home/test').mode, 'single');
   });
 
+  test(`${name}: atualização de perfil persiste modo e escala por monitor sem alterar outros`, () => {
+    const api = profile(path);
+    const settings = {
+      perDisplayConfig: true,
+      displayConfig: {
+        all: { folder: '/shared', mode: 'shuffle', scaling: 'zoom' },
+        'DP-2': { folder: '/two', mode: 'single', scaling: 'actual' },
+      },
+    };
+    const changed = api.updateDisplay(settings, 'DP-1', { mode: 'single', scaling: 'fitWidth' }, '/home/test');
+    assert.equal(api.configFor(changed, 'DP-1', '/home/test').mode, 'single');
+    assert.equal(api.configFor(changed, 'DP-1', '/home/test').scaling, 'fitWidth');
+    assert.equal(api.configFor(changed, 'DP-2', '/home/test').scaling, 'actual');
+    assert.equal(api.configFor(changed, 'DP-3', '/home/test').scaling, 'zoom');
+    const rejected = api.updateDisplay(changed, 'DP-1', { scaling: 'javascript:bad' }, '/home/test');
+    assert.equal(api.configFor(rejected, 'DP-1', '/home/test').scaling, 'fitWidth');
+  });
+
   test(`${name}: pin somente aceita imagem dentro da pasta e limpa ao trocar pasta`, () => {
     const api = profile(path);
     const base = { perDisplayConfig: true, displayConfig: { 'DP-1': { folder: '/wall' } } };

@@ -17,7 +17,7 @@ Item {
     readonly property bool isCopilot: root.aiTool === "copilot"
     readonly property bool isLogo: isCodex || isOpenCode || isCopilot
     readonly property url  logoSource: Qt.resolvedUrl(
-        isCopilot  ? "../assets/copilot.svg"
+        isCopilot  ? "../assets/copilot-white.svg"
       : isOpenCode ? "../assets/opencode-mark.svg"
       : "../assets/codex.svg")
     readonly property var  logoSourceSize: isOpenCode ? Qt.size(20, 12) : Qt.size(56, 56)

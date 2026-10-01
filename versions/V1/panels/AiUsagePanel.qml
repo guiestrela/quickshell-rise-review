@@ -67,7 +67,7 @@ PanelWindow {
     readonly property bool   ocHas:       root.aiOcHas
     readonly property var    ocModels:    root.aiOcModels
 
-    readonly property bool   cpPct:       root.aiCpPct
+    readonly property int    cpPct:       root.aiCpPct
     readonly property string cpLabel:     root.aiCpLabel
     readonly property int    cpResetTs:   root.aiCpResetTs
     readonly property string cpPlan:      root.aiCpPlan

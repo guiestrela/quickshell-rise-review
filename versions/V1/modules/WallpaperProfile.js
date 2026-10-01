@@ -40,6 +40,9 @@ function updateDisplay(settings, outputName, patch, home) {
         if (changed.folder !== current.folder) changed.pinned = ""
     }
     if (patch.mode === "single" || patch.mode === "shuffle") changed.mode = patch.mode
+    if (patch.recursive === true || patch.recursive === false) changed.recursive = patch.recursive
+    if (["zoom", "fitHeight", "fitWidth", "actual"].indexOf(patch.scaling) !== -1)
+        changed.scaling = patch.scaling
     if (patch.pinned !== undefined) {
         var pin = safePath(patch.pinned, home)
         if (patch.pinned === "" || (changed.folder !== "" && pin.indexOf(changed.folder + "/") === 0))

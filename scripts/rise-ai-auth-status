@@ -5,6 +5,7 @@ import json
 import re
 import shutil
 import subprocess
+from pathlib import Path
 
 COMMANDS = {
     'codex': ['codex', 'login', 'status'],
@@ -26,7 +27,24 @@ def logged_in(tool, code, output):
         return any(int(n) > 0 for n in re.findall(r'\b(\d+) (?:credentials?|environment variables?)\b', text))
     return tool in ('codex', 'copilot')
 
+def native_logged_in(tool):
+    """Match Omarchy's agent panel: a usable native record counts as logged in."""
+    path = Path.home() / '.local/state/omarchy/agents/usage' / f'{tool}.json'
+    try:
+        record = json.loads(path.read_text())
+    except (OSError, ValueError):
+        return False
+    if not isinstance(record, dict):
+        return False
+    if record.get('ready') is True or record.get('balance'):
+        return True
+    if record.get('limits'):
+        return True
+    return any(int(record.get(key) or 0) > 0 for key in ('totalPrompts', 'totalSessions', 'activeDays'))
+
 def probe(tool):
+    if native_logged_in(tool):
+        return tool, True
     command = COMMANDS[tool]
     executable = shutil.which(command[0])
     if not executable:

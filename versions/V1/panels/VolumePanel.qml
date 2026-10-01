@@ -23,6 +23,7 @@ PanelWindow {
     readonly property int    volume:   audio.volume
     readonly property bool   muted:    audio.muted
     property bool   micMuted: false
+    property real   micVolume: 0
     property real   micLevel: 0
     property bool   notifyMicStateAfterRefresh: false
     property bool   micStateRefreshPending: false
@@ -117,6 +118,15 @@ PanelWindow {
             return
         }
         micData.running = true
+        micVolumeData.running = false
+        micVolumeData.running = true
+    }
+
+    function setMicVolume(value) {
+        micVolume = Math.max(0, Math.min(1, value))
+        micVolumeRunner.command = ["bash", "-c", "wpctl set-volume @DEFAULT_AUDIO_SOURCE@ " + micVolume.toFixed(3)]
+        micVolumeRunner.running = false
+        micVolumeRunner.running = true
     }
 
     function setDefaultSink(dev) {
@@ -480,6 +490,34 @@ PanelWindow {
                 }
             }
 
+            Item {
+                width: parent.width
+                height: 30
+                UiText {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    anchors.top: parent.top
+                    text: "Mic volume  " + Math.round(volPanel.micVolume * 100) + "%"
+                    color: root.seal
+                    font.family: root.mono; font.pixelSize: 11; font.weight: Font.Medium
+                }
+                Rectangle {
+                    anchors.bottom: parent.bottom
+                    width: parent.width; height: 8; radius: 4
+                    color: root.fillActive
+                    Rectangle {
+                        width: parent.width * volPanel.micVolume
+                        height: parent.height; radius: 4
+                        color: root.seal
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.SizeHorCursor
+                        onPressed: function(event) { volPanel.setMicVolume(Math.max(0, Math.min(1, event.x / width))) }
+                        onPositionChanged: function(event) { if (pressed) volPanel.setMicVolume(Math.max(0, Math.min(1, event.x / width))) }
+                    }
+                }
+            }
+
             Rectangle {
                 width: parent.width
                 height: 28; radius: root.tileRadius
@@ -506,32 +544,6 @@ PanelWindow {
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
-
-            // ── open audio ──
-            Rectangle {
-                width: parent.width
-                height: 28; radius: root.tileRadius
-                color: audioBtnMa.containsMouse ? root.fillPrimaryHover : root.seal
-                Behavior on color { ColorAnimation { duration: 120 } }
-                UiText {
-                    anchors.centerIn: parent
-                    text: "Open audio"
-                    color: root.paper
-                    font.family: root.mono; font.pixelSize: 11
-                }
-                MouseArea {
-                    id: audioBtnMa
-                    anchors.fill: parent
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        root.volVisible = false
-                        audioRunner.running = false
-                        audioRunner.running = true
-                    }
-                }
-            }
         }
     }
 
@@ -553,7 +565,22 @@ PanelWindow {
             volPanel.refreshMicState(code === 0)
         }
     }
-    Process { id: audioRunner;   command: ["bash", "-c", "omarchy-launch-audio"] }
+    Process {
+        id: micVolumeRunner
+        running: false
+        onExited: function(code) { if (code !== 0) volPanel.notifyAudioError("Set mic volume", code) }
+    }
+    Process {
+        id: micVolumeData
+        command: ["bash", "-c", "wpctl get-volume @DEFAULT_AUDIO_SOURCE@"]
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var match = String(this.text || "").match(/Volume:\s*([0-9.]+)/)
+                if (match) volPanel.micVolume = Math.max(0, Math.min(1, parseFloat(match[1]) || 0))
+            }
+        }
+    }
     Process {
         id: actProc
         property bool refreshAfterExit: false

@@ -23,10 +23,20 @@ PanelWindow {
     property string calendarLoadError: ""
     property bool calendarLoading: false
     property string calendarSyncMessage: ""
+    onCalendarSyncMessageChanged: if (calendarSyncMessage !== "") calendarMessageTimer.restart()
     property bool calendarPushArmed: false
     readonly property string calendarPullPath: String(Qt.resolvedUrl("../integrations/google-calendar/scripts/calendar-pull")).replace(/^file:\/\//, "")
     readonly property string calendarPushPath: String(Qt.resolvedUrl("../integrations/google-calendar/scripts/calendar-push")).replace(/^file:\/\//, "")
     readonly property string calendarEventsPath: String(Qt.resolvedUrl("../integrations/google-calendar/scripts/calendar-events")).replace(/^file:\/\//, "")
+    property bool editingEvent: false
+    property string eventTitle: ""
+    property string eventDescription: ""
+    property string eventRepeat: "none"
+    property string eventRepeatCount: ""
+    property var deleteCandidate: null
+    readonly property string calendarCreatePath: String(Qt.resolvedUrl("../integrations/google-calendar/scripts/calendar-create")).replace(/^file:\/\//, "")
+    readonly property string calendarMutatePath: String(Qt.resolvedUrl("../integrations/google-calendar/scripts/calendar-mutate")).replace(/^file:\/\//, "")
+    readonly property string calendarSetupPath: String(Qt.resolvedUrl("../integrations/google-calendar/setup")).replace(/^file:\/\//, "")
 
     function dateKey(date) {
         return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0")
@@ -38,6 +48,13 @@ PanelWindow {
         return dateKey(target)
     }
     readonly property var agendaEvents: CalendarModel.eventsForDate(calendarEvents, agendaDateKey)
+
+    function hasEventOnDay(day) {
+        if (!day) return false
+        var now = new Date()
+        var target = new Date(now.getFullYear(), now.getMonth() + root.calendarMonthOffset, day)
+        return CalendarModel.eventsForDate(calendarEvents, dateKey(target)).length > 0
+    }
 
     function refreshCalendarEvents() {
         var now = new Date()
@@ -70,6 +87,35 @@ PanelWindow {
         calendarSyncMessage = "Sending local changes to Google…"
         calendarActionProc.command = [calendarPushPath, "--confirm"]
         calendarActionProc.running = true
+    }
+
+    function startEventCreation() {
+        editingEvent = true; eventTitle = ""; eventDescription = ""; eventRepeat = "none"; eventRepeatCount = ""
+        Qt.callLater(function() { eventTitleInput.forceActiveFocus() })
+    }
+    function saveEvent() {
+        var title = String(eventTitle || "").trim()
+        if (title === "" || calendarCreateProc.running) return
+        calendarCreateProc.command = [calendarCreatePath, title, agendaDateKey, "", eventRepeat, eventRepeat === "none" ? "" : eventRepeatCount, eventDescription]
+        calendarCreateProc.running = true
+    }
+    function connectGoogleCalendar() {
+        calendarSyncMessage = "Opening Google Calendar setup..."
+        calendarSetupProc.running = false
+        calendarSetupProc.running = true
+    }
+    function deleteEvent(event) {
+        if (!event || !event.uid || !event.instance_id) return
+        if (!deleteCandidate || deleteCandidate.instance_id !== event.instance_id) {
+            deleteCandidate = event
+            calendarSyncMessage = "Press DEL again to delete this event."
+            return
+        }
+        var uid = String(event.uid), instance = String(event.instance_id)
+        var scope = instance.indexOf(uid + "__") === 0 ? "instance" : "series"
+        calendarMutateProc.command = [calendarMutatePath, "delete", scope, String(event.calendar || "default"), uid, instance, "--confirm"]
+        calendarMutateProc.running = true
+        deleteCandidate = null
     }
 
     property real reveal: root.calendarVisible ? 1 : 0
@@ -248,6 +294,15 @@ PanelWindow {
                             visible: isSelected && !isToday
                         }
 
+                        Rectangle {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            anchors.bottom: parent.bottom
+                            anchors.bottomMargin: 1
+                            width: 4; height: 4; radius: 2
+                            color: isToday ? root.paper : root.seal
+                            visible: isCurrentMonth && calPopup.hasEventOnDay(modelData.day)
+                        }
+
                         UiText {
                             anchors.centerIn: parent
                             text: modelData.day === 0 ? "" : modelData.day
@@ -326,7 +381,7 @@ PanelWindow {
                             font.pixelSize: 8
                         }
                         UiText {
-                            width: parent.width - 60
+                            width: parent.width - 88
                             height: parent.height
                             verticalAlignment: Text.AlignVCenter
                             text: String(modelData.title || "Untitled event")
@@ -334,6 +389,13 @@ PanelWindow {
                             font.family: root.mono
                             font.pixelSize: 9
                             elide: Text.ElideRight
+                        }
+                        Rectangle {
+                            width: 22; height: 18; radius: root.tileRadius
+                            color: deleteMouse.containsMouse ? root.fillHover : root.fillIdle
+                            border.color: deleteMouse.containsMouse ? root.seal : root.sep; border.width: 1
+                            UiText { anchors.centerIn: parent; text: "DEL"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 7 }
+                            MouseArea { id: deleteMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: calPopup.deleteEvent(modelData) }
                         }
                     }
                 }
@@ -348,6 +410,57 @@ PanelWindow {
                 }
             }
 
+            Row {
+                width: parent.width; height: 24
+                Rectangle { width: parent.width; height: 24; radius: root.tileRadius; color: newEventMouse.containsMouse ? root.fillHover : root.fillIdle; border.color: newEventMouse.containsMouse ? root.seal : root.sep; border.width: 1
+                    UiText { anchors.centerIn: parent; text: calPopup.editingEvent ? "CANCEL EVENT" : "+ NEW EVENT"; color: root.seal; font.family: root.mono; font.pixelSize: 8 }
+                    MouseArea { id: newEventMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: calPopup.editingEvent ? calPopup.editingEvent = false : calPopup.startEventCreation() }
+                }
+            }
+            Column {
+                visible: calPopup.editingEvent; width: parent.width; spacing: 5
+                TextInput { id: eventTitleInput; width: parent.width; height: 25; text: calPopup.eventTitle; onTextEdited: calPopup.eventTitle = text; color: root.ink; font.family: root.mono; font.pixelSize: 10; leftPadding: 7 }
+                TextInput { width: parent.width; height: 30; text: calPopup.eventDescription; onTextEdited: calPopup.eventDescription = text; color: root.ink; font.family: root.mono; font.pixelSize: 9; leftPadding: 7 }
+                Row {
+                    width: parent.width
+                    height: 22
+                    spacing: 3
+                    Repeater {
+                        model: [{ v: "none", t: "ONCE" }, { v: "daily", t: "DAY" }, { v: "weekly", t: "WEEK" }, { v: "monthly", t: "MONTH" }, { v: "yearly", t: "YEAR" }]
+                        delegate: Rectangle {
+                            required property var modelData
+                            width: (parent.width - 12) / 5
+                            height: 22
+                            radius: root.tileRadius
+                            color: calPopup.eventRepeat === modelData.v ? root.fillActive : root.fillIdle
+                            border.color: calPopup.eventRepeat === modelData.v ? root.seal : root.sep
+                            border.width: 1
+                            UiText { anchors.centerIn: parent; text: modelData.t; color: root.ink; font.family: root.mono; font.pixelSize: 7 }
+                            MouseArea { anchors.fill: parent; onClicked: calPopup.eventRepeat = modelData.v }
+                        }
+
+                        Rectangle {
+                            width: parent.width; height: 24; radius: root.tileRadius
+                            color: connectGoogleMouse.containsMouse ? root.fillHover : root.fillIdle
+                            border.color: connectGoogleMouse.containsMouse ? root.seal : root.sep; border.width: 1
+                            UiText { anchors.centerIn: parent; text: "CONNECT GOOGLE"; color: root.seal; font.family: root.mono; font.pixelSize: 8 }
+                            MouseArea { id: connectGoogleMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: calPopup.connectGoogleCalendar() }
+                        }
+                    }
+                }
+                TextInput { visible: calPopup.eventRepeat !== "none"; width: parent.width; height: 23; text: calPopup.eventRepeatCount; onTextEdited: calPopup.eventRepeatCount = text; color: root.ink; font.family: root.mono; font.pixelSize: 9; leftPadding: 7; Rectangle { z: -1; anchors.fill: parent; color: root.fillIdle; border.color: root.sep; border.width: 1; radius: root.tileRadius } }
+                Rectangle { width: parent.width; height: 25; radius: root.tileRadius; color: root.seal
+                    UiText { anchors.centerIn: parent; text: calendarCreateProc.running ? "SAVING..." : "SAVE EVENT"; color: root.paper; font.family: root.mono; font.pixelSize: 8 }
+                    MouseArea { anchors.fill: parent; enabled: !calendarCreateProc.running; onClicked: calPopup.saveEvent() }
+                }
+            }
+            Rectangle {
+                width: parent.width; height: 24; radius: root.tileRadius
+                color: connectGoogleOutside.containsMouse ? root.fillHover : root.fillIdle
+                border.color: connectGoogleOutside.containsMouse ? root.seal : root.sep; border.width: 1
+                UiText { anchors.centerIn: parent; text: "CONNECT GOOGLE"; color: root.seal; font.family: root.mono; font.pixelSize: 8 }
+                MouseArea { id: connectGoogleOutside; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: calPopup.connectGoogleCalendar() }
+            }
             Row {
                 width: parent.width
                 height: 24
@@ -443,7 +556,37 @@ PanelWindow {
             if (exitCode === 0) calPopup.refreshCalendarEvents()
         }
     }
+    Process {
+        id: calendarCreateProc
+        command: ["true"]
+        running: false
+        stdout: StdioCollector { onStreamFinished: calPopup.calendarSyncMessage = String(this.text || "").trim() }
+        stderr: StdioCollector { onStreamFinished: { var error = String(this.text || "").trim(); if (error) calPopup.calendarSyncMessage = error } }
+        onExited: function(code) {
+            calPopup.editingEvent = false
+            calPopup.calendarSyncMessage = code === 0 ? "Event saved" : (calPopup.calendarSyncMessage || "Could not save event")
+            if (code === 0) calPopup.refreshCalendarEvents()
+        }
+    }
+    Process {
+        id: calendarMutateProc
+        command: ["true"]
+        running: false
+        stderr: StdioCollector { onStreamFinished: { var error = String(this.text || "").trim(); if (error) calendarMutateProc.output = error } }
+        property string output: ""
+        onExited: function(code) {
+            calPopup.calendarSyncMessage = code === 0 ? "Event deleted" : (calendarMutateProc.output || "Could not delete event")
+            calendarMutateProc.output = ""
+            if (code === 0) calPopup.refreshCalendarEvents()
+        }
+    }
+    Process {
+        id: calendarSetupProc
+        command: ["bash", "-c", "omarchy-launch-floating-terminal-with-presentation " + calPopup.calendarSetupPath]
+        running: false
+    }
     Timer { id: calendarPushConfirmTimer; interval: 5000; onTriggered: calPopup.calendarPushArmed = false }
+    Timer { id: calendarMessageTimer; interval: 4000; repeat: false; onTriggered: calPopup.calendarSyncMessage = "" }
 
     onVisibleChanged: if (visible) refreshCalendarEvents()
     Connections {

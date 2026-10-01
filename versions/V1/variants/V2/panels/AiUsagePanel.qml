@@ -96,7 +96,7 @@ PanelWindow {
     readonly property bool   showCodex:   availableTools.length > 0 && root.aiTool === "codex"
     readonly property bool   showOpenCode: availableTools.length > 0 && root.aiTool === "opencode"
 
-    readonly property bool   cpPct:       root.aiCpPct
+    readonly property int    cpPct:       root.aiCpPct
     readonly property string cpLabel:     root.aiCpLabel
     readonly property int    cpResetTs:   root.aiCpResetTs
     readonly property string cpPlan:      root.aiCpPlan

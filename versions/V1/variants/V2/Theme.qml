@@ -5,6 +5,7 @@ import Quickshell.Hyprland
 import Quickshell.Services.UPower
 import "Palette.js" as Palette
 import "modules"
+import "modules/WallpaperProfile.js" as WallpaperProfile
 
 Item {
     id: theme
@@ -40,6 +41,56 @@ Item {
     }
 
     WallpaperManagerService { id: wallpaperManagerService; theme: theme }
+    readonly property var wallpaperManagerServiceApi: wallpaperManagerService
+    property var wallpaperManagerSettings: ({ folder: wallpaperManagerFolder, recursive: true,
+        perDisplayConfig: false, displayConfig: { all: { folder: wallpaperManagerFolder,
+            recursive: true, mode: "shuffle", scaling: "zoom", pinned: "" } } })
+    readonly property var wallpaperOutputs: wallpaperManagerService.liveScreens
+    property string wallpaperManagerDisplay: "all"
+    property string wallpaperManagerTab: "displays"
+    property bool wallpaperManagerVisible: false
+    onWallpaperManagerVisibleChanged: popupOpened("wallpaperManagerVisible")
+    function wallpaperProfileFor(name) {
+        return WallpaperProfile.configFor(wallpaperManagerSettings, name, String(Quickshell.env("HOME") || ""))
+    }
+    function setWallpaperProfile(patch) {
+        var name = wallpaperManagerDisplay === "all" ? "all" : wallpaperManagerDisplay
+        wallpaperManagerSettings = WallpaperProfile.updateDisplay(wallpaperManagerSettings, name, patch,
+            String(Quickshell.env("HOME") || ""))
+        if (!wallpaperManagerSettings.perDisplayConfig && patch.folder !== undefined)
+            wallpaperManagerFolder = wallpaperManagerSettings.displayConfig.all.folder
+        saveWallpaperProfile()
+        wallpaperManagerService.scanFolder()
+    }
+    function setWallpaperPerDisplay(enabled) {
+        var next = Object.assign({}, wallpaperManagerSettings, { perDisplayConfig: enabled === true })
+        wallpaperManagerSettings = next
+        saveWallpaperProfile()
+        wallpaperManagerService.scanFolder()
+    }
+    FileView {
+        id: wallpaperProfileFile
+        path: Quickshell.env("HOME") + "/.cache/quickshell-rise/wallpaper-manager.json"
+        printErrors: false
+        onLoaded: {
+            try {
+                var parsed = JSON.parse(String(text() || "{}"))
+                if (parsed && typeof parsed === "object") theme.wallpaperManagerSettings = parsed
+            } catch (error) { console.warn("[WallpaperManager] Ignoring invalid profile settings") }
+        }
+    }
+    Process {
+        id: wallpaperProfileDirectory
+        command: ["mkdir", "-p", Quickshell.env("HOME") + "/.cache/quickshell-rise"]
+        running: false
+        onExited: function(exitCode) {
+            if (exitCode === 0) wallpaperProfileFile.setText(JSON.stringify(theme.wallpaperManagerSettings, null, 2) + "\n")
+        }
+    }
+    function saveWallpaperProfile() {
+        wallpaperProfileDirectory.running = false
+        wallpaperProfileDirectory.running = true
+    }
     function shuffleWallpapers() { wallpaperManagerService.shuffleAll() }
     function pinWallpaper(path) { wallpaperManagerService.pinAll(path) }
 
@@ -204,7 +255,8 @@ Item {
         || batteryVisible || brightnessVisible || mprisVisible || weatherVisible
         || workspaceVisible || imagePickerVisible || mediaBrowserVisible || notifVisible
         || powerProfileVisible || storageVisible || archVisible || trayVisible || trayMenuVisible
-    readonly property bool keyboardPopupVisible: imagePickerVisible || mediaBrowserVisible
+        || wallpaperManagerVisible
+    readonly property bool keyboardPopupVisible: imagePickerVisible || mediaBrowserVisible || wallpaperManagerVisible
 
     function registerBarLayoutController(screenName, controller) {
         if (!screenName || !controller) return
@@ -457,6 +509,7 @@ Item {
         if (except !== "archVisible") archVisible = false
         if (except !== "trayVisible") trayVisible = false
         if (except !== "trayMenuVisible") trayMenuVisible = false
+        if (except !== "wallpaperManagerVisible") wallpaperManagerVisible = false
         hideTooltip()
         _closingPopups = false
     }
@@ -485,6 +538,14 @@ Item {
         mediaBrowserVisible = false
         imagePickerMode = mode
         imagePickerVisible = true
+    }
+
+    function toggleWallpaperManager(screen) {
+        if (wallpaperManagerVisible) { wallpaperManagerVisible = false; return }
+        if (screen && screen.name !== "") activatePopupScreen(screen)
+        else activateFocusedPopupScreen()
+        closePopups("wallpaperManagerVisible")
+        wallpaperManagerVisible = true
     }
 
     function toggleImagePicker(mode, screen) {
@@ -797,6 +858,8 @@ Item {
             if (windows[i].minutes > best.minutes) best = windows[i]
         }
         theme.aiCpPct = best.pct
+        if (!theme.aiCpUnlimited && theme.aiCpCreditsEntitlement > 0)
+            theme.aiCpPct = Math.max(0, Math.min(100, Math.round(theme.aiCpCreditsUsed / theme.aiCpCreditsEntitlement * 100)))
         theme.aiCpLabel = best.label
         theme.aiCpResetTs = best.resetTs
     }

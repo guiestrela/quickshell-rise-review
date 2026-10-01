@@ -26,11 +26,29 @@ PanelWindow {
     readonly property string barctlPath: Quickshell.env("HOME") + "/.config/quickshell/bin/qs-barctl"
 
     function switchBar(version) {
+        if (version !== "v1" && version !== "v2") return
         root.controlVisible = false
         if (root.variantHost)
             root.variantHost.requestSwitch(version)
         else
             Quickshell.execDetached([barctlPath, "switch", version])
+    }
+
+    function reloadBar() {
+        root.controlVisible = false
+        Quickshell.reload(false)
+    }
+
+    function runPowerAction(action) {
+        var commands = {
+            lock: ["omarchy", "system", "lock"],
+            suspend: ["systemctl", "--no-ask-password", "suspend"],
+            reboot: ["omarchy", "system", "reboot"],
+            shutdown: ["omarchy", "system", "shutdown"]
+        }
+        if (!commands[action]) return
+        Quickshell.execDetached(commands[action])
+        root.controlVisible = false
     }
 
     property real reveal: root.controlVisible ? 1 : 0
@@ -180,7 +198,7 @@ PanelWindow {
                 Tile {
                     width: root.evenW((col.width - 12) / 3)
                     label: "Reload"
-                    onActivated: { root.controlVisible = false; Quickshell.reload(false) }
+                    onActivated: ctrlPanel.reloadBar()
                 }
                 Tile {
                     width: root.evenW((col.width - 12) / 3)
@@ -216,24 +234,24 @@ PanelWindow {
                 Tile {
                     width: root.evenW((col.width - 8) / 2)
                     label: "Lock"
-                    onActivated: { root.controlVisible = false; Quickshell.execDetached(["hyprlock"]) }
+                    onActivated: ctrlPanel.runPowerAction("lock")
                 }
                 Tile {
                     width: root.evenW((col.width - 8) / 2)
                     label: "Suspend"
-                    onActivated: { root.controlVisible = false; Quickshell.execDetached(["systemctl", "suspend"]) }
+                    onActivated: ctrlPanel.runPowerAction("suspend")
                 }
                 Tile {
                     width: root.evenW((col.width - 8) / 2)
                     label: "Reboot"
-                    accent: root.indigo
-                    onActivated: { root.controlVisible = false; Quickshell.execDetached(["systemctl", "reboot"]) }
+                    accent: root.seal
+                    onActivated: ctrlPanel.runPowerAction("reboot")
                 }
                 Tile {
                     width: root.evenW((col.width - 8) / 2)
                     label: "Shutdown"
                     accent: root.seal
-                    onActivated: { root.controlVisible = false; Quickshell.execDetached(["systemctl", "poweroff"]) }
+                    onActivated: ctrlPanel.runPowerAction("shutdown")
                 }
             }
 

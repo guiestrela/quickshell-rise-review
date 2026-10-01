@@ -16,6 +16,9 @@ Item {
     property int scanRequest: 0
     property string pinnedPath: ""
     property string pendingPin: ""
+    // Test seam: isolated harnesses exercise selection/scaling without invoking
+    // the Omarchy wallpaper command. Production remains Rise's single owner.
+    property bool allowWallpaperEffects: true
 
     readonly property int intervalSeconds: theme.wallpaperShuffleInterval
     readonly property var liveScreens: {
@@ -29,6 +32,12 @@ Item {
     }
 
     function pathFor(outputName) { return String(currentByOutput[String(outputName)] || "") }
+    function profileFor(outputName) {
+        return manager.theme.wallpaperProfileFor
+            ? manager.theme.wallpaperProfileFor(String(outputName))
+            : ({ mode: "shuffle", scaling: "zoom", folder: manager.theme.wallpaperManagerFolder })
+    }
+    function scalingFor(outputName) { return String(profileFor(outputName).scaling || "zoom") }
     function fileUrl(path) {
         return "file://" + String(path || "").split("/").map(function(part) {
             return encodeURIComponent(part)
@@ -82,7 +91,11 @@ Item {
         for (var i = 0; i < liveScreens.length; i++) {
             var name = String(liveScreens[i].name)
             var previous = pathFor(name)
-            var candidate = deal(previous)
+            var profile = profileFor(name)
+            // Single keeps its per-display choice; Shuffle advances it. A
+            // newly connected display gets one initial deal in either mode.
+            var candidate = profile.mode === "single" && previous !== "" && !badPaths[previous]
+                ? previous : deal(previous)
             // If the folder is smaller than the display count, repeats are
             // allowed only after every eligible image has been dealt.
             if (candidate !== "" && used[candidate]) candidate = previous
@@ -91,7 +104,7 @@ Item {
         }
         currentByOutput = next
         var primaryPath = liveScreens.length > 0 ? pathFor(liveScreens[0].name) : ""
-        if (primaryPath !== "" && !/\.(mp4|webm|mkv|mov|avi)$/i.test(primaryPath)) {
+        if (manager.allowWallpaperEffects && primaryPath !== "" && !/\.(mp4|webm|mkv|mov|avi)$/i.test(primaryPath)) {
             syncCurrent.command = ["bash", "-c", "omarchy-theme-bg-set \"$1\"", "rise-wallpaper-current", primaryPath]
             syncCurrent.running = false
             syncCurrent.running = true
@@ -107,7 +120,7 @@ Item {
         var next = ({})
         for (var i = 0; i < liveScreens.length; i++) next[String(liveScreens[i].name)] = value
         currentByOutput = next
-        if (liveScreens.length > 0 && !/\.(mp4|webm|mkv|mov|avi)$/i.test(value)) {
+        if (manager.allowWallpaperEffects && liveScreens.length > 0 && !/\.(mp4|webm|mkv|mov|avi)$/i.test(value)) {
             syncCurrent.command = ["bash", "-c", "omarchy-theme-bg-set \"$1\"", "rise-wallpaper-current", value]
             syncCurrent.running = false
             syncCurrent.running = true
@@ -183,12 +196,24 @@ Item {
                 readonly property string imageUrl: manager.fileUrl(imagePath)
                 readonly property bool video: /\.(mp4|webm|mkv|mov|avi)$/i.test(imagePath)
                 readonly property bool animated: /\.gif$/i.test(imagePath)
+                readonly property string scaling: manager.scalingFor(modelData.name)
 
                 AnimatedImage {
-                    anchors.fill: parent
+                    anchors.centerIn: parent
+                    width: wallpaperWindow.scaling === "zoom" || wallpaperWindow.implicitWidth <= 0
+                        ? parent.width
+                        : wallpaperWindow.scaling === "fitHeight"
+                            ? implicitWidth * parent.height / Math.max(1, implicitHeight)
+                            : wallpaperWindow.scaling === "fitWidth" ? parent.width : implicitWidth
+                    height: wallpaperWindow.scaling === "zoom" || wallpaperWindow.implicitHeight <= 0
+                        ? parent.height
+                        : wallpaperWindow.scaling === "fitWidth"
+                            ? implicitHeight * parent.width / Math.max(1, implicitWidth)
+                            : wallpaperWindow.scaling === "fitHeight" ? parent.height : implicitHeight
                     visible: wallpaperWindow.imagePath !== "" && !wallpaperWindow.video
                     source: visible ? wallpaperWindow.imageUrl : ""
-                    fillMode: Image.PreserveAspectCrop
+                    fillMode: wallpaperWindow.scaling === "zoom"
+                        ? Image.PreserveAspectCrop : Image.PreserveAspectFit
                     asynchronous: true
                     cache: false
                     smooth: true
@@ -198,9 +223,12 @@ Item {
 
                 VideoOutput {
                     id: videoOutput
-                    anchors.fill: parent
+                    anchors.centerIn: parent
+                    width: wallpaperWindow.scaling === "actual" ? implicitWidth : parent.width
+                    height: wallpaperWindow.scaling === "actual" ? implicitHeight : parent.height
                     visible: wallpaperWindow.visible && wallpaperWindow.video
-                    fillMode: VideoOutput.PreserveAspectCrop
+                    fillMode: wallpaperWindow.scaling === "zoom"
+                        ? VideoOutput.PreserveAspectCrop : VideoOutput.PreserveAspectFit
                 }
                 MediaPlayer {
                     source: wallpaperWindow.video ? wallpaperWindow.imageUrl : ""

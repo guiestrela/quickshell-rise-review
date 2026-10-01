@@ -1221,7 +1221,12 @@ PanelWindow {
     }
     Component {
         id: compWallpapers
-        WallpaperWidget { root: barSlot.root; screen: barSlot.screen }
+        Item {
+            width: 0
+            height: 0
+            readonly property real barContentLeftInset: 0
+            readonly property real barContentRightInset: 0
+        }
     }
     Component {
         id: compPower

@@ -29,6 +29,10 @@ PanelWindow {
     property string locationDraft: ""
     property string pendingLocation: ""
     property bool locationWritePending: false
+    property var locationSuggestions: []
+    property int suggestionIndex: 0
+    property string pendingSuggestionQuery: ""
+    property string activeSuggestionQuery: ""
     property real latitude: NaN
     property real longitude: NaN
     property var    forecastDays: []
@@ -40,24 +44,57 @@ PanelWindow {
         wxData.running = true
     }
 
-    function setConfiguredLocation(value) {
+    function setConfiguredLocation(value, latitudeValue, longitudeValue) {
         var next = String(value || "").trim().slice(0, 80)
         if (/[\r\n\u0000-\u001f]/.test(next)) return
-        locationQuery = next
+        var lat = parseFloat(latitudeValue), lon = parseFloat(longitudeValue)
+        var hasCoordinates = isFinite(lat) && isFinite(lon)
+        locationQuery = hasCoordinates ? lat + "," + lon : next
         locationDraft = next
-        pendingLocation = next
+        locationSuggestions = []
+        suggestionIndex = 0
+        pendingLocation = JSON.stringify({ name: next, latitude: hasCoordinates ? lat : null, longitude: hasCoordinates ? lon : null })
         locationWritePending = true
         if (!locationSettingsDirectory.running) locationSettingsDirectory.running = true
+        else weatherLocationFile.setText(pendingLocation + "\n")
         if (wxData.running) wxData.running = false
         wxPanel.temp = ""
+        wxPanel.location = ""
         wxPanel.forecastDays = []
         Qt.callLater(wxPanel.refresh)
     }
 
+    function requestLocationSuggestions() {
+        var query = String(locationDraft || "").trim()
+        if (query.length < 2) { locationSuggestions = []; suggestionIndex = 0; return }
+        pendingSuggestionQuery = query
+        if (locationSuggest.running) return
+        startLocationSuggestions()
+    }
+
+    function startLocationSuggestions() {
+        var query = pendingSuggestionQuery
+        activeSuggestionQuery = query
+        var country = /^(brasil|brazil)/i.test(query) ? "&countryCode=BR" : ""
+        locationSuggest.command = ["curl", "-fsS", "--max-time", "5", "https://geocoding-api.open-meteo.com/v1/search?name=" + encodeURIComponent(query) + "&count=8&language=pt&format=json" + country]
+        locationSuggest.running = true
+    }
+
+    function chooseSuggestion(suggestion) {
+        if (!suggestion) return
+        var name = String(suggestion.name || "").trim()
+        if (name !== "") setConfiguredLocation(name, suggestion.latitude, suggestion.longitude)
+    }
+
     function weatherUrl() {
+        var coordinates = String(locationQuery || "").split(",")
+        if (coordinates.length === 2 && isFinite(parseFloat(coordinates[0])) && isFinite(parseFloat(coordinates[1]))) return "https://api.open-meteo.com/v1/forecast?latitude=" + coordinates[0] + "&longitude=" + coordinates[1] + "&current=temperature_2m,apparent_temperature,relative_humidity_2m,wind_speed_10m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&forecast_days=3&timezone=auto"
         var path = locationQuery === "" ? "" : "/" + encodeURIComponent(locationQuery)
         return "https://wttr.in" + path + "?format=j1"
     }
+
+    function openMeteoWttrCode(code) { var n = parseInt(code) || 0; if (n === 0) return 113; if (n === 1 || n === 2) return 116; if (n === 3) return 119; if (n === 45 || n === 48) return 143; if (n >= 51 && n <= 57) return 266; if (n >= 61 && n <= 67 || n >= 80 && n <= 82) return 308; if (n >= 71 && n <= 77 || n >= 85 && n <= 86) return 338; if (n >= 95) return 389; return 119 }
+    function openMeteoDescription(code) { var n = parseInt(code) || 0; if (n === 0) return "Clear sky"; if (n === 1 || n === 2) return "Partly cloudy"; if (n === 3) return "Overcast"; if (n === 45 || n === 48) return "Fog"; if (n >= 51 && n <= 67 || n >= 80 && n <= 82) return "Rain"; if (n >= 71 && n <= 77 || n >= 85 && n <= 86) return "Snow"; if (n >= 95) return "Thunderstorm"; return "Unknown" }
 
 
     // data is fetched in °C / km·h; convert on display per root.weatherImperial
@@ -110,6 +147,15 @@ PanelWindow {
     }
     function parseReport(raw) {
         var d = JSON.parse(raw)
+        if (d.current && d.current.temperature_2m !== undefined) {
+            var openCurrent = d.current, openCode = parseInt(openCurrent.weather_code) || 0
+            wxPanel.temp = String(Math.round(openCurrent.temperature_2m)); wxPanel.feels = String(Math.round(openCurrent.apparent_temperature)); wxPanel.desc = openMeteoDescription(openCode); wxPanel.humidity = String(Math.round(openCurrent.relative_humidity_2m)); wxPanel.wind = String(Math.round(openCurrent.wind_speed_10m)); wxPanel.location = wxPanel.locationDraft
+            wxPanel.latitude = parseFloat(String(locationQuery).split(",")[0]); wxPanel.longitude = parseFloat(String(locationQuery).split(",")[1])
+            var openDays = [], daily = d.daily || {}
+            for (var oi = 0; oi < (daily.time || []).length && oi < 3; oi++) openDays.push({ date: daily.time[oi], min: daily.temperature_2m_min[oi], max: daily.temperature_2m_max[oi], code: openMeteoWttrCode(daily.weather_code[oi]), rain: daily.precipitation_probability_max[oi] || 0 })
+            wxPanel.forecastDays = openDays
+            return true
+        }
         var current = d.current_condition && d.current_condition[0] ? d.current_condition[0] : null
         var area = d.nearest_area && d.nearest_area[0] ? d.nearest_area[0] : null
         if (!current) return false
@@ -119,7 +165,8 @@ PanelWindow {
         wxPanel.desc = current.weatherDesc && current.weatherDesc[0] ? current.weatherDesc[0].value || "" : ""
         wxPanel.humidity = current.humidity || ""
         wxPanel.wind = current.windspeedKmph || ""
-        wxPanel.location = area && area.areaName && area.areaName[0] ? area.areaName[0].value || "" : ""
+        wxPanel.location = wxPanel.locationDraft !== "" ? wxPanel.locationDraft
+            : (area && area.areaName && area.areaName[0] ? area.areaName[0].value || "" : "")
         wxPanel.latitude = area ? parseFloat(String(area.latitude || "")) : NaN
         wxPanel.longitude = area ? parseFloat(String(area.longitude || "")) : NaN
 
@@ -268,8 +315,12 @@ PanelWindow {
                     font.family: root.mono; font.pixelSize: 10
                     clip: true
                     text: wxPanel.locationDraft
-                    onTextEdited: wxPanel.locationDraft = text
-                    onAccepted: wxPanel.setConfiguredLocation(text)
+                    onTextEdited: { wxPanel.locationDraft = text; suggestionIndex = 0; locationSuggestDebounce.restart() }
+                    onAccepted: wxPanel.chooseSuggestion(wxPanel.locationSuggestions.length > 0 ? wxPanel.locationSuggestions[wxPanel.suggestionIndex] : { name: text })
+                    Keys.onPressed: function(event) {
+                        if (event.key === Qt.Key_Down && wxPanel.locationSuggestions.length > 0) { wxPanel.suggestionIndex = Math.min(wxPanel.suggestionIndex + 1, wxPanel.locationSuggestions.length - 1); event.accepted = true }
+                        else if (event.key === Qt.Key_Up && wxPanel.locationSuggestions.length > 0) { wxPanel.suggestionIndex = Math.max(0, wxPanel.suggestionIndex - 1); event.accepted = true }
+                    }
                     Rectangle {
                         z: -1; anchors.fill: parent; radius: root.tileRadius
                         color: root.fillIdle; border.color: root.sep; border.width: 1
@@ -292,6 +343,28 @@ PanelWindow {
                         id: locationApplyMouse; anchors.fill: parent; hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: wxPanel.setConfiguredLocation(locationEditor.text)
+                    }
+                }
+            }
+
+            Column {
+                width: parent.width
+                spacing: 2
+                visible: wxPanel.locationSuggestions.length > 0
+                Repeater {
+                    model: wxPanel.locationSuggestions
+                    delegate: Rectangle {
+                        required property var modelData
+                        required property int index
+                        width: parent.width; height: 28; radius: root.tileRadius
+                        color: index === wxPanel.suggestionIndex ? root.fillHover : root.fillIdle
+                        border.color: index === wxPanel.suggestionIndex ? root.seal : root.sep; border.width: 1
+                        Column {
+                            anchors.left: parent.left; anchors.leftMargin: 7; anchors.right: parent.right; anchors.rightMargin: 7; anchors.verticalCenter: parent.verticalCenter; spacing: 1
+                            UiText { width: parent.width; text: modelData.name; color: root.ink; font.family: root.mono; font.pixelSize: 10; elide: Text.ElideRight }
+                            UiText { width: parent.width; text: modelData.description; color: root.sumiHi; font.family: root.mono; font.pixelSize: 8; elide: Text.ElideRight }
+                        }
+                        MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: wxPanel.chooseSuggestion(modelData) }
                     }
                 }
             }
@@ -434,14 +507,40 @@ PanelWindow {
         onExited: wxPanel.refreshing = false
     }
 
+    Timer { id: locationSuggestDebounce; interval: 300; repeat: false; onTriggered: wxPanel.requestLocationSuggestions() }
+
+    Process {
+        id: locationSuggest
+        running: false
+        stdout: StdioCollector {
+            waitForEnd: true
+            onStreamFinished: {
+                var results = []
+                try {
+                    var rows = JSON.parse(String(this.text || "{}")).results || []
+                    for (var i = 0; i < rows.length; i++) if (rows[i] && rows[i].name && rows[i].feature_code !== "PCLI") results.push({ name: String(rows[i].name), description: [rows[i].admin1, rows[i].country].filter(function(v) { return !!v }).join(", "), latitude: rows[i].latitude, longitude: rows[i].longitude, population: Number(rows[i].population) || 0 })
+                    results.sort(function(a, b) { return b.population - a.population })
+                    results = results.slice(0, 5)
+                } catch (e) {}
+                wxPanel.locationSuggestions = results
+                if (wxPanel.pendingSuggestionQuery !== wxPanel.activeSuggestionQuery) Qt.callLater(wxPanel.startLocationSuggestions)
+            }
+        }
+    }
+
     FileView {
         id: weatherLocationFile
         path: Quickshell.env("HOME") + "/.cache/quickshell-rise/weather-location"
         atomicWrites: true
         printErrors: false
         onLoaded: {
-            wxPanel.locationQuery = String(text() || "").trim().slice(0, 80)
-            wxPanel.locationDraft = wxPanel.locationQuery
+            var raw = String(text() || "").trim(), stored = null
+            try { stored = JSON.parse(raw) } catch (e) {}
+            var name = stored && typeof stored.name === "string" ? stored.name.trim() : raw.slice(0, 80)
+            var lat = stored ? parseFloat(stored.latitude) : NaN, lon = stored ? parseFloat(stored.longitude) : NaN
+            var hasStoredCoordinates = isFinite(lat) && isFinite(lon)
+            wxPanel.locationQuery = hasStoredCoordinates ? lat + "," + lon : name
+            wxPanel.locationDraft = name
             if (wxPanel.visible) wxPanel.refresh()
         }
     }

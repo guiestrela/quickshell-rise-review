@@ -12,17 +12,36 @@ Item {
     property real longitude: NaN
     property string radarHost: "https://tilecache.rainviewer.com"
     property string radarPath: ""
-    property int zoom: 6
+    property real zoom: 10.5
+    readonly property int minZoom: 4
+    readonly property int maxZoom: 12
+    readonly property int radarMaxZoom: 7
+    readonly property int tileZoom: Math.floor(zoom)
+    readonly property real zoomScale: Math.pow(2, zoom - tileZoom)
 
     readonly property bool located: isFinite(latitude) && isFinite(longitude)
     implicitWidth: 276
-    implicitHeight: 148
+    implicitHeight: 179
 
-    function tileX() { return Math.floor((longitude + 180) / 360 * Math.pow(2, zoom)) }
+    function tileX() { return Math.floor((longitude + 180) / 360 * Math.pow(2, tileZoom)) }
     function tileY() {
         var lat = Math.max(-85, Math.min(85, latitude)) * Math.PI / 180
-        return Math.floor((1 - Math.log(Math.tan(lat) + 1 / Math.cos(lat)) / Math.PI) / 2 * Math.pow(2, zoom))
+        return Math.floor((1 - Math.log(Math.tan(lat) + 1 / Math.cos(lat)) / Math.PI) / 2 * Math.pow(2, tileZoom))
     }
+
+    function pixelOffsetX() {
+        var count = Math.pow(2, tileZoom)
+        return ((longitude + 180) / 360 * count * 256) - tileX() * 256
+    }
+
+    function pixelOffsetY() {
+        var lat = Math.max(-85, Math.min(85, latitude)) * Math.PI / 180
+        var count = Math.pow(2, tileZoom)
+        var worldY = (1 - Math.log(Math.tan(lat) + 1 / Math.cos(lat)) / Math.PI) / 2 * count * 256
+        return worldY - tileY() * 256
+    }
+
+    function setZoom(value) { radar.zoom = Math.max(radar.minZoom, Math.min(radar.maxZoom, Math.round(value * 4) / 4)) }
 
     Process {
         id: metadata
@@ -57,10 +76,11 @@ Item {
     Column {
         anchors.fill: parent
         spacing: 5
-        Row {
+        Item {
             width: parent.width
             height: 14
             UiText {
+                anchors.left: parent.left
                 text: "LOCAL RADAR"
                 color: radar.root.sumiHi
                 font.family: radar.root.mono
@@ -68,17 +88,29 @@ Item {
                 font.letterSpacing: 1
             }
             Item { width: 1; height: 1 }
-            UiText {
+            Row {
                 anchors.right: parent.right
-                text: radar.located ? "RAINVIEWER" : "LOCATION UNKNOWN"
-                color: radar.root.sumi
-                font.family: radar.root.mono
-                font.pixelSize: 8
+                spacing: 3
+                UiText { text: radar.located ? "Z" + Number(radar.zoom).toFixed(2).replace(/\.00$/, "") : "LOCATION UNKNOWN"; color: radar.root.sumi; font.family: radar.root.mono; font.pixelSize: 8 }
+                Rectangle {
+                    width: 16; height: 14; radius: radar.root.tileRadius
+                    color: zoomOut.containsMouse ? radar.root.fillHover : radar.root.fillIdle
+                    border.color: radar.root.sep; border.width: 1
+                    UiText { anchors.centerIn: parent; text: "−"; color: radar.root.ink; font.family: radar.root.mono; font.pixelSize: 11 }
+                    MouseArea { id: zoomOut; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; enabled: radar.zoom > radar.minZoom; onClicked: radar.setZoom(radar.zoom - 0.25) }
+                }
+                Rectangle {
+                    width: 16; height: 14; radius: radar.root.tileRadius
+                    color: zoomIn.containsMouse ? radar.root.fillHover : radar.root.fillIdle
+                    border.color: radar.root.sep; border.width: 1
+                    UiText { anchors.centerIn: parent; text: "+"; color: radar.root.ink; font.family: radar.root.mono; font.pixelSize: 11 }
+                    MouseArea { id: zoomIn; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; enabled: radar.zoom < radar.maxZoom; onClicked: radar.setZoom(radar.zoom + 0.25) }
+                }
             }
         }
         Rectangle {
             width: parent.width
-            height: 129
+            height: 160
             radius: radar.root.tileRadius
             clip: true
             color: radar.root.paper
@@ -105,28 +137,28 @@ Item {
                         required property int index
                         readonly property int dx: index % 3 - 1
                         readonly property int dy: Math.floor(index / 3) - 1
-                        readonly property int count: Math.pow(2, radar.zoom)
+                        readonly property int count: Math.pow(2, radar.tileZoom)
                         readonly property int tx: ((radar.tileX() + dx) % count + count) % count
                         readonly property int ty: radar.tileY() + dy
-                        x: (dx + 1) * 256
-                        y: (dy + 1) * 256
-                        width: 256
-                        height: 256
+                        x: ((dx + 1) * 256 - radar.pixelOffsetX()) * radar.zoomScale
+                        y: ((dy + 1) * 256 - radar.pixelOffsetY()) * radar.zoomScale
+                        width: 256 * radar.zoomScale
+                        height: 256 * radar.zoomScale
                         visible: ty >= 0 && ty < count
 
                         Image {
                             anchors.fill: parent
-                            source: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/"
-                                + radar.zoom + "/" + parent.ty + "/" + parent.tx
+                            source: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/"
+                                + radar.tileZoom + "/" + parent.ty + "/" + parent.tx
                             asynchronous: true
                             cache: true
                             fillMode: Image.Stretch
                         }
                         Image {
                             anchors.fill: parent
-                            visible: radar.radarPath !== ""
+                            visible: radar.radarPath !== "" && radar.zoom <= radar.radarMaxZoom
                             source: radar.radarPath === "" ? "" : radar.radarHost + radar.radarPath
-                                + "/256/" + radar.zoom + "/" + parent.tx + "/" + parent.ty + "/2/1_1.png"
+                                + "/256/" + radar.tileZoom + "/" + parent.tx + "/" + parent.ty + "/2/1_1.png"
                             asynchronous: true
                             cache: false
                             opacity: 0.58
@@ -140,6 +172,15 @@ Item {
                     color: radar.root.seal
                     border.color: radar.root.paper
                     border.width: 2
+                }
+            }
+            MouseArea {
+                anchors.fill: parent
+                acceptedButtons: Qt.NoButton
+                hoverEnabled: true
+                onWheel: function(event) {
+                    radar.setZoom(radar.zoom + (event.angleDelta.y > 0 ? 0.25 : -0.25))
+                    event.accepted = true
                 }
             }
         }

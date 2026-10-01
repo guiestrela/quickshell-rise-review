@@ -9,6 +9,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
 import "panels"
+import "../../panels" as RisePanels
 
 Item {
     id: root
@@ -246,6 +247,7 @@ Item {
     }
 
     TooltipOverlay { root: theme }
+    RisePanels.WallpaperManagerQuickPanel { root: theme }
     CalendarPopup { root: theme }
     ArchUpdaterPanel { root: theme }
     PowerProfilePanel { root: theme }
