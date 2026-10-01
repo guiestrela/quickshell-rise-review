@@ -2294,7 +2294,7 @@ Item {
         var m = String(gid || "").match(/^G(\d{1,2})$/)
         if (!m) return false
         var n = Number(m[1])
-        return n >= 1 && n <= 19
+        return n >= 1 && n <= 20
     }
     function widgetColorModeValid(mode) {
         return mode === "fill" || mode === "border" || mode === "both"
@@ -2369,7 +2369,7 @@ Item {
         var next = {}
         var changed = false
 
-        for (var n = 1; n <= 19; n++) {
+        for (var n = 1; n <= 20; n++) {
             var gid = "G" + n
             var style = widgetColorStyle(gid)
 
