@@ -44,7 +44,19 @@ class WallpaperScanTests(unittest.TestCase):
             (outside / 'private.jpg').write_bytes(b'test')
             link = folder / 'wall'
             link.symlink_to(outside, target_is_directory=True)
-            self.assertEqual(scanner.scan(str(link)), [])
+            with self.assertRaises(NotADirectoryError):
+                scanner.scan(str(link))
+            run = subprocess.run([sys.executable, str(SCRIPT), str(link)],
+                                 capture_output=True, text=True)
+            self.assertNotEqual(run.returncode, 0)
+            self.assertEqual(json.loads(run.stdout), [])
+
+    def test_missing_folder_reports_error_and_empty_json(self):
+        with tempfile.TemporaryDirectory(prefix='qr04w-scan-', dir=os.environ['TMPDIR']) as temp:
+            run = subprocess.run([sys.executable, str(SCRIPT), str(Path(temp) / 'missing')],
+                                 capture_output=True, text=True)
+            self.assertNotEqual(run.returncode, 0)
+            self.assertEqual(json.loads(run.stdout), [])
 
 
 if __name__ == '__main__':

@@ -3,6 +3,11 @@ import QtQuick
 Item {
     id: host
 
+    // Only event state crosses the wallpaper boundary; not the shell/services.
+    property bool wallpaperWakeAvailable: false
+    property bool wallpaperSessionLocked: false
+    property bool wallpaperScreensaverShowing: false
+
     required property var stateService
     required property url v1Source
     required property url v2Source

@@ -29,6 +29,18 @@ Item {
     VariantHost {
         id: variantHost
         stateService: variantState
+        wallpaperWakeAvailable: {
+            if (!root.shell || !root.shell.serviceFor) return false
+            return !!root.shell.serviceFor("omarchy.lock") && !!root.shell.serviceFor("omarchy.idle")
+        }
+        wallpaperSessionLocked: {
+            var service = root.shell && root.shell.serviceFor ? root.shell.serviceFor("omarchy.lock") : null
+            return service ? service.locked === true : false
+        }
+        wallpaperScreensaverShowing: {
+            var service = root.shell && root.shell.serviceFor ? root.shell.serviceFor("omarchy.idle") : null
+            return service ? Number(service.screensaverWindowCount) > 0 : false
+        }
         v1Source: Qt.resolvedUrl("versions/V1/VariantRoot.qml")
         v2Source: Qt.resolvedUrl("versions/V1/variants/V2/VariantRoot.qml")
     }

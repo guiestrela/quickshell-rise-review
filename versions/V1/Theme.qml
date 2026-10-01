@@ -27,8 +27,28 @@ Item {
     property string pendingWallpaperFolder: ""
     property bool wallpaperFolderWritePending: false
     readonly property int wallpaperShuffleInterval: {
+        if (wallpaperManagerSettings.intervalSec !== undefined) {
+            var stored = Number(wallpaperManagerSettings.intervalSec)
+            return isFinite(stored) ? Math.max(0, Math.min(86400, Math.floor(stored))) : 0
+        }
         var seconds = parseInt(String(Quickshell.env("RISE_WALLPAPER_INTERVAL") || "0"), 10)
         return isFinite(seconds) && seconds >= 60 ? Math.min(seconds, 86400) : 0
+    }
+    readonly property bool wallpaperShuffleOnWake: wallpaperManagerSettings.shuffleOnWake === true
+    readonly property bool wallpaperWakeAvailable: variantHost ? variantHost.wallpaperWakeAvailable : false
+    readonly property bool wallpaperSessionLocked: variantHost ? variantHost.wallpaperSessionLocked : false
+    readonly property bool wallpaperScreensaverShowing: variantHost ? variantHost.wallpaperScreensaverShowing : false
+    function setWallpaperShuffleSettings(patch) {
+        var next = Object.assign({}, wallpaperManagerSettings)
+        if (patch.intervalSec !== undefined) {
+            var value = Number(patch.intervalSec)
+            if (!isFinite(value) || Math.floor(value) !== value || value < 0 || value > 86400) return
+            next.intervalSec = value
+        }
+        if (patch.shuffleOnWake === true || patch.shuffleOnWake === false) next.shuffleOnWake = patch.shuffleOnWake
+        if (JSON.stringify(next) === JSON.stringify(wallpaperManagerSettings)) return
+        wallpaperManagerSettings = next
+        saveWallpaperProfile()
     }
     property string currentThemeName: ""
     readonly property string userBackgroundsPath: currentThemeName === ""
@@ -50,22 +70,25 @@ Item {
     property string wallpaperManagerDisplay: "all"
     property string wallpaperManagerTab: "displays"
     property bool wallpaperManagerVisible: false
+    property real wallpaperManagerAnchorX: 0
+    property real wallpaperManagerAnchorY: 0
     onWallpaperManagerVisibleChanged: popupOpened("wallpaperManagerVisible")
     function wallpaperProfileFor(name) {
         return WallpaperProfile.configFor(wallpaperManagerSettings, name, String(Quickshell.env("HOME") || ""))
     }
-    function setWallpaperProfile(patch) {
-        var name = wallpaperManagerDisplay === "all" ? "all" : wallpaperManagerDisplay
+    function setWallpaperProfile(patch, outputName) {
+        var name = String(outputName || wallpaperManagerDisplay)
         wallpaperManagerSettings = WallpaperProfile.updateDisplay(wallpaperManagerSettings, name, patch,
             String(Quickshell.env("HOME") || ""))
         if (!wallpaperManagerSettings.perDisplayConfig && patch.folder !== undefined)
             wallpaperManagerFolder = wallpaperManagerSettings.displayConfig.all.folder
         saveWallpaperProfile()
-        wallpaperManagerService.scanFolder()
+        wallpaperManagerService.scanFolder(name)
     }
     function setWallpaperPerDisplay(enabled) {
         var next = Object.assign({}, wallpaperManagerSettings, { perDisplayConfig: enabled === true })
         wallpaperManagerSettings = next
+        wallpaperManagerDisplay = enabled && wallpaperOutputs.length > 0 ? String(wallpaperOutputs[0].name) : "all"
         saveWallpaperProfile()
         wallpaperManagerService.scanFolder()
     }
@@ -76,7 +99,12 @@ Item {
         onLoaded: {
             try {
                 var parsed = JSON.parse(String(text() || "{}"))
-                if (parsed && typeof parsed === "object") theme.wallpaperManagerSettings = parsed
+                if (parsed && typeof parsed === "object") {
+                    theme.wallpaperManagerSettings = parsed
+                    theme.wallpaperManagerDisplay = parsed.perDisplayConfig && theme.wallpaperOutputs.length > 0
+                        ? String(theme.wallpaperOutputs[0].name) : "all"
+                    wallpaperManagerService.scanFolder()
+                }
             } catch (error) { console.warn("[WallpaperManager] Ignoring invalid profile settings") }
         }
     }
@@ -92,7 +120,8 @@ Item {
         wallpaperProfileDirectory.running = false
         wallpaperProfileDirectory.running = true
     }
-    function shuffleWallpapers() { wallpaperManagerService.shuffleAll() }
+    function shuffleWallpapers() { wallpaperManagerService.shuffleAll(false) }
+    function nextWallpaper(outputName) { wallpaperManagerService.nextFor(String(outputName || wallpaperManagerDisplay)) }
     function pinWallpaper(path) { wallpaperManagerService.pinAll(path) }
 
     FileView {
@@ -559,10 +588,15 @@ Item {
         imagePickerVisible = true
     }
 
-    function toggleWallpaperManager(screen) {
+    function toggleWallpaperManager(screen, anchorItem) {
         if (wallpaperManagerVisible) { wallpaperManagerVisible = false; return }
         if (screen && screen.name !== "") activatePopupScreen(screen)
         else activateFocusedPopupScreen()
+        wallpaperManagerDisplay = wallpaperManagerSettings.perDisplayConfig && activePopupScreen
+            ? String(activePopupScreen.name) : "all"
+        var point = anchorItem ? anchorItem.mapToGlobal(anchorItem.width / 2, anchorItem.height) : null
+        wallpaperManagerAnchorX = point ? point.x - activePopupScreen.x : activePopupScreen.width / 2
+        wallpaperManagerAnchorY = point ? point.y - activePopupScreen.y : 32
         closePopups("wallpaperManagerVisible")
         wallpaperManagerVisible = true
     }

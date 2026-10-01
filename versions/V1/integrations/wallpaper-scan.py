@@ -15,7 +15,7 @@ def scan(folder, recursive=True):
     folder = os.path.abspath(folder)
     root_info = os.stat(folder, follow_symlinks=False)
     if not stat.S_ISDIR(root_info.st_mode):
-        return []
+        raise NotADirectoryError("Wallpaper root is not a directory")
     root_dev = root_info.st_dev
     found = []
     stack = [(folder, 0)]
@@ -25,6 +25,8 @@ def scan(folder, recursive=True):
         try:
             entries = list(os.scandir(directory))
         except OSError:
+            if directory == folder:
+                raise
             continue
         entries.sort(key=lambda entry: entry.name.casefold(), reverse=True)
         for entry in entries:
@@ -49,3 +51,4 @@ if __name__ == "__main__":
         print(json.dumps(scan(sys.argv[1], recursive='--flat' not in sys.argv[2:]), ensure_ascii=True))
     except (IndexError, OSError, ValueError):
         print("[]")
+        sys.exit(1)

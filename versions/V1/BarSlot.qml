@@ -482,7 +482,7 @@ PanelWindow {
     }
     Component { id: compNetwork;    NetworkWidget      { root: barSlot.root } }
     Component { id: compNordVpn;    NordVPNWidget      { root: barSlot.root } }
-    Component { id: compWallpapers; WallpaperWidget    { root: barSlot.root; screen: barSlot.screen } }
+    Component { id: compWallpapers; WallpaperManagerQuickWidget { root: barSlot.root; screen: barSlot.screen } }
     Component { id: compPower;      PowerProfileWidget { root: barSlot.root } }
     Component { id: compBattery;    BatteryWidget      { root: barSlot.root } }
     Component { id: compBrightness; BrightnessWidget   { root: barSlot.root } }
