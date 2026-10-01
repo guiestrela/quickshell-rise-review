@@ -4,6 +4,7 @@ import QtQuick.Dialogs
 import QtQuick.Controls as Controls
 import Quickshell
 import Quickshell.Wayland
+import "../modules"
 
 PanelWindow {
     id: panel
