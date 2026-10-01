@@ -111,8 +111,9 @@ PanelWindow {
         height: Math.min(content.implicitHeight + 28, panel.height - 32)
         color: panel.root.paper
         border.color: panel.root.pillBorder
-        border.width: 0
+        border.width: panel.root.pillBorderW
         radius: panel.root.pillRadius
+        PillShadow { theme: panel.root }
         focus: panel.visible
         Keys.onEscapePressed: panel.dismiss()
         MouseArea { anchors.fill: parent; onClicked: {} }

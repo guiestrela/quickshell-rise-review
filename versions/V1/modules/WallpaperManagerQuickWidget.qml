@@ -23,6 +23,7 @@ Item {
         color: control.root.pill
         border.color: control.root.pillBorder
         border.width: control.root.pillBorderW
+        PillShadow { theme: control.root }
     }
     Text {
         anchors.centerIn: parent
