@@ -23,7 +23,7 @@ Item {
         radius: control.root.pillRadius
         color: control.root.pill
         border.color: control.root.pillBorder
-        border.width: control.root.pillBorderW
+        border.width: 0
     }
     Text {
         anchors.centerIn: parent
