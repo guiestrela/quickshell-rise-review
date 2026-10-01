@@ -33,7 +33,6 @@ PanelWindow {
     function openSubmenu(entryHandle, anchorItem) {
         var point = anchorItem.mapToItem(null, anchorItem.width, anchorItem.height / 2)
         entryHandle.display(trayMenu, Math.round(point.x), Math.round(point.y))
-        root.trayMenuVisible = false
     }
 
     Connections {
