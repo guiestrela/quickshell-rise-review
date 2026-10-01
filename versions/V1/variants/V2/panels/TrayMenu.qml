@@ -26,6 +26,16 @@ PanelWindow {
 
     function strip(t) { return (t || "").replace(/_([^_])/, "$1") }   // drop GTK mnemonic underscore
 
+    // DBusMenu submenus are often populated lazily after the provider receives
+    // AboutToShow. QsMenuOpener can inspect the root menu, but changing its
+    // handle alone does not send that event. Let Quickshell open nested menus
+    // natively so the provider can populate Pause, Settings and connection lists.
+    function openSubmenu(entryHandle, anchorItem) {
+        var point = anchorItem.mapToItem(null, anchorItem.width, anchorItem.height / 2)
+        entryHandle.display(trayMenu, Math.round(point.x), Math.round(point.y))
+        root.trayMenuVisible = false
+    }
+
     Connections {
         target: root
         function onTrayMenuVisibleChanged() {
@@ -231,7 +241,7 @@ PanelWindow {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 if (entry.modelData.hasChildren) {
-                                    trayMenu.menuStack = trayMenu.menuStack.concat([entry.modelData])
+                                    trayMenu.openSubmenu(entry.modelData, entry)
                                 } else {
                                     entry.modelData.triggered()
                                     root.trayMenuVisible = false
