@@ -31,16 +31,47 @@ Calendar helper scripts and their upstream license are in
 After installing Rise, run the integrated setup from its installed directory:
 
 ```bash
-~/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/versions/V1/integrations/google-calendar/setup
+~/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/versions/V1/integrations/google-calendar/setup [--hosted]
 ```
 
-It installs the release-verified Caldir runtime and guides direct Google OAuth
-setup. It does not change `shell.json` or replace Rise's clock. To install the
-runtime without connecting Google yet, run:
+It installs the release-verified Caldir runtime and guides Google OAuth setup.
+It does not change `shell.json` or replace Rise's clock. To install the runtime
+without connecting Google yet, run:
 
 ```bash
 ~/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/versions/V1/integrations/google-calendar/setup --binaries-only
 ```
+
+OAuth has two modes, and the popup offers both as a choice while Google is not
+connected yet:
+
+- **Direct** (default) uses your own Google Cloud OAuth client. Tokens never
+  leave this machine and Google, but you must create the client yourself.
+- **Hosted** (`--hosted`) relays sign-in and every token refresh through
+  caldir.org with its own client. No Google Cloud project is needed, but your
+  tokens depend on that relay staying reachable.
+
+An existing session is reused as is, so `--hosted` only picks the mode when
+there is nothing to reuse. When the runtime is installed but no session
+exists, the popup switches modes with `calendar-auth-mode switch` instead of
+re-running setup.
+
+The popup hides its Google choices once the runtime is installed and a Google
+session exists, and reports any blocking setup reason in the popup itself.
+That check is available on its own:
+
+```bash
+~/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/versions/V1/integrations/google-calendar/setup --check
+```
+
+It only verifies that this build can reach its pinned Caldir release, without
+downloading, installing, or signing in. The pinned sha256 digest is always
+enforced, and a checkout that owns the pinned release is also checked against
+it. Rise vendors this integration and publishes no Caldir release of its own,
+so it resolves the release from
+`guiestrela/omarchy-google-calendar-clock-refresh`; set
+`CALENDAR_CLOCK_RELEASE_REPOSITORY` or `CALENDAR_CLOCK_ASSET_BASE_URL` to
+override.
 
 The calendar can also read existing local Caldir calendars without Google
 sync. Required setup tools are `curl`, `jq`, `tar`, and `sha256sum`.

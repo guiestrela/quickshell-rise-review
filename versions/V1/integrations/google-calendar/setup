@@ -10,21 +10,53 @@ INSTALL_ROOT="${DATA_HOME}/io.github.guiestrela.omarchy-google-calendar-clock"
 BIN_DIR="${INSTALL_ROOT}/bin"
 GOOGLE_CONFIG_DIR="${CONFIG_HOME}/caldir/providers/google"
 CALDIR_WRAPPER="${SCRIPT_DIR}/scripts/calendar-caldir"
+# The Caldir release assets are published by the repository that owns this
+# integration, io.github.guiestrela.omarchy-google-calendar-clock. Rise vendors
+# these files from there and publishes no Caldir release of its own, so a
+# vendored checkout resolves its assets from this repository instead of from
+# its own origin. CALENDAR_CLOCK_ASSET_BASE_URL and
+# CALENDAR_CLOCK_RELEASE_REPOSITORY still take precedence.
+ASSET_REPOSITORY="guiestrela/omarchy-google-calendar-clock-refresh"
 BINARIES_ONLY=false
+CHECK_ONLY=false
+HOSTED_OAUTH=false
 
 usage() {
   cat <<'EOF'
-Usage: ./setup [--binaries-only]
+Usage: ./setup [--binaries-only] [--hosted] [--check]
 
-Installs the release-verified Caldir runtime and, by default, guides you
-through direct Google OAuth setup. It does not edit Omarchy shell.json or
-replace the Rise clock. Use --binaries-only to install the runtime only.
+Installs the release-verified Caldir runtime and, unless --binaries-only is
+used, guides you through Google OAuth setup. It does not edit Omarchy
+shell.json or replace the Rise clock.
+
+Options:
+  --binaries-only   Install the Caldir binaries and stop; do not connect
+  --hosted          Use caldir.org's hosted Google OAuth relay instead of
+                    your own Google Cloud OAuth client
+  --check           Only verify that this build can reach its pinned Caldir
+                    release, without downloading, installing, or signing in
+
+Auth modes:
+  default (direct)  You create a Desktop OAuth client in your own Google
+                    Cloud project. Authentication and every token refresh
+                    happen directly between this machine and Google;
+                    caldir.org is never involved.
+  --hosted          caldir.org relays Google's OAuth dance with its own
+                    client. No Google Cloud project needed, but every
+                    token refresh depends on caldir.org being reachable,
+                    and your OAuth tokens pass through their servers.
+
+--check is what the Rise calendar panel runs before opening this script, so a
+blocking reason is reported in the panel instead of flashing past in a
+terminal.
 EOF
 }
 
 while (( $# > 0 )); do
   case "$1" in
     --binaries-only) BINARIES_ONLY=true ;;
+    --hosted) HOSTED_OAUTH=true ;;
+    --check) CHECK_ONLY=true ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; exit 64 ;;
   esac
@@ -66,14 +98,26 @@ EXPECTED_SHA256=$(jq -er --arg asset "$ASSET" --arg version "$ASSET_PLUGIN_VERSI
   echo "The committed release manifest has no valid digest for ${ASSET}." >&2
   exit 1
 }
+manifest_source_commit=$(jq -er '.pluginSourceCommit' "$RELEASE_MANIFEST")
+
+# The pinned-commit gate only means something in a checkout that owns the
+# Caldir release, because only there can the manifest be checked against the
+# source that produced the binaries. Rise vendors this integration, so the
+# pinned commit belongs to the upstream repository and is absent here by
+# design. The committed sha256 digest above stays the binding check either way.
+owns_pinned_release=false
 if command -v git >/dev/null \
+    && git -C "$SCRIPT_DIR" cat-file -e "${manifest_source_commit}^{commit}" 2>/dev/null; then
+  owns_pinned_release=true
+fi
+
+if $owns_pinned_release \
     && [[ -z "$(git -C "$SCRIPT_DIR" status --porcelain --untracked-files=no 2>/dev/null)" ]] \
     && source_commit=$(git -C "$SCRIPT_DIR" rev-parse HEAD 2>/dev/null); then
-  manifest_source_commit=$(jq -er '.pluginSourceCommit' "$RELEASE_MANIFEST")
   if [[ "$manifest_source_commit" != "$source_commit" ]]; then
     if ! git -C "$SCRIPT_DIR" merge-base --is-ancestor "$manifest_source_commit" "$source_commit" \
         || ! git -C "$SCRIPT_DIR" diff --quiet "$manifest_source_commit" "$source_commit" -- \
-          .github/workflows/release.yml patches/caldir-google.patch; then
+          ':(top).github/workflows/release.yml' ':(top)patches/caldir-google.patch'; then
       echo "The release manifest does not match this plugin source checkout." >&2
       exit 1
     fi
@@ -83,13 +127,15 @@ if [[ -n "${CALENDAR_CLOCK_ASSET_BASE_URL:-}" ]]; then
   RELEASE_BASE=${CALENDAR_CLOCK_ASSET_BASE_URL%/}
 else
   repository=${CALENDAR_CLOCK_RELEASE_REPOSITORY:-}
-  if [[ -z "$repository" ]] && command -v git >/dev/null && git -C "$SCRIPT_DIR" remote get-url origin >/dev/null 2>&1; then
+  if [[ -z "$repository" ]] && $owns_pinned_release \
+      && command -v git >/dev/null && git -C "$SCRIPT_DIR" remote get-url origin >/dev/null 2>&1; then
     origin=$(git -C "$SCRIPT_DIR" remote get-url origin)
     repository=${origin#https://github.com/}
     repository=${repository#git@github.com:}
     repository=${repository%/}
     repository=${repository%.git}
   fi
+  [[ -n "$repository" ]] || repository="$ASSET_REPOSITORY"
   [[ "$repository" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || {
     echo "Could not determine the GitHub release repository." >&2
     echo "Set CALENDAR_CLOCK_RELEASE_REPOSITORY=owner/repository and retry." >&2
@@ -104,6 +150,18 @@ fi
   echo "The Caldir release URL must use HTTPS." >&2
   exit 1
 }
+
+if $CHECK_ONLY; then
+  if ! curl --fail --location --head --proto '=https' --proto-redir '=https' --tlsv1.2 \
+    --silent --max-time 30 "${RELEASE_BASE}/${ASSET}" --output /dev/null; then
+    echo "Caldir ${VERSION} for ${ASSET_ARCH} is not published at ${RELEASE_BASE}." >&2
+    echo "Publish the release assets for v${ASSET_PLUGIN_VERSION}, or point" >&2
+    echo "CALENDAR_CLOCK_RELEASE_REPOSITORY at the repository that has them." >&2
+    exit 1
+  fi
+  echo "Caldir ${VERSION} for ${ASSET_ARCH} is reachable and verified."
+  exit 0
+fi
 
 WORK_DIR=$(mktemp -d "${TMPDIR:-/tmp}/io.github.guiestrela.omarchy-google-calendar-clock-setup.XXXXXX")
 NEW_BIN_DIR="${INSTALL_ROOT}/.bin.new.$$"
@@ -184,15 +242,36 @@ fi
 if $has_session; then
   echo "An existing Google OAuth session was found; it will be reused."
 else
-  cat <<'EOF'
+  if $HOSTED_OAUTH; then
+    cat <<'EOF'
+
+You chose hosted Google OAuth: caldir.org relays the sign-in with its own
+Google Cloud client, so you do not need to create OAuth credentials.
+
+Trade-off: every access-token refresh goes through caldir.org. If that
+service is unreachable or retired, existing sessions stop syncing. Your
+OAuth tokens also pass through caldir.org's servers during each refresh.
+If you prefer direct authentication with Google, rerun setup without
+--hosted.
+
+EOF
+    "$CALDIR_WRAPPER" connect google
+  else
+    cat <<'EOF'
 
 Direct Google OAuth keeps authentication and refresh tokens between this
 machine and Google. Setup will open a browser and wait for completion. Choose
 or create a Google Cloud project, enable the Google Calendar API, create a
 Desktop OAuth client, and enter its client ID and secret when asked.
 
+Trade-off: you must create your own OAuth client in Google Cloud. In return,
+no third-party service is needed now or later. For an easier setup that skips
+the Google Cloud project (but routes sign-in and refreshes through
+caldir.org), rerun setup with --hosted.
+
 EOF
-  "$CALDIR_WRAPPER" connect google --hosted=false
+    "$CALDIR_WRAPPER" connect google --hosted=false
+  fi
 fi
 
 config_json=$("$CALDIR_WRAPPER" config --json)

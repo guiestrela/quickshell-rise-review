@@ -37,6 +37,13 @@ PanelWindow {
     readonly property string calendarCreatePath: String(Qt.resolvedUrl("../../../integrations/google-calendar/scripts/calendar-create")).replace(/^file:\/\//, "")
     readonly property string calendarMutatePath: String(Qt.resolvedUrl("../../../integrations/google-calendar/scripts/calendar-mutate")).replace(/^file:\/\//, "")
     readonly property string calendarSetupPath: String(Qt.resolvedUrl("../../../integrations/google-calendar/setup")).replace(/^file:\/\//, "")
+    readonly property string calendarAuthModePath: String(Qt.resolvedUrl("../../../integrations/google-calendar/scripts/calendar-auth-mode")).replace(/^file:\/\//, "")
+    readonly property string calendarRuntimeCheckPath: String(Qt.resolvedUrl("../../../integrations/google-calendar/scripts/calendar-runtime-check")).replace(/^file:\/\//, "")
+    property bool calendarRuntimeReady: false
+    property bool calendarSessionReady: false
+    readonly property bool calendarConnected: calendarRuntimeReady && calendarSessionReady
+    property string calendarSetupMode: "direct"
+    property string calendarSetupError: ""
 
     function dateKey(date) {
         return date.getFullYear() + "-" + String(date.getMonth() + 1).padStart(2, "0") + "-" + String(date.getDate()).padStart(2, "0")
@@ -96,7 +103,20 @@ PanelWindow {
         calendarCreateProc.command = [calendarCreatePath, title, agendaDateKey, "", eventRepeat, eventRepeat === "none" ? "" : eventRepeatCount, eventDescription]
         calendarCreateProc.running = true
     }
-    function connectGoogleCalendar() { calendarSyncMessage = "Opening Google Calendar setup..."; calendarSetupProc.running = false; calendarSetupProc.running = true }
+    function refreshGoogleState() {
+        calendarAuthProc.running = false
+        calendarAuthProc.running = true
+        calendarRuntimeProc.running = false
+        calendarRuntimeProc.running = true
+    }
+    function connectGoogleCalendar(mode) {
+        calendarSetupError = ""
+        calendarSetupMode = mode === "hosted" ? "hosted" : "direct"
+        calendarSyncMessage = "Checking Google Calendar setup..."
+        calendarSetupProc.command = [calendarSetupPath, "--check"]
+        calendarSetupProc.running = false
+        calendarSetupProc.running = true
+    }
     function deleteEvent(event) { if (!event || !event.uid || !event.instance_id) return; if (!deleteCandidate || deleteCandidate.instance_id !== event.instance_id) { deleteCandidate = event; calendarSyncMessage = "Press DEL again to delete this event."; return } var uid = String(event.uid), instance = String(event.instance_id), scope = instance.indexOf(uid + "__") === 0 ? "instance" : "series"; calendarMutateProc.command = [calendarMutatePath, "delete", scope, String(event.calendar || "default"), uid, instance, "--confirm"]; calendarMutateProc.running = true; deleteCandidate = null }
 
 
@@ -430,14 +450,6 @@ PanelWindow {
                             UiText { anchors.centerIn: parent; text: modelData.t; color: root.ink; font.family: root.mono; font.pixelSize: 7 }
                             MouseArea { anchors.fill: parent; onClicked: calPopup.eventRepeat = modelData.v }
                         }
-
-                        Rectangle {
-                            width: parent.width; height: 24; radius: root.tileRadius
-                            color: connectGoogleMouse.containsMouse ? root.fillHover : root.fillIdle
-                            border.color: connectGoogleMouse.containsMouse ? root.seal : root.sep; border.width: 1
-                            UiText { anchors.centerIn: parent; text: "CONNECT GOOGLE"; color: root.seal; font.family: root.mono; font.pixelSize: 8 }
-                            MouseArea { id: connectGoogleMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: calPopup.connectGoogleCalendar() }
-                        }
                     }
                 }
                 TextInput { visible: calPopup.eventRepeat !== "none"; width: parent.width; height: 23; text: calPopup.eventRepeatCount; onTextEdited: calPopup.eventRepeatCount = text; color: root.ink; font.family: root.mono; font.pixelSize: 9; leftPadding: 7; Rectangle { z: -1; anchors.fill: parent; color: root.fillIdle; border.color: root.sep; border.width: 1; radius: root.tileRadius } }
@@ -447,12 +459,40 @@ PanelWindow {
                     MouseArea { anchors.fill: parent; enabled: !calendarCreateProc.running; onClicked: calPopup.saveEvent() }
                 }
             }
-            Rectangle {
-                width: parent.width; height: 24; radius: root.tileRadius
-                color: connectGoogleOutside.containsMouse ? root.fillHover : root.fillIdle
-                border.color: connectGoogleOutside.containsMouse ? root.seal : root.sep; border.width: 1
-                UiText { anchors.centerIn: parent; text: "CONNECT GOOGLE"; color: root.seal; font.family: root.mono; font.pixelSize: 8 }
-                MouseArea { id: connectGoogleOutside; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: calPopup.connectGoogleCalendar() }
+            UiText {
+                width: parent.width
+                visible: !calPopup.calendarConnected
+                text: "Google sync needs setup. Direct uses your own Google Cloud client and keeps refreshes between this machine and Google; Hosted needs no client but relays sign-in and refreshes through caldir.org."
+                color: root.sumi
+                font.family: root.mono
+                font.pixelSize: 7
+                wrapMode: Text.Wrap
+            }
+            Row {
+                visible: !calPopup.calendarConnected
+                width: parent.width
+                height: 24
+                spacing: 6
+                Repeater {
+                    model: [{ v: "direct", t: "GOOGLE DIRECT" }, { v: "hosted", t: "GOOGLE HOSTED" }]
+                    delegate: Rectangle {
+                        required property var modelData
+                        width: (parent.width - parent.spacing) / 2
+                        height: 24
+                        radius: root.tileRadius
+                        color: setupModeMouse.containsMouse ? root.fillHover : root.fillIdle
+                        border.color: setupModeMouse.containsMouse ? root.seal : root.sep
+                        border.width: 1
+                        UiText { anchors.centerIn: parent; text: modelData.t; color: root.seal; font.family: root.mono; font.pixelSize: 8 }
+                        MouseArea {
+                            id: setupModeMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: calPopup.connectGoogleCalendar(modelData.v)
+                        }
+                    }
+                }
             }
             Row {
                 width: parent.width
@@ -548,6 +588,7 @@ PanelWindow {
                 ? (calendarActionProc.output || "Google calendar updated")
                 : (calendarActionProc.output || "Google calendar action failed")
             if (exitCode === 0) calPopup.refreshCalendarEvents()
+            else calPopup.refreshGoogleState()
         }
     }
     Process {
@@ -580,15 +621,67 @@ PanelWindow {
         }
     }
     Process {
+        id: calendarRuntimeProc
+        command: [calPopup.calendarRuntimeCheckPath]
+        running: false
+        onExited: function(exitCode) { calPopup.calendarRuntimeReady = exitCode === 0 }
+    }
+    Process {
+        id: calendarAuthProc
+        command: [calPopup.calendarAuthModePath, "status", "--json"]
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                var state = {}
+                try { state = JSON.parse(String(this.text || "{}")) } catch (e) { state = {} }
+                var mode = String(state.mode || "")
+                calPopup.calendarSessionReady = String(state.session || "") !== "" && (mode === "direct" || mode === "hosted")
+            }
+        }
+        onExited: function(exitCode) { if (exitCode !== 0) calPopup.calendarSessionReady = false }
+    }
+    Process {
         id: calendarSetupProc
+        command: [calPopup.calendarSetupPath, "--check"]
+        running: false
+        stdout: StdioCollector { onStreamFinished: calPopup.calendarSetupError = String(this.text || "").trim() }
+        stderr: StdioCollector {
+            onStreamFinished: {
+                var error = String(this.text || "").trim()
+                if (error) calPopup.calendarSetupError = error
+            }
+        }
+        onExited: function(exitCode) {
+            if (exitCode !== 0) {
+                calPopup.calendarSyncMessage = calPopup.calendarSetupError || "Google Calendar setup is unavailable"
+                calPopup.calendarSetupError = ""
+                return
+            }
+            calPopup.calendarSetupError = ""
+            // An installed runtime only needs the mode switched, which the
+            // bundled helper does without re-downloading the Caldir runtime.
+            var setupCommand = calPopup.calendarRuntimeReady
+                ? "'" + calPopup.calendarAuthModePath + "' switch '" + calPopup.calendarSetupMode + "'"
+                : "'" + calPopup.calendarSetupPath + "'" + (calPopup.calendarSetupMode === "hosted" ? " --hosted" : "")
+            calPopup.calendarSyncMessage = calPopup.calendarRuntimeReady
+                ? "Switching Google OAuth mode..."
+                : "Opening Google Calendar setup..."
+            calPopup.root.calendarVisible = false
+            calendarTerminalProc.command = ["bash", "-c", "omarchy-launch-floating-terminal-with-presentation " + setupCommand]
+            calendarTerminalProc.running = false
+            calendarTerminalProc.running = true
+        }
+    }
+    Process {
+        id: calendarTerminalProc
         command: ["bash", "-c", "omarchy-launch-floating-terminal-with-presentation " + calPopup.calendarSetupPath]
         running: false
     }
     Timer { id: calendarPushConfirmTimer; interval: 5000; onTriggered: calPopup.calendarPushArmed = false }
-    Timer { id: calendarMessageTimer; interval: 4000; repeat: false; onTriggered: calPopup.calendarSyncMessage = "" }
+    Timer { id: calendarMessageTimer; interval: 6000; repeat: false; onTriggered: calPopup.calendarSyncMessage = "" }
 
-
-    onVisibleChanged: if (visible) refreshCalendarEvents()
+    Component.onCompleted: refreshGoogleState()
+    onVisibleChanged: if (visible) { refreshCalendarEvents(); refreshGoogleState() }
     Connections {
         target: root
         function onCalendarMonthOffsetChanged() { if (calPopup.visible) calPopup.refreshCalendarEvents() }
