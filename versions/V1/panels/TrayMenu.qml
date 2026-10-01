@@ -4,7 +4,7 @@ import Quickshell
 import Quickshell.Wayland
 
 // Themed system-tray context menu, rendered from the DBusMenu model so it
-// matches the bar (QsMenuAnchor draws its own unthemeable native popup).
+// matches the bar and keeps submenu navigation inside the Rise overlay.
 PanelWindow {
     id: trayMenu
     required property var root
