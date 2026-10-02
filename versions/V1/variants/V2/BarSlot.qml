@@ -1398,9 +1398,7 @@ PanelWindow {
                     // Keep every optional fill/border surface slightly inset from
                     // the bar edges so all widget treatments share one geometry.
                     height: 24
-                    radius: slot.gid === "G20"
-                        ? barSlot.root.pillRadius
-                        : barSlot.root.panelButtonRadius
+                    radius: barSlot.root.panelButtonRadius
                     clip: true
                     visible: slot.occupied && slot.hasContent && slot.autoShown
                         && (barSlot.root.widgetHasFill(slot.gid)
