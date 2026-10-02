@@ -320,6 +320,46 @@ qsr_warn_stock_bar_hide_failure() {
   fi
 }
 
+qsr_update_lock_path() {
+  printf '%s/omarchy-update.lock\n' "${XDG_RUNTIME_DIR:-/tmp}"
+}
+
+qsr_run_after_omarchy_update() {
+  local lock_path name value unit
+  local -a args=()
+
+  # Omarchy dispatches post-update before omarchy-update-restart. Run this
+  # continuation in the user manager so it survives the updater terminal and
+  # wait until the update lock is released before bringing Rise back.
+  if [[ ${1:-} == --resume ]]; then
+    lock_path="$(qsr_update_lock_path)"
+    while ! flock -n "$lock_path" -c true >/dev/null 2>&1; do
+      sleep 1
+    done
+    qsr_post_boot_main
+    return
+  fi
+
+  command -v systemd-run >/dev/null 2>&1 || {
+    qsr_warn 'systemd-run is unavailable; cannot defer bar restart until Omarchy finishes updating.'
+    return 1
+  }
+
+  unit="qsrise-post-update-$(date +%s)-$$"
+  args=(--user --collect --quiet "--unit=$unit" "--property=Type=exec")
+  for name in HOME PATH DISPLAY WAYLAND_DISPLAY XDG_RUNTIME_DIR XDG_STATE_HOME \
+      XDG_SESSION_ID XDG_SESSION_TYPE XDG_CURRENT_DESKTOP QT_QPA_PLATFORM \
+      QT_QUICK_CONTROLS_STYLE HYPRLAND_INSTANCE_SIGNATURE OMARCHY_PATH; do
+    value="${!name-}"
+    [[ -n $value ]] && args+=("--setenv=$name=$value")
+  done
+
+  systemd-run "${args[@]}" -- "$0" --resume >/dev/null 2>&1 || {
+    qsr_warn 'could not schedule the Rise restart after Omarchy finishes updating.'
+    return 1
+  }
+}
+
 qsr_post_boot_main() {
   qsr_export_omarchy_path
 
@@ -341,5 +381,9 @@ qsr_post_boot_main() {
 }
 
 if [[ ${QSR_RUNTIME_LIB_ONLY:-0} != 1 ]]; then
-  qsr_post_boot_main "$@"
+  if [[ $0 == */post-update.d/quickshell-rise ]]; then
+    qsr_run_after_omarchy_update "$@"
+  else
+    qsr_post_boot_main "$@"
+  fi
 fi
