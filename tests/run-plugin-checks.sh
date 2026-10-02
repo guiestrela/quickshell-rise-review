@@ -46,13 +46,29 @@ else
   exit 127
 fi
 
-qml_files=()
-while IFS= read -r -d '' file; do qml_files+=("$file"); done < <(find versions -type f -name '*.qml' -print0)
-if [[ "${#qml_files[@]}" -eq 0 ]]; then
-  printf 'FAIL: no QML files found under versions/.\n' >&2
-  exit 1
-fi
-check "QML lint (${#qml_files[@]} files)" "$qmllint" -I /usr/lib/qt6/qml "${qml_files[@]}"
+check_qml() {
+  local file count=0 warnings=0 file_warnings status
+  printf '==> QML lint (all files under versions/)\n'
+  while IFS= read -r -d '' file; do
+    count=$((count + 1))
+    if "$qmllint" -I /usr/lib/qt6/qml "$file" >"$tmp/qmllint.log" 2>&1; then
+      file_warnings="$(grep -c '^Warning:' "$tmp/qmllint.log" || true)"
+      warnings=$((warnings + file_warnings))
+    else
+      status=$?
+      rg '^Error:' "$tmp/qmllint.log" || true
+      file_warnings="$(grep -c '^Warning:' "$tmp/qmllint.log" || true)"
+      printf 'FAIL: QML lint %s (exit %s; %s warnings)\n' "$file" "$status" "$file_warnings" >&2
+      return "$status"
+    fi
+  done < <(find versions -type f -name '*.qml' -print0)
+  if [[ "$count" -eq 0 ]]; then
+    printf 'FAIL: no QML files found under versions/.\n' >&2
+    return 1
+  fi
+  printf 'PASS: QML lint (%s files; %s warnings)\n' "$count" "$warnings"
+}
+check_qml
 
 regressions=(
   tests/qs-arch-update-regression.sh
