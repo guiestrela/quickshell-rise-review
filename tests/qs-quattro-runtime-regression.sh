@@ -833,7 +833,7 @@ case_registry_live_health_and_stop() (
   local runtime="$root/run/quickshell"
   local instance="$runtime/by-id/live-instance"
   local stale="$runtime/by-id/stale-instance"
-  local path_id bar_pid live
+  local path_id bar_pid live python_bin
 
   mkdir -p "$root/bin" "$(dirname "$config")" "$instance" "$stale" \
     "$runtime/by-path" "$runtime/by-pid"
@@ -845,7 +845,13 @@ case_registry_live_health_and_stop() (
   # Deliberately make qs resolve to a different executable. The live process is
   # the bare quickshell candidate, exercising the crash-relaunch allowance.
   ln -s /usr/bin/sleep "$root/bin/qs"
-  ln -s "$(command -v python3)" "$root/bin/quickshell"
+  # Resolve the interpreter itself instead of linking the Mise shim: the shim
+  # dispatches by argv[0], so invoking it as `quickshell` would start the real
+  # Quickshell CLI instead of running this recording process.
+  python_bin="$(python3 -c 'import os, sys; print(os.path.realpath(sys.executable))')" \
+    || fail "could not resolve Python interpreter for registry fixture"
+  [[ -x $python_bin ]] || fail "resolved Python interpreter is not executable: $python_bin"
+  ln -s "$python_bin" "$root/bin/quickshell"
   cat > "$root/bin/pkill" <<'SCRIPT'
 #!/usr/bin/env bash
 exit 1
@@ -1235,7 +1241,7 @@ case_static_contracts() {
       "$connected_panel" "V2 connected panel owner binding"
   done < <(grep -Rl --include='*.qml' 'ConnectedPanelSurface {' \
     "$REPO_ROOT/versions/V1/variants/V2/panels")
-  assert_eq "20" "$connected_panel_count" "V2 connected panel owner coverage"
+  assert_eq "21" "$connected_panel_count" "V2 connected panel owner coverage"
   for theme_file in "$V1_THEME" "$V2_THEME"; do
     assert_contains 'omarchy-shell idle status' "$theme_file" "live Omarchy idle service probe"
     assert_contains 'omarchy-shell notifications ping' "$theme_file" "live Omarchy notification service probe"
