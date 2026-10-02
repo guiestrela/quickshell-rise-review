@@ -16,7 +16,16 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "quickshell-rise-wallpaper-manager"
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    visible: root.wallpaperManagerVisible
+    readonly property int barBottom: root.v2BarHeight
+    readonly property int gap: 6
+    property real reveal: root.wallpaperManagerVisible ? 1 : 0
+    Behavior on reveal {
+        NumberAnimation {
+            duration: panel.root.wallpaperManagerVisible ? 160 : 120
+            easing.type: panel.root.wallpaperManagerVisible ? Easing.OutCubic : Easing.InCubic
+        }
+    }
+    visible: reveal > 0.001
     readonly property alias folderPicker: folderDialog
     function dismiss() {
         if (!folderDialog.visible) panel.root.wallpaperManagerVisible = false
@@ -104,43 +113,24 @@ PanelWindow {
     Rectangle {
         id: card
         objectName: "wallpaper-card"
-        x: Math.max(8, Math.min(panel.width - width - 8,
-            panel.root.wallpaperManagerAnchorX - width / 2))
-        y: Math.max(8, Math.min(panel.height - height - 8,
-            panel.root.wallpaperManagerAnchorY + 8))
         width: Math.min(420, panel.width - 32)
         height: Math.min(content.implicitHeight + 28, panel.height - 32)
-        color: panel.root.bg
+        color: "transparent"
         border.color: panel.root.panelBorder
-        border.width: panel.root.panelBorderW
-        radius: panel.root.panelRadius
+        border.width: 0
+        radius: panel.reveal > 0.001 ? panel.root.panelRadius : 0
         PillShadow { theme: panel.root }
-        // Fine accent rail with a raised center point, echoing the tooltip
-        // edge and visually tying the panel to the widget that opened it.
-        Canvas {
-            id: edgeAccent
-            x: 8; y: -8
-            width: card.width - 16; height: 10
-            onPaint: {
-                var ctx = getContext("2d")
-                ctx.clearRect(0, 0, width, height)
-                ctx.beginPath()
-                ctx.moveTo(0, 9)
-                ctx.lineTo(width / 2 - 5, 9)
-                ctx.lineTo(width / 2, 1)
-                ctx.lineTo(width / 2 + 5, 9)
-                ctx.lineTo(width, 9)
-                ctx.strokeStyle = panel.root.seal
-                ctx.lineWidth = 1
-                ctx.shadowColor = panel.root.seal
-                ctx.shadowBlur = 7
-                ctx.stroke()
-            }
-            Connections {
-                target: panel.root
-                function onSealChanged() { edgeAccent.requestPaint() }
-            }
+        ConnectedPanelSurface {
+            root: panel.root
+            ownerActive: panel.root.wallpaperManagerVisible
+            targetX: panel.root.wallpaperManagerAnchorX
+            reveal: panel.reveal
         }
+        x: Math.round(Math.max(6, Math.min(panel.root.wallpaperManagerAnchorX - width / 2, parent.width - width - 6)))
+        y: panel.root.barPosition === "bottom"
+            ? (parent.height - panel.barBottom - panel.gap - height) + 2 * (1 - panel.reveal)
+            : (panel.barBottom + panel.gap) - 2 * (1 - panel.reveal)
+        opacity: panel.reveal
         focus: panel.visible
         Keys.onEscapePressed: panel.dismiss()
         MouseArea { anchors.fill: parent; onClicked: {} }
