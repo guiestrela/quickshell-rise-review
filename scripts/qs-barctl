@@ -26,6 +26,7 @@ QSR_STABLE_ROUNDS="${QSR_STABLE_ROUNDS:-4}"
 QSR_POLL_INTERVAL="${QSR_POLL_INTERVAL:-0.1}"
 QSR_COMMAND_TIMEOUT="${QSR_COMMAND_TIMEOUT:-4}"
 QSR_RUNTIME_ROOT="${QSR_RUNTIME_ROOT:-${XDG_RUNTIME_DIR:-/run/user/$UID}/quickshell}"
+QSR_SESSION_ACTIVE="${QSR_SESSION_ACTIVE:-${XDG_RUNTIME_DIR:-/run/user/$UID}/quickshell-rise/active}"
 QSR_PROC_ROOT="${QSR_PROC_ROOT:-/proc}"
 QSR_QS_BIN="${QSR_QS_BIN:-qs}"
 QSR_SYSTEMD_RUN_BIN="${QSR_SYSTEMD_RUN_BIN:-systemd-run}"
@@ -204,6 +205,7 @@ qsr_systemd_env_args() {
       OMARCHY_PATH QSR_STATE_ROOT QSR_SWITCH_LOCK QSR_CONFIG \
       QSR_READY_ROUNDS QSR_STOP_ROUNDS QSR_STABLE_ROUNDS QSR_POLL_INTERVAL \
       QSR_COMMAND_TIMEOUT QSR_RUNTIME_ROOT QSR_PROC_ROOT \
+      QSR_SESSION_ACTIVE \
       QSR_SKIP_INSTANCE_VALIDATION QSR_QS_BIN QSR_SYSTEMD_RUN_BIN \
       QSR_SYSTEMCTL_BIN QSR_UNIT_PREFIX QSR_DISPLAY_MATCH; do
     value="${!name-}"
@@ -368,6 +370,9 @@ qsr_start_worker() {
   [[ -f $QSR_CONFIG ]] || qsr_fail "integrated config is missing: $QSR_CONFIG" || return 1
   qsr_with_lock || return
   qsr_normalize_bar || qsr_fail "could not establish one ready bar" || return 1
+  mkdir -p "$(dirname "$QSR_SESSION_ACTIVE")" \
+    && (umask 077; : > "$QSR_SESSION_ACTIVE") \
+    || qsr_log "warning: could not record this session's active-bar state"
   qsr_log "$(qsr_instance_variant "$QSR_READY_INSTANCE") is active"
 }
 
@@ -376,6 +381,7 @@ qsr_stop_worker() {
   qsr_with_lock || return
   qsr_stop_all_bars || qsr_fail "could not stop the integrated bar cleanly" || return 1
   [[ $(qsr_bar_count) == 0 ]] || qsr_fail "integrated bar remained registered after stop" || return 1
+  rm -f "$QSR_SESSION_ACTIVE"
   qsr_log "integrated bar is stopped"
 }
 

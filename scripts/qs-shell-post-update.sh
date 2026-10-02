@@ -106,13 +106,20 @@ else
   rc=1
 fi
 
-# ── optional autostart hook: refresh only if the user installed it ─────
+# ── refresh hooks only when Rise is installed/opted in ─────
+if [ -f "$HOME/.config/quickshell/bar/shell.qml" ]; then
+  if [ -f "$repo/contrib/post-boot.d/quickshell-rise" ]; then
+    mkdir -p "$post_update_hooks" || rc=1
+    put "$repo/contrib/post-boot.d/quickshell-rise" "$post_update_hooks/quickshell-rise" 755 || rc=1
+  elif [ "$require_post_boot_source" = "1" ]; then
+    rc=1
+  fi
+fi
+
 if [ -f "$post_boot_hooks/quickshell-rise" ]; then
   mkdir -p "$post_boot_hooks" || rc=1
   if [ -f "$repo/contrib/post-boot.d/quickshell-rise" ]; then
     put "$repo/contrib/post-boot.d/quickshell-rise" "$post_boot_hooks/quickshell-rise" 755 || rc=1
-    mkdir -p "$post_update_hooks" || rc=1
-    put "$repo/contrib/post-boot.d/quickshell-rise" "$post_update_hooks/quickshell-rise" 755 || rc=1
   elif [ "$require_post_boot_source" = "1" ]; then
     rc=1
   fi

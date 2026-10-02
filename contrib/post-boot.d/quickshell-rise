@@ -4,6 +4,7 @@
 QSR_CONFIG_PATH="${QSR_CONFIG_PATH:-$HOME/.config/quickshell/bar/shell.qml}"
 QSR_BARCTL="${QSR_BARCTL:-$HOME/.config/quickshell/bin/qs-barctl}"
 QSR_RUNTIME_ROOT="${QSR_RUNTIME_ROOT:-${XDG_RUNTIME_DIR:-/run/user/$UID}/quickshell}"
+QSR_SESSION_ACTIVE="${QSR_SESSION_ACTIVE:-${XDG_RUNTIME_DIR:-/run/user/$UID}/quickshell-rise/active}"
 QSR_PROC_ROOT="${QSR_PROC_ROOT:-/proc}"
 QSR_STATE_ROOT="${QSR_STATE_ROOT:-${XDG_STATE_HOME:-$HOME/.local/state}/quickshell-rise}"
 QSR_BAR_MARKER="${QSR_BAR_MARKER:-$QSR_STATE_ROOT/owns-omarchy-bar-off}"
@@ -336,9 +337,12 @@ qsr_run_after_omarchy_update() {
     while ! flock -n "$lock_path" -c true >/dev/null 2>&1; do
       sleep 1
     done
+    qsr_session_bar_wanted || return 0
     qsr_post_boot_main
     return
   fi
+
+  qsr_session_bar_wanted || return 0
 
   command -v systemd-run >/dev/null 2>&1 || {
     qsr_warn 'systemd-run is unavailable; cannot defer bar restart until Omarchy finishes updating.'
@@ -371,6 +375,11 @@ qsr_post_boot_main() {
     return 0
   fi
 
+  if ! mkdir -p "$(dirname "$QSR_SESSION_ACTIVE")" \
+      || ! (umask 077; : > "$QSR_SESSION_ACTIVE"); then
+    qsr_warn 'Rise is ready, but its session restart state could not be recorded.'
+  fi
+
   if qsr_has_quattro; then
     qsr_hide_stock_bar_owned || qsr_warn_stock_bar_hide_failure
   else
@@ -378,6 +387,10 @@ qsr_post_boot_main() {
     # is proven healthy, so a failed launch never leaves the user without a bar.
     pkill -x waybar 2>/dev/null || true
   fi
+}
+
+qsr_session_bar_wanted() {
+  [[ -f $QSR_SESSION_ACTIVE ]]
 }
 
 if [[ ${QSR_RUNTIME_LIB_ONLY:-0} != 1 ]]; then

@@ -464,7 +464,6 @@ case "$WANT_AUTOSTART" in
     ;;
   no)
     rm -f "$autostart_hook"
-    rm -f "$post_update_hook"
     info "Autostart hook removed → $autostart_hook"
     ;;
   *)
@@ -487,6 +486,14 @@ case "$WANT_AUTOSTART" in
     fi
     ;;
 esac
+
+# The post-update hook is safe without login autostart: it only restores Rise
+# when qs-barctl recorded that the bar was active in this graphical session.
+if command -v omarchy >/dev/null 2>&1; then
+  mkdir -p "$post_update_dir"
+  install -m 0755 "$runtime_helper" "$post_update_hook"
+  info "Session-aware post-update recovery hook installed → $post_update_hook"
+fi
 
 if [[ "$quattro_mode" == true ]]; then
   if [[ "$hide_stock_after_install" == true ]]; then
