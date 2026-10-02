@@ -326,11 +326,31 @@ Item {
 
     TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
+    function openSelectedAgent() {
+        var command = root.aiTool === "codex" ? "codex"
+                    : root.aiTool === "opencode" ? "opencode"
+                    : root.aiTool === "copilot" ? "copilot" : "claude"
+        launchAgent.command = ["bash", "-lc", "omarchy-launch-floating-terminal-with-presentation " + command]
+        launchAgent.running = false
+        launchAgent.running = true
+    }
+
+    Process { id: launchAgent }
+
     MouseArea {
         anchors.fill: parent
         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
         onEntered: if (shown) { root.refreshAiUsage(); tip.show() }
         onExited: { tip.hide() }
-        onClicked: { tip.hide(); root.aiUsageVisible = !root.aiUsageVisible }
+        onClicked: {
+            tip.hide()
+            if (mouse.button === Qt.LeftButton) {
+                rootMod.openSelectedAgent()
+                root.aiUsageVisible = false
+            } else {
+                root.aiUsageVisible = !root.aiUsageVisible
+            }
+        }
     }
 }
