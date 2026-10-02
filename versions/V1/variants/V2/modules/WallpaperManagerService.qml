@@ -136,7 +136,6 @@ Item {
             var next = Object.assign({}, currentByOutput)
             next[job.name] = selected
             currentByOutput = next
-            if (selected !== previous) syncPrimary(job.name)
         }
         activeScan = null
         scanInFlight = false
@@ -175,18 +174,6 @@ Item {
         queuesByOutput = queues
         return selected
     }
-    function syncPrimary(outputName) {
-        // Independent outputs are rendered by Rise itself, never by a global
-        // Omarchy background update that could also affect another monitor.
-        if (theme.wallpaperManagerSettings && theme.wallpaperManagerSettings.perDisplayConfig === true) return
-        if (!allowWallpaperEffects || liveScreens.length === 0 || String(liveScreens[0].name) !== String(outputName)) return
-        var path = pathFor(outputName)
-        if (path !== "" && !/\.(mp4|webm|mkv|mov|avi)$/i.test(path)) {
-            syncCurrent.command = ["bash", "-c", "omarchy-theme-bg-set \"$1\"", "rise-wallpaper-current", path]
-            syncCurrent.running = false
-            syncCurrent.running = true
-        }
-    }
     function shuffleAll(forceAdvance, outputName) {
         var names = outputNames(outputName)
         var next = Object.assign({}, currentByOutput)
@@ -199,7 +186,6 @@ Item {
             next[name] = deal(previous, name, next)
         }
         currentByOutput = next
-        for (var j = 0; j < names.length; j++) syncPrimary(names[j])
     }
     function nextAll() { shuffleAll(true) }
     function nextFor(outputName) { shuffleAll(true, outputName) }
@@ -215,7 +201,6 @@ Item {
             if (poolFor(name).indexOf(value) >= 0) next[name] = value
         }
         currentByOutput = next
-        if (liveScreens.length > 0) syncPrimary(liveScreens[0].name)
     }
     function markBad(path) {
         var next = Object.assign({}, badPaths)
@@ -267,8 +252,6 @@ Item {
             Qt.callLater(function() { manager.finishScan(exitCode, String(scanner.stdout.text || "")) })
         }
     }
-
-    Process { id: syncCurrent; command: ["true"]; running: false }
 
     Timer {
         interval: Math.max(1, manager.intervalSeconds) * 1000
