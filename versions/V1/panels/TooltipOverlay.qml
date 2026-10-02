@@ -59,10 +59,12 @@ PanelWindow {
             return Math.max(4, Math.min(maxY, candidate))
         }
 
-        color: root.barBg   // frosts with the bar's Frost toggle (0.68 ⇄ 0.94)
+        // Match the bar's surface recipe so the tooltip responds to the same
+        // border, frost and corner-radius controls as its trigger.
+        color: root.barBg
         border.color: root.pillBorder
         border.width: root.pillBorderW
-        radius: 6
+        radius: root.pillRadius
         opacity: overlay.reveal
 
         // border-less style → drop the border, drop a dark shadow (same as pills)
