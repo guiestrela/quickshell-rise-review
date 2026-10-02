@@ -345,7 +345,7 @@ Item {
         onExited: { tip.hide() }
         onClicked: {
             tip.hide()
-            if (mouse.button === Qt.RightButton) {
+            if (mouse.button === Qt.LeftButton) {
                 rootMod.openSelectedAgent()
                 root.aiUsageVisible = false
             } else {

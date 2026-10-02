@@ -1200,21 +1200,6 @@ PanelWindow {
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
-
-            // ── button ──
-            Rectangle {
-                width: parent.width
-                height: 28; radius: root.panelButtonRadius
-                color: netSetMa.containsMouse ? root.fillPrimaryHover : root.seal
-                Behavior on color { ColorAnimation { duration: 120 } }
-                UiText { anchors.centerIn: parent; text: "Network settings"; color: root.paper; font.family: root.mono; font.pixelSize: 11 }
-                MouseArea {
-                    id: netSetMa
-                    anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                    onClicked: { root.networkVisible = false; netPanel.openWifiSettings() }
-                }
-            }
         }
     }
 
