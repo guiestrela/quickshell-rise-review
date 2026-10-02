@@ -9,7 +9,7 @@ Item {
     implicitWidth: control.root.modWallpapers ? 38 : 0
     implicitHeight: 28
     readonly property color contentColor: root.widgetContentColor("G20", root.widgetIconColor)
-    readonly property color widgetFill: root.widgetFillColor("G20")
+    readonly property bool customStyle: root.widgetHasFill("G20") || root.widgetHasBorder("G20")
     readonly property string tooltipText: "Wallpaper manager · click to open · middle-click for next on all displays"
     function handleButton(button) {
         tip.hide()
@@ -22,9 +22,9 @@ Item {
         width: control.width
         height: control.root.pillH
         radius: control.root.pillRadius
-        color: control.root.widgetHasFill("G20") ? control.widgetFill : control.root.pill
-        border.color: control.root.widgetBorderColor("G20")
-        border.width: control.root.widgetHasBorder("G20") ? control.root.panelBorderW : 0
+        color: control.customStyle ? "transparent" : control.root.pill
+        border.color: "transparent"
+        border.width: 0
     }
     Text {
         anchors.centerIn: parent

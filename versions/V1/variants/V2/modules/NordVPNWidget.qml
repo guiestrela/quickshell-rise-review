@@ -34,7 +34,7 @@ Item {
 
     readonly property color shieldColor: connected ? root.seal : root.ink
     readonly property color contentColor: root.widgetContentColor("G19", shieldColor)
-    readonly property color widgetFill: root.widgetFillColor("G19")
+    readonly property bool customStyle: root.widgetHasFill("G19") || root.widgetHasBorder("G19")
     readonly property string tooltipText: connected ? "NordVPN connected"
         : disconnected ? "NordVPN disconnected"
         : unavailable ? "NordVPN unavailable" : "NordVPN status checking"
@@ -55,11 +55,9 @@ Item {
         width: Math.round(row.width) + 18
         height: 22
         radius: nordVpnWidget.root.pillRadius
-        color: nordVpnWidget.root.widgetHasFill("G19")
-            ? nordVpnWidget.widgetFill : nordVpnWidget.root.pill
-        border.color: nordVpnWidget.root.widgetBorderColor("G19")
-        border.width: nordVpnWidget.root.widgetHasBorder("G19")
-            ? nordVpnWidget.root.panelBorderW : 0
+        color: nordVpnWidget.customStyle ? "transparent" : nordVpnWidget.root.pill
+        border.color: "transparent"
+        border.width: 0
     }
 
     Row {
