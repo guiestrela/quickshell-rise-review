@@ -28,6 +28,19 @@ Use the same literal configuration path for startup, logs, IPC, and process sele
 
 ## Run the regression suites
 
+Run the repository-wide automated checks from any directory:
+
+```bash
+./tests/run-plugin-checks.sh
+```
+
+The runner checks shell syntax, runs ShellCheck when installed, lints every QML
+file under `versions/`, runs the six isolated shell regression suites, and checks
+patch whitespace. It stops at the first failure. QML lint can report existing
+warnings from Quickshell-specific types; warnings are counted, while lint errors
+fail the run. This command does not replace live V1/V2 checks in a Wayland
+session.
+
 The six shell suites use isolated fixtures for lifecycle, installer, updater, theme, package, and AI usage behavior.
 
 Run them from the repository root:
