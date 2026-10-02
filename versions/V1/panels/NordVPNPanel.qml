@@ -116,6 +116,7 @@ PanelWindow {
                 UiText { anchors.right: connectionSwitch.left; anchors.rightMargin: 10; anchors.verticalCenter: parent.verticalCenter; text: controller.vpnState + (controller.vpnCountry ? " · " + controller.vpnCountry : ""); color: controller.vpnConnected ? vpnPanel.root.seal : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10; elide: Text.ElideRight }
                 Rectangle { id: connectionSwitch; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; width: 50; height: 22; radius: height / 2; color: controller.vpnConnected ? vpnPanel.root.fillActive : toggleMouse.containsMouse && toggleMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle; border.color: controller.vpnConnected || (toggleMouse.containsMouse && toggleMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep; border.width: 1
                     Behavior on color { ColorAnimation { duration: 120 } }
+                    UiText { anchors.centerIn: parent; text: controller.vpnConnected ? "ON" : "OFF"; color: controller.vpnConnected ? vpnPanel.root.seal : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
                     MouseArea { id: toggleMouse; objectName: "vpn-toggle"; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: vpnPanel.toggleConnection() }
                 }
             }
@@ -176,6 +177,7 @@ PanelWindow {
                 }
                 Rectangle {
                     width: 48; height: 28; radius: vpnPanel.root.tileRadius; color: autoConnectMouse.containsMouse ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle; border.color: vpnPanel.autoConnectEnabled ? vpnPanel.root.seal : vpnPanel.root.sep
+                    UiText { anchors.centerIn: parent; text: vpnPanel.autoConnectEnabled ? "ON" : "OFF"; color: vpnPanel.autoConnectEnabled ? vpnPanel.root.seal : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
                     MouseArea { id: autoConnectMouse; objectName: "vpn-autoconnect-toggle"; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate; onClicked: vpnPanel.autoConnectEnabled = !vpnPanel.autoConnectEnabled }
                 }
                 Rectangle {
@@ -211,6 +213,7 @@ PanelWindow {
                         UiText { anchors.left: parent.left; anchors.right: switchTrack.left; anchors.rightMargin: 5; anchors.verticalCenter: parent.verticalCenter; text: modelData.label; color: parent.enabledSetting ? vpnPanel.root.ink : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10; wrapMode: Text.WordWrap; maximumLineCount: 2 }
                         Rectangle { id: switchTrack; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; width: 50; height: 22; radius: height / 2; color: parent.enabledSetting ? vpnPanel.root.fillActive : settingMouse.containsMouse && settingMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle; border.color: parent.enabledSetting || (settingMouse.containsMouse && settingMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep; border.width: 1
                             Behavior on color { ColorAnimation { duration: 120 } }
+                            UiText { anchors.centerIn: parent; text: parent.parent.enabledSetting ? "ON" : "OFF"; color: parent.parent.enabledSetting ? vpnPanel.root.seal : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
                         }
                         MouseArea { objectName: "vpn-setting-" + modelData.key; id: settingMouse; Component.onCompleted: vpnPanel.testTargets[objectName] = settingMouse; anchors.fill: parent; hoverEnabled: true; enabled: controller.vpnState !== "Unavailable" && modelData.key !== "dns"; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: vpnPanel.changeSetting(modelData.key) }
                     }
@@ -229,6 +232,7 @@ PanelWindow {
                         UiText { anchors.left: parent.left; anchors.right: switchTrack.left; anchors.rightMargin: 5; anchors.verticalCenter: parent.verticalCenter; text: modelData.label; color: parent.enabledSetting ? vpnPanel.root.ink : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10; wrapMode: Text.WordWrap; maximumLineCount: 2 }
                         Rectangle { id: switchTrack; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; width: 50; height: 22; radius: height / 2; color: parent.enabledSetting ? vpnPanel.root.fillActive : settingMouse.containsMouse && settingMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle; border.color: parent.enabledSetting || (settingMouse.containsMouse && settingMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep; border.width: 1
                             Behavior on color { ColorAnimation { duration: 120 } }
+                            UiText { anchors.centerIn: parent; text: parent.parent.enabledSetting ? "ON" : "OFF"; color: parent.parent.enabledSetting ? vpnPanel.root.seal : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
                         }
                         MouseArea { objectName: "vpn-setting-" + modelData.key; id: settingMouse; Component.onCompleted: vpnPanel.testTargets[objectName] = settingMouse; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate && modelData.key !== "threat-protection-lite"; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: vpnPanel.changeSetting(modelData.key) }
                     }
