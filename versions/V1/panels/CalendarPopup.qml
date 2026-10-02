@@ -120,6 +120,22 @@ PanelWindow {
         calendarSetupProc.running = false
         calendarSetupProc.running = true
     }
+    function shellQuote(value) {
+        return "'" + String(value).replace(/'/g, "'\"'\"'") + "'"
+    }
+    function calendarTerminalCommand(args) {
+        var inner = args.map(shellQuote).join(" ")
+        return ["bash", "-c", "omarchy-launch-floating-terminal-with-presentation " + shellQuote(inner)]
+    }
+    function launchCalendarSetup() {
+        var args = calendarRuntimeReady
+            ? [calendarAuthModePath, "switch", calendarSetupMode]
+            : [calendarSetupPath]
+        if (!calendarRuntimeReady && calendarSetupMode === "hosted") args.push("--hosted")
+        calendarTerminalProc.command = calendarTerminalCommand(args)
+        calendarTerminalProc.running = false
+        calendarTerminalProc.running = true
+    }
     function deleteEvent(event) {
         if (!event || !event.uid || !event.instance_id) return
         if (!deleteCandidate || deleteCandidate.instance_id !== event.instance_id) {
@@ -657,21 +673,16 @@ PanelWindow {
             calPopup.calendarSetupError = ""
             // An installed runtime only needs the mode switched, which the
             // bundled helper does without re-downloading the Caldir runtime.
-            var setupCommand = calPopup.calendarRuntimeReady
-                ? "'" + calPopup.calendarAuthModePath + "' switch '" + calPopup.calendarSetupMode + "'"
-                : "'" + calPopup.calendarSetupPath + "'" + (calPopup.calendarSetupMode === "hosted" ? " --hosted" : "")
             calPopup.calendarSyncMessage = calPopup.calendarRuntimeReady
                 ? "Switching Google OAuth mode..."
                 : "Opening Google Calendar setup..."
             calPopup.root.calendarVisible = false
-            calendarTerminalProc.command = ["bash", "-c", "omarchy-launch-floating-terminal-with-presentation " + setupCommand]
-            calendarTerminalProc.running = false
-            calendarTerminalProc.running = true
+            calPopup.launchCalendarSetup()
         }
     }
     Process {
         id: calendarTerminalProc
-        command: ["bash", "-c", "omarchy-launch-floating-terminal-with-presentation " + calPopup.calendarSetupPath]
+        command: ["true"]
         running: false
     }
     Timer { id: calendarPushConfirmTimer; interval: 5000; onTriggered: calPopup.calendarPushArmed = false }
