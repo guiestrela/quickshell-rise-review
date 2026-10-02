@@ -115,6 +115,32 @@ PanelWindow {
         border.width: panel.root.panelBorderW
         radius: panel.root.panelRadius
         PillShadow { theme: panel.root }
+        // Fine accent rail with a raised center point, echoing the tooltip
+        // edge and visually tying the panel to the widget that opened it.
+        Canvas {
+            id: edgeAccent
+            x: 8; y: -8
+            width: card.width - 16; height: 10
+            onPaint: {
+                var ctx = getContext("2d")
+                ctx.clearRect(0, 0, width, height)
+                ctx.beginPath()
+                ctx.moveTo(0, 9)
+                ctx.lineTo(width / 2 - 5, 9)
+                ctx.lineTo(width / 2, 1)
+                ctx.lineTo(width / 2 + 5, 9)
+                ctx.lineTo(width, 9)
+                ctx.strokeStyle = panel.root.seal
+                ctx.lineWidth = 1
+                ctx.shadowColor = panel.root.seal
+                ctx.shadowBlur = 7
+                ctx.stroke()
+            }
+            Connections {
+                target: panel.root
+                function onSealChanged() { edgeAccent.requestPaint() }
+            }
+        }
         focus: panel.visible
         Keys.onEscapePressed: panel.dismiss()
         MouseArea { anchors.fill: parent; onClicked: {} }
