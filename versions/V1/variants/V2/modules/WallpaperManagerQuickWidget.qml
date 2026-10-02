@@ -16,15 +16,14 @@ Item {
         else control.root.toggleWallpaperManager(control.screen, control)
     }
 
-    Text {
+    IconText {
         anchors.centerIn: parent
-        text: "󰸉"
+        text: "wallpaper"
         color: control.root.wallpaperManagerVisible
             && !control.root.widgetHasFill("G20")
             ? control.root.seal : control.contentColor
-        font.family: control.root.mono
         font.pixelSize: 14
-        renderType: Text.QtRendering
+        Behavior on color { ColorAnimation { duration: 150 } }
     }
     TooltipMixin { id: tip; root: control.root; owner: control; text: control.tooltipText }
     MouseArea {
