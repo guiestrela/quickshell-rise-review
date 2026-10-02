@@ -132,14 +132,17 @@ Item {
         if (!Object.prototype.hasOwnProperty.call(allowed, key)) return false
         var current = String(vpnSettings[key] || "disabled").toLowerCase()
         var value
-        if (key === "protocol") {
+        if (key === "technology") {
+            value = String(requestedValue || "").toUpperCase()
+            if (["OPENVPN", "NORDLYNX", "NORDWHISPER"].indexOf(value) < 0) return false
+        } else if (key === "protocol") {
             value = String(requestedValue || "").toUpperCase()
             if (value !== "TCP" && value !== "UDP") return false
         } else {
             value = /^(enabled|on|yes|true)$/.test(current) ? "off" : "on"
         }
-        if (key === "technology") value = current.indexOf("nordlynx") >= 0 ? "OpenVPN" : "NordLynx"
-        vpnActionMessage = key === "protocol" ? "Setting OpenVPN protocol to " + value + "…"
+        vpnActionMessage = key === "technology" ? "Setting VPN technology to " + value + "…"
+            : key === "protocol" ? "Setting OpenVPN protocol to " + value + "…"
             : key === "threat-protection-lite" ? "Updating Real-time Protection…"
             : "Updating " + key + "…"
         return _runAction([cli, "set", allowed[key][0], value])

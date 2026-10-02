@@ -69,6 +69,7 @@ PanelWindow {
     function connectCountry() { controller.connectVpnCountry(countryTarget) }
     function pause(duration) { controller.pauseVpn(duration) }
     function changeSetting(key) { controller.setVpnSetting(key) }
+    function changeTechnology(technology) { controller.setVpnSetting("technology", technology) }
     function changeProtocol(protocol) { controller.setVpnSetting("protocol", protocol) }
     function applyDns() { controller.setDnsServers(dnsInput.text) }
     function resetDns() { controller.resetDnsServers() }
@@ -149,8 +150,22 @@ PanelWindow {
                 }
             }
             UiText { text: "SETTINGS"; color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
-            UiText { text: "Technology · " + String(controller.vpnSettings.technology || "Checking…"); color: vpnPanel.root.ink; font.family: vpnPanel.root.mono; font.pixelSize: 11 }
-            UiText { width: parent.width; text: "Technology choices · OPENVPN / NORDLYNX / NORDWHISPER"; color: vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 9; wrapMode: Text.Wrap }
+            UiText { text: "TECHNOLOGY · " + String(controller.vpnSettings.technology || "Checking…").toUpperCase(); color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 0.5 }
+            Row {
+                width: parent.width; spacing: 6
+                Repeater {
+                    model: ["OPENVPN", "NORDLYNX", "NORDWHISPER"]
+                    delegate: Rectangle {
+                        required property string modelData
+                        width: (parent.width - 12) / 3; height: 28; radius: vpnPanel.root.tileRadius
+                        readonly property bool selected: String(controller.vpnSettings.technology || "").toUpperCase() === modelData
+                        color: selected ? vpnPanel.root.fillActive : technologyMouse.containsMouse && technologyMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle
+                        border.color: selected || (technologyMouse.containsMouse && technologyMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep
+                        UiText { anchors.centerIn: parent; text: modelData; color: parent.selected ? vpnPanel.root.seal : vpnPanel.root.ink; font.family: vpnPanel.root.mono; font.pixelSize: 8; elide: Text.ElideRight }
+                        MouseArea { id: technologyMouse; objectName: "vpn-technology-" + modelData.toLowerCase(); Component.onCompleted: vpnPanel.testTargets[objectName] = technologyMouse; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: vpnPanel.changeTechnology(modelData) }
+                    }
+                }
+            }
             UiText { text: "PROTOCOL · OPENVPN TRANSPORT"; color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 0.5 }
             UiText { width: parent.width; text: "UDP is faster · TCP can be more reliable on restricted networks"; color: vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 9; wrapMode: Text.Wrap }
             Row {
