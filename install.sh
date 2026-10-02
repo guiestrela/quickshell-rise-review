@@ -197,6 +197,8 @@ qsr_export_omarchy_path
 
 autostart_dir="$HOME/.config/omarchy/hooks/post-boot.d"
 autostart_hook="$autostart_dir/quickshell-rise"
+post_update_dir="$HOME/.config/omarchy/hooks/post-update.d"
+post_update_hook="$post_update_dir/quickshell-rise"
 hook_was_installed=false
 [[ -f "$autostart_hook" ]] && hook_was_installed=true
 
@@ -452,19 +454,26 @@ case "$WANT_AUTOSTART" in
     if command -v omarchy >/dev/null 2>&1; then
       mkdir -p "$autostart_dir"
       install -m 0755 "$runtime_helper" "$autostart_hook"
+      mkdir -p "$post_update_dir"
+      install -m 0755 "$runtime_helper" "$post_update_hook"
       info "Autostart hook installed → $autostart_hook"
+      info "Post-update recovery hook installed → $post_update_hook"
     else
       warn "--autostart uses Omarchy's hook system, which is unavailable here; Rise still runs for this session."
     fi
     ;;
   no)
     rm -f "$autostart_hook"
+    rm -f "$post_update_hook"
     info "Autostart hook removed → $autostart_hook"
     ;;
   *)
     if [[ "$hook_was_installed" == true ]] && command -v omarchy >/dev/null 2>&1; then
       install -m 0755 "$runtime_helper" "$autostart_hook"
+      mkdir -p "$post_update_dir"
+      install -m 0755 "$runtime_helper" "$post_update_hook"
       info "Existing autostart hook refreshed → $autostart_hook"
+      info "Post-update recovery hook refreshed → $post_update_hook"
     elif command -v omarchy >/dev/null 2>&1; then
       info "Autostart at login via Omarchy post-boot hook:"
       printf "  ${c_b}curl -fsSL -o %s/quickshell-rise %s/contrib/post-boot.d/quickshell-rise${c_0}\n" \

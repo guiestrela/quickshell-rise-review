@@ -19,6 +19,7 @@ qsbin="$HOME/.config/quickshell/bin"
 units="$HOME/.config/systemd/user"
 theme_hooks="$HOME/.config/omarchy/hooks/theme-set.d"
 post_boot_hooks="$HOME/.config/omarchy/hooks/post-boot.d"
+post_update_hooks="$HOME/.config/omarchy/hooks/post-update.d"
 defer_systemd="${QS_SHELL_COMPANION_DEFER_SYSTEMD:-0}"
 require_post_boot_source="${QS_SHELL_REQUIRE_POST_BOOT_SOURCE:-0}"
 
@@ -110,6 +111,8 @@ if [ -f "$post_boot_hooks/quickshell-rise" ]; then
   mkdir -p "$post_boot_hooks" || rc=1
   if [ -f "$repo/contrib/post-boot.d/quickshell-rise" ]; then
     put "$repo/contrib/post-boot.d/quickshell-rise" "$post_boot_hooks/quickshell-rise" 755 || rc=1
+    mkdir -p "$post_update_hooks" || rc=1
+    put "$repo/contrib/post-boot.d/quickshell-rise" "$post_update_hooks/quickshell-rise" 755 || rc=1
   elif [ "$require_post_boot_source" = "1" ]; then
     rc=1
   fi

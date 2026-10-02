@@ -330,6 +330,8 @@ fi
 # 2. remove the post-boot hook (if the user installed it)
 boot="$HOME/.config/omarchy/hooks/post-boot.d/quickshell-rise"
 [[ -f "$boot" ]] && { rm -f "$boot"; info "Removed post-boot hook"; }
+post_update="$HOME/.config/omarchy/hooks/post-update.d/quickshell-rise"
+[[ -f "$post_update" ]] && { rm -f "$post_update"; info "Removed post-update hook"; }
 
 # 3. remove the theme hook we installed
 hook="$HOME/.config/omarchy/hooks/theme-set.d/50-quickshell-bar.sh"
