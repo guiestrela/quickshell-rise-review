@@ -29,7 +29,9 @@ Item {
     Text {
         anchors.centerIn: parent
         text: "󰸉"
-        color: control.root.wallpaperManagerVisible ? control.root.seal : control.contentColor
+        color: control.root.wallpaperManagerVisible
+            && !control.root.widgetHasFill("G20")
+            ? control.root.seal : control.contentColor
         font.family: control.root.mono
         font.pixelSize: 14
         renderType: Text.QtRendering
