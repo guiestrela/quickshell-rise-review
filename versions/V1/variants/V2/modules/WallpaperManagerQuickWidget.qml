@@ -8,8 +8,8 @@ Item {
     visible: control.root.modWallpapers
     implicitWidth: control.root.modWallpapers ? 38 : 0
     implicitHeight: 28
-    readonly property color contentColor: root.widgetContentColor("G20", root.widgetIconColor)
-    readonly property bool customStyle: root.widgetHasFill("G20") || root.widgetHasBorder("G20")
+    readonly property color contentColor: root.widgetContentColor("G16", root.widgetIconColor)
+    readonly property bool customStyle: root.widgetHasFill("G16") || root.widgetHasBorder("G16")
     readonly property string tooltipText: "Wallpaper manager · click to open · middle-click for next on all displays"
     function handleButton(button) {
         tip.hide()
@@ -30,7 +30,7 @@ Item {
         anchors.centerIn: parent
         text: "󰸉"
         color: control.root.wallpaperManagerVisible
-            && !control.root.widgetHasFill("G20")
+            && !control.root.widgetHasFill("G16")
             ? control.root.seal : control.contentColor
         font.family: control.root.mono
         font.pixelSize: 14
