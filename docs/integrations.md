@@ -82,8 +82,9 @@ The network popup reports NordVPN status and supports connect, disconnect, and
 connecting to a country entered in the Rise panel. The bar pill adds a small
 VPN mark while connected. Install and authenticate the official NordVPN Linux
 client first; the controls use its `nordvpn` CLI. The panel also exposes the
-client's Firewall, Kill Switch, Threat Protection Lite, protocol, and pause
-controls.
+client's Firewall, Kill Switch, Real-time Protection, OpenVPN protocol, and
+pause controls. Real-time Protection requires NordVPN DNS and may reset a
+custom DNS configuration.
 
 ## Wallpaper folder
 

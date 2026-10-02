@@ -69,7 +69,7 @@ PanelWindow {
     function connectCountry() { controller.connectVpnCountry(countryTarget) }
     function pause(duration) { controller.pauseVpn(duration) }
     function changeSetting(key) { controller.setVpnSetting(key) }
-    function changeProtocol() { controller.setVpnSetting("protocol") }
+    function changeProtocol(protocol) { controller.setVpnSetting("protocol", protocol) }
     function applyDns() { controller.setDnsServers(dnsInput.text) }
     function resetDns() { controller.resetDnsServers() }
 
@@ -151,17 +151,25 @@ PanelWindow {
             UiText { text: "SETTINGS"; color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
             UiText { text: "Technology · " + String(controller.vpnSettings.technology || "Checking…"); color: vpnPanel.root.ink; font.family: vpnPanel.root.mono; font.pixelSize: 11 }
             UiText { width: parent.width; text: "Technology choices · OPENVPN / NORDLYNX / NORDWHISPER"; color: vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 9; wrapMode: Text.Wrap }
-            UiText { width: parent.width; text: "PROTOCOL · unavailable in CLI 5.4.0"; color: vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10; wrapMode: Text.Wrap }
-            Column {
-                width: parent.width; spacing: 4
-                Repeater {
-                    model: ["UDP — faster", "TCP — more reliable"]
-                    delegate: Rectangle {
-                        required property string modelData
-                        width: parent.width; height: 28; radius: vpnPanel.root.tileRadius
-                        color: vpnPanel.root.fillIdle; border.color: vpnPanel.root.sep
-                        UiText { anchors.left: parent.left; anchors.leftMargin: 9; anchors.verticalCenter: parent.verticalCenter; text: modelData + " · unavailable"; color: vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
-                    }
+            UiText { text: "PROTOCOL · OPENVPN TRANSPORT"; color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 0.5 }
+            UiText { width: parent.width; text: "UDP is faster · TCP can be more reliable on restricted networks"; color: vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 9; wrapMode: Text.Wrap }
+            Row {
+                width: parent.width; spacing: 6
+                Rectangle {
+                    width: (parent.width - 6) / 2; height: 28; radius: vpnPanel.root.tileRadius
+                    readonly property bool selected: String(controller.vpnSettings.protocol || "UDP").toUpperCase() === "UDP"
+                    color: selected ? vpnPanel.root.fillActive : protocolMouse.containsMouse && protocolMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle
+                    border.color: selected || (protocolMouse.containsMouse && protocolMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep
+                    UiText { anchors.centerIn: parent; text: "UDP"; color: parent.selected ? vpnPanel.root.seal : vpnPanel.root.ink; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
+                    MouseArea { id: protocolMouse; objectName: "vpn-protocol"; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: vpnPanel.changeProtocol("UDP") }
+                }
+                Rectangle {
+                    width: (parent.width - 6) / 2; height: 28; radius: vpnPanel.root.tileRadius
+                    readonly property bool selected: String(controller.vpnSettings.protocol || "UDP").toUpperCase() === "TCP"
+                    color: selected ? vpnPanel.root.fillActive : tcpProtocolMouse.containsMouse && tcpProtocolMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle
+                    border.color: selected || (tcpProtocolMouse.containsMouse && tcpProtocolMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep
+                    UiText { anchors.centerIn: parent; text: "TCP"; color: parent.selected ? vpnPanel.root.seal : vpnPanel.root.ink; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
+                    MouseArea { id: tcpProtocolMouse; objectName: "vpn-protocol-tcp"; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: vpnPanel.changeProtocol("TCP") }
                 }
             }
             Rectangle { width: parent.width; height: 1; color: vpnPanel.root.sep }
@@ -221,10 +229,11 @@ PanelWindow {
             }
             Rectangle { width: parent.width; height: 1; color: vpnPanel.root.sep }
             UiText { text: "SECURITY"; color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
+            UiText { width: parent.width; text: "Real-time Protection uses NordVPN DNS and may reset custom DNS."; color: vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 9; wrapMode: Text.Wrap }
             Grid {
                 width: parent.width; columns: 2; rowSpacing: 5; columnSpacing: 10
                 Repeater {
-                    model: [{key:"firewall",label:"Firewall"},{key:"kill-switch",label:"Kill Switch"},{key:"threat-protection-lite",label:"Threat Protection Lite · unavailable (CLI 5.4.0)"}]
+                    model: [{key:"firewall",label:"Firewall"},{key:"kill-switch",label:"Kill Switch"},{key:"threat-protection-lite",label:"Real-time Protection"}]
                     delegate: Rectangle {
                         required property var modelData
                         width: (parent.width - 10) / 2; height: 42; color: "transparent"
@@ -234,7 +243,7 @@ PanelWindow {
                             Behavior on color { ColorAnimation { duration: 120 } }
                             UiText { anchors.centerIn: parent; text: parent.parent.enabledSetting ? "ON" : "OFF"; color: parent.parent.enabledSetting ? vpnPanel.root.seal : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
                         }
-                        MouseArea { objectName: "vpn-setting-" + modelData.key; id: settingMouse; Component.onCompleted: vpnPanel.testTargets[objectName] = settingMouse; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate && modelData.key !== "threat-protection-lite"; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: vpnPanel.changeSetting(modelData.key) }
+                        MouseArea { objectName: "vpn-setting-" + modelData.key; id: settingMouse; Component.onCompleted: vpnPanel.testTargets[objectName] = settingMouse; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: vpnPanel.changeSetting(modelData.key) }
                     }
                 }
             }
@@ -291,11 +300,6 @@ PanelWindow {
                         }
                     }
                 }
-            }
-            Rectangle {
-                width: parent.width; height: 25; radius: vpnPanel.root.tileRadius; color: vpnPanel.root.fillIdle; border.color: vpnPanel.root.sep; border.width: 1
-                UiText { anchors.centerIn: parent; text: "Protocol · unavailable (CLI 5.4.0 lacks set protocol)"; color: vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10; elide: Text.ElideRight }
-                MouseArea { objectName: "vpn-protocol"; id: protocolMouse; anchors.fill: parent; hoverEnabled: true; enabled: false; cursorShape: Qt.ArrowCursor; onClicked: vpnPanel.changeProtocol() }
             }
             UiText { width: parent.width; visible: controller.vpnActionMessage !== ""; text: controller.vpnActionMessage; color: vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 8; elide: Text.ElideRight }
             UiText { width: parent.width; visible: controller.vpnMessage !== ""; text: controller.vpnMessage; color: vpnPanel.root.color01; font.family: vpnPanel.root.mono; font.pixelSize: 9; wrapMode: Text.Wrap }

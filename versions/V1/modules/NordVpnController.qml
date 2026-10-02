@@ -24,8 +24,6 @@ Item {
         || vpnState === "Connecting" || vpnState === "Disconnecting"
     readonly property bool canMutate: enabled
         && (vpnState === "Connected" || vpnState === "Disconnected") && !vpnBusy
-    readonly property string unsupportedSettingsReason: "Not supported by NordVPN CLI 5.4.0"
-
     property string _queryKind: "status"
 
     function _startQuery(kind) {
@@ -112,17 +110,15 @@ Item {
         vpnActionMessage = "Resetting DNS…"
         return _runAction([cli, "set", "dns", "off"])
     }
-    function setVpnSetting(key) {
+    function setVpnSetting(key, requestedValue) {
         if (!canMutate) return false
-        if (key === "protocol" || key === "threat-protection-lite") {
-            vpnActionMessage = unsupportedSettingsReason
-            return false
-        }
         var allowed = {
             firewall: ["firewall", "firewall"],
             "kill-switch": ["killswitch", "kill-switch"],
             "auto-connect": ["autoconnect", "auto-connect"],
             technology: ["technology", "technology"],
+            protocol: ["protocol", "protocol"],
+            "threat-protection-lite": ["protection", "protection"],
             notify: ["notify", "notify"],
             tray: ["tray", "tray"],
             meshnet: ["meshnet", "meshnet"],
@@ -135,9 +131,17 @@ Item {
 
         if (!Object.prototype.hasOwnProperty.call(allowed, key)) return false
         var current = String(vpnSettings[key] || "disabled").toLowerCase()
-        var value = /^(enabled|on|yes|true)$/.test(current) ? "off" : "on"
+        var value
+        if (key === "protocol") {
+            value = String(requestedValue || "").toUpperCase()
+            if (value !== "TCP" && value !== "UDP") return false
+        } else {
+            value = /^(enabled|on|yes|true)$/.test(current) ? "off" : "on"
+        }
         if (key === "technology") value = current.indexOf("nordlynx") >= 0 ? "OpenVPN" : "NordLynx"
-        vpnActionMessage = "Updating " + key + "…"
+        vpnActionMessage = key === "protocol" ? "Setting OpenVPN protocol to " + value + "…"
+            : key === "threat-protection-lite" ? "Updating Real-time Protection…"
+            : "Updating " + key + "…"
         return _runAction([cli, "set", allowed[key][0], value])
     }
     function _runAction(argv) {
@@ -173,7 +177,12 @@ Item {
                     var lines = raw.split("\n")
                     for (var i = 0; i < lines.length; i++) {
                         var match = lines[i].match(/^\s*([^:]+):\s*(.*?)\s*$/)
-                        if (match) parsed[match[1].trim().toLowerCase().replace(/\s+/g, "-")] = match[2].trim()
+                        if (match) {
+                            var settingKey = match[1].trim().toLowerCase().replace(/\s+/g, "-")
+                            if (settingKey === "real-time-protection" || settingKey === "protection")
+                                settingKey = "threat-protection-lite"
+                            parsed[settingKey] = match[2].trim()
+                        }
                     }
                     controller.vpnSettings = parsed
                     return
