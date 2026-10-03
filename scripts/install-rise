@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Add Rise through Omarchy's supported plugin manager, then install its AI usage
+# collectors and user timers as part of the same setup command.
+set -euo pipefail
+
+PLUGIN_ID="io.github.guiestrela.quickshell-rise"
+PLUGIN_REPO_URL="${RISE_PLUGIN_REPO_URL:-https://github.com/guiestrela/quickshell-rise-review.git}"
+PLUGIN_DIR="${RISE_PLUGIN_DIR:-$HOME/.config/omarchy/plugins/$PLUGIN_ID}"
+
+fail() { printf 'install-rise: %s\n' "$*" >&2; exit 1; }
+
+command -v omarchy >/dev/null 2>&1 || fail "Omarchy is required; install Rise with its supported plugin manager."
+
+# Omarchy intentionally keeps newly added plugins disabled, allowing users to
+# inspect the code before activation. Do not bypass its confirmation prompt.
+omarchy plugin add "$PLUGIN_REPO_URL"
+
+[[ -d "$PLUGIN_DIR" ]] || fail "Omarchy added the plugin but its expected directory is missing: $PLUGIN_DIR"
+[[ -x "$PLUGIN_DIR/scripts/install-ai-backends" ]] || fail "AI usage installer is missing or not executable in $PLUGIN_DIR"
+
+"$PLUGIN_DIR/scripts/install-ai-backends" "$PLUGIN_DIR"
+printf "Rise and its four AI usage collectors are installed. Enable the bar separately with: omarchy plugin enable %s\n" "$PLUGIN_ID"

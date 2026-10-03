@@ -34,33 +34,15 @@ The optional commands affect these surfaces:
 - **Screen recording**: `gpu-screen-recorder`
 - **Media waveform**: `cava`
 
-Python 3 is required only when you install the optional artificial intelligence (AI) usage backends for Claude, Codex, and OpenCode.
+## AI usage availability
 
-## Install AI usage dependencies
-
-The collectors need Python 3. Install it on Arch with:
-
-```bash
-sudo pacman -S python
-```
-
-Choose the provider CLIs whose usage you want to display. You do not need to
-install all three:
-
-| Provider | Install on Arch | Sign in or initialize |
-|---|---|---|
-| [Claude Code](https://docs.anthropic.com/en/docs/claude-code/getting-started) | `sudo pacman -S nodejs npm`, then `npm install --prefix "$HOME/.local" -g @anthropic-ai/claude-code` | Run `claude` and complete sign-in |
-| [OpenAI Codex](https://help.openai.com/en/articles/11381614-api-codex-cli-and-sign-in-with-chatgpt) | `sudo pacman -S nodejs npm`, then `npm install --prefix "$HOME/.local" -g @openai/codex` | Run `codex --login` |
-| [OpenCode](https://opencode.ai/en/docs) | `sudo pacman -S opencode` | Run `opencode`, then use `/connect` |
-
-The Claude and Codex npm installs use `~/.local` so they do not require running
-npm as root. The package places their commands in `~/.local/bin`. Add that
-directory to `PATH` if needed; for the current terminal, run
-`export PATH="$HOME/.local/bin:$PATH"`. After installing the CLIs and signing in, run the AI
-collector setup command from the [README](../README.md#install). The Codex
-collector is skipped if `codex` is not on `PATH` when setup runs. OpenCode
-starts reporting local usage after it has created its database and recorded
-activity.
+The supported Rise setup installs all four collectors and their user systemd
+timers automatically; it does not install provider CLIs or require accounts,
+credentials, or usage data. Python 3 and a working user systemd manager are
+required for collector installation. Claude and Codex report data only when
+their local sessions/credentials and supported data sources are available;
+OpenCode needs its local usage database; Copilot needs existing `gh` auth.
+Without provider data, the widget has no usage to show; the bar remains usable.
 
 ## Install an interface
 
@@ -82,21 +64,24 @@ The installer writes the shell to `~/.config/quickshell/bar`. A foreign configur
 
 Reinstalling Rise keeps the previously active interface unless you pass `V1` or `V2`. It also preserves a custom `quotes.txt` from the installed Rise directory.
 
-## Choose installation flags
+## Legacy standalone installer flags
 
-Flags let non-interactive installs choose autostart and the AI usage backend.
+The standalone `install.sh` also installs AI usage collectors on every run.
+`--ai-backend` is accepted as a compatibility no-op; `--no-ai-backend` is
+rejected because collectors are now required. These flags do not affect the
+Omarchy plugin-manager setup described in the [README](../README.md#install).
 
 | Flag | Result |
 |---|---|
 | `--autostart` | Install the Omarchy post-boot hook and let Rise manage the stock-bar state |
 | `--no-autostart` | Remove the Rise post-boot hook and leave persistent startup disabled |
-| `--ai-backend` | Install available Claude, Codex, and OpenCode usage backends |
-| `--no-ai-backend` | Skip the optional AI usage backends |
+| `--ai-backend` | Deprecated compatibility flag; collectors are installed regardless |
+| `--no-ai-backend` | Rejected; AI usage collectors are required |
 
 For example, install V2 with autostart and the AI usage backends:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/guiestrela/quickshell-dots/main/install.sh | bash -s V2 --autostart --ai-backend
+curl -fsSL https://raw.githubusercontent.com/guiestrela/quickshell-dots/main/install.sh | bash -s V2 --autostart
 ```
 
 Without an autostart flag, an existing Rise hook is refreshed. On a new

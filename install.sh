@@ -16,13 +16,15 @@ QSR_LEGACY_VARIANT_STATE="$QSR_STATE_ROOT/active-version"
 # args: optional initial UI variant + flags
 WANT_VERSION=""
 WANT_AUTOSTART="" # "" = leave unchanged and print hint, "yes" = install hook, "no" = remove hook
-WANT_CLAUDE=""   # "" = ask interactively, "yes"/"no" = non-interactive
 for a in "$@"; do
   case "$a" in
     --autostart)          WANT_AUTOSTART="yes" ;;
     --no-autostart)       WANT_AUTOSTART="no"  ;;
-    --claude-backend|--ai-backend)       WANT_CLAUDE="yes" ;;
-    --no-claude-backend|--no-ai-backend) WANT_CLAUDE="no"  ;;
+    --claude-backend|--ai-backend) ;;
+    --no-claude-backend|--no-ai-backend)
+      printf 'AI usage collectors are included; --no-ai-backend is no longer supported.\n' >&2
+      exit 2
+      ;;
     *) WANT_VERSION="$a" ;;
   esac
 done
@@ -32,7 +34,7 @@ info() { printf "%s==>%s %s\n" "$c_g" "$c_0" "$*"; }
 warn() { printf "%s!!%s %s\n"  "$c_y" "$c_0" "$*"; }
 err()  { printf "%s✗%s %s\n"   "$c_r" "$c_0" "$*" >&2; }
 
-# ── AI usage backends (opt-in; never block the bar install) ────
+# ── AI usage collectors (included; installation errors are fatal) ──
 install_ai_backends() {
   local src="$1"                              # repo root (temp clone)
   "$src/scripts/install-ai-backends" "$src"
@@ -490,20 +492,7 @@ if [[ "$quattro_mode" == true ]]; then
   fi
 fi
 
-# ── 8. AI usage backends (opt-in; never block the bar install) ──
-do_claude="$WANT_CLAUDE"
-if [[ -z "$do_claude" ]]; then
-  if [[ -t 0 || -e /dev/tty ]]; then
-    read -r -p "Install the AI usage backend for the quota widget (Claude + Codex + OpenCode + Copilot, 0 tokens)? [y/N] " ans </dev/tty || ans=""
-    case "${ans,,}" in y|yes) do_claude="yes" ;; *) do_claude="no" ;; esac
-  else
-    do_claude="no"
-  fi
-fi
-if [[ "$do_claude" == "yes" ]]; then
-  install_ai_backends "$tmp/repo" || warn "AI backend setup incomplete — the bar is installed and fine; re-run with --ai-backend to retry."
-else
-  info "Skipped AI usage backend (the quota widget stays hidden until it's installed)."
-fi
+# ── 8. Required AI usage collectors ─────────────────────────────
+install_ai_backends "$tmp/repo"
 
 info "${c_b}Done — enjoy!${c_0}"

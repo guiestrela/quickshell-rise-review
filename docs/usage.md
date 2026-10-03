@@ -91,7 +91,7 @@ V2 includes detailed panels for:
 
 The storage panel reports devices but does not mount or unmount filesystems.
 
-The AI usage widget supports Claude, Codex, and OpenCode. Availability depends on the optional backends selected during installation and the corresponding local account or database.
+The AI usage widget includes collectors for Claude, Codex, OpenCode, and GitHub Copilot. They are installed with Rise; provider credentials, account access, local databases, and network availability determine which providers can report usage. Missing provider data does not block the bar or imply a quota is available.
 
 ## Open pickers through IPC
 

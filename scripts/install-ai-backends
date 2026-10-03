@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Install the optional local usage collectors for the AI quota widget.
+# Install all local usage collectors for the Rise AI usage widget.
 # Usage: scripts/install-ai-backends [repository-root]
 set -euo pipefail
 
@@ -14,6 +14,25 @@ command -v python3 >/dev/null 2>&1 || {
   warn "python3 is required for the AI usage collectors."
   exit 1
 }
+command -v systemctl >/dev/null 2>&1 || {
+  warn "systemctl is required to install and enable the AI usage timers. No collector files were changed."
+  exit 1
+}
+
+for collector in claude-usage opencode-usage codex-usage copilot-usage; do
+  [[ -f "$src/scripts/$collector" ]] || {
+    warn "Required collector is missing: $src/scripts/$collector"
+    exit 1
+  }
+done
+for provider in claude opencode codex copilot; do
+  for suffix in service timer; do
+    [[ -f "$src/systemd/$provider-usage.$suffix" ]] || {
+      warn "Required unit is missing: $src/systemd/$provider-usage.$suffix"
+      exit 1
+    }
+  done
+done
 
 mkdir -p "$bindst" "$unitdst"
 
@@ -25,63 +44,30 @@ rm -f "$unitdst"/claude-usage-cookie.* "$unitdst"/claude-usage-calc.* \
 install -m 755 "$src/scripts/claude-usage" "$bindst/claude-usage"
 install -m 644 "$src/systemd/claude-usage.service" "$unitdst/claude-usage.service"
 install -m 644 "$src/systemd/claude-usage.timer" "$unitdst/claude-usage.timer"
-if [[ -f "$HOME/.claude/.credentials.json" ]]; then
-  info "Claude usage collector installed."
-else
-  warn "Claude Code is not logged in yet; run 'claude' and sign in to populate its usage data."
-fi
-
-if command -v codex >/dev/null 2>&1; then
-  install -m 755 "$src/scripts/codex-usage" "$bindst/codex-usage"
-  install -m 644 "$src/systemd/codex-usage.service" "$unitdst/codex-usage.service"
-  install -m 644 "$src/systemd/codex-usage.timer" "$unitdst/codex-usage.timer"
-  info "Codex usage collector installed."
-else
-  warn "Codex CLI was not found; skipping its usage collector. Install Codex and rerun this script to add it."
-fi
+install -m 755 "$src/scripts/codex-usage" "$bindst/codex-usage"
+install -m 644 "$src/systemd/codex-usage.service" "$unitdst/codex-usage.service"
+install -m 644 "$src/systemd/codex-usage.timer" "$unitdst/codex-usage.timer"
 
 install -m 755 "$src/scripts/opencode-usage" "$bindst/opencode-usage"
 install -m 644 "$src/systemd/opencode-usage.service" "$unitdst/opencode-usage.service"
 install -m 644 "$src/systemd/opencode-usage.timer" "$unitdst/opencode-usage.timer"
-if command -v opencode >/dev/null 2>&1 || [[ -e "$HOME/.local/share/opencode/opencode.db" ]]; then
-  info "OpenCode usage collector installed."
-else
-  warn "OpenCode has no local database yet; its usage data will appear after you run OpenCode."
-fi
+info "OpenCode usage collector installed."
 
 # Copilot's metered quota is the monthly premium-request allowance, read from the
 # same /copilot_internal/user snapshot the CLI and the editors use.
-if command -v gh >/dev/null 2>&1 && gh auth token >/dev/null 2>&1; then
-  install -m 755 "$src/scripts/copilot-usage" "$bindst/copilot-usage"
-  install -m 644 "$src/systemd/copilot-usage.service" "$unitdst/copilot-usage.service"
-  install -m 644 "$src/systemd/copilot-usage.timer" "$unitdst/copilot-usage.timer"
-  info "GitHub Copilot usage collector installed."
-else
-  warn "'gh' is not authenticated; skipping the Copilot usage collector. Run 'gh auth login' and rerun this script to add it."
-fi
+install -m 755 "$src/scripts/copilot-usage" "$bindst/copilot-usage"
+install -m 644 "$src/systemd/copilot-usage.service" "$unitdst/copilot-usage.service"
+install -m 644 "$src/systemd/copilot-usage.timer" "$unitdst/copilot-usage.timer"
 
-systemctl --user daemon-reload || warn "Could not reload the user systemd manager."
-for provider in claude opencode; do
-  systemctl --user enable --now "$provider-usage.timer" >/dev/null 2>&1 \
-    || warn "Could not enable $provider-usage.timer; check that the user systemd manager is running."
+systemctl --user daemon-reload || {
+  warn "Collector files were installed, but the user systemd manager could not reload units. Resolve systemd --user and rerun this installer."
+  exit 1
+}
+for provider in claude opencode codex copilot; do
+  systemctl --user enable --now "$provider-usage.timer" || {
+    warn "$provider collector files are installed, but its timer could not be enabled. Resolve systemd --user and rerun this installer."
+    exit 1
+  }
 done
-if command -v codex >/dev/null 2>&1; then
-  systemctl --user enable --now codex-usage.timer >/dev/null 2>&1 \
-    || warn "Could not enable codex-usage.timer; check that the user systemd manager is running."
-fi
-if command -v gh >/dev/null 2>&1 && gh auth token >/dev/null 2>&1; then
-  systemctl --user enable --now copilot-usage.timer >/dev/null 2>&1 \
-    || warn "Could not enable copilot-usage.timer; check that the user systemd manager is running."
-fi
 
-# Prime caches so the widget can show available data without waiting for the timer.
-"$bindst/claude-usage" >/dev/null 2>&1 || true
-"$bindst/opencode-usage" >/dev/null 2>&1 || true
-if command -v codex >/dev/null 2>&1; then
-  "$bindst/codex-usage" >/dev/null 2>&1 || true
-fi
-if command -v gh >/dev/null 2>&1 && gh auth token >/dev/null 2>&1; then
-  "$bindst/copilot-usage" >/dev/null 2>&1 || true
-fi
-
-info "AI usage collectors are installed. Enable 'AI usage' in Rise's Control Panel."
+info "All four AI usage collectors and timers are installed. No provider CLI, login, credential, or usage-data priming was required."

@@ -18,19 +18,29 @@ folders. Its bar styling and interactions follow the Quickshell Rise design.
 
 ## Install
 
-Add the repository as an Omarchy plugin and select it as the active bar:
+After the installer change is published, install Rise and its AI usage
+collectors in one setup command. The supported
+Omarchy plugin manager asks for confirmation and leaves new plugins disabled
+so you can review them before activation:
 
 ```bash
-omarchy plugin add https://github.com/guiestrela/quickshell-rise-review.git
+curl -fsSL https://raw.githubusercontent.com/guiestrela/quickshell-rise-review/main/scripts/install-rise | bash
+```
+
+This uses `omarchy plugin add` (the Omarchy manager does not run plugin install
+hooks), then installs all four local collectors and their user systemd timers.
+It does not enable or restart the bar. After reviewing Rise, activate it and
+install the optional post-update recovery hook as needed:
+
+```bash
 omarchy plugin enable io.github.guiestrela.quickshell-rise
 omarchy hook install post-update "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/contrib/post-boot.d/quickshell-rise"
 omarchy restart shell
 ```
 
 The post-update hook makes Omarchy restart its shell after `omarchy update`
-has released the update lock, so the selected Rise bar is loaded from the
-updated plugin files. Omarchy's plugin installer does not run plugin scripts,
-so this hook is installed explicitly as part of setup.
+has released the update lock, so the selected Rise bar is loaded from updated
+plugin files. It is separate from AI usage setup.
 
 The plugin replaces the built-in bar while enabled. Disable it to return to the
 Omarchy bar:
@@ -47,32 +57,35 @@ omarchy plugin list
 omarchy plugin validate ~/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise
 ```
 
-## Optional AI usage collectors
+## AI usage
 
-The AI usage collectors are optional and are not required to install or run
-the bar. To install them after adding the plugin:
+The installation command above also installs the Claude, OpenCode, Codex, and
+GitHub Copilot collectors and their timers automatically. No separate AI setup
+command or installation flag is needed.
 
-```bash
-bash "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/scripts/install-ai-backends"
-```
+The installer requires `python3` and a working user `systemd` manager. It
+installs each collector script and service/timer unit regardless of whether
+provider tools, accounts, credentials, or local data exist. It then reloads
+user systemd units and enables/starts all four timers. On missing `systemctl`,
+reload, or timer-enable errors it exits non-zero and reports the incomplete
+state so it can be repaired by rerunning the installer. Re-running is safe.
 
-The script requires `python3` and installs collectors as follows:
+Collectors do not install provider CLIs, initiate login, or prime caches during
+setup. Each provider only reports data when its own source is available: Claude
+needs its local Claude Code credentials and network access; Codex needs its
+local Codex account/session; OpenCode needs its local usage database; Copilot
+needs an existing `gh` authentication and network access. Missing data does
+not block Rise or imply a quota is available.
 
-- **Claude and OpenCode:** installed even if their CLIs or local usage data
-  are not yet available. Displaying usage still requires the relevant local
-  account/session or usage database.
-- **Codex:** installed when the `codex` command is available.
-- **GitHub Copilot:** installed when `gh` is available and authenticated.
+The installer writes collectors to `~/.local/bin` and units to
+`~/.config/systemd/user`. It also disables and removes the legacy
+`claude-usage-cookie` and `claude-usage-calc` collectors/units if present.
+It does not install provider tools, change Rise's widget configuration, or
+activate/restart the bar. The AI usage widget remains governed by the user's
+existing Rise widget setting; turn it on in Control Panel → Widgets if desired.
 
-The script writes collectors to `~/.local/bin` and service/timer units to
-`~/.config/systemd/user`, reloads the user systemd manager, enables and starts
-the installed providers' timers, and runs the collectors once to prime their
-caches. When migrating an older setup, it also disables and removes the legacy
-`claude-usage-cookie` and `claude-usage-calc` collectors and their units.
-It does not change the plugin installation.
-
-See [AI usage dependencies](docs/getting-started.md#install-ai-usage-dependencies)
-for the Arch package and provider setup commands.
+Python 3 is the only collector runtime dependency; provider CLI/account/data
+availability affects reported usage, not installation.
 
 To show the widget, click the **Launcher** on the bar to open the Control Panel,
 then open **Widgets** and turn on **AI usage**. The pill appears when a provider
