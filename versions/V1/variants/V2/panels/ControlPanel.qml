@@ -403,8 +403,7 @@ PanelWindow {
                         }
                         UiText {
                             anchors.centerIn: parent
-                            text: modelData === "foreground" ? "FG"
-                                : modelData === "rise" ? "RISE" : modelData.slice(-2)
+                            text: modelData === "foreground" ? "FG" : modelData.slice(-2)
                             color: root.paletteContrastColor(modelData)
                             font.family: root.mono
                             font.pixelSize: 9
