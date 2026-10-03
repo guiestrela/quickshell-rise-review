@@ -181,12 +181,15 @@ Item {
     readonly property color sumiHi:  Qt.rgba(sumi.r*0.45 + ink.r*0.55, sumi.g*0.45 + ink.g*0.55, sumi.b*0.45 + ink.b*0.55, 1.0)  // lifted section-header text
     property color green:   "#8a9a73"   // gate "OK" verdict
     property color accentHint: sealRaw    // filled by palette; default = same as red
+    // Rise's V2 identity color stays stable across Omarchy theme changes.
+    // Other palette slots continue to follow the selected system theme.
+    readonly property color riseAccent: "#00d084"
     readonly property color foregroundSoft: Qt.rgba(
         ink.r * 0.88 + paper.r * 0.12,
         ink.g * 0.88 + paper.g * 0.12,
         ink.b * 0.88 + paper.b * 0.12,
         1.0)
-    property string barColor: "color01"
+    property string barColor: "rise"
     property bool widgetIconsForeground: false
     readonly property bool barColorIsAccent: barColor === "accent"
     // Compatibility alias for older local code/reviews that still use the
@@ -194,6 +197,7 @@ Item {
     readonly property bool useThemeAccent: barColorIsAccent
 
     function paletteColor(id) {
+        if (id === "rise") return riseAccent
         if (id === "color02") return color02
         if (id === "color03") return color03
         if (id === "color04") return color04
@@ -205,6 +209,7 @@ Item {
         return color01
     }
     function normalizedPaletteId(id) {
+        if (id === "rise") return "rise"
         if (id === "red" || id === "accent") return "color01"
         return paletteColorValid(id) ? id : "color01"
     }
@@ -213,11 +218,11 @@ Item {
     // Widget colors now inherit Bar Color or use a per-GID palette style.
     readonly property color widgetIconColor: seal
     readonly property var barColorOptions: [
-        "color01", "color02", "color03", "color04",
+        "rise", "color01", "color02", "color03", "color04",
         "color05", "color06", "color07", "foreground"
     ]
     function paletteColorValid(id) {
-        return id === "color01" || id === "color02" || id === "color03"
+        return id === "rise" || id === "color01" || id === "color02" || id === "color03"
             || id === "color04" || id === "color05" || id === "color06"
             || id === "color07" || id === "foreground"
     }
@@ -225,6 +230,7 @@ Item {
         return paletteColorValid(id) || id === "red" || id === "accent"
     }
     function barColorLabel(id) {
+        if (id === "rise") return "Rise"
         if (id === "color01" || id === "red" || id === "accent") return "Color 01"
         if (id === "color02") return "Color 02"
         if (id === "color03") return "Color 03"
