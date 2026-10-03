@@ -234,7 +234,7 @@ PanelWindow {
 
     // Packages tab only: show the blacklist/protection status instantly (the gate
     // only reads a local file — no need to wait for the slow package check), and
-    // kick a package check if there is no data yet. Opening Themes/Shell must not
+    // kick a package check if there is no data yet. Opening Themes must not
     // start package work as a side effect.
     Connections {
         target: root
@@ -749,15 +749,13 @@ PanelWindow {
                     Repeater {
                         model: [
                             { id: "packages", label: "PKG" },
-                            { id: "themes",   label: "Themes" },
-                            { id: "shell",    label: "Shell" }
+                            { id: "themes",   label: "Themes" }
                         ]
                         Item {
                             id: badgeToggleItem
                             required property var modelData
                             readonly property bool active: modelData.id === "packages" ? root.archBadgePackages
-                                : modelData.id === "themes" ? root.archBadgeThemes
-                                : root.archBadgeShell
+                                : root.archBadgeThemes
                             width: badgeToggleText.implicitWidth + 36
                             height: 18
                             UiText {
@@ -801,8 +799,6 @@ PanelWindow {
                                         root.archBadgePackages = !root.archBadgePackages
                                     else if (badgeToggleItem.modelData.id === "themes")
                                         root.archBadgeThemes = !root.archBadgeThemes
-                                    else
-                                        root.archBadgeShell = !root.archBadgeShell
                                 }
                             }
                         }
@@ -812,7 +808,7 @@ PanelWindow {
 
             Rectangle { width: parent.width; height: 1; color: root.sep }
 
-            // ── Packages ⟷ Themes ⟷ Shell tab switch (segmented, AiUsagePanel style) ──
+            // ── Packages ⟷ Themes tab switch (segmented, AiUsagePanel style) ──
             Row {
                 width: parent.width
                 height: 26
@@ -820,12 +816,11 @@ PanelWindow {
                 Repeater {
                     model: [
                         { id: "packages", label: "Packages" },
-                        { id: "themes", label: "Themes" },
-                        { id: "shell", label: "Shell" }
+                        { id: "themes", label: "Themes" }
                     ]
                     Rectangle {
                         required property var modelData
-                        width: (parent.width - 12) / 3
+                        width: (parent.width - 6) / 2
                         height: 26; radius: root.panelButtonRadius
                         readonly property bool active: root.activeUpdateTab === modelData.id
                         color: active ? root.fillActive : tabMa.containsMouse ? root.fillHover : root.fillIdle
@@ -1040,7 +1035,7 @@ PanelWindow {
 
                     UiText {
                         width: parent.width
-                        visible: root.archUpdates.length === 0
+                        visible: root.archUpdates.length === 0 && !root.archScanError && !root.archRefreshing
                         text: "No updates available"
                         color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.5)
                         font.family: root.mono; font.pixelSize: 11
@@ -1053,6 +1048,17 @@ PanelWindow {
             }
 
             Rectangle { width: parent.width; height: 1; color: root.sep }
+
+            UiText {
+                width: parent.width
+                visible: root.archScanError !== ""
+                text: root.archScanError
+                textFormat: Text.PlainText
+                wrapMode: Text.WordWrap
+                color: root.seal
+                font.family: root.mono
+                font.pixelSize: 11
+            }
 
             // ── buttons ──
             Row {
@@ -1662,11 +1668,6 @@ PanelWindow {
             }
             // ══════════ END THEMES TAB ══════════
 
-            ShellUpdateTab {
-                width: parent.width
-                root: archPanel.root
-                visible: root.activeUpdateTab === "shell"
-            }
         }
 
     }

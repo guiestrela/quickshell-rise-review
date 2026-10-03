@@ -38,37 +38,12 @@ install_ai_backends() {
   "$src/scripts/install-ai-backends" "$src"
 }
 
-# ── shell self-updater (the in-bar update badge + apply) ────────
-# Installs the check/apply scripts + systemd timer, and keeps a persistent FULL
-# clone the updater pulls from (the install clone below is --depth 1, too shallow
-# for a correct changelog / behind count). Any failure here only warns; it never
-# aborts the bar install.
-install_shell_updater() {
-  local src="$1"                                   # repo root (temp clone) for the files
-  local bindst="$HOME/.config/quickshell/bin"
-  local unitdst="$HOME/.config/systemd/user"
-  local repodir="$HOME/.local/share/quickshell-dots"
-
-  if [[ -d "$repodir/.git" ]]; then
-    git -C "$repodir" fetch --quiet origin || true
-  else
-    mkdir -p "$(dirname "$repodir")"
-    git clone --quiet "$REPO_URL" "$repodir" || { err "Updater clone failed — skipping self-updater"; return 1; }
-  fi
-
-  mkdir -p "$bindst" "$unitdst"
+# ── standalone lifecycle tools (no shell updater) ─────────────
+install_bar_tools() {
+  local src="$1" bindst="$HOME/.config/quickshell/bin"
+  mkdir -p "$bindst" "$HOME/.local/bin"
   install -m 755 "$src/scripts/qs-barctl" "$bindst/qs-barctl"
   install -m 755 "$src/scripts/qs-proj" "$HOME/.local/bin/qs-proj"
-  install -m 755 "$src/scripts/qs-shell-check-update.sh" "$bindst/qs-shell-check-update.sh"
-  install -m 755 "$src/scripts/qs-shell-apply-update.sh" "$bindst/qs-shell-apply-update.sh"
-  install -m 644 "$src/systemd/qs-shell-update-check.service" "$unitdst/qs-shell-update-check.service"
-  install -m 644 "$src/systemd/qs-shell-update-check.timer"   "$unitdst/qs-shell-update-check.timer"
-
-  systemctl --user daemon-reload
-  systemctl --user enable --now qs-shell-update-check.timer >/dev/null 2>&1 || true
-  "$bindst/qs-shell-check-update.sh" >/dev/null 2>&1 || true   # prime the state now
-
-  info "Shell self-updater installed (badge appears when this repo has updates)"
 }
 
 # ── theme update helpers (checked state + pinned apply) ─────────
@@ -444,8 +419,8 @@ if [[ "$quattro_mode" != true ]]; then
   pkill -x waybar 2>/dev/null && info "Stopped waybar (use the panel/control to manage)" || true
 fi
 
-# ── 6b. shell self-updater (never blocks the bar install) ───────
-install_shell_updater "$tmp/repo" || warn "Self-updater setup incomplete — the bar is fine; the update badge just won't appear."
+# ── 6b. standalone lifecycle tools ────────────────────────────
+install_bar_tools "$tmp/repo" || warn "Standalone lifecycle tools setup incomplete."
 
 # ── 7. autostart hook / hint ─────────────────────────────────────
 RAW="https://raw.githubusercontent.com/guiestrela/quickshell-dots/main"

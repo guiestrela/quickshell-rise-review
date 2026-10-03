@@ -22,7 +22,7 @@
 #   unreachable  the remote could not be reached
 #   (up-to-date and no-upstream themes are simply not listed)
 #
-# State contract (same as qs-shell-check-update.sh): the JSON always exists once
+# State contract: the JSON always exists once
 # written, writes are atomic (mktemp+mv), the file is never deleted, and a run
 # that reached NO remote leaves the last good state untouched. degraded:true means
 # the sweep was cut short — counts are lower bounds, never a fake "all up to date".

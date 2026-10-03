@@ -1898,7 +1898,7 @@ Item {
                  + (compactVolume     ? "1" : "0") + " "  // +28
                  + (compactBluetooth  ? "1" : "0") + " "  // +29
                  + (compactPower      ? "1" : "0") + " "  // +30
-                 + (archBadgeShell    ? "1" : "0") + " "  // +31 updater shell badge
+                 + "0 "                                     // +31 reserved (retired updater preference)
                  + (compactMpris      ? "1" : "0") + " "  // +32 V2 FULL / muse presentation
                  + (modNordVpn        ? "1" : "0") + " "  // +33 NordVPN
                  + (modWallpapers     ? "1" : "0")        // +34 Wallpapers; append-only schema
@@ -2107,7 +2107,6 @@ Item {
                     if (parts.length > wsField + 28) theme.compactVolume     = parts[wsField + 28] === "1"
                     if (parts.length > wsField + 29) theme.compactBluetooth  = parts[wsField + 29] === "1"
                     if (parts.length > wsField + 30) theme.compactPower      = parts[wsField + 30] === "1"
-                    if (parts.length > wsField + 31) theme.archBadgeShell    = parts[wsField + 31] !== "0"
                     if (parts.length > wsField + 32) theme.compactMpris      = parts[wsField + 32] === "1"
                     if (parts.length > wsField + 33) theme.modNordVpn       = parts[wsField + 33] === "1"
                     if (parts.length > wsField + 34) theme.modWallpapers    = parts[wsField + 34] === "1"
@@ -2198,6 +2197,7 @@ Item {
     property bool archVisible: false
     onArchVisibleChanged: popupOpened("archVisible")
     property var archUpdates: []
+    property string archScanError: ""
     property int archRefreshTick: 0
     property string archScanId: ""
     property int archScanCheckedEpoch: 0
@@ -2310,243 +2310,7 @@ Item {
         }
     }
 
-    // ── Shell Updater state (shared by ArchUpdaterWidget and ShellUpdateTab) ──
-    property int  shellUpdateBehind: 0
-    property var  shellUpdateSummary: []
-    property string shellUpdateVersion: ""
-    property string shellUpdateChecked: ""
-    property string shellUpdateBaseCommit: ""
-    property string shellUpdateTargetCommit: ""
-    property string shellUpdateRepository: ""
-    property string shellUpdateUpstreamRef: ""
-    property string shellInstalledCommit: ""
-    property bool shellUpdateChecking: false
-    property string shellProgressRunId: ""
-    property string shellProgressState: "idle"
-    property string shellProgressPhase: ""
-    property int shellProgressStep: 0
-    property int shellProgressTotalSteps: 5
-    property string shellProgressTargetCommit: ""
-    property int shellProgressStartedEpoch: 0
-    property int shellProgressUpdatedEpoch: 0
-    property string shellProgressScreenName: ""
-    property string shellProgressError: ""
-    property bool shellProgressAcknowledged: true
-    property bool shellProgressPanelOpen: true
-    property int shellProgressNowEpoch: Math.floor(Date.now() / 1000)
-    property string _shellProgressCompleteRunId: ""
-    readonly property bool shellProgressInterrupted: shellProgressState === "running"
-        && shellProgressUpdatedEpoch > 0
-        && shellProgressNowEpoch - shellProgressUpdatedEpoch > 600
-    readonly property bool shellProgressRunning: shellProgressState === "running" && !shellProgressInterrupted
-    readonly property bool shellProgressFailed: shellProgressState === "failed"
-    readonly property bool shellProgressCompleted: shellProgressState === "completed" && !shellProgressAcknowledged
-    readonly property bool shellUpdateProgressVisible: shellProgressRunning
-        || shellProgressFailed || shellProgressCompleted || shellProgressInterrupted
-
-    function updateShellProgressClock() {
-        shellProgressNowEpoch = Math.floor(Date.now() / 1000)
-    }
-
-    function resetShellProgress() {
-        shellProgressRunId = ""
-        shellProgressState = "idle"
-        shellProgressPhase = ""
-        shellProgressStep = 0
-        shellProgressTotalSteps = 5
-        shellProgressTargetCommit = ""
-        shellProgressStartedEpoch = 0
-        shellProgressUpdatedEpoch = 0
-        shellProgressScreenName = ""
-        shellProgressError = ""
-        shellProgressAcknowledged = true
-        shellProgressPanelOpen = true
-    }
-
-    function openShellProgressPanel() {
-        activatePopupScreenByName(shellProgressScreenName)
-        activeUpdateTab = "shell"
-        archVisible = true
-    }
-
-    function resetShellUpdateState() {
-        shellUpdateBehind = 0
-        shellUpdateSummary = []
-        shellUpdateVersion = ""
-        shellUpdateChecked = ""
-        shellUpdateBaseCommit = ""
-        shellUpdateTargetCommit = ""
-        shellUpdateRepository = ""
-        shellUpdateUpstreamRef = ""
-    }
-
-    function parseShellUpdateState(raw) {
-        try {
-            var j = JSON.parse(raw)
-            if (j.schemaVersion !== 5) {
-                resetShellUpdateState()
-                return
-            }
-            shellUpdateBehind = j.behind || 0
-            shellUpdateSummary = j.summary || []
-            shellUpdateVersion = j.version || ""
-            shellUpdateChecked = j.checked || ""
-            shellUpdateBaseCommit = j.baseCommit || ""
-            shellUpdateTargetCommit = j.targetCommit || ""
-            shellUpdateRepository = j.repository || ""
-            shellUpdateUpstreamRef = j.upstreamRef || ""
-        } catch (e) {
-            resetShellUpdateState()
-        }
-    }
-
-    function parseShellInstalledCommit(raw) {
-        shellInstalledCommit = raw.trim()
-    }
-
-    function parseShellProgress(raw) {
-        try {
-            var j = JSON.parse(raw)
-            if (j.schemaVersion !== 1) {
-                resetShellProgress()
-                return
-            }
-
-            shellProgressRunId = j.runId || ""
-            shellProgressState = j.state || "idle"
-            shellProgressPhase = j.phase || ""
-            shellProgressStep = j.step || 0
-            shellProgressTotalSteps = j.totalSteps || 5
-            shellProgressTargetCommit = j.targetCommit || ""
-            shellProgressStartedEpoch = j.startedEpoch || 0
-            shellProgressUpdatedEpoch = j.updatedEpoch || 0
-            shellProgressScreenName = j.screenName || ""
-            shellProgressError = j.error || ""
-            shellProgressAcknowledged = j.acknowledged === true
-            shellProgressPanelOpen = j.panelOpen !== false
-            updateShellProgressClock()
-
-            if (shellUpdateProgressVisible && shellProgressPanelOpen) openShellProgressPanel()
-            if (shellProgressRunning
-                    && shellProgressPhase === "restarting"
-                    && shellProgressRunId !== ""
-                    && _shellProgressCompleteRunId !== shellProgressRunId) {
-                _shellProgressCompleteRunId = shellProgressRunId
-                shellProgressCompleteProc.command = [
-                    "bash",
-                    Quickshell.env("HOME") + "/.config/quickshell/bin/qs-shell-apply-update.sh",
-                    "--complete-progress",
-                    shellProgressRunId
-                ]
-                shellProgressCompleteProc.running = false
-                shellProgressCompleteProc.running = true
-            }
-        } catch (e) {
-            resetShellProgress()
-        }
-    }
-
-    function ackShellProgress() {
-        if (!shellProgressRunId) return
-        shellProgressAckProc.command = [
-            "bash",
-            Quickshell.env("HOME") + "/.config/quickshell/bin/qs-shell-apply-update.sh",
-            "--ack-progress",
-            shellProgressRunId
-        ]
-        shellProgressAckProc.running = false
-        shellProgressAckProc.running = true
-    }
-
-    function setShellProgressPanelOpen(open) {
-        if (!shellProgressRunId || !shellUpdateProgressVisible) return
-        shellProgressPanelOpen = open
-        shellProgressPanelProc.command = [
-            "bash",
-            Quickshell.env("HOME") + "/.config/quickshell/bin/qs-shell-apply-update.sh",
-            "--progress-panel",
-            shellProgressRunId,
-            open ? "open" : "closed"
-        ]
-        shellProgressPanelProc.running = false
-        shellProgressPanelProc.running = true
-    }
-
-    function closeArchUpdatesPanel() {
-        if (shellUpdateProgressVisible) setShellProgressPanelOpen(false)
-        archVisible = false
-    }
-
-    function showShellUpdateTabFromWidget() {
-        if (shellUpdateProgressVisible) setShellProgressPanelOpen(true)
-        activeUpdateTab = "shell"
-        archVisible = true
-    }
-
-    function reloadShellUpdateState() {
-        shellUpdateStateFile.reload()
-        shellInstalledCommitFile.reload()
-        shellProgressFile.reload()
-    }
-
-    Timer {
-        interval: 15000
-        running: shellProgressState === "running"
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: updateShellProgressClock()
-    }
-
-    FileView {
-        id: shellUpdateStateFile
-        path: Quickshell.env("HOME") + "/.cache/qs-shell/update-available.json"
-        watchChanges: true
-        printErrors: false
-        onFileChanged: shellUpdateStateFile.reload()
-        onLoaded: parseShellUpdateState(shellUpdateStateFile.text())
-        onLoadFailed: resetShellUpdateState()
-    }
-
-    FileView {
-        id: shellInstalledCommitFile
-        path: Quickshell.env("HOME") + "/.config/quickshell/bar/.qsrise-commit"
-        watchChanges: true
-        printErrors: false
-        onFileChanged: shellInstalledCommitFile.reload()
-        onLoaded: parseShellInstalledCommit(shellInstalledCommitFile.text())
-        onLoadFailed: shellInstalledCommit = ""
-    }
-
-    FileView {
-        id: shellProgressFile
-        path: Quickshell.env("HOME") + "/.cache/qs-shell/apply-status.json"
-        watchChanges: true
-        printErrors: false
-        onFileChanged: shellProgressFile.reload()
-        onLoaded: parseShellProgress(shellProgressFile.text())
-        onLoadFailed: resetShellProgress()
-    }
-
-    Process {
-        id: shellProgressCompleteProc
-        command: ["true"]
-        onExited: shellProgressFile.reload()
-    }
-
-    Process {
-        id: shellProgressAckProc
-        command: ["true"]
-        onExited: {
-            shellProgressFile.reload()
-            archVisible = false
-        }
-    }
-
-    Process {
-        id: shellProgressPanelProc
-        command: ["true"]
-        onExited: shellProgressFile.reload()
-    }
+    function closeArchUpdatesPanel() { archVisible = false }
 
     // ── Theme Updater state (fed by ArchUpdaterPanel's FileView over
     //    ~/.cache/qs-theme-updates.json; the panel owns the check Process so it
@@ -2567,7 +2331,6 @@ Item {
     property string activeUpdateTab: "packages"   // which ArchUpdaterPanel tab is shown
     property bool   archBadgePackages: true   // package count badge on the bar updater icon
     property bool   archBadgeThemes: true     // clean-theme count badge on the bar updater icon
-    property bool   archBadgeShell: true      // shell-update badge on the bar updater icon
 
     // ── Tray state ──
     property bool trayVisible: false

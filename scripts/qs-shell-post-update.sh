@@ -1,15 +1,15 @@
 #!/usr/bin/env bash
 # QS-Shell post-update hook.
 #
-# Called by qs-shell-apply-update.sh after every successful shell update, with
+# Legacy standalone companion synchronization, not a shell update action. Pass
 # the repo root as $1. Installs/refreshes the companion pieces that live
 # OUTSIDE the bar config dir — helper scripts and systemd user units — so a
 # bar update is complete on its own and never needs a manual install.sh re-run.
 #
 # Idempotent and defensive: legacy companions may lack newer optional sources
 # and are skipped, while current strict companions can require reviewed sources
-# and report failures via exit code so qs-shell-apply-update.sh can roll the
-# whole update transaction back. Opt-in AI backends are refreshed only when
+# and report failures via exit code to the caller.
+# Opt-in AI backends are refreshed only when
 # installed or discoverable.
 set -uo pipefail
 
@@ -74,8 +74,8 @@ else
   rc=1
 fi
 
-# ── keep the updater itself current (check + apply + this hook) ─
-for critical_script in qs-barctl qs-proj qs-shell-check-update.sh qs-shell-apply-update.sh; do
+# ── standalone lifecycle tools ────────────────────────────────
+for critical_script in qs-barctl qs-proj; do
   if [ -f "$repo/scripts/$critical_script" ]; then
     case "$critical_script" in
       qs-proj) put "$repo/scripts/$critical_script" "$bin/$critical_script" 755 || rc=1 ;;
@@ -85,8 +85,6 @@ for critical_script in qs-barctl qs-proj qs-shell-check-update.sh qs-shell-apply
     rc=1
   fi
 done
-put "$repo/systemd/qs-shell-update-check.service" "$units/qs-shell-update-check.service" 644 || rc=1
-put "$repo/systemd/qs-shell-update-check.timer"   "$units/qs-shell-update-check.timer"   644 || rc=1
 
 # ── theme-update checker used by ArchUpdaterPanel ───────────────
 if [ -f "$repo/scripts/qs-theme-update-check.sh" ]; then
@@ -129,8 +127,7 @@ fi
 # enable --now is a no-op on an already-active timer, and a daemon-reload
 # alone can leave a monotonic timer "elapsed" with no next trigger.
 systemd_user daemon-reload
-systemd_user enable --now qs-shell-update-check.timer
-systemd_user try-restart qs-shell-update-check.timer qs-aur-blacklist-fetch.timer
+systemd_user try-restart qs-aur-blacklist-fetch.timer
 
 # ── opt-in components: refresh only if the user installed them ──
 if [ -x "$bin/claude-usage" ]; then

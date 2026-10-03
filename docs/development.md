@@ -50,17 +50,11 @@ Run them from the repository root:
 ./tests/qs-barctl-regression.sh
 ./tests/qs-codex-usage-regression.sh
 ./tests/qs-quattro-runtime-regression.sh
-./tests/qs-shell-update-regression.sh
+python3 tests/test_update_panel.py
 ./tests/qs-theme-update-regression.sh
 ```
 
-The updater suite keeps its ordinary QML checks headless. To additionally prove
-that the published integrated updater can accept the current real V1/V2 payload,
-run its opt-in smoke from an active Wayland session:
-
-```bash
-QS_SHELL_RUN_REAL_VARIANT_SMOKE=1 ./tests/qs-shell-update-regression.sh
-```
+The update panel tests exercise both UI variants with isolated helper fixtures; no package, theme or shell updates are applied. The Shell updater has been removed. Packages and Themes remain available.
 
 Stop after the first failure and preserve its output. A later passing suite does not invalidate an earlier lifecycle or rollback failure.
 
@@ -120,18 +114,18 @@ Use `qs list --all`, controller status, logs, and screenshots as evidence for ru
 
 ## Prepare a release
 
-The shell updater compares the installed commit with the repository’s `main` branch. A release therefore needs a coherent `main` generation rather than an isolated payload copy.
+Release the plugin through the plugin manager or the documented installation workflow. The bar does not update its own Shell generation.
 
 Before updating `main`:
 
 1. Group code and documentation into reviewable commits
-2. Run all six regression suites
+2. Run all remaining regression suites and the update-panel tests
 3. Run shell syntax, ShellCheck, QML, and whitespace checks
 4. Test V1 and V2 through the installed controller
-5. Confirm installer, updater, hooks, and controller come from the same commit
+5. Confirm installer, hooks, and controller come from the same commit
 6. Push the reviewed branch and update `main` without rewriting published history
 
-The updater stages the integrated payload and companion files before it stops the active bar. Keep updater and lifecycle changes in the same tested generation when their contracts change together.
+Keep the integrated payload, companion helpers and lifecycle controller in the same tested generation. Deployment and shell restarts require separate authorization.
 
 Read [Understand Quickshell Rise architecture](architecture.md) for the lifecycle and deployment boundaries behind these checks.
 

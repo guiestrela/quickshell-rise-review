@@ -243,19 +243,8 @@ SCRIPT
 exec "$HOME/.config/quickshell/bin/qs-barctl" "$@"
 SCRIPT
 
-  cat > "$repo/scripts/qs-shell-check-update.sh" <<'SCRIPT'
-#!/usr/bin/env bash
-exit 0
-SCRIPT
-  cat > "$repo/scripts/qs-shell-apply-update.sh" <<'SCRIPT'
-#!/usr/bin/env bash
-exit 0
-SCRIPT
-  printf '[Unit]\nDescription=fixture\n' > "$repo/systemd/qs-shell-update-check.service"
-  printf '[Unit]\nDescription=fixture\n' > "$repo/systemd/qs-shell-update-check.timer"
   chmod 0755 "$repo/contrib/post-boot.d/quickshell-rise" \
-    "$repo/scripts/qs-barctl" "$repo/scripts/qs-proj" \
-    "$repo/scripts/qs-shell-check-update.sh" "$repo/scripts/qs-shell-apply-update.sh"
+    "$repo/scripts/qs-barctl" "$repo/scripts/qs-proj"
 
   git init "$repo" >/dev/null
   git -C "$repo" config user.email test@example.invalid
@@ -265,8 +254,6 @@ SCRIPT
     contrib/post-boot.d/quickshell-rise \
     scripts/qs-barctl \
     scripts/qs-proj \
-    scripts/qs-shell-check-update.sh \
-    scripts/qs-shell-apply-update.sh \
     versions/V1/core/qs-system-update.sh
   git -C "$repo" commit -m fixture >/dev/null
 
@@ -1241,7 +1228,7 @@ case_static_contracts() {
       "$connected_panel" "V2 connected panel owner binding"
   done < <(grep -Rl --include='*.qml' 'ConnectedPanelSurface {' \
     "$REPO_ROOT/versions/V1/variants/V2/panels")
-  assert_eq "21" "$connected_panel_count" "V2 connected panel owner coverage"
+  assert_eq "22" "$connected_panel_count" "V2 connected panel owner coverage"
   for theme_file in "$V1_THEME" "$V2_THEME"; do
     assert_contains 'omarchy-shell idle status' "$theme_file" "live Omarchy idle service probe"
     assert_contains 'omarchy-shell notifications ping' "$theme_file" "live Omarchy notification service probe"

@@ -75,12 +75,13 @@ regressions=(
   tests/qs-barctl-regression.sh
   tests/qs-codex-usage-regression.sh
   tests/qs-quattro-runtime-regression.sh
-  tests/qs-shell-update-regression.sh
   tests/qs-theme-update-regression.sh
 )
 for suite in "${regressions[@]}"; do
   check "$(basename "$suite")" bash "$suite"
 done
+
+check "update panel contract/runtime" python3 tests/test_update_panel.py
 
 check "patch whitespace" git diff --check
 printf 'ALL PLUGIN CHECKS PASSED\n'
