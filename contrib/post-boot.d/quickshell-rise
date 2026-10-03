@@ -325,6 +325,15 @@ qsr_update_lock_path() {
   printf '%s/omarchy-update.lock\n' "${XDG_RUNTIME_DIR:-/tmp}"
 }
 
+qsr_integrated_plugin_selected() {
+  local shell_config="$HOME/.config/omarchy/shell.json"
+
+  [[ -r $shell_config ]] || return 1
+  command -v jq >/dev/null 2>&1 || return 1
+  jq -e --arg id 'io.github.guiestrela.quickshell-rise' \
+    '.bar.id == $id' "$shell_config" >/dev/null 2>&1
+}
+
 qsr_run_after_omarchy_update() {
   local lock_path name value unit
   local -a args=()
@@ -337,12 +346,25 @@ qsr_run_after_omarchy_update() {
     while ! flock -n "$lock_path" -c true >/dev/null 2>&1; do
       sleep 1
     done
+    # Omarchy's updater restarts its shell before releasing the update lock and
+    # intentionally ignores restart failures. Repeat its official restart only
+    # when Rise is the selected integrated bar; this also reloads plugin code
+    # after package files and migrations have settled.
+    if qsr_integrated_plugin_selected; then
+      qsr_export_omarchy_path
+      if command -v omarchy >/dev/null 2>&1; then
+        omarchy restart shell || qsr_warn 'Omarchy shell restart failed after update.'
+      else
+        qsr_warn 'Omarchy is unavailable; cannot restart the integrated Rise bar after update.'
+      fi
+      return 0
+    fi
     qsr_session_bar_wanted || return 0
     qsr_post_boot_main
     return
   fi
 
-  qsr_session_bar_wanted || return 0
+  qsr_session_bar_wanted || qsr_integrated_plugin_selected || return 0
 
   command -v systemd-run >/dev/null 2>&1 || {
     qsr_warn 'systemd-run is unavailable; cannot defer bar restart until Omarchy finishes updating.'
