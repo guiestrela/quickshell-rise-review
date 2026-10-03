@@ -23,20 +23,14 @@ Add the repository as an Omarchy plugin and select it as the active bar:
 ```bash
 omarchy plugin add https://github.com/guiestrela/quickshell-rise-review.git
 omarchy plugin enable io.github.guiestrela.quickshell-rise
-bash "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/scripts/install-ai-backends"
+omarchy hook install post-update "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/contrib/post-boot.d/quickshell-rise"
 omarchy restart shell
 ```
 
-The third command installs the optional Claude, Codex, and OpenCode usage
-collectors without changing the plugin installation. It installs providers
-available on the system and enables their user timers. Each provider still
-needs its local CLI/account or usage database.
-See [AI usage dependencies](docs/getting-started.md#install-ai-usage-dependencies)
-for the Arch package and provider setup commands.
-
-To show the widget, click the **Launcher** on the bar to open the Control Panel,
-then open **Widgets** and turn on **AI usage**. The pill appears when a provider
-has an active session or recent usage data.
+The post-update hook makes Omarchy restart its shell after `omarchy update`
+has released the update lock, so the selected Rise bar is loaded from the
+updated plugin files. Omarchy's plugin installer does not run plugin scripts,
+so this hook is installed explicitly as part of setup.
 
 The plugin replaces the built-in bar while enabled. Disable it to return to the
 Omarchy bar:
@@ -52,6 +46,37 @@ To inspect or validate the installed plugin:
 omarchy plugin list
 omarchy plugin validate ~/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise
 ```
+
+## Optional AI usage collectors
+
+The AI usage collectors are optional and are not required to install or run
+the bar. To install them after adding the plugin:
+
+```bash
+bash "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/scripts/install-ai-backends"
+```
+
+The script requires `python3` and installs collectors as follows:
+
+- **Claude and OpenCode:** installed even if their CLIs or local usage data
+  are not yet available. Displaying usage still requires the relevant local
+  account/session or usage database.
+- **Codex:** installed when the `codex` command is available.
+- **GitHub Copilot:** installed when `gh` is available and authenticated.
+
+The script writes collectors to `~/.local/bin` and service/timer units to
+`~/.config/systemd/user`, reloads the user systemd manager, enables and starts
+the installed providers' timers, and runs the collectors once to prime their
+caches. When migrating an older setup, it also disables and removes the legacy
+`claude-usage-cookie` and `claude-usage-calc` collectors and their units.
+It does not change the plugin installation.
+
+See [AI usage dependencies](docs/getting-started.md#install-ai-usage-dependencies)
+for the Arch package and provider setup commands.
+
+To show the widget, click the **Launcher** on the bar to open the Control Panel,
+then open **Widgets** and turn on **AI usage**. The pill appears when a provider
+has an active session or recent usage data.
 
 ## Variants
 
