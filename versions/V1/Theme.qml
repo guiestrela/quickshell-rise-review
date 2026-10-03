@@ -1844,7 +1844,6 @@ Item {
     onClock12hChanged:        if (_widgetsLoaded) saveWidgets()
     onArchBadgePackagesChanged: if (_widgetsLoaded) saveWidgets()
     onArchBadgeThemesChanged:   if (_widgetsLoaded) saveWidgets()
-    onArchBadgeShellChanged:    if (_widgetsLoaded) saveWidgets()
     onCompactNetworkChanged:    if (_widgetsLoaded && !_compactResetting) saveWidgets()
     onCompactBatteryChanged:    if (_widgetsLoaded && !_compactResetting) saveWidgets()
     onCompactBrightnessChanged: if (_widgetsLoaded && !_compactResetting) saveWidgets()

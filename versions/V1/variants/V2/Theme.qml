@@ -2494,7 +2494,6 @@ Item {
     onClock12hChanged:        if (_widgetsLoaded) saveWidgets()
     onArchBadgePackagesChanged: if (_widgetsLoaded) saveWidgets()
     onArchBadgeThemesChanged:   if (_widgetsLoaded) saveWidgets()
-    onArchBadgeShellChanged:    if (_widgetsLoaded) saveWidgets()
     onWorkspaceStyleChanged:   if (_widgetsLoaded) saveWidgets()
     onBarPositionChanged:      if (_widgetsLoaded) saveWidgets()
     onBarShellStyleChanged:    if (_widgetsLoaded) saveWidgets()
