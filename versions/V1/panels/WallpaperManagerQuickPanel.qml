@@ -152,16 +152,34 @@ PanelWindow {
             Column {
                 id: content
                 width: viewport.width; spacing: 12
-                Row {
-                    spacing: 8
-                    Repeater {
-                        model: [{key:"displays", label:"Displays"}, {key:"shuffling", label:"Shuffling"}]
-                        delegate: RiseButton {
-                            required property var modelData
-                            objectName: "wallpaper-tab-" + modelData.key
-                            label: modelData.label
-                            selected: panel.root.wallpaperManagerTab === modelData.key
-                            onActivated: panel.root.wallpaperManagerTab = modelData.key
+                Item {
+                    width: parent.width; height: 30
+                    Row {
+                        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                        spacing: 8
+                        Repeater {
+                            model: [{key:"displays", label:"Displays"}, {key:"shuffling", label:"Shuffling"}]
+                            delegate: RiseButton {
+                                required property var modelData
+                                objectName: "wallpaper-tab-" + modelData.key
+                                label: modelData.label
+                                selected: panel.root.wallpaperManagerTab === modelData.key
+                                onActivated: panel.root.wallpaperManagerTab = modelData.key
+                            }
+                        }
+                    }
+                    Text {
+                        id: closeButtonText
+                        objectName: "wallpaper-manager-close"
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        text: "✕"; color: closeButtonMouse.containsMouse ? panel.root.seal : panel.root.muted
+                        font.family: panel.root.mono; font.pixelSize: 12
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                        MouseArea {
+                            id: closeButtonMouse
+                            anchors.fill: parent; anchors.margins: -8
+                            hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+                            onClicked: panel.dismiss()
                         }
                     }
                 }
