@@ -153,6 +153,7 @@ PanelWindow {
         if (migrated) { l = migrated.left; c = migrated.center; r = migrated.right }
         migrated = WallpaperLayout.migrateV1Order(l, c, r)
         if (migrated) { l = migrated.left; c = migrated.center; r = migrated.right }
+        if (r.indexOf("G18") < 0 && r.length + 1 === rightModel.count) r.push("G18")
         // F12: only apply a cache that is a valid permutation of all registry ids (correct region
         // sizes, every id known, no duplicate, none missing) — a corrupt cache would otherwise
         // duplicate one widget and silently drop another. On reject, keep the default order.
@@ -190,7 +191,7 @@ PanelWindow {
     // reset the 3 region models back to the default group order
     function resetOrder() {
         var dL = ["G1","G2","G3","G4","G5","G6","G7"]
-        var dR = ["G9","G10","G11","G14","G12","G13","G15","G16","G17"]
+        var dR = ["G9","G10","G11","G14","G12","G13","G15","G16","G17","G18"]
         for (var i = 0; i < dL.length; i++) leftModel.setProperty(i, "gid", dL[i])
         centerModel.setProperty(0, "gid", "G8")
         for (var j = 0; j < dR.length; j++) rightModel.setProperty(j, "gid", dR[j])
@@ -460,6 +461,7 @@ PanelWindow {
     Component { id: compNetwork;    NetworkWidget      { root: barSlot.root } }
     Component { id: compNordVpn;    NordVPNWidget      { root: barSlot.root } }
     Component { id: compWallpapers; WallpaperManagerQuickWidget { root: barSlot.root; screen: barSlot.screen } }
+    Component { id: compDisplayManager; DisplayManagerWidget { root: barSlot.root; screen: barSlot.screen } }
     Component { id: compPower;      PowerProfileWidget { root: barSlot.root } }
     Component { id: compBattery;    BatteryWidget      { root: barSlot.root } }
     Component { id: compBrightness; BrightnessWidget   { root: barSlot.root } }
@@ -471,7 +473,7 @@ PanelWindow {
         "G8": compCenter,
         "G9": compMpris, "G10": compQuick, "G11": compNetwork,
         "G12": compBattery, "G13": compBrightness, "G14": compPower, "G15": compBluetooth,
-        "G16": compNordVpn, "G17": compWallpapers
+        "G16": compNordVpn, "G17": compWallpapers, "G18": compDisplayManager
     })
 
     // ───────────────────── reusable region row of slots ─────────────────────
@@ -865,7 +867,7 @@ PanelWindow {
             id: rightModel
             ListElement { gid: "G9" }  ListElement { gid: "G10" } ListElement { gid: "G11" }
             ListElement { gid: "G14" } ListElement { gid: "G12" } ListElement { gid: "G13" }
-            ListElement { gid: "G15" } ListElement { gid: "G16" } ListElement { gid: "G17" }
+            ListElement { gid: "G15" } ListElement { gid: "G16" } ListElement { gid: "G17" } ListElement { gid: "G18" }
         }
 
         SlotRow {

@@ -284,8 +284,8 @@ Item {
         || batteryVisible || brightnessVisible || mprisVisible || weatherVisible
         || workspaceVisible || imagePickerVisible || mediaBrowserVisible || notifVisible
         || powerProfileVisible || storageVisible || archVisible || trayVisible || trayMenuVisible
-        || wallpaperManagerVisible
-    readonly property bool keyboardPopupVisible: imagePickerVisible || mediaBrowserVisible || wallpaperManagerVisible
+        || wallpaperManagerVisible || displayManagerVisible
+    readonly property bool keyboardPopupVisible: imagePickerVisible || mediaBrowserVisible || wallpaperManagerVisible || displayManagerVisible
 
     function registerBarLayoutController(screenName, controller) {
         if (!screenName || !controller) return
@@ -539,6 +539,7 @@ Item {
         if (except !== "trayVisible") trayVisible = false
         if (except !== "trayMenuVisible") trayMenuVisible = false
         if (except !== "wallpaperManagerVisible") wallpaperManagerVisible = false
+        if (except !== "displayManagerVisible") displayManagerVisible = false
         hideTooltip()
         _closingPopups = false
     }
@@ -1833,6 +1834,23 @@ Item {
     property bool modNetwork:    true
     property bool modNordVpn:    false
     property bool modWallpapers: false
+    property bool modDisplayManager: false
+    property bool displayManagerVisible: false
+    property bool displayManagerAutoWorkspaces: true
+    property real displayManagerBarX: 0
+    property real displayManagerBarY: 35
+    readonly property var displayManagerControllerApi: displayManagerController
+    function toggleDisplayManager(screen, anchorItem) {
+        if (!screen || !screen.name) return
+        activatePopupScreen(screen)
+        var point = anchorItem ? anchorItem.mapToItem(null, anchorItem.width / 2, anchorItem.height) : null
+        displayManagerBarX = point ? point.x : screen.width / 2
+        displayManagerBarY = point ? Math.max(0, point.y) : 35
+        var next = !displayManagerVisible
+        if (next) closePopups("displayManagerVisible")
+        displayManagerVisible = next
+    }
+    DisplayManagerController { id: displayManagerController; theme: theme }
     property string nordVpnStatus: "Unknown"
     readonly property var nordVpnStatusController: nordVpnController
     function refreshNordVpnStatus() { nordVpnController.refresh() }
@@ -2294,7 +2312,7 @@ Item {
         var m = String(gid || "").match(/^G(\d{1,2})$/)
         if (!m) return false
         var n = Number(m[1])
-        return n >= 1 && n <= 20
+        return n >= 1 && n <= 21
     }
     function widgetColorModeValid(mode) {
         return mode === "fill" || mode === "border" || mode === "both"
@@ -2369,7 +2387,7 @@ Item {
         var next = {}
         var changed = false
 
-        for (var n = 1; n <= 20; n++) {
+        for (var n = 1; n <= 21; n++) {
             var gid = "G" + n
             var style = widgetColorStyle(gid)
 
@@ -2437,7 +2455,7 @@ Item {
     }
     function serializeWidgetColorStyles() {
         var out = []
-        for (var n = 1; n <= 20; n++) {
+        for (var n = 1; n <= 21; n++) {
             var gid = "G" + n
             var style = widgetColorStyle(gid)
             if (style.color !== "inherit" || style.mode === "border")
@@ -2478,6 +2496,8 @@ Item {
     onModNetworkChanged:    if (_widgetsLoaded) saveWidgets()
     onModNordVpnChanged:    if (_widgetsLoaded) saveWidgets()
     onModWallpapersChanged: if (_widgetsLoaded) saveWidgets()
+    onModDisplayManagerChanged: if (_widgetsLoaded) saveWidgets()
+    onDisplayManagerAutoWorkspacesChanged: if (_widgetsLoaded) saveWidgets()
     onModStatusChanged:     if (_widgetsLoaded) saveWidgets()
     onModQuickChanged:      if (_widgetsLoaded) saveWidgets()
     onModCpuChanged:        if (_widgetsLoaded) saveWidgets()
@@ -2547,7 +2567,9 @@ Item {
                  + (barBorderEnabled ? "1" : "0") + " "                 // +43 outer bar border
                  + (panelTooltipBorderEnabled ? "1" : "0") + " "        // +44 panel + tooltip outer border
                  + (modNordVpn ? "1" : "0") + " "                        // +45 NordVPN
-                 + (modWallpapers ? "1" : "0")                          // +46 Wallpapers; append-only schema
+                 + (modWallpapers ? "1" : "0") + " "                    // +46 Wallpapers; append-only schema
+                 + (modDisplayManager ? "1" : "0") + " "                  // +47 Display Manager; append-only schema
+                 + (displayManagerAutoWorkspaces ? "1" : "0") // +48 Display Manager workspace preference
         widgetSaveProc.command = ["bash", "-c",
             "echo '" + line + "' > '" + widgetsCachePath + "'"]
         widgetSaveProc.running = false
@@ -2770,6 +2792,8 @@ Item {
                 }
                 if (parts.length > wsField + 45) theme.modNordVpn = parts[wsField + 45] === "1"
                 if (parts.length > wsField + 46) theme.modWallpapers = parts[wsField + 46] === "1"
+                if (parts.length > wsField + 47) theme.modDisplayManager = parts[wsField + 47] === "1"
+                    if (parts.length > wsField + 48) theme.displayManagerAutoWorkspaces = parts[wsField + 48] === "1"
                 theme._widgetsLoaded = true
             }
         }
@@ -2779,6 +2803,7 @@ Item {
 
     // ── New widget panel states ──
     property bool networkVisible:   false
+    onDisplayManagerVisibleChanged: popupOpened("displayManagerVisible")
     onNetworkVisibleChanged: popupOpened("networkVisible")
     property bool vpnVisible:       false
     onVpnVisibleChanged: popupOpened("vpnVisible")
@@ -3030,7 +3055,7 @@ Item {
         || memVisible || volVisible || controlVisible || networkVisible || vpnVisible || bluetoothVisible
         || batteryVisible || brightnessVisible || mprisVisible || weatherVisible
         || workspaceVisible || notifVisible || powerProfileVisible || storageVisible
-        || archVisible || trayVisible
+        || archVisible || trayVisible || displayManagerVisible
 
     // Preserve the panel surface's actually rendered tip while it closes so
     // the matching bar notch retracts at the same point. Edge panels clamp the

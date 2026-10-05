@@ -1,0 +1,35 @@
+import fs from 'node:fs';
+import vm from 'node:vm';
+import assert from 'node:assert/strict';
+const source = fs.readFileSync('versions/V1/variants/V2/Theme.qml', 'utf8');
+const names = ['paletteColorValid','widgetGidValid','widgetColorModeValid','normalizedWidgetColorMode','widgetToneValid','widgetColorStyle','setWidgetColorStyle','setWidgetBorderEnabled','setWidgetPaletteColor','setWidgetTone','widgetHasFill','widgetHasBorder','serializeWidgetColorStyles','parseWidgetColorStyles','resetAllWidgetFillColors'];
+const context = vm.createContext({ widgetColorStyles:{}, _widgetsLoaded:true, saves:[] });
+for (const name of names) {
+  const start = source.indexOf('    function '+name+'(');
+  assert.ok(start >= 0, name+' missing');
+  const end = source.indexOf('\n    }', start)+6;
+  vm.runInContext(source.slice(start,end),context);
+}
+vm.runInContext('function saveWidgets() { saves.push(serializeWidgetColorStyles()) }',context);
+assert.equal(context.widgetGidValid('G21'),true,'Display Manager G21 rejected by settings');
+assert.equal(context.widgetGidValid('G22'),false,'unregistered G22 must stay rejected');
+context.setWidgetBorderEnabled('G15',true);
+context.setWidgetBorderEnabled('G21',true);
+assert.equal(context.widgetHasBorder('G21'),true,'Border ON must reach G21');
+assert.equal(context.widgetHasFill('G21'),false,'inherit border must not add fill');
+assert.ok(context.saves.at(-1).includes('G21~inherit~border~auto'),'G21 border must be saved');
+context.widgetColorStyles=context.parseWidgetColorStyles(context.serializeWidgetColorStyles());
+assert.equal(context.widgetHasBorder('G21'),true,'G21 border must survive reload');
+assert.equal(context.widgetHasBorder('G15'),true,'Bluetooth border must stay unchanged');
+context.setWidgetPaletteColor('G21','color02');
+context.setWidgetTone('G21','foreground');
+assert.equal(context.widgetHasFill('G21'),true);
+assert.ok(context.serializeWidgetColorStyles().includes('G21~color02~both~foreground'));
+context.resetAllWidgetFillColors();
+assert.equal(context.widgetHasFill('G21'),false);
+assert.equal(context.widgetHasBorder('G21'),true,'reset colors must preserve G21 border');
+context.setWidgetBorderEnabled('G21',false);
+assert.equal(context.widgetHasBorder('G21'),false);
+assert.equal(context.widgetHasBorder('G15'),true,'G21 OFF must not affect Bluetooth');
+assert.equal(context.parseWidgetColorStyles('G22~inherit~border~auto').G22,undefined);
+console.log('DISPLAY_V2_BORDER_PASS actual Theme functions: G21 ON/OFF/color/tone/save/reload/reset; G15 isolation; G22 rejected; no host settings changed');

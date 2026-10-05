@@ -249,6 +249,7 @@ Item {
 
     TooltipOverlay { root: theme }
     WallpaperManagerQuickPanel { root: theme }
+    DisplayManagerPanel { root: theme }
     CalendarPopup { root: theme }
     ArchUpdaterPanel { root: theme }
     PowerProfilePanel { root: theme }

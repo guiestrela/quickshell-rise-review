@@ -129,6 +129,13 @@ PanelWindow {
         micVolumeRunner.running = true
     }
 
+    function setOutputVolume(value) {
+        var level = Math.max(0, Math.min(1, value))
+        outputVolumeRunner.command = ["bash", "-c", "wpctl set-volume @DEFAULT_AUDIO_SINK@ " + level.toFixed(3)]
+        outputVolumeRunner.running = false
+        outputVolumeRunner.running = true
+    }
+
     function setDefaultSink(dev) {
         if (!dev || !dev.name) return
 
@@ -252,6 +259,7 @@ PanelWindow {
                     font.family: root.mono; font.pixelSize: 11; font.weight: Font.Medium
                 }
                 Rectangle {
+                    id: outputTrack
                     anchors.bottom: parent.bottom
                     width: parent.width; height: 8; radius: 4
                     color: root.fillActive
@@ -260,6 +268,16 @@ PanelWindow {
                         height: parent.height; radius: 4
                         color: root.seal
                         Behavior on width { NumberAnimation { duration: 300 } }
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        anchors.topMargin: -8
+                        cursorShape: Qt.SizeHorCursor
+                        function setFromX(x) {
+                            volPanel.setOutputVolume(Math.max(0, Math.min(1, x / outputTrack.width)))
+                        }
+                        onPressed: function(event) { setFromX(event.x) }
+                        onPositionChanged: function(event) { if (pressed) setFromX(event.x) }
                     }
                 }
             }
@@ -564,6 +582,11 @@ PanelWindow {
             volPanel.notifyAudioError("Mute mic", code)
             volPanel.refreshMicState(code === 0)
         }
+    }
+    Process {
+        id: outputVolumeRunner
+        running: false
+        onExited: function(code) { if (code !== 0) volPanel.notifyAudioError("Set volume", code) }
     }
     Process {
         id: micVolumeRunner

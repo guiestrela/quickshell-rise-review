@@ -1,0 +1,295 @@
+#!/usr/bin/env python3
+"""Private, detached monitor-change confirmation/rollback transaction."""
+import argparse
+import contextlib
+import fcntl
+import json
+import os
+from pathlib import Path
+import re
+import runpy
+import secrets
+import stat
+import subprocess
+import sys
+import time
+
+HELPER = Path(__file__).absolute().with_name('rise-display-manager-apply')
+api = runpy.run_path(str(HELPER))
+TOKEN = re.compile(r'^[0-9a-f]{32}$')
+
+
+def root_directory():
+    runtime = os.environ.get('XDG_RUNTIME_DIR', '')
+    if not runtime or not os.path.isabs(runtime):
+        raise ValueError('Private runtime directory is unavailable')
+    parent = os.open(runtime, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW)
+    try:
+        info = os.fstat(parent)
+        if info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) & 0o077:
+            raise ValueError('Runtime directory must be owned by this user and private')
+        try:
+            os.mkdir('rise-display-guard', 0o700, dir_fd=parent)
+        except FileExistsError:
+            pass
+        fd = os.open('rise-display-guard', os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=parent)
+        info = os.fstat(fd)
+        if info.st_uid != os.getuid() or stat.S_IMODE(info.st_mode) & 0o077:
+            os.close(fd)
+            raise ValueError('Rollback directory is not private')
+        return fd
+    finally:
+        os.close(parent)
+
+
+@contextlib.contextmanager
+def transaction(token):
+    if not isinstance(token, str) or not TOKEN.fullmatch(token):
+        raise ValueError('Invalid rollback token')
+    root = root_directory()
+    directory = lock = None
+    try:
+        directory = os.open(token, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=root)
+        lock = os.open('lock', os.O_RDWR | os.O_NOFOLLOW, dir_fd=directory)
+        if not stat.S_ISREG(os.fstat(lock).st_mode):
+            raise ValueError('Invalid transaction lock')
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        raw = api['read_existing'](directory, 'state.json')
+        if raw is None:
+            raise ValueError('Missing rollback state')
+        data = json.loads(raw)
+        yield directory, data
+    finally:
+        if lock is not None:
+            os.close(lock)
+        if directory is not None:
+            os.close(directory)
+        os.close(root)
+
+
+def write_state(directory, data):
+    api['atomic_write'](directory, 'state.json', json.dumps(data).encode())
+
+
+def monitors():
+    data = json.loads(api['run'](['hyprctl', 'monitors', 'all', '-j'], capture=True).stdout)
+    if not isinstance(data, list) or not 1 <= len(data) <= 32:
+        raise ValueError('Invalid monitor snapshot')
+    return data
+
+
+def matches_requested(got, args):
+    if not got:
+        return False
+    if args.action == 'disable':
+        return got.get('disabled', False) is True
+    if got.get('disabled', False) or (got.get('mirrorOf') or 'none') != args.mirror:
+        return False
+    if any(got.get(k, 0) != v for k, v in [('x', args.x), ('y', args.y), ('transform', args.transform)]):
+        return False
+    if abs(float(got.get('scale', 0)) - float(args.scale)) > .00001:
+        return False
+    mode = str(args.mode).removesuffix('Hz')
+    if mode != 'preferred':
+        geometry, _, refresh = mode.partition('@')
+        width, height = map(int, geometry.split('x'))
+        if got.get('width') != width or got.get('height') != height:
+            return False
+        if refresh and abs(float(got.get('refreshRate', 0)) - float(refresh)) >= .05:
+            return False
+    return True
+
+
+def restore(directory, data):
+    m = data['before']
+    name = api['require_name'](m['name'])
+    current = monitors()
+    if not any(item['name'] == name for item in current):
+        raise ValueError('Rollback monitor disconnected; cannot restore')
+    if m.get('disabled', False):
+        api['check_live_action'](name, disabling=True)
+        code = 'hl.monitor({ output = ' + api['quote_lua'](name) + ', disabled = true })'
+    else:
+        mode = str(m['width']) + 'x' + str(m['height']) + '@' + str(round(float(m['refreshRate']), 3))
+        mirror = m.get('mirrorOf') or 'none'
+        args = api['parser_for_action']().parse_args(['--action', 'monitor', '--monitor', name,
+            '--mode', mode, '--x', str(m['x']), '--y', str(m['y']), '--scale', str(m['scale']),
+            '--transform', str(m.get('transform', 0)), '--mirror', mirror])
+        name, mode, scale = api['monitor_args'](args)
+        api['check_live_action'](name, mirror)
+        quote = api['quote_lua']
+        code = (f'hl.monitor({{ output = {quote(name)}, mode = {quote(mode)}, '
+                f'position = {quote(str(args.x)+"x"+str(args.y))}, scale = {scale}, transform = {args.transform}'
+                + (f', mirror = {quote(mirror)}' if mirror != 'none' else '') + ' })')
+    result = api['run'](['hyprctl', 'eval', code], capture=True)
+    if result.stdout.strip() != 'ok':
+        raise ValueError('Rollback rejected: ' + result.stdout[:2048])
+    # Do not announce successful restoration merely from an acknowledgement.
+    expected = ['x', 'y', 'width', 'height', 'scale', 'transform', 'disabled', 'mirrorOf']
+    for attempt in range(20):
+        got = next((item for item in monitors() if item['name'] == name), None)
+        if got and (got.get('disabled', False) is True if m.get('disabled') else all((got.get(k) or 'none') == (m.get(k) or 'none') if k == 'mirrorOf' else got.get(k, False if k == 'disabled' else 0) == m.get(k, False if k == 'disabled' else 0) for k in expected)):
+            if m.get('disabled') or abs(float(got.get('refreshRate', 0))-float(m['refreshRate'])) < 0.05:
+                data['status'] = 'reverted'
+                write_state(directory, data)
+                return
+        time.sleep(.1)
+    raise ValueError('Rollback state does not match the original monitor')
+
+
+def response(token, data):
+    return {'token': token, 'status': data['status'], 'remaining': max(0, int(data['deadline'] - time.monotonic() + .999)), 'error': data.get('error', '')}
+
+
+def worker(token):
+    with transaction(token) as (directory, data):
+        data['ready'] = True
+        write_state(directory, data)
+    while True:
+        with transaction(token) as (directory, data):
+            if data['status'] != 'pending':
+                return
+            if time.monotonic() >= data['deadline']:
+                try:
+                    restore(directory, data)
+                except Exception as error:
+                    data['status'] = 'failed'
+                    data['error'] = str(error)[:2048]
+                    write_state(directory, data)
+                return
+        time.sleep(.1)
+
+
+def apply(payload, seconds):
+    root = root_directory()
+    lock = None
+    try:
+        lock = os.open("apply.lock", os.O_RDWR | os.O_CREAT | os.O_NOFOLLOW, 0o600, dir_fd=root)
+        if not stat.S_ISREG(os.fstat(lock).st_mode):
+            raise ValueError("Invalid apply lock")
+        fcntl.flock(lock, fcntl.LOCK_EX)
+        return apply_locked(payload, seconds)
+    finally:
+        if lock is not None:
+            os.close(lock)
+        os.close(root)
+
+
+def apply_locked(payload, seconds):
+    args = json.loads(payload)
+    if not isinstance(args, list) or len(args) > 30 or not all(isinstance(v, str) and len(v) <= 256 for v in args):
+        raise ValueError('Invalid monitor command')
+    parsed = api['parser_for_action']().parse_args(args)
+    if parsed.action not in ('monitor', 'disable'):
+        raise ValueError('Only monitor changes may be previewed')
+    if parsed.action == 'monitor':
+        api['monitor_args'](parsed)
+    api['check_live_action'](parsed.monitor, parsed.mirror, disabling=parsed.action == 'disable')
+    values = monitors()
+    original = next(m for m in values if m['name'] == parsed.monitor)
+    # Fail BEFORE mutation if the original geometry cannot be safely represented.
+    api['require_name'](original['name'])
+    if not original.get('disabled', False):
+        api['monitor_args'](api['parser_for_action']().parse_args([
+            '--action', 'monitor', '--monitor', original['name'],
+            '--mode', str(original['width'])+'x'+str(original['height'])+'@'+str(round(float(original['refreshRate']), 3)),
+            '--x', str(original['x']), '--y', str(original['y']), '--scale', str(original['scale']),
+            '--transform', str(original.get('transform', 0)), '--mirror', original.get('mirrorOf') or 'none']))
+    root = root_directory()
+    try:
+        entries = [entry for entry in os.listdir(root) if TOKEN.fullmatch(entry)]
+        # One unconfirmed change at a time, including across shell restarts.
+        for entry in entries:
+            with transaction(entry) as (_, existing):
+                if existing['status'] == 'pending':
+                    raise ValueError('Confirm or revert the pending monitor change first')
+        # Retain only recent terminal transactions; unlink through private dirfds.
+        for entry in sorted(entries, key=lambda e: os.stat(e, dir_fd=root, follow_symlinks=False).st_mtime)[:-20]:
+            with transaction(entry) as (directory, existing):
+                if existing['status'] != 'pending':
+                    os.unlink('state.json', dir_fd=directory)
+                    os.unlink('lock', dir_fd=directory)
+            os.rmdir(entry, dir_fd=root)
+        token = secrets.token_hex(16)
+        os.mkdir(token, 0o700, dir_fd=root)
+        directory = os.open(token, os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW, dir_fd=root)
+        try:
+            lock = os.open('lock', os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW, 0o600, dir_fd=directory)
+            os.close(lock)
+            write_state(directory, {'status': 'pending', 'ready': False, 'deadline': time.monotonic()+45, 'before': original})
+        finally:
+            os.close(directory)
+    finally:
+        os.close(root)
+    proc = subprocess.Popen([sys.executable, str(Path(__file__).absolute()), '--worker', token],
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, start_new_session=True, close_fds=True)
+    # The independent worker must acknowledge readiness BEFORE any monitor mutation.
+    for attempt in range(100):
+        with transaction(token) as (directory, data):
+            if data.get('ready'):
+                if data['status'] != 'pending' or time.monotonic() >= data['deadline'] or proc.poll() is not None:
+                    raise ValueError('Safety watchdog expired or stopped; no display change was applied')
+                # Reserve a full recovery window before launching the bounded helper.
+                data['deadline'] = time.monotonic()+45
+                write_state(directory, data)
+                try:
+                    result = subprocess.run([str(HELPER), *args], capture_output=True, text=True, timeout=12)
+                    if result.returncode != 0:
+                        raise ValueError((result.stderr or result.stdout or 'Monitor change failed')[:2048])
+                    for attempt in range(10):
+                        got = next((m for m in monitors() if m['name'] == parsed.monitor), None)
+                        if matches_requested(got, parsed):
+                            break
+                        time.sleep(.1)
+                    else:
+                        raise ValueError('Display change did not apply; reverting previous configuration')
+                except Exception:
+                    data['deadline'] = time.monotonic()
+                    write_state(directory, data)
+                    raise
+                data['deadline'] = time.monotonic()+seconds
+                write_state(directory, data)
+                return response(token, data)
+        if proc.poll() is not None:
+            break
+        time.sleep(.02)
+    with transaction(token) as (directory, data):
+        data['status'] = 'failed'
+        data['error'] = 'Watchdog unavailable; no monitor change applied'
+        write_state(directory, data)
+    raise ValueError('Watchdog unavailable; no monitor change applied')
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    commands = parser.add_mutually_exclusive_group(required=True)
+    for option in ['apply', 'confirm', 'revert', 'status', 'worker']:
+        commands.add_argument('--'+option)
+    parser.add_argument('--seconds', type=int, default=15, choices=range(1, 31))
+    args = parser.parse_args()
+    try:
+        if args.worker:
+            worker(args.worker)
+            return 0
+        if args.apply:
+            result = apply(args.apply, args.seconds)
+        else:
+            token = args.confirm or args.revert or args.status
+            with transaction(token) as (directory, data):
+                if args.confirm:
+                    if data['status'] != 'pending' or time.monotonic() >= data['deadline']:
+                        raise ValueError('Confirmation expired; configuration was not kept')
+                    data['status'] = 'confirmed'
+                    write_state(directory, data)
+                elif args.revert and data['status'] == 'pending':
+                    restore(directory, data)
+                result = response(token, data)
+        print(json.dumps(result))
+        return 0
+    except (ValueError, OSError, subprocess.SubprocessError, KeyError, StopIteration) as error:
+        print('Display rollback: '+str(error), file=sys.stderr)
+        return 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

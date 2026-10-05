@@ -299,8 +299,8 @@ Item {
         || batteryVisible || brightnessVisible || mprisVisible || weatherVisible
         || workspaceVisible || vpnVisible || imagePickerVisible || mediaBrowserVisible || notifVisible
         || powerProfileVisible || archVisible || trayVisible || trayMenuVisible
-        || wallpaperManagerVisible
-    readonly property bool keyboardPopupVisible: imagePickerVisible || mediaBrowserVisible || wallpaperManagerVisible
+        || wallpaperManagerVisible || displayManagerVisible
+    readonly property bool keyboardPopupVisible: imagePickerVisible || mediaBrowserVisible || wallpaperManagerVisible || displayManagerVisible
 
     function registerBarLayoutController(screenName, controller) {
         if (!screenName || !controller) return
@@ -570,6 +570,7 @@ Item {
         if (except !== "trayVisible") trayVisible = false
         if (except !== "trayMenuVisible") trayMenuVisible = false
         if (except !== "wallpaperManagerVisible") wallpaperManagerVisible = false
+        if (except !== "displayManagerVisible") displayManagerVisible = false
         hideTooltip()
         _closingPopups = false
     }
@@ -1381,6 +1382,23 @@ Item {
     property bool modNetwork:    true
     property bool modNordVpn:    false
     property bool modWallpapers: false
+    property bool modDisplayManager: false
+    property bool displayManagerVisible: false
+    property bool displayManagerAutoWorkspaces: true
+    property real displayManagerBarX: 0
+    property real displayManagerBarY: 35
+    readonly property var displayManagerControllerApi: displayManagerController
+    function toggleDisplayManager(screen, anchorItem) {
+        if (!screen || !screen.name) return
+        activatePopupScreen(screen)
+        var point = anchorItem ? anchorItem.mapToItem(null, anchorItem.width / 2, anchorItem.height) : null
+        displayManagerBarX = point ? point.x : screen.width / 2
+        displayManagerBarY = point ? Math.max(0, point.y) : 35
+        var next = !displayManagerVisible
+        if (next) closePopups("displayManagerVisible")
+        displayManagerVisible = next
+    }
+    DisplayManagerController { id: displayManagerController; theme: theme }
     readonly property var nordVpnStatusController: nordVpnController
     property string nordVpnStatus: "Unknown"
     readonly property string vpnState: nordVpnController.vpnState
@@ -1829,6 +1847,8 @@ Item {
     onModNetworkChanged:    if (_widgetsLoaded) saveWidgets()
     onModNordVpnChanged:    if (_widgetsLoaded) saveWidgets()
     onModWallpapersChanged: if (_widgetsLoaded) saveWidgets()
+    onModDisplayManagerChanged: if (_widgetsLoaded) saveWidgets()
+    onDisplayManagerAutoWorkspacesChanged: if (_widgetsLoaded) saveWidgets()
     onModStatusChanged:     if (_widgetsLoaded) saveWidgets()
     onModQuickChanged:      if (_widgetsLoaded) saveWidgets()
     onModCpuChanged:        if (_widgetsLoaded) saveWidgets()
@@ -1900,7 +1920,9 @@ Item {
                  + "0 "                                     // +31 reserved (retired updater preference)
                  + (compactMpris      ? "1" : "0") + " "  // +32 V2 FULL / muse presentation
                  + (modNordVpn        ? "1" : "0") + " "  // +33 NordVPN
-                 + (modWallpapers     ? "1" : "0")        // +34 Wallpapers; append-only schema
+                 + (modWallpapers     ? "1" : "0") + " "  // +34 Wallpapers; append-only schema
+                 + (modDisplayManager ? "1" : "0") + " "  // +35 Display Manager; append-only schema
+                 + (displayManagerAutoWorkspaces ? "1" : "0") // +36 Display Manager workspace preference
         widgetSaveProc.command = ["bash", "-c",
             "echo '" + line + "' > '" + widgetsCachePath + "'"]
         widgetSaveProc.running = false
@@ -2109,6 +2131,8 @@ Item {
                     if (parts.length > wsField + 32) theme.compactMpris      = parts[wsField + 32] === "1"
                     if (parts.length > wsField + 33) theme.modNordVpn       = parts[wsField + 33] === "1"
                     if (parts.length > wsField + 34) theme.modWallpapers    = parts[wsField + 34] === "1"
+                    if (parts.length > wsField + 35) theme.modDisplayManager = parts[wsField + 35] === "1"
+                    if (parts.length > wsField + 36) theme.displayManagerAutoWorkspaces = parts[wsField + 36] === "1"
                 }
                 theme._widgetsLoaded = true
             }
@@ -2119,6 +2143,7 @@ Item {
 
     // ── New widget panel states ──
     property bool networkVisible:   false
+    onDisplayManagerVisibleChanged: popupOpened("displayManagerVisible")
     onNetworkVisibleChanged: popupOpened("networkVisible")
     property bool vpnVisible: false
     onVpnVisibleChanged: popupOpened("vpnVisible")

@@ -551,6 +551,7 @@ PanelWindow {
                 Tile { width: root.evenW((wwCol.width - 8) / 2); label: "Network";     active: root.modNetwork; enabled: root.networkMode !== "wifi"; onActivated: root.modNetwork = !root.modNetwork }
                 Tile { width: root.evenW((wwCol.width - 8) / 2); label: "NordVPN";    active: root.modNordVpn; onActivated: root.modNordVpn = !root.modNordVpn }
                 Tile { objectName: "wallpaper-widget-toggle"; width: root.evenW((wwCol.width - 8) / 2); label: "Wallpapers"; active: root.modWallpapers; onActivated: root.modWallpapers = !root.modWallpapers }
+                Tile { objectName: "display-manager-widget-toggle"; width: root.evenW((wwCol.width - 8) / 2); label: "Display Manager"; active: root.modDisplayManager; onActivated: root.modDisplayManager = !root.modDisplayManager }
                 Tile { width: root.evenW((wwCol.width - 8) / 2); label: "Quick tools"; active: root.modQuick;   onActivated: root.modQuick = !root.modQuick }
                 Tile { width: root.evenW((wwCol.width - 8) / 2); label: "Status";      active: root.modStatus;  onActivated: root.modStatus = !root.modStatus }
                 Tile { width: root.evenW((wwCol.width - 8) / 2); label: "CPU";         active: root.modCpu;     onActivated: root.modCpu = !root.modCpu }

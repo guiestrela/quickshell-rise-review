@@ -793,6 +793,15 @@ PanelWindow {
         c = wallpaperMigrated.center
         r = wallpaperMigrated.right
 
+        if (r.every(function(entry) { return entry.gid !== "G21" })) {
+            var emptySlot = -1
+            for (var emptyIndex = 0; emptyIndex < r.length; emptyIndex++)
+                if (r[emptyIndex].gid === "") { emptySlot = emptyIndex; break }
+            if (emptySlot >= 0) r[emptySlot].gid = "G21"
+            else if (r.length < rightBaseSlotCount + rightExtraSlotLimit)
+                r.push({ gid: "G21", extra: true })
+        }
+
         // Only accept a complete permutation of G1..G20. Empty slots are legal,
         // but each registered widget must still occur exactly once.
         var all = l.concat(c, r), seen = {}
@@ -851,7 +860,7 @@ PanelWindow {
     function resetOrder() {
         var dL = ["G1","G2","G3","","G5","G6","G4","G7","",""]
         var dR = ["G9","G10","G11","G14","G12","G13","G16",
-                  "G18","G17","G15","G19","G20",""]
+                  "G18","G17","G15","G19","G20","G21"]
         resetModel(leftModel, dL, leftBaseSlotCount)
         resetModel(centerModel, ["G8"], centerBaseSlotCount)
         resetModel(rightModel, dR, rightBaseSlotCount)
@@ -1200,6 +1209,15 @@ PanelWindow {
         WallpaperManagerQuickWidget { root: barSlot.root; screen: barSlot.screen }
     }
     Component {
+        id: compDisplayManager
+        DisplayManagerWidget {
+            root: barSlot.root
+            screen: barSlot.screen
+            readonly property real barContentLeftInset: 9
+            readonly property real barContentRightInset: 9
+        }
+    }
+    Component {
         id: compPower
         PowerProfileWidget {
             root: barSlot.root
@@ -1239,7 +1257,7 @@ PanelWindow {
         "G9": compMpris, "G10": compQuick, "G11": compNetwork,
         "G12": compBattery, "G13": compBrightness, "G14": compPower, "G15": compBluetooth,
         "G16": compCpuTemperature, "G17": compGpu, "G18": compStorage,
-        "G19": compNordVpn, "G20": compWallpapers
+        "G19": compNordVpn, "G20": compWallpapers, "G21": compDisplayManager
     })
 
     // ───────────────────── reusable region row of slots ─────────────────────
@@ -1957,7 +1975,7 @@ PanelWindow {
             ListElement { gid: "G14"; extra: false } ListElement { gid: "G12"; extra: false } ListElement { gid: "G13"; extra: false }
             ListElement { gid: "G16"; extra: false } ListElement { gid: "G18"; extra: true }  ListElement { gid: "G17"; extra: true }
             ListElement { gid: "G15"; extra: true }  ListElement { gid: "G19"; extra: true }  ListElement { gid: "G20"; extra: true }
-            ListElement { gid: ""; extra: true }
+            ListElement { gid: "G21"; extra: true }
         }
 
         SlotRow {
