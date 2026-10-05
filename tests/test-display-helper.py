@@ -57,6 +57,39 @@ class HelperTests(unittest.TestCase):
             self.assertEqual(helper.main(),1)
             self.assertNotIn('Display action applied',output.getvalue())
 
+    def test_mirror_ids_are_named_and_source_cannot_be_disabled(self):
+        ms=[dict(id=0,name='DP-1',mirrorOf='1'),dict(id=1,name='DP-2',mirrorOf='none'),dict(id=2,name='DP-3',mirrorOf='none')]
+        def fake(argv,**kwargs):return SimpleNamespace(stdout=json.dumps(ms))
+        with patch.object(helper,'run',fake), patch('sys.argv',['helper','--action','monitors']), contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(helper.main(),0)
+            self.assertEqual(json.loads(out.getvalue())[0]['mirrorOf'],'DP-2')
+        with patch.object(helper,'run',fake):
+            with self.assertRaises(ValueError):helper.check_live_action('DP-2',disabling=True)
+
+    def test_extend_explicitly_clears_existing_mirror(self):
+        calls=[]
+        ms=[dict(name='DP-1',mirrorOf='DP-2'),dict(name='DP-2',mirrorOf='none')]
+        def fake(argv,**kwargs):
+            calls.append(argv)
+            return SimpleNamespace(stdout=json.dumps(ms) if argv[1]=='monitors' else 'ok')
+        with patch.object(helper,'run',fake), patch('sys.argv',['helper','--action','monitor','--monitor','DP-1','--mirror','none']), contextlib.redirect_stdout(io.StringIO()):
+            self.assertEqual(helper.main(),0)
+        self.assertIn('mirror = ""',calls[-1][2])
+
+    def test_brightness_query_and_write_verify_selected_output(self):
+        calls=[]
+        def fake(argv,**kwargs):
+            calls.append(argv)
+            return SimpleNamespace(stdout='73\n' if '--no-osd' in argv and not argv[-1].endswith('%') else '')
+        with patch.object(helper,'run',fake), patch('sys.argv',['helper','--action','brightness-state','--monitor','DP-2']), contextlib.redirect_stdout(io.StringIO()) as out:
+            self.assertEqual(helper.main(),0)
+            self.assertEqual(json.loads(out.getvalue()),dict(monitor='DP-2',percent=73))
+        self.assertEqual(calls[-1],['omarchy-brightness-display','--no-osd','--monitor','DP-2'])
+        # An exit-0 skipped write must not be announced as successful.
+        with patch.object(helper,'run',fake), patch('sys.argv',['helper','--action','brightness','--monitor','DP-2','--percent','72']), contextlib.redirect_stdout(io.StringIO()) as out, contextlib.redirect_stderr(io.StringIO()):
+            self.assertEqual(helper.main(),1)
+            self.assertNotIn('Brightness updated',out.getvalue())
+
     def test_save_modes_backup_unmanaged_and_defaults(self):
         old = "-- preserve outside managed block\nhl.config({ misc = {} })\n"
         self.target.write_text(old)

@@ -10,7 +10,7 @@ const variants = [
 const read = (relative) => readFileSync(path.join(repo, relative), "utf8");
 const controls = [
   "display-monitor-list", "display-resolution", "display-refresh",
-  "display-extend", "display-mirror", "display-rotation", "display-scale",
+  "display-mirror", "display-rotation", "display-scale",
   "display-brightness", "display-text-size", "display-workspaces", "display-save",
 ];
 for (const variant of variants) {

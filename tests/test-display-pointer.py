@@ -28,6 +28,9 @@ with tempfile.TemporaryDirectory(prefix='display-pointer-',dir=os.environ['TMPDI
  fixture=fixture.replace('function setBrightness() { }','function setBrightness(value) { brightnessCalls.push(value) }')
  fixture=fixture.replace('function setPosition() { }','function setPosition(name,x,y) { var next=Object.assign({},positions); next[name]={x:x,y:y}; positions=next }')
  fixture=fixture.replace('id: productionPanel; root: fakeRoot','id: productionPanel; root: fakeRoot; visible: true')
+ controllerSource=(repo/'versions/V1/modules/DisplayManagerController.qml').read_text()
+ toggleCode=controllerSource[controllerSource.index('    function toggleMirror()'):controllerSource.index('    function enableMonitor(name)')]
+ fixture=fixture.replace('function applyMonitor(name,mode,x,y,scale,transform,mirror)', 'property var mirrorReturnStates: ({})\n'+toggleCode+'\nfunction applyMonitor(name,mode,x,y,scale,transform,mirror)')
  start=fixture.index('    Timer {')
  fixture=fixture[:start]+'''
     function find(item,name) {
@@ -92,6 +95,30 @@ with tempfile.TemporaryDirectory(prefix='display-pointer-',dir=os.environ['TMPDI
           var children=rows.children, right=0
           for(var child of children) right=Math.max(right,child.x+child.width)
           if(right>rows.width+1) throw new Error("save row overflows: "+right+" > "+rows.width)
+          var mirrorButton=find(productionPanel.contentItem,"display-mirror")
+          var mirrorBefore=fakeController.monitors.map(function(m){return Object.assign({},m)})
+          var mirrorCalls=fakeController.calls.length
+          if(mirrorButton.text!=="Mirror · OFF") throw new Error("Mirror OFF does not reflect compositor state")
+          pointer.mouseClick(mirrorButton)
+          if(fakeController.calls.length!==mirrorCalls+1 || fakeController.calls[mirrorCalls][6]!=="DP-2") throw new Error("Mirror ON click not dispatched")
+          var mirrored=mirrorBefore.map(function(m){return Object.assign({},m)})
+          mirrored[0].mirrorOf="DP-2"; mirrored[0].x=2560; mirrored[0].y=0; mirrored[0].refreshRate=60
+          fakeController.monitors=mirrored
+          pointer.wait(50)
+          if(mirrorButton.text!=="Mirror · ON") throw new Error("Mirror ON does not reflect compositor state")
+          productionPanel.connectedStyle=true
+          pointer.mouseClick(mirrorButton)
+          var returnCall=fakeController.calls[mirrorCalls+1]
+          if(fakeController.calls.length!==mirrorCalls+2 || returnCall[6]!=="none" || returnCall[2]!==mirrorBefore[0].x || returnCall[3]!==mirrorBefore[0].y || returnCall[1]!=="2560x1440@59.950") throw new Error("Mirror OFF click failed to restore pre-mirror geometry/mode")
+          fakeController.rollbackPending=true
+          pointer.mouseClick(mirrorButton)
+          if(fakeController.calls.length!==mirrorCalls+2) throw new Error("Mirror toggle not blocked during confirmation")
+          fakeController.rollbackPending=false
+          productionPanel.connectedStyle=false
+          fakeController.monitors=mirrorBefore
+          fakeController.calls.splice(mirrorCalls)
+          pointer.wait(50)
+          console.log("DISPLAY_MIRROR_POINTER_PASS ON V1/OFF V2, true state label, original mode/position, pending blocked; backend inert")
           var toggle=find(productionPanel.contentItem,"display-workspaces")
           productionPanel.requestActivate()
           productionPanel.contentItem.forceActiveFocus()

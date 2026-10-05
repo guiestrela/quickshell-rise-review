@@ -27,7 +27,7 @@ class RollbackTests(unittest.TestCase):
    for name in ['rise-display-manager-apply','rise-display-manager-guard']:
     self.assertTrue((repo/'scripts'/name).exists(),'missing independent rollback watchdog')
     shutil.copy2(repo/'scripts'/name,scripts/name)
-   state=root/'monitors.json';state.write_text(json.dumps([dict(name='DP-1',width=2560,height=1440,refreshRate=155,x=0,y=560,scale=1,transform=0,disabled=False,mirrorOf='none'),dict(name='DP-2',width=2560,height=1440,refreshRate=155,x=2560,y=0,scale=1,transform=1,disabled=False,mirrorOf='none')]))
+   state=root/'monitors.json';state.write_text(json.dumps([dict(id=0,name='DP-1',width=2560,height=1440,refreshRate=155,x=0,y=560,scale=1,transform=0,disabled=False,mirrorOf='none'),dict(id=1,name='DP-2',width=2560,height=1440,refreshRate=155,x=2560,y=0,scale=1,transform=1,disabled=False,mirrorOf='none')]))
    initial=state.read_text(); cli=root/'hyprctl'
    cli.write_text(r'''#!/usr/bin/python3
 import json,os,re,sys
@@ -38,6 +38,11 @@ elif sys.argv[1]=='eval':
  code=sys.argv[2];name=re.search(r'output = "([^"]+)"',code).group(1);m=next(m for m in ms if m['name']==name)
  pos=re.search(r'position = "(-?\d+)x(-?\d+)"',code)
  if pos and not os.environ.get('TEST_NO_APPLY'):m['x'],m['y']=map(int,pos.groups())
+ mirror=re.search(r'mirror = "([^"]*)"',code)
+ if mirror:
+  target=next((peer for peer in ms if peer['name']==mirror.group(1)),None)
+  m['mirrorOf']=str(target['id']) if target else 'none'
+  if target:m['x'],m['y']=target['x'],target['y']
  m['disabled']='disabled = true' in code
  p.write_text(json.dumps(ms));print('ok')
 else:sys.exit(99)
@@ -66,6 +71,26 @@ else:sys.exit(99)
    self.assertEqual(call('--revert',pending['token'])['status'],'reverted')
    self.assertEqual(json.loads(state.read_text())[0]['x'],1)
    self.assertEqual(json.loads(state.read_text())[1],json.loads(initial)[1],'unrelated monitor changed')
+   args[args.index('--x')+1]='1'  # OFF restores the pre-mirror X1 baseline.
+   mirror_args=args.copy()+['--mirror','DP-2']
+   mirror_args[mirror_args.index('--mode')+1]='preferred'
+   pending=call('--apply',json.dumps(mirror_args),'--seconds','2')
+   self.assertEqual(json.loads(state.read_text())[0]['mirrorOf'],'1')
+   # Raw compositor IDs must not break detached automatic removal of mirroring.
+   deadline=time.monotonic()+5
+   while time.monotonic()<deadline and json.loads(state.read_text())[0]['mirrorOf']!='none':time.sleep(.1)
+   self.assertEqual(json.loads(state.read_text())[0]['mirrorOf'],'none')
+   self.assertEqual(call('--status',pending['token'])['status'],'reverted')
+   pending=call('--apply',json.dumps(mirror_args),'--seconds','2')
+   call('--confirm',pending['token'])
+   pending=call('--apply',json.dumps(args),'--seconds','2')
+   self.assertEqual(json.loads(state.read_text())[0]['mirrorOf'],'none')
+   # Reverting OFF restores the original mirrored state using its canonical name.
+   self.assertEqual(call('--revert',pending['token'])['status'],'reverted')
+   self.assertEqual(json.loads(state.read_text())[0]['mirrorOf'],'1')
+   pending=call('--apply',json.dumps(args),'--seconds','2')
+   call('--confirm',pending['token'])
+   self.assertEqual(json.loads(state.read_text())[1],json.loads(initial)[1])
    args[args.index('--x')+1]='3'
    no_apply=subprocess.run(['/usr/bin/python3',str(guard),'--apply',json.dumps(args),'--seconds','2'],env=dict(env,TEST_NO_APPLY='1'),capture_output=True,text=True,timeout=5)
    self.assertNotEqual(no_apply.returncode,0,'accepted textual ok without compositor state change')

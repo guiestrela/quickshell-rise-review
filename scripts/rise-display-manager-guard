@@ -75,7 +75,7 @@ def monitors():
     data = json.loads(api['run'](['hyprctl', 'monitors', 'all', '-j'], capture=True).stdout)
     if not isinstance(data, list) or not 1 <= len(data) <= 32:
         raise ValueError('Invalid monitor snapshot')
-    return data
+    return api['normalize_monitors'](data)
 
 
 def matches_requested(got, args):
@@ -85,6 +85,8 @@ def matches_requested(got, args):
         return got.get('disabled', False) is True
     if got.get('disabled', False) or (got.get('mirrorOf') or 'none') != args.mirror:
         return False
+    if args.mirror != 'none' and args.mode == 'preferred':
+        return True  # Link verified above; compositor owns mirrored geometry.
     if any(got.get(k, 0) != v for k, v in [('x', args.x), ('y', args.y), ('transform', args.transform)]):
         return False
     if abs(float(got.get('scale', 0)) - float(args.scale)) > .00001:
@@ -120,7 +122,7 @@ def restore(directory, data):
         quote = api['quote_lua']
         code = (f'hl.monitor({{ output = {quote(name)}, mode = {quote(mode)}, '
                 f'position = {quote(str(args.x)+"x"+str(args.y))}, scale = {scale}, transform = {args.transform}'
-                + (f', mirror = {quote(mirror)}' if mirror != 'none' else '') + ' })')
+                + (f', mirror = {quote(mirror)}' if mirror != 'none' else ', mirror = ""') + ' })')
     result = api['run'](['hyprctl', 'eval', code], capture=True)
     if result.stdout.strip() != 'ok':
         raise ValueError('Rollback rejected: ' + result.stdout[:2048])

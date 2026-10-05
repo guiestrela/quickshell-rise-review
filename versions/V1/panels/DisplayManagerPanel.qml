@@ -10,6 +10,7 @@ PanelWindow {
     property Component headerComponent: null
     readonly property Item surfaceHost: frameCard
     readonly property var controller: root.displayManagerControllerApi
+    readonly property var selectedDisplay: controller.monitor(controller.selectedMonitor)
     screen: root.activePopupScreen
     visible: root.displayManagerVisible && root.activePopupScreen !== null
     color: "transparent"
@@ -24,7 +25,7 @@ PanelWindow {
         return controller.monitors.filter(function(m) { return !m.disabled }).length
     }
     function mirrorTargets() {
-        return controller.monitors.filter(function(m) { return !m.disabled && m.name !== controller.selectedMonitor }).map(function(m) { return m.name })
+        return controller.monitors.filter(function(m) { return !m.disabled && m.name !== controller.selectedMonitor && (!m.mirrorOf || m.mirrorOf === "none") }).map(function(m) { return m.name })
     }
     function modeFor(m) {
         return String(m.width) + "x" + String(m.height) + "@" + String(Number(m.refreshRate || 60))
@@ -349,8 +350,13 @@ PanelWindow {
                     enabled: !panel.controller.busy && !panel.controller.loading && panel.controller.rollbackPending !== true && panel.controller.selectedMonitor !== ""
                     width: parent.width; spacing: 8
                     Text { text: "Mode"; color: panel.root.ink; anchors.verticalCenter: parent.verticalCenter; font.family: panel.root.mono; font.pixelSize: 11 }
-                    RiseButton { objectName: "display-extend"; text: "Extend"; onClicked: { var m = panel.controller.monitor(panel.controller.selectedMonitor); if (m) panel.controller.applyMonitor(m.name, panel.modeFor(m), Number(m.x || 0), Number(m.y || 0), Number(m.scale || 1), Number(m.transform || 0), "none") } }
-                    RiseButton { objectName: "display-mirror"; enabled: panel.mirrorTargets().length > 0; text: "Mirror"; onClicked: { var m = panel.controller.monitor(panel.controller.selectedMonitor); var target = panel.mirrorTargets().length ? panel.mirrorTargets()[0] : ""; if (m && target && target !== m.name) panel.controller.applyMonitor(m.name, "preferred", Number(m.x || 0), Number(m.y || 0), Number(m.scale || 1), Number(m.transform || 0), target) } }
+                    RiseButton {
+                        objectName: "display-mirror"
+                        readonly property bool mirrorActive: Boolean(panel.selectedDisplay && panel.selectedDisplay.mirrorOf && panel.selectedDisplay.mirrorOf !== "none")
+                        text: "Mirror · " + (mirrorActive ? "ON" : "OFF")
+                        enabled: mirrorActive || (panel.mirrorTargets().length > 0 && panel.selectedDisplay && !panel.selectedDisplay.disabled)
+                        onClicked: panel.controller.toggleMirror()
+                    }
                     RiseButton { objectName: "display-enable"; text: "Enable"; onClicked: panel.controller.enableMonitor(panel.controller.selectedMonitor) }
                     RiseButton { objectName: "display-disable"; enabled: panel.activeDisplayCount() > 1; text: "Disable"; onClicked: panel.controller.disableMonitor(panel.controller.selectedMonitor) }
                 }
@@ -359,7 +365,7 @@ PanelWindow {
                     enabled: !panel.controller.busy && !panel.controller.loading && panel.controller.rollbackPending !== true && panel.controller.selectedMonitor !== ""
                     width: parent.width; spacing: 8
                     Text { text: "Brightness"; color: panel.root.ink; font.family: panel.root.mono; font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter }
-                    RiseSlider { objectName: "display-brightness"; from: 1; to: 100; value: panel.controller.brightnessPercent; enabled: panel.controller.brightnessAvailable && !panel.controller.busy; onPressedChanged: if (!pressed) panel.controller.setBrightness(value) }
+                    RiseSlider { objectName: "display-brightness"; from: 1; to: 100; stepSize: 1; value: panel.controller.brightnessPercent; enabled: panel.controller.brightnessAvailable && !panel.controller.busy; onPressedChanged: if (!pressed) panel.controller.setBrightness(value) }
                     Text { text: panel.controller.brightnessAvailable ? panel.controller.brightnessPercent + "%" : "Unavailable"; color: panel.root.ink; font.family: panel.root.mono; font.pixelSize: 10; anchors.verticalCenter: parent.verticalCenter }
                 }
                 Row {

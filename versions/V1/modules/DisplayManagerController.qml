@@ -128,7 +128,18 @@ Item {
         if (!preserveError) error = ""
         monitorProc.command = [helperPath, "--action", "monitors"]
         monitorProc.running = true
-        stateProc.command = ["omarchy-monitor-state"]
+    }
+    onSelectedMonitorChanged: {
+        brightnessAvailable = false
+        if (!loading && !busy) refreshBrightness()
+    }
+    function refreshBrightness() {
+        if (!safeMonitor(selectedMonitor) || !monitor(selectedMonitor)) { brightnessAvailable = false; return }
+        if (stateProc.running) { refreshPending = true; return }
+        brightnessAvailable = false
+        queryTimedOut = false
+        loading = true
+        stateProc.command = [helperPath, "--action", "brightness-state", "--monitor", selectedMonitor]
         stateProc.running = true
     }
     function command(args) {
@@ -164,6 +175,42 @@ Item {
         }
         return command(["--action", "disable", "--monitor", name])
     }
+    property var mirrorReturnStates: ({})
+    function toggleMirror() {
+        var m = monitor(selectedMonitor)
+        if (!m || busy || loading || rollbackPending) return false
+        var mirrored = Boolean(m.mirrorOf && m.mirrorOf !== "none")
+        var target = null
+        for (var i = 0; i < monitors.length; i++) {
+            var other = monitors[i]
+            if (other.name !== m.name && !other.disabled && (!other.mirrorOf || other.mirrorOf === "none")) {
+                if (!target || other.name === m.mirrorOf) target = other
+            }
+        }
+        if (!mirrored) {
+            if (!target || m.disabled) { error = "No independent display available to mirror."; return false }
+            var next = Object.assign({}, mirrorReturnStates)
+            next[m.name] = Object.assign({}, m)
+            mirrorReturnStates = next
+            return applyMonitor(m.name, "preferred", Number(m.x || 0), Number(m.y || 0), Number(m.scale || 1), Number(m.transform || 0), target.name)
+        }
+        var original = mirrorReturnStates[m.name]
+        if (!original) {
+            // External mirroring has no local return snapshot: keep current mode,
+            // and place the output left of every independent display, never on top.
+            var left = Infinity
+            for (var j = 0; j < monitors.length; j++) {
+                var peer = monitors[j]
+                if (peer.name !== m.name && !peer.disabled && (!peer.mirrorOf || peer.mirrorOf === "none")) left = Math.min(left, Number(peer.x || 0))
+            }
+            if (!target || !isFinite(left)) { error = "No safe extended layout available."; return false }
+            var w = Number(Number(m.transform || 0) % 2 ? m.height : m.width) / Number(m.scale || 1)
+            if (!isFinite(w) || w <= 0) { error = "Invalid display dimensions."; return false }
+            original = Object.assign({}, m, {x: Math.floor(left - w), y: Number(target.y || 0)})
+        }
+        var mode = original.width + "x" + original.height + "@" + Number(original.refreshRate).toFixed(3)
+        return applyMonitor(m.name, mode, Number(original.x || 0), Number(original.y || 0), Number(original.scale || 1), Number(original.transform || 0), "none")
+    }
     function enableMonitor(name) { return applyMonitor(name, "preferred", 0, 0, 1, 0, "none") }
     function saveLayout() {
         var entries = []
@@ -191,8 +238,8 @@ Item {
     }
     function setBrightness(value) {
         var percent = Math.max(1, Math.min(100, Math.round(Number(value))))
-        if (!brightnessAvailable || !safeMonitor(focusedMonitor)) { error = "Display brightness is unavailable."; return false }
-        return command(["--action", "brightness", "--monitor", focusedMonitor, "--percent", String(percent)])
+        if (!brightnessAvailable || !safeMonitor(selectedMonitor)) { error = "Display brightness is unavailable."; return false }
+        return command(["--action", "brightness", "--monitor", selectedMonitor, "--percent", String(percent)])
     }
     function setTextSize(index) {
         var n = Math.max(0, Math.min(textSizeStops.length - 1, Math.round(Number(index))))
@@ -221,10 +268,13 @@ Item {
                     if (!Array.isArray(parsed) || parsed.length > 32) throw new Error("Invalid monitor response")
                     for (var i = 0; i < parsed.length; i++) if (!controller.safeMonitor(parsed[i].name)) throw new Error("Invalid monitor name")
                     controller.monitors = parsed
+                    controller.displays = parsed.map(function(m) { return {name:m.name,enabled:!m.disabled,focused:Boolean(m.focused),width:m.width,height:m.height} })
+                    controller.focusedMonitor = (parsed.filter(function(m) { return m.focused })[0] || {}).name || ""
                     if (!controller.selectedMonitor || !controller.monitor(controller.selectedMonitor)) controller.selectedMonitor = parsed.length ? parsed[0].name : ""
                     var positions = {}
                     for (var j = 0; j < parsed.length; j++) positions[parsed[j].name] = { x: Number(parsed[j].x || 0), y: Number(parsed[j].y || 0) }
                     controller.positions = positions
+                    controller.refreshBrightness()
                 } catch (e) { controller.error = "Invalid monitor data: " + String(e) }
             }
             if (!stateProc.running) {
@@ -242,12 +292,16 @@ Item {
                 controller.brightnessAvailable = false
                 controller.displays = []
             } else {
-                var lines = String(stdout.text || "").split("\n")
-                var value = parseInt(String(lines[0] || "").trim(), 10)
-                controller.brightnessAvailable = isFinite(value)
-                controller.brightnessPercent = controller.brightnessAvailable ? Math.max(1, Math.min(100, value)) : 0
-                controller.focusedMonitor = String(lines[5] || "").trim()
-                try { controller.displays = JSON.parse(String(lines[7] || "[]").trim()) || [] } catch (e) { controller.displays = [] }
+                try {
+                    var data = JSON.parse(String(stdout.text || ""))
+                    if (data.monitor !== controller.selectedMonitor) {
+                        controller.brightnessAvailable = false
+                        controller.refreshPending = true
+                    } else if (Number.isInteger(data.percent) && data.percent >= 0 && data.percent <= 100) {
+                        controller.brightnessPercent = data.percent
+                        controller.brightnessAvailable = true
+                    } else throw new Error("Invalid brightness data")
+                } catch (e) { controller.brightnessAvailable = false; controller.error = String(e) }
             }
             if (!monitorProc.running) {
                 controller.loading = false
