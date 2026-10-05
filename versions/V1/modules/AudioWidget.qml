@@ -10,7 +10,6 @@ Item {
     readonly property int    volume:   audio.volume
     readonly property bool   muted:    audio.muted
     readonly property string compactVolumeIcon: "graphic_eq"
-    ///readonly property string compactVolumeIcon: muted ? "volume_off" : "volume_up"
 
     readonly property string tooltipText: muted
         ? "Muted · " + volume + "%"
