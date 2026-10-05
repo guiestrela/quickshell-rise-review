@@ -19,6 +19,8 @@ from pathlib import Path
 if sys.argv[2] == 'monitors':
  if Path(os.environ['DISPLAY_QUERY_GATE']).exists() and Path(os.environ['DISPLAY_QUERY_GATE']).read_text()=='slow': time.sleep(30)
  print(json.dumps([dict(name='DP-1',width=2560,height=1440,refreshRate=59.95,x=0,y=0,scale=1,transform=0,disabled=False,mirrorOf='none',availableModes=['2560x1440@59.95Hz'])]))
+elif sys.argv[2] == 'brightness-state':
+ print(json.dumps(dict(monitor=sys.argv[sys.argv.index('--monitor')+1],percent=70)))
 elif sys.argv[2] == 'text-size':
  if sys.argv[-1]=='12': time.sleep(30)
  print('text size updated')
