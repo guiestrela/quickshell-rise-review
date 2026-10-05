@@ -240,10 +240,21 @@ PanelWindow {
             Rectangle { width: parent.width; height: 1; color: root.sep }
 
             // ── volume bar ──
-            UiText {
-                text: "OUTPUT"
-                color: root.sumiHi
-                font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+            Row {
+                spacing: 4
+                IconText {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: volPanel.muted ? "volume_off" : "volume_up"
+                    color: root.sumiHi
+                    font.pixelSize: 12
+                    fill: 1
+                }
+                UiText {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "OUTPUT"
+                    color: root.sumiHi
+                    font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+                }
             }
 
             Item {
@@ -391,7 +402,7 @@ PanelWindow {
                             id: appMute
                             anchors.left: parent.left
                             anchors.top: parent.top
-                            text: appRow.modelData.muted ? String.fromCodePoint(0xE04F) : String.fromCodePoint(0xE050)
+                            text: appRow.modelData.muted ? "volume_off" : "volume_up"
                             font.pixelSize: 15
                             color: appRow.modelData.muted ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.4) : root.seal
                             MouseArea {
@@ -455,10 +466,21 @@ PanelWindow {
             Rectangle { width: parent.width; height: 1; color: root.sep }
 
             // ── mic section ──
-            UiText {
-                text: "INPUT"
-                color: root.sumiHi
-                font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+            Row {
+                spacing: 4
+                IconText {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: volPanel.micMuted ? "mic_off" : "mic"
+                    color: root.sumiHi
+                    font.pixelSize: 12
+                    fill: 1
+                }
+                UiText {
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "INPUT"
+                    color: root.sumiHi
+                    font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+                }
             }
 
             Row {
