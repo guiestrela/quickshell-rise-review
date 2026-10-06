@@ -131,12 +131,12 @@ PanelWindow {
         var incoming = {}
         for (var i = 0; i < listArr.length; i++) {
             var n = listArr[i]
-            incoming[n.id] = { appName: n.app_name || "", summary: n.summary || "", body: n.body || "", active: true }
+            incoming[n.id] = { appName: n.app_name || "", summary: n.summary || "", body: n.body || "", active: true, backend: n.backend || "", timestamp: n.timestamp || 0, actionKind: n.actionKind, crashReference: n.crashReference }
         }
         for (var j = 0; j < histArr.length; j++) {
             var h = histArr[j]
             if (incoming[h.id] === undefined)
-                incoming[h.id] = { appName: h.app_name || "", summary: h.summary || "", body: h.body || "", active: false }
+                incoming[h.id] = { appName: h.app_name || "", summary: h.summary || "", body: h.body || "", active: false, backend: h.backend || "", timestamp: h.timestamp || 0, actionKind: h.actionKind, crashReference: h.crashReference }
         }
 
         // existing entries by composite key
@@ -154,9 +154,13 @@ PanelWindow {
             if (byKey[key] !== undefined) {
                 var e = byKey[key]
                 e.appName = src.appName; e.summary = src.summary; e.body = src.body
+                e.backend = src.backend; e.timestamp = src.timestamp
+                e.actionKind = src.actionKind; e.crashReference = src.crashReference
             } else {
                 byKey[key] = { key: key, id: id, gen: gen,
                     appName: src.appName, summary: src.summary, body: src.body,
+                    backend: src.backend, timestamp: src.timestamp,
+                    actionKind: src.actionKind, crashReference: src.crashReference,
                     firstSeen: (++notifPanel.seq) }
             }
         }
@@ -226,16 +230,67 @@ PanelWindow {
         notifPanel.saveCache()
     }
 
-    function openNotification(entry) {
-        var id = parseInt(entry.id)              // normalize before it touches a shell
-        if (entry.active && id > 0) {
-            if (root._notifOmarchyShellBackend)
-                notifPanel.runNotificationAction(["omarchy-shell", "notifications", "invokeLast"])
-            else
-                notifPanel.runNotificationAction(["makoctl", "invoke", "-n", String(id)])
+    property string notificationActionError: ""
+    property bool notificationReplySeen: false
+    readonly property string notificationActionHelper: snapshotReader.replace("notification-snapshot.py", "notification-crash-action.py")
+    Process {
+        id: notificationOpenProc
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { notifPanel.finishNotificationAction(JSON.parse(this.text)) }
+                catch (e) { notifPanel.finishNotificationAction({ok: false, message: "Cannot read notification action result."}) }
+            }
         }
-        // history/cache-only entries are no longer active → do nothing (never `restore`)
-        root.notifVisible = false
+        onExited: {
+            if (!notifPanel.notificationReplySeen)
+                notifPanel.finishNotificationAction({ok: false, message: "Notification action could not start."})
+        }
+    }
+    Timer {
+        interval: 12000
+        running: notificationOpenProc.running
+        onTriggered: {
+            notifPanel.finishNotificationAction({ok: false, message: "Notification action timed out."})
+            notificationOpenProc.signal(9)
+        }
+    }
+
+    function finishNotificationAction(result) {
+        if (notifPanel.notificationReplySeen) return
+        notifPanel.notificationReplySeen = true
+        if (result && result.ok === true) {
+            notifPanel.notificationActionError = ""
+            root.notifVisible = false
+        } else {
+            notifPanel.notificationActionError = (result && typeof result.message === "string")
+                ? result.message : "This notification action is unavailable."
+        }
+    }
+
+    function openNotification(entry) {
+        if (notificationOpenProc.running) return
+        notifPanel.notificationActionError = ""
+        if (entry.backend === "omarchy" || root._notifOmarchyShellBackend
+                || entry.appName === "omarchy-action") {
+            // Only a verified crash can open. The helper derives its fixed
+            // command from the journal, never from sender/cache argv.
+            notifPanel.notificationReplySeen = false
+            notificationOpenProc.command = ["python3", notifPanel.notificationActionHelper,
+                "--entry", JSON.stringify({backend: "omarchy", id: entry.id,
+                    appName: entry.appName || "", summary: entry.summary || "",
+                    body: entry.body || "", timestamp: entry.timestamp || 0,
+                    actionKind: entry.actionKind, crashReference: entry.crashReference})]
+            notificationOpenProc.running = true
+            return
+        }
+        var id = parseInt(entry.id)
+        if (entry.active && id > 0) {
+            notifPanel.runNotificationAction(["makoctl", "invoke", "-n", String(id)])
+            root.notifVisible = false
+        } else {
+            notifPanel.notificationActionError = "This notification no longer has an active action."
+        }
     }
 
     // ── poll cadence: fast while open, much slower when closed.
@@ -329,6 +384,17 @@ PanelWindow {
             Rectangle { width: parent.width; height: 1; color: root.sep }
 
             // ── notification list (scrollable; each individually dismissable) ──
+            UiText {
+                width: parent.width
+                visible: notifPanel.notificationActionError !== ""
+                text: notifPanel.notificationActionError
+                color: root.sumi
+                font.family: root.mono
+                font.pixelSize: 11
+                wrapMode: Text.WordWrap
+                maximumLineCount: 3
+            }
+
             Flickable {
                 width: parent.width
                 height: Math.min(listCol.implicitHeight, notifPanel.listCap)

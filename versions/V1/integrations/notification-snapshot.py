@@ -17,6 +17,15 @@ def read_entries(folder: Path, active: bool):
                 row = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 continue
+            argv = row.get('execArgv')
+            if isinstance(argv, str):
+                try:
+                    argv = json.loads(argv)
+                except (ValueError, TypeError):
+                    argv = None
+            crash = (isinstance(argv, list) and len(argv) == 5
+                     and argv[0] in ('omarchy-agent-crash', '/usr/bin/omarchy-agent-crash')
+                     and all(isinstance(arg, str) for arg in argv))
             entries.append({
                 "id": row.get("originalId") or row.get("id") or 0,
                 "app_name": row.get("app") or "",
@@ -24,6 +33,9 @@ def read_entries(folder: Path, active: bool):
                 "body": row.get("body") or "",
                 "active": active,
                 "timestamp": row.get("timestamp") or 0,
+                "backend": "omarchy",
+                "actionKind": "omarchy-crash" if crash else "unsupported",
+                "crashReference": ({"pid": argv[1], "comm": argv[2], "exe": argv[3], "signal": argv[4]} if crash else None),
             })
     except OSError:
         pass
@@ -70,6 +82,8 @@ def mako_snapshot():
             "summary": row.get("summary") or "",
             "body": row.get("body") or "",
             "active": active,
+            "backend": "mako",
+            "timestamp": 0,
         } for row in rows]
 
     return {

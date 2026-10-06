@@ -20,6 +20,7 @@ Item {
     readonly property real zoomScale: Math.pow(2, zoom - tileZoom)
 
     readonly property bool located: isFinite(latitude) && isFinite(longitude)
+    readonly property bool tilesActive: root.weatherVisible
     implicitWidth: 276
     implicitHeight: 179
 
@@ -132,7 +133,7 @@ Item {
                 height: 768
                 visible: radar.located
                 Repeater {
-                    model: 9
+                    model: radar.tilesActive ? 9 : 0
                     delegate: Item {
                         required property int index
                         readonly property int dx: index % 3 - 1
@@ -148,8 +149,8 @@ Item {
 
                         Image {
                             anchors.fill: parent
-                            source: "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/"
-                                + radar.tileZoom + "/" + parent.ty + "/" + parent.tx
+                            source: radar.tilesActive && parent.visible ? "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/"
+                                + radar.tileZoom + "/" + parent.ty + "/" + parent.tx : ""
                             asynchronous: true
                             cache: true
                             fillMode: Image.Stretch
@@ -157,7 +158,7 @@ Item {
                         Image {
                             anchors.fill: parent
                             visible: radar.radarPath !== "" && radar.zoom <= radar.radarMaxZoom
-                            source: radar.radarPath === "" ? "" : radar.radarHost + radar.radarPath
+                            source: !radar.tilesActive || radar.radarPath === "" ? "" : radar.radarHost + radar.radarPath
                                 + "/256/" + radar.tileZoom + "/" + parent.tx + "/" + parent.ty + "/2/1_1.png"
                             asynchronous: true
                             cache: false
