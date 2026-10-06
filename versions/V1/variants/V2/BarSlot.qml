@@ -859,8 +859,8 @@ PanelWindow {
     // empty base cells and the six optional cells on the right.
     function resetOrder() {
         var dL = ["G1","G2","G3","","G5","G6","G4","G7","",""]
-        var dR = ["G9","G10","G11","G14","G12","G13","G16",
-                  "G18","G17","G15","G19","G20","G21"]
+        var dR = ["G9","G10","G20","G14","G12","G13","G11",
+                  "G18","G19","G16","G17","G15","G21"]
         resetModel(leftModel, dL, leftBaseSlotCount)
         resetModel(centerModel, ["G8"], centerBaseSlotCount)
         resetModel(rightModel, dR, rightBaseSlotCount)
@@ -1971,10 +1971,10 @@ PanelWindow {
         ListModel { id: centerModel; ListElement { gid: "G8"; extra: false } }
         ListModel {
             id: rightModel
-            ListElement { gid: "G9"; extra: false }  ListElement { gid: "G10"; extra: false } ListElement { gid: "G11"; extra: false }
+            ListElement { gid: "G9"; extra: false }  ListElement { gid: "G10"; extra: false } ListElement { gid: "G20"; extra: false }
             ListElement { gid: "G14"; extra: false } ListElement { gid: "G12"; extra: false } ListElement { gid: "G13"; extra: false }
-            ListElement { gid: "G16"; extra: false } ListElement { gid: "G18"; extra: true }  ListElement { gid: "G17"; extra: true }
-            ListElement { gid: "G15"; extra: true }  ListElement { gid: "G19"; extra: true }  ListElement { gid: "G20"; extra: true }
+            ListElement { gid: "G11"; extra: false } ListElement { gid: "G18"; extra: true }  ListElement { gid: "G19"; extra: true }
+            ListElement { gid: "G16"; extra: true }  ListElement { gid: "G17"; extra: true }  ListElement { gid: "G15"; extra: true }
             ListElement { gid: "G21"; extra: true }
         }
 

@@ -83,23 +83,32 @@ def fetch_env() -> dict | None:
 
 # ── authoritative live limits via the Codex app-server JSON-RPC ──
 def rpc_request(proc, request_id, method, params=None, timeout=8):
-    proc.stdin.write(json.dumps({"id": request_id, "method": method,
-                                 "params": params or {}}) + "\n")
+    proc.stdin.write((json.dumps({"id": request_id, "method": method,
+                                  "params": params or {}}) + "\n").encode("utf-8"))
     proc.stdin.flush()
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        ready, _, _ = select.select([proc.stdout], [], [], 0.25)
+    deadline = time.monotonic() + timeout
+    pending = getattr(proc, "_usage_rpc_buffer", b"")
+    while time.monotonic() < deadline:
+        # Drain complete frames before select: a single pipe read may contain
+        # notifications followed by the response, or multiple responses.
+        while b"\n" in pending:
+            line, pending = pending.split(b"\n", 1)
+            proc._usage_rpc_buffer = pending
+            try:
+                msg = json.loads(line)
+            except (ValueError, UnicodeDecodeError):
+                continue
+            if isinstance(msg, dict) and msg.get("id") == request_id:
+                return msg
+        ready, _, _ = select.select([proc.stdout], [], [],
+                                    min(0.25, max(0, deadline - time.monotonic())))
         if not ready:
             continue
-        line = proc.stdout.readline()
-        if not line:
+        chunk = os.read(proc.stdout.fileno(), 65536)
+        if not chunk:
             break
-        try:
-            msg = json.loads(line)
-        except Exception:
-            continue
-        if msg.get("id") == request_id:
-            return msg
+        pending += chunk
+        proc._usage_rpc_buffer = pending
     raise TimeoutError(method)
 
 
@@ -113,14 +122,14 @@ def fetch_rpc() -> dict | None:
         proc = subprocess.Popen(
             [codex, "-s", "read-only", "-a", "never", "app-server"],
             stdin=subprocess.PIPE, stdout=subprocess.PIPE,
-            stderr=subprocess.DEVNULL, text=True, env=ENV)
+            stderr=subprocess.DEVNULL, text=False, bufsize=0, env=ENV)
     except Exception as e:
         sys.stderr.write(f"app-server spawn failed: {e}\n")
         return None
     try:
         rpc_request(proc, 1, "initialize",
                     {"clientInfo": {"name": "codex-usage", "version": "1"}}, timeout=8)
-        proc.stdin.write(json.dumps({"method": "initialized", "params": {}}) + "\n")
+        proc.stdin.write((json.dumps({"method": "initialized", "params": {}}) + "\n").encode("utf-8"))
         proc.stdin.flush()
         account = (rpc_request(proc, 2, "account/read", timeout=5)
                    .get("result") or {}).get("account") or {}
