@@ -3056,7 +3056,7 @@ Item {
         || memVisible || volVisible || controlVisible || networkVisible || vpnVisible || bluetoothVisible
         || batteryVisible || brightnessVisible || mprisVisible || weatherVisible
         || workspaceVisible || notifVisible || powerProfileVisible || storageVisible
-        || archVisible || trayVisible || displayManagerVisible
+        || archVisible || trayVisible || displayManagerVisible || wallpaperManagerVisible
 
     // Preserve the panel surface's actually rendered tip while it closes so
     // the matching bar notch retracts at the same point. Edge panels clamp the
