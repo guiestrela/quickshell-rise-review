@@ -2222,6 +2222,7 @@ Item {
     onArchVisibleChanged: popupOpened("archVisible")
     property var archUpdates: []
     property string archScanError: ""
+    property bool archRefreshing: false
     property int archRefreshTick: 0
     property string archScanId: ""
     property int archScanCheckedEpoch: 0
