@@ -231,41 +231,55 @@ PanelWindow {
         notifPanel.saveCache()
     }
 
+    // Only consume the selected composite key; never dismiss by title.
+    function consumeNotification(key) {
+        if (typeof key !== "string" || key.length === 0) return
+        var nd = {}
+        for (var k in notifPanel.dismissed) nd[k] = true
+        nd[key] = true
+        notifPanel.dismissed = nd
+        notifPanel.saveCache()
+    }
+    property string pendingNotificationKey: ""
     property string notificationActionError: ""
     property bool notificationReplySeen: false
     property var nativeBrowserClaims: ({})
     property bool browserOpenReplySeen: false
     readonly property string browserOpenHelper: snapshotReader.replace("notification-snapshot.py", "notification-browser-open.py")
+    readonly property string appOpenHelper: snapshotReader.replace("notification-snapshot.py", "notification-app-open.py")
     Process {
         id: browserOpenProc
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
                 try { notifPanel.finishBrowserOpen(JSON.parse(this.text)) }
-                catch (e) { notifPanel.finishBrowserOpen({ok: false, message: "Cannot read browser action result."}) }
+                catch (e) { notifPanel.finishBrowserOpen({ok: false, message: "Cannot read application action result."}) }
             }
         }
         onExited: {
             if (!notifPanel.browserOpenReplySeen)
-                notifPanel.finishBrowserOpen({ok: false, message: "The browser could not start."})
+                notifPanel.finishBrowserOpen({ok: false, message: "The application could not start."})
         }
     }
     Timer {
         interval: 12000
         running: browserOpenProc.running
         onTriggered: {
-            notifPanel.finishBrowserOpen({ok: false, message: "The browser action timed out."})
+            notifPanel.finishBrowserOpen({ok: false, message: "The application action timed out."})
             browserOpenProc.signal(9)
         }
     }
     function finishBrowserOpen(result) {
         if (notifPanel.browserOpenReplySeen) return
         notifPanel.browserOpenReplySeen = true
+        var consumedKey = notifPanel.pendingNotificationKey
+        notifPanel.pendingNotificationKey = ""
         if (result && result.ok === true) {
+            notifPanel.consumeNotification(consumedKey)
             notifPanel.notificationActionError = ""
         } else {
             notifPanel.notificationActionError = (result && typeof result.message === "string")
-                ? result.message : "This notification has no available browser link."
+                ? result.message : "This notification has no available application action."
             root.notifVisible = true
         }
     }
@@ -296,7 +310,10 @@ PanelWindow {
     function finishNotificationAction(result) {
         if (notifPanel.notificationReplySeen) return
         notifPanel.notificationReplySeen = true
+        var consumedKey = notifPanel.pendingNotificationKey
+        notifPanel.pendingNotificationKey = ""
         if (result && result.ok === true) {
+            notifPanel.consumeNotification(consumedKey)
             notifPanel.notificationActionError = ""
             root.notifVisible = false
         } else {
@@ -308,16 +325,35 @@ PanelWindow {
     function openNotification(entry) {
         if (!root.notifVisible || notificationOpenProc.running || browserOpenProc.running) return
         notifPanel.notificationActionError = ""
-        if (entry.backend === "omarchy" && entry.appName === "Chromium") {
+        notifPanel.pendingNotificationKey = typeof entry.key === "string" ? entry.key : ""
+        if (entry.backend === "omarchy") {
             var claim = String(entry.timestamp) + ":" + String(entry.id)
             if (notifPanel.nativeBrowserClaims[claim]) return
             // Reserve synchronously before invoking: rapid clicks cannot replay.
             notifPanel.nativeBrowserClaims[claim] = true
-            if (NotificationActions.invokeChromium(NotificationActions.serviceFor(root), entry)) {
+            if (NotificationActions.invokeDefault(NotificationActions.serviceFor(root), entry)) {
+                notifPanel.consumeNotification(notifPanel.pendingNotificationKey)
+                notifPanel.pendingNotificationKey = ""
                 root.notifVisible = false
                 return
             }
             delete notifPanel.nativeBrowserClaims[claim]
+        }
+        if (entry.backend === "omarchy" && (entry.appName !== "Chromium"
+                || !/\bhref\s*=/i.test(entry.body || ""))
+                && entry.appName !== "omarchy-action" && entry.actionKind !== "omarchy-crash") {
+            // Open a uniquely registered installed app, not a cached command.
+            // Historical alerts cannot recover the original message.
+            root.notifVisible = false
+            notifPanel.browserOpenReplySeen = false
+            browserOpenProc.command = ["python3", notifPanel.appOpenHelper,
+                "--entry", JSON.stringify({backend: "omarchy", id: entry.id,
+                    appName: entry.appName, summary: entry.summary || "", body: entry.body || "",
+                    timestamp: entry.timestamp})]
+            browserOpenProc.running = true
+            return
+        }
+        if (entry.backend === "omarchy" && entry.appName === "Chromium") {
             // Drop exclusive keyboard focus before asking the browser to
             // activate its new tab. No window-address guessing or focus CLI.
             root.notifVisible = false

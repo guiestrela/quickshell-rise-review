@@ -1,10 +1,11 @@
 .pragma library
 
-// Only the selected, current Chromium QObject action. Never execute notification
+// Only the selected, current app QObject action. Never execute notification
 // argv or infer a URL from text; historical identities cannot resolve liveRefs.
-function invokeChromium(service, entry) {
+function invokeDefault(service, entry) {
     try {
-        if (!service || !entry || entry.backend !== "omarchy" || entry.appName !== "Chromium"
+        if (!service || !entry || entry.backend !== "omarchy"
+                || typeof entry.appName !== "string" || entry.appName.length === 0
                 || typeof entry.id !== "number" || entry.id <= 0 || Math.floor(entry.id) !== entry.id
                 || typeof entry.timestamp !== "number" || entry.timestamp <= 0
                 || Math.floor(entry.timestamp) !== entry.timestamp) return false
@@ -33,6 +34,10 @@ function invokeChromium(service, entry) {
     } catch (error) {
         return false  // Expired QObject: no cached callback or id-only replay.
     }
+}
+
+function invokeChromium(service, entry) {
+    return !!entry && entry.appName === "Chromium" && invokeDefault(service, entry)
 }
 
 function serviceFor(theme) {
