@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""Open only an allowlisted crash diagnosis, resolved from systemd's journal.
+"""Allowlisted notification actions: verified crashes, screenshot editing,
+and explicitly selected existing Chromium windows.
 
-Notification text is a lookup reference, never an executable command. No sender
-argv/callback is read or replayed. Legacy entries lacking a timestamp work only
-when exactly one matching, trusted crash exists in the current boot.
+Notification text is a lookup reference, never a runnable command or URL.
+Native browser callbacks are handled in QML, not replayed from persisted data.
 """
 import argparse
 import fcntl
@@ -181,15 +181,198 @@ def launch_action(plan, state_dir, executor=None):
             raise
 
 
+SCREENSHOT_TITLE = 'Screenshot saved to clipboard and file'
+SCREENSHOT_BODY = 'Edit with Super + Alt + , (or click this)'
+SCREENSHOT_EDITOR = '/usr/bin/tensaku-edit'
+
+
+def read_owned_json(path):
+    fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(fd, 'r') as source:
+        info = os.fstat(source.fileno())
+        if (info.st_uid != os.getuid() or info.st_mode & 0o022
+                or not stat.S_ISREG(info.st_mode) or info.st_size > 65536):
+            raise ActionUnavailable('Notification record is not safe to read.')
+        return json.load(source)
+
+
+def plan_screenshot_action(entry, state_dir, pictures):
+    # The notification/cache never supplies a runnable program. Re-read the
+    # selected native record, then permit exactly the packaged screenshot editor.
+    if (not isinstance(entry, dict) or entry.get('backend') != 'omarchy'
+            or 'execArgv' in entry or entry.get('appName') != 'omarchy-action'
+            or entry.get('summary') != SCREENSHOT_TITLE or entry.get('body') != SCREENSHOT_BODY
+            or entry.get('actionKind') not in (None, 'unsupported', 'screenshot-edit')):
+        raise ActionUnavailable('This notification has no supported screenshot action.')
+    identity = entry.get('id')
+    timestamp = entry.get('timestamp')
+    if (type(identity) is not int or not 0 < identity < 2147483648
+            or not isinstance(timestamp, (int, float)) or isinstance(timestamp, bool)):
+        raise ActionUnavailable('Screenshot notification identity is missing.')
+    if not 0 < timestamp < 1e15 or timestamp != int(timestamp):
+        raise ActionUnavailable('Screenshot notification identity is missing.')
+    filename = str(int(timestamp)) + '-' + str(identity) + '.json'
+    records = []
+    for directory in (Path(state_dir), Path(state_dir) / 'history'):
+        path = directory / filename
+        if path.exists() or path.is_symlink():
+            records.append(read_owned_json(path))
+    if len(records) != 1:
+        raise ActionUnavailable('The selected screenshot notification is unavailable or ambiguous.')
+    row = records[0]
+    if (not isinstance(row, dict) or (row.get('originalId') or row.get('id')) != identity
+            or row.get('timestamp') != timestamp or row.get('app') != entry['appName']
+            or row.get('summary') != entry['summary'] or row.get('body') != entry['body']):
+        raise ActionUnavailable('Screenshot notification identity does not match.')
+    raw = row.get('execArgv')
+    argv = json.loads(raw) if isinstance(raw, str) else raw
+    if (not isinstance(argv, list) or len(argv) != 2
+            or argv[0] not in ('tensaku-edit', SCREENSHOT_EDITOR) or not plain(argv[1])):
+        raise ActionUnavailable('Unknown screenshot callback is not allowed.')
+    picture_dir = Path(pictures).resolve(strict=True)
+    image = Path(argv[1])
+    if (not image.is_absolute() or image.parent != picture_dir
+            or re.fullmatch(r'screenshot-[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}\.png', image.name) is None):
+        raise ActionUnavailable('Screenshot path is outside the allowed capture directory.')
+    fd = os.open(image, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
+    with os.fdopen(fd, 'rb') as source:
+        info = os.fstat(source.fileno())
+        if (info.st_uid != os.getuid() or info.st_mode & 0o022
+                or not stat.S_ISREG(info.st_mode) or not 8 <= info.st_size <= 67108864
+                or source.read(8) != b'\x89PNG\r\n\x1a\n'):
+            raise ActionUnavailable('The selected capture is not a safe PNG file.')
+    return {'argv': [SCREENSHOT_EDITOR, str(image)]}
+
+
+def launch_screenshot_action(plan):
+    for program in (SCREENSHOT_EDITOR, '/usr/bin/tensaku'):
+        info = Path(program).resolve(strict=True).stat()
+        if (info.st_uid != 0 or info.st_mode & 0o022
+                or not stat.S_ISREG(info.st_mode) or not os.access(program, os.X_OK)):
+            raise ActionUnavailable('The screenshot editor is not trusted.')
+    process = subprocess.Popen(plan['argv'], start_new_session=True,
+        stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL, env=safe_environment())
+    try:
+        code = process.wait(timeout=0.5)
+    except subprocess.TimeoutExpired:
+        return  # Started; visual/window verification remains a separate gate.
+    if code != 0:
+        raise ActionUnavailable('The screenshot editor failed to start.')
+
+
+def browser_windows(entry, state_dir, clients):
+    if (not isinstance(entry, dict) or entry.get('backend') != 'omarchy'
+            or entry.get('appName') != 'Chromium' or 'execArgv' in entry
+            or type(entry.get('id')) is not int or not 0 < entry['id'] < 2147483648
+            or not isinstance(entry.get('timestamp'), (int, float))
+            or isinstance(entry['timestamp'], bool) or not 0 < entry['timestamp'] < 1e15
+            or entry['timestamp'] != int(entry['timestamp'])):
+        raise ActionUnavailable('This notification has no supported browser fallback.')
+    filename = str(int(entry['timestamp'])) + '-' + str(entry['id']) + '.json'
+    rows = []
+    for directory in (Path(state_dir), Path(state_dir) / 'history'):
+        path = directory / filename
+        if path.exists() or path.is_symlink():
+            rows.append(read_owned_json(path))
+    if len(rows) != 1:
+        raise ActionUnavailable('The selected browser notification is unavailable or ambiguous.')
+    row = rows[0]
+    if (not isinstance(row, dict) or (row.get('originalId') or row.get('id')) != entry['id']
+            or row.get('timestamp') != entry['timestamp'] or row.get('app') != 'Chromium'
+            or row.get('summary') != entry.get('summary') or row.get('body') != entry.get('body')
+            or row.get('execArgv')):
+        raise ActionUnavailable('Browser notification identity or callback does not match.')
+    if not isinstance(clients, list) or len(clients) > 512:
+        raise ActionUnavailable('Cannot read browser windows safely.')
+    choices = []
+    for client in clients:
+        if not isinstance(client, dict) or client.get('class') != 'chromium' or client.get('mapped') is not True:
+            continue
+        address, pid = client.get('address'), client.get('pid')
+        if (not isinstance(address, str) or re.fullmatch(r'0x[0-9a-fA-F]{1,16}', address) is None
+                or type(pid) is not int or not 0 < pid < 2147483648):
+            continue
+        choices.append({'address': address, 'pid': pid,
+                        'title': str(client.get('title') or 'Chromium')[:240]})
+    if not choices:
+        raise ActionUnavailable('There is no open Chromium window. This historical alert cannot restore its original tab.')
+    if len({c['address'] for c in choices}) != len(choices) or len(choices) > 32:
+        raise ActionUnavailable('Browser window list is ambiguous or too large.')
+    return choices
+
+
+def browser_focus_target(entry, state_dir, clients, selection):
+    if (not isinstance(selection, dict) or set(selection) != {'address', 'pid'}
+            or type(selection.get('pid')) is not int):
+        raise ActionUnavailable('Choose a browser window first.')
+    matches = [c for c in browser_windows(entry, state_dir, clients)
+               if c['address'] == selection.get('address') and c['pid'] == selection['pid']]
+    if len(matches) != 1:
+        raise ActionUnavailable('The selected browser window changed or closed. Choose again.')
+    return matches[0]
+
+
+def hypr_query(command):
+    response = subprocess.run(['/usr/bin/hyprctl', '-j', command], capture_output=True,
+                              text=True, timeout=3, env=safe_environment())
+    if response.returncode != 0 or len(response.stdout) > 1048576:
+        raise ActionUnavailable('Cannot query this graphical session.')
+    return json.loads(response.stdout)
+
+
+def focus_browser_window(entry, state_dir, selection):
+    target = browser_focus_target(entry, state_dir, hypr_query('clients'), selection)
+    response = subprocess.run(['/usr/bin/hyprctl', 'dispatch', 'focuswindow', 'address:' + target['address']],
+                              capture_output=True, text=True, timeout=3, env=safe_environment())
+    if response.returncode != 0:
+        raise ActionUnavailable('Cannot focus the selected browser window.')
+    # The compositor is authoritative, not the dispatch return code.
+    deadline = time.monotonic() + 1
+    while True:
+        active = hypr_query('activewindow')
+        if (active.get('address') == target['address'] and active.get('pid') == target['pid']
+                and active.get('class') == 'chromium'):
+            return
+        if time.monotonic() >= deadline:
+            raise ActionUnavailable('The selected browser window did not receive focus.')
+        time.sleep(0.05)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--entry', required=True)
-    parser.add_argument('--check', action='store_true', help='Verify only; never open diagnosis')
+    parser.add_argument('--check', action='store_true', help='Verify only; never execute an action')
+    parser.add_argument('--window', help='Explicit browser window selection as address/PID JSON')
     args = parser.parse_args()
     try:
         if len(args.entry) > 8192:
             raise ActionUnavailable('Notification request is too large.')
         entry = json.loads(args.entry)
+        if isinstance(entry, dict) and entry.get('appName') == 'Chromium':
+            state = Path(os.environ.get('XDG_STATE_HOME', str(Path.home() / '.local/state'))) / 'omarchy/notifications'
+            if args.window:
+                if len(args.window) > 256:
+                    raise ActionUnavailable('Browser selection is too large.')
+                selection = json.loads(args.window)
+                browser_focus_target(entry, state, hypr_query('clients'), selection)
+                if not args.check:
+                    focus_browser_window(entry, state, selection)
+                print(json.dumps({'ok': True, 'checkedOnly': args.check, 'action': 'browser-focus'}))
+            else:
+                windows = browser_windows(entry, state, hypr_query('clients'))
+                print(json.dumps({'ok': True, 'checkedOnly': args.check, 'chooseWindow': True, 'windows': windows}))
+            return 0
+        if args.window:
+            raise ActionUnavailable('Window selection is supported only for Chromium.')
+        if isinstance(entry, dict) and entry.get('summary') == SCREENSHOT_TITLE:
+            home = Path.home()
+            state = Path(os.environ.get('XDG_STATE_HOME', str(home / '.local/state')))
+            plan = plan_screenshot_action(entry, state / 'omarchy/notifications', home / 'Pictures')
+            if not args.check:
+                launch_screenshot_action(plan)
+            print(json.dumps({'ok': True, 'checkedOnly': args.check, 'action': 'screenshot-edit'}))
+            return 0
         uid = os.getuid()
         boot = Path('/proc/sys/kernel/random/boot_id').read_text().strip().replace('-', '')
         plan = plan_action(entry, read_journal(uid), uid, boot)

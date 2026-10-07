@@ -3,6 +3,7 @@ import "../modules"
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
+import "../integrations/NotificationActions.js" as NotificationActions
 
 PanelWindow {
     id: notifPanel
@@ -232,6 +233,42 @@ PanelWindow {
 
     property string notificationActionError: ""
     property bool notificationReplySeen: false
+    property var nativeBrowserClaims: ({})
+    property bool browserOpenReplySeen: false
+    readonly property string browserOpenHelper: snapshotReader.replace("notification-snapshot.py", "notification-browser-open.py")
+    Process {
+        id: browserOpenProc
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                try { notifPanel.finishBrowserOpen(JSON.parse(this.text)) }
+                catch (e) { notifPanel.finishBrowserOpen({ok: false, message: "Cannot read browser action result."}) }
+            }
+        }
+        onExited: {
+            if (!notifPanel.browserOpenReplySeen)
+                notifPanel.finishBrowserOpen({ok: false, message: "The browser could not start."})
+        }
+    }
+    Timer {
+        interval: 12000
+        running: browserOpenProc.running
+        onTriggered: {
+            notifPanel.finishBrowserOpen({ok: false, message: "The browser action timed out."})
+            browserOpenProc.signal(9)
+        }
+    }
+    function finishBrowserOpen(result) {
+        if (notifPanel.browserOpenReplySeen) return
+        notifPanel.browserOpenReplySeen = true
+        if (result && result.ok === true) {
+            notifPanel.notificationActionError = ""
+        } else {
+            notifPanel.notificationActionError = (result && typeof result.message === "string")
+                ? result.message : "This notification has no available browser link."
+            root.notifVisible = true
+        }
+    }
     readonly property string notificationActionHelper: snapshotReader.replace("notification-snapshot.py", "notification-crash-action.py")
     Process {
         id: notificationOpenProc
@@ -269,12 +306,32 @@ PanelWindow {
     }
 
     function openNotification(entry) {
-        if (notificationOpenProc.running) return
+        if (!root.notifVisible || notificationOpenProc.running || browserOpenProc.running) return
         notifPanel.notificationActionError = ""
+        if (entry.backend === "omarchy" && entry.appName === "Chromium") {
+            var claim = String(entry.timestamp) + ":" + String(entry.id)
+            if (notifPanel.nativeBrowserClaims[claim]) return
+            // Reserve synchronously before invoking: rapid clicks cannot replay.
+            notifPanel.nativeBrowserClaims[claim] = true
+            if (NotificationActions.invokeChromium(NotificationActions.serviceFor(root), entry)) {
+                root.notifVisible = false
+                return
+            }
+            delete notifPanel.nativeBrowserClaims[claim]
+            // Drop exclusive keyboard focus before asking the browser to
+            // activate its new tab. No window-address guessing or focus CLI.
+            root.notifVisible = false
+            notifPanel.browserOpenReplySeen = false
+            browserOpenProc.command = ["python3", notifPanel.browserOpenHelper,
+                "--entry", JSON.stringify({backend: "omarchy", id: entry.id,
+                    appName: entry.appName, summary: entry.summary || "", body: entry.body || "",
+                    timestamp: entry.timestamp})]
+            browserOpenProc.running = true
+            return
+        }
         if (entry.backend === "omarchy" || root._notifOmarchyShellBackend
                 || entry.appName === "omarchy-action") {
-            // Only a verified crash can open. The helper derives its fixed
-            // command from the journal, never from sender/cache argv.
+            // Fixed screenshot/crash actions, never sender command execution.
             notifPanel.notificationReplySeen = false
             notificationOpenProc.command = ["python3", notifPanel.notificationActionHelper,
                 "--entry", JSON.stringify({backend: "omarchy", id: entry.id,
@@ -465,6 +522,7 @@ PanelWindow {
                             MouseArea {
                                 id: entryMa
                                 anchors.fill: parent
+                                enabled: root.notifVisible && !notificationOpenProc.running && !browserOpenProc.running
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: notifPanel.openNotification(modelData)
