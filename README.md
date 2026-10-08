@@ -35,11 +35,26 @@ plugin registry and enable Rise if it is still disabled:
 
 ```bash
 omarchy-shell shell rescanPlugins
+for _ in {1..20}; do
+  omarchy plugin list | grep -Fq 'io.github.guiestrela.quickshell-rise' && break
+  sleep 0.25
+done
+omarchy plugin list | grep -Fq 'io.github.guiestrela.quickshell-rise' || {
+  echo "Rise is not registered. Check the plugin checkout and manifest first." >&2
+  exit 1
+}
 omarchy plugin enable io.github.guiestrela.quickshell-rise
 omarchy restart shell
 ```
 
 If you accepted activation during the add prompt, skip the enable command.
+The rescan is asynchronous, so wait for Rise to appear in `omarchy plugin list`
+before enabling it. If it never appears, validate the checkout before retrying:
+
+```bash
+omarchy plugin validate "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise"
+```
+
 Install the optional post-update recovery hook only after confirming its source
 file exists in the plugin checkout:
 
