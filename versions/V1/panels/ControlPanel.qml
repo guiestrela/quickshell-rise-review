@@ -583,6 +583,8 @@ PanelWindow {
                 CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "Memory";     active: root.compactMemory;     onToggled: root.compactMemory = !root.compactMemory }
                 CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "Volume";     active: root.compactVolume;     onToggled: root.compactVolume = !root.compactVolume }
                 CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "Now playing"; active: root.compactMpris;      onToggled: root.compactMpris = !root.compactMpris }
+                CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "NordVPN"; active: root.compactNordVpn; onToggled: root.compactNordVpn = !root.compactNordVpn }
+                CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "AI usage"; active: root.compactAi; onToggled: root.compactAi = !root.compactAi }
             }
 
             Rectangle { width: parent.width; height: 1; color: root.sep }

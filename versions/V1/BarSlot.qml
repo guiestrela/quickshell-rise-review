@@ -11,6 +11,7 @@ import Quickshell.Io
 import "modules"
 import "modules/NordVpnLayout.js" as NordVpnLayout
 import "modules/WallpaperLayout.js" as WallpaperLayout
+import "modules/V1Defaults.js" as V1Defaults
 
 PanelWindow {
     id: barSlot
@@ -190,11 +191,10 @@ PanelWindow {
     }
     // reset the 3 region models back to the default group order
     function resetOrder() {
-        var dL = ["G1","G2","G3","G4","G5","G6","G7"]
-        var dR = ["G9","G10","G11","G14","G12","G13","G15","G16","G17","G18"]
-        for (var i = 0; i < dL.length; i++) leftModel.setProperty(i, "gid", dL[i])
-        centerModel.setProperty(0, "gid", "G8")
-        for (var j = 0; j < dR.length; j++) rightModel.setProperty(j, "gid", dR[j])
+        var defaults = V1Defaults.defaultOrder()
+        for (var i = 0; i < defaults.left.length; i++) leftModel.setProperty(i, "gid", defaults.left[i])
+        for (var j = 0; j < defaults.center.length; j++) centerModel.setProperty(j, "gid", defaults.center[j])
+        for (var k = 0; k < defaults.right.length; k++) rightModel.setProperty(k, "gid", defaults.right[k])
         if (_orderLoaded) saveOrder()
     }
 
@@ -216,7 +216,10 @@ PanelWindow {
             barSlot.root.barAnim  = 0
         },
         defaultLayout: function () {
-            barSlot.layoutController.mergeAll()
+            var defaults = V1Defaults.defaultSplits()
+            island.leftSplits = defaults.left
+            island.rightSplits = defaults.right
+            island.boundarySplits = defaults.boundary
             barSlot.resetOrder()
         },
         applySplits: function (serialized) { island.applySplits(serialized) },
@@ -642,9 +645,9 @@ PanelWindow {
         }
 
         // ── split state (positional, per within-region gap) ──
-        property var leftSplits:  [false, false, false, false, false, false]   // gaps in leftModel
-        property var rightSplits: [false, false, false, false, false, false, false, false]   // gaps in rightModel
-        property var boundarySplits: [false, false]   // [left↔center, center↔right]
+        property var leftSplits:  [true, true, true, true, true, true]   // gaps in leftModel
+        property var rightSplits: [true, true, true, true, true, true, true, true]   // gaps in rightModel
+        property var boundarySplits: [true, true]   // [left↔center, center↔right]
 
         readonly property real lcBoundaryX: leftRowItem.x + leftRowItem.width + 9    // just right of Claude
         readonly property real crBoundaryX: rightRowItem.x - 9                       // just left of Mpris
@@ -865,9 +868,9 @@ PanelWindow {
         ListModel { id: centerModel; ListElement { gid: "G8" } }
         ListModel {
             id: rightModel
-            ListElement { gid: "G9" }  ListElement { gid: "G10" } ListElement { gid: "G11" }
+            ListElement { gid: "G9" }  ListElement { gid: "G10" } ListElement { gid: "G17" }
             ListElement { gid: "G14" } ListElement { gid: "G12" } ListElement { gid: "G13" }
-            ListElement { gid: "G15" } ListElement { gid: "G16" } ListElement { gid: "G17" } ListElement { gid: "G18" }
+            ListElement { gid: "G11" } ListElement { gid: "G16" } ListElement { gid: "G15" } ListElement { gid: "G18" }
         }
 
         SlotRow {

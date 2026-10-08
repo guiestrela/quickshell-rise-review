@@ -165,7 +165,8 @@ Item {
 
     // keep rendered until the collapse animation finishes
     visible: implicitWidth > 0.5
-    implicitWidth: shown ? row.implicitWidth + 18 : 0
+    implicitWidth: shown
+        ? (root.compactAi ? iconItem.implicitWidth : row.implicitWidth) + 18 : 0
     implicitHeight: 28
     opacity: shown ? 1 : 0
 
@@ -220,7 +221,7 @@ Item {
     Row {
         id: row
         anchors.centerIn: parent
-        spacing: 5
+        spacing: rootMod.root.compactAi ? 0 : 5
 
         // icon with bottom-to-top usage fill. Claude keeps its nerd-font glyph;
 // Codex/OpenCode/Copilot use vector marks themed via the shared logo tint shader.
@@ -321,17 +322,24 @@ Item {
             }
         }
 
-        UiText {
+        Item {
             anchors.verticalCenter: parent.verticalCenter
-            text: rootMod.blocked
-                ? "BLK"
-                : (rootMod.selHas ? String(rootMod.pct5h).padStart(2, "0") + "%" : "··")
-            color: rootMod.blocked
-                ? root.seal
-                : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.85)
-            font.family: root.mono
-            font.pixelSize: 12
-            Behavior on color { ColorAnimation { duration: 200 } }
+            implicitWidth: rootMod.root.compactAi ? 0 : usageLabel.implicitWidth
+            implicitHeight: usageLabel.implicitHeight
+            UiText {
+                id: usageLabel
+                anchors.centerIn: parent
+                visible: !rootMod.root.compactAi
+                text: rootMod.blocked
+                    ? "BLK"
+                    : (rootMod.selHas ? String(rootMod.pct5h).padStart(2, "0") + "%" : "··")
+                color: rootMod.blocked
+                    ? root.seal
+                    : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.85)
+                font.family: root.mono
+                font.pixelSize: 12
+                Behavior on color { ColorAnimation { duration: 200 } }
+            }
         }
     }
 

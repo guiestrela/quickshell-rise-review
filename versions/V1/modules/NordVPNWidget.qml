@@ -37,7 +37,8 @@ Item {
         : disconnected ? "NordVPN disconnected"
         : unavailable ? "NordVPN unavailable" : "NordVPN status checking"
 
-    implicitWidth: root.modNordVpn ? row.implicitWidth + 18 : 0
+    implicitWidth: root.modNordVpn
+        ? (root.compactNordVpn ? shield.implicitWidth : row.implicitWidth) + 18 : 0
     visible: implicitWidth > 0.5
     implicitHeight: 28
     property alias testClickHandler: widgetClick
@@ -62,9 +63,10 @@ Item {
     Row {
         id: row
         anchors.centerIn: parent
-        spacing: 4
+        spacing: nordVpnWidget.root.compactNordVpn ? 0 : 4
 
         UiText {
+            id: shield
             anchors.verticalCenter: parent.verticalCenter
             text: nordVpnWidget.shieldGlyph
             color: nordVpnWidget.shieldColor
@@ -73,14 +75,21 @@ Item {
             Behavior on color { ColorAnimation { duration: 200 } }
         }
 
-        Text {
+        Item {
             anchors.verticalCenter: parent.verticalCenter
-            text: nordVpnWidget.shortLabel
-            color: nordVpnWidget.shieldColor
-            font.family: nordVpnWidget.root.mono
-            font.pixelSize: 11
-            font.letterSpacing: 0.5
-            Behavior on color { ColorAnimation { duration: 200 } }
+            implicitWidth: nordVpnWidget.root.compactNordVpn ? 0 : label.implicitWidth
+            implicitHeight: label.implicitHeight
+            Text {
+                id: label
+                anchors.centerIn: parent
+                visible: !nordVpnWidget.root.compactNordVpn
+                text: nordVpnWidget.shortLabel
+                color: nordVpnWidget.shieldColor
+                font.family: nordVpnWidget.root.mono
+                font.pixelSize: 11
+                font.letterSpacing: 0.5
+                Behavior on color { ColorAnimation { duration: 200 } }
+            }
         }
     }
 

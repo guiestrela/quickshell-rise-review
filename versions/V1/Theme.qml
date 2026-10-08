@@ -6,6 +6,7 @@ import Quickshell.Services.UPower
 import "Palette.js" as Palette
 import "modules"
 import "modules/WallpaperProfile.js" as WallpaperProfile
+import "modules/V1Defaults.js" as V1Defaults
 
 Item {
     id: theme
@@ -401,19 +402,30 @@ Item {
     }
 
     function resetCompactDisplayModes() {
-        var changed = compactNetwork || compactBattery || compactBrightness || compactCpu
-                   || compactMemory || compactVolume || compactBluetooth || compactPower
-                   || compactMpris
+        var defaults = V1Defaults.defaultCompact()
+        var changed = compactNetwork !== defaults.compactNetwork
+                   || compactBattery !== defaults.compactBattery
+                   || compactBrightness !== defaults.compactBrightness
+                   || compactCpu !== defaults.compactCpu
+                   || compactMemory !== defaults.compactMemory
+                   || compactVolume !== defaults.compactVolume
+                   || compactBluetooth !== defaults.compactBluetooth
+                   || compactPower !== defaults.compactPower
+                   || compactMpris !== defaults.compactMpris
+                   || compactNordVpn !== defaults.compactNordVpn
+                   || compactAi !== defaults.compactAi
         _compactResetting = true
-        compactNetwork = false
-        compactBattery = false
-        compactBrightness = false
-        compactCpu = false
-        compactMemory = false
-        compactVolume = false
-        compactBluetooth = false
-        compactPower = false
-        compactMpris = false
+        compactNetwork = defaults.compactNetwork
+        compactBattery = defaults.compactBattery
+        compactBrightness = defaults.compactBrightness
+        compactCpu = defaults.compactCpu
+        compactMemory = defaults.compactMemory
+        compactVolume = defaults.compactVolume
+        compactBluetooth = defaults.compactBluetooth
+        compactPower = defaults.compactPower
+        compactMpris = defaults.compactMpris
+        compactNordVpn = defaults.compactNordVpn
+        compactAi = defaults.compactAi
         _compactResetting = false
         if (changed && _widgetsLoaded) saveWidgets()
     }
@@ -1804,15 +1816,17 @@ Item {
 
     // Per-widget compact display modes. Defaults are full-width for backwards
     // compatibility; ControlPanel toggles persist these below.
-    property bool compactNetwork:    false
-    property bool compactBattery:    false
-    property bool compactBrightness: false
-    property bool compactCpu:        false
-    property bool compactMemory:     false
-    property bool compactVolume:     false
-    property bool compactBluetooth:  false
-    property bool compactPower:      false
-    property bool compactMpris:      false
+    property bool compactNetwork:    V1Defaults.defaultCompact().compactNetwork
+    property bool compactBattery:    V1Defaults.defaultCompact().compactBattery
+    property bool compactBrightness: V1Defaults.defaultCompact().compactBrightness
+    property bool compactCpu:        V1Defaults.defaultCompact().compactCpu
+    property bool compactMemory:     V1Defaults.defaultCompact().compactMemory
+    property bool compactVolume:     V1Defaults.defaultCompact().compactVolume
+    property bool compactBluetooth:  V1Defaults.defaultCompact().compactBluetooth
+    property bool compactPower:      V1Defaults.defaultCompact().compactPower
+    property bool compactMpris:      V1Defaults.defaultCompact().compactMpris
+    property bool compactNordVpn:    V1Defaults.defaultCompact().compactNordVpn
+    property bool compactAi:         V1Defaults.defaultCompact().compactAi
 
     // backlight presence — set by BrightnessWidget once it probes /sys/class/backlight.
     // ControlPanel uses this to hide the Brightness toggle on desktops without one.
@@ -1873,6 +1887,8 @@ Item {
     onCompactBluetoothChanged:  if (_widgetsLoaded && !_compactResetting) saveWidgets()
     onCompactPowerChanged:      if (_widgetsLoaded && !_compactResetting) saveWidgets()
     onCompactMprisChanged:      if (_widgetsLoaded && !_compactResetting) saveWidgets()
+    onCompactNordVpnChanged:   if (_widgetsLoaded && !_compactResetting) saveWidgets()
+    onCompactAiChanged:        if (_widgetsLoaded && !_compactResetting) saveWidgets()
     onStyleBorderChanged:      if (_widgetsLoaded) saveWidgets()
     onStyleShadowChanged:      if (_widgetsLoaded) saveWidgets()
     onStyleFrostChanged:       if (_widgetsLoaded) saveWidgets()
@@ -1922,7 +1938,8 @@ Item {
                  + (modNordVpn        ? "1" : "0") + " "  // +33 NordVPN
                  + (modWallpapers     ? "1" : "0") + " "  // +34 Wallpapers; append-only schema
                  + (modDisplayManager ? "1" : "0") + " "  // +35 Display Manager; append-only schema
-                 + (displayManagerAutoWorkspaces ? "1" : "0") // +36 Display Manager workspace preference
+                 + (displayManagerAutoWorkspaces ? "1" : "0") + " " // +36 Display Manager workspace preference
+                 + V1Defaults.compactCacheFields(compactNordVpn, compactAi).join(" ") // +37..+38, append-only
         widgetSaveProc.command = ["bash", "-c",
             "echo '" + line + "' > '" + widgetsCachePath + "'"]
         widgetSaveProc.running = false
@@ -2133,6 +2150,9 @@ Item {
                     if (parts.length > wsField + 34) theme.modWallpapers    = parts[wsField + 34] === "1"
                     if (parts.length > wsField + 35) theme.modDisplayManager = parts[wsField + 35] === "1"
                     if (parts.length > wsField + 36) theme.displayManagerAutoWorkspaces = parts[wsField + 36] === "1"
+                    var compactFields = V1Defaults.parseCompactCacheFields(parts, wsField)
+                    theme.compactNordVpn = compactFields.compactNordVpn
+                    theme.compactAi = compactFields.compactAi
                 }
                 theme._widgetsLoaded = true
             }
