@@ -18,9 +18,9 @@ folders. Its bar styling and interactions follow the Quickshell Rise design.
 
 ## Install
 
-Install Rise and its AI usage collectors in one setup command. The supported
-Omarchy plugin manager asks for confirmation. Decline activation in its prompt
-if you want to review the installed plugin before enabling it:
+Install Rise and its AI usage collectors in one setup command. In Omarchy's
+prompts, confirm that you want to add the repository. When it asks whether to
+enable Rise, decline if you want to review the installed plugin first:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/guiestrela/quickshell-rise-review/main/scripts/install-rise | bash
@@ -29,11 +29,15 @@ curl -fsSL https://raw.githubusercontent.com/guiestrela/quickshell-rise-review/m
 This uses `omarchy plugin add` (the Omarchy manager does not run plugin install
 hooks), then installs all four local collectors and their user systemd timers.
 When run through the command above, the installer passes the terminal to
-Omarchy so its confirmation prompt remains interactive. Decline activation in
-that prompt to review the plugin first. After reviewing it, rescan the shell
-plugin registry and enable Rise if it is still disabled:
+Omarchy so both prompts remain interactive. The repository must be cloned
+before the installer can continue. Confirm the checkout exists before
+rescanning and enabling Rise:
 
 ```bash
+test -d "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise" || {
+  echo "Rise was not installed. Re-run the install command and confirm adding the repository." >&2
+  exit 1
+}
 omarchy-shell shell rescanPlugins
 for _ in {1..20}; do
   omarchy plugin list | grep -Fq 'io.github.guiestrela.quickshell-rise' && break
