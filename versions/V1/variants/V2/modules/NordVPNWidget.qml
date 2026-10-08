@@ -34,6 +34,9 @@ Item {
 
     readonly property color shieldColor: connected ? root.seal : root.ink
     readonly property color contentColor: root.widgetContentColor("G19", shieldColor)
+    readonly property color iconColor: disconnected || unavailable
+        ? Qt.rgba(contentColor.r, contentColor.g, contentColor.b, 0.3)
+        : contentColor
     readonly property bool customStyle: root.widgetHasFill("G19") || root.widgetHasBorder("G19")
     readonly property string tooltipText: connected ? "NordVPN connected"
         : disconnected ? "NordVPN disconnected"
@@ -68,7 +71,7 @@ Item {
         UiText {
             anchors.verticalCenter: parent.verticalCenter
             text: nordVpnWidget.shieldGlyph
-            color: nordVpnWidget.contentColor
+            color: nordVpnWidget.iconColor
             font.family: nordVpnWidget.root.mono
             font.pixelSize: 13
             Behavior on color { ColorAnimation { duration: 200 } }

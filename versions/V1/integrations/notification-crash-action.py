@@ -12,6 +12,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import stat
 import subprocess
 import sys
@@ -89,8 +90,15 @@ def plan_action(entry, rows, uid, boot):
     row = next(iter(unique.values()))
     expected = {'pid': row['COREDUMP_PID'], 'comm': row['COREDUMP_COMM'],
                 'exe': row['COREDUMP_EXE'], 'signal': row['COREDUMP_SIGNAL_NAME']}
-    if entry.get('crashReference') is not None and entry['crashReference'] != expected:
-        raise ActionUnavailable('Notification crash data does not match the journal.')
+    reference = entry.get('crashReference')
+    # Omarchy may report the executable basename; Linux COMM is limited to
+    # 15 bytes. Accept only that exact, journal-derived truncation alias.
+    basename = Path(row['COREDUMP_EXE']).name
+    full_name = dict(expected, comm=basename)
+    truncated_name = basename.encode('utf-8')[:15].decode('utf-8', errors='ignore')
+    if reference is not None and reference != expected:
+        if row['COREDUMP_COMM'] != truncated_name or reference != full_name:
+            raise ActionUnavailable('Notification crash data does not match the journal.')
     # The vendor launcher accepts only PID. Reject PID reuse even when a
     # notification timestamp disambiguates records within this boot.
     if len({r['__CURSOR'] for r in records
@@ -139,6 +147,38 @@ def safe_environment():
     return env
 
 
+def crash_environment():
+    env = safe_environment()
+    selected = subprocess.run(['/usr/bin/omarchy-default-agent'], capture_output=True,
+        text=True, timeout=3, env=env)
+    agent = selected.stdout.strip()
+    if selected.returncode != 0 or not agent or not plain(agent, 64):
+        raise ActionUnavailable('Choose an installed default coding agent first.')
+    if shutil.which(agent, path=env['PATH']):
+        return env
+    if agent != 'opencode':
+        raise ActionUnavailable('The default agent is unavailable in the restricted launcher environment.')
+    # Resolve an already installed binary, never execute an auto-install shim.
+    home = Path.home()
+    result = subprocess.run(['/usr/bin/mise', 'which', 'opencode'], capture_output=True,
+        text=True, timeout=3, env=env, cwd=home / 'Work' if (home / 'Work').is_dir() else home)
+    raw = result.stdout.strip()
+    if result.returncode != 0 or not plain(raw) or ':' in raw:
+        raise ActionUnavailable('OpenCode is not installed or cannot be resolved safely.')
+    binary = Path(raw).resolve(strict=True)
+    root = home / '.local/share/mise/installs/opencode'
+    if not binary.is_relative_to(root) or binary.name != 'opencode':
+        raise ActionUnavailable('OpenCode resolved outside its installed package.')
+    for path in (binary, *binary.parents):
+        info = path.stat()
+        if info.st_uid not in (0, os.getuid()) or info.st_mode & 0o022:
+            raise ActionUnavailable('OpenCode installation is writable by other users.')
+    if not binary.is_file() or not os.access(binary, os.X_OK):
+        raise ActionUnavailable('OpenCode executable is unavailable.')
+    env['PATH'] += ':' + str(binary.parent)
+    return env
+
+
 def launch_action(plan, state_dir, executor=None):
     """Serialize duplicate clicks; caller supplies only a journal-derived plan."""
     state_dir = Path(state_dir)
@@ -162,9 +202,10 @@ def launch_action(plan, state_dir, executor=None):
             raise ActionUnavailable('This crash diagnosis was already opened.')
         if executor is None:
             verify_launcher()
+            env = crash_environment()
             executor = lambda argv: subprocess.Popen(argv, start_new_session=True,
                 stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL, env=safe_environment())
+                stderr=subprocess.DEVNULL, env=env)
         def save(keys):
             lock.seek(0)
             lock.truncate()

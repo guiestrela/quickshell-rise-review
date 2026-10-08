@@ -121,6 +121,48 @@ class CrashAction(unittest.TestCase):
         with self.assertRaises(mod.ActionUnavailable):
             mod.plan_action(bad, [record()], 1000, BOOT)
 
+    def test_crash_environment_uses_installed_agent_without_mise_shim(self):
+        import os, tempfile
+        from types import SimpleNamespace
+        from unittest.mock import patch
+        mod = load_helper()
+        with tempfile.TemporaryDirectory() as directory:
+            home = Path(directory)
+            binary = home / '.local/share/mise/installs/opencode/1.0/opencode'
+            binary.parent.mkdir(parents=True); binary.write_text('fixture'); binary.chmod(0o755)
+            calls = []
+            def lookup(argv, **kwargs):
+                calls.append(argv)
+                return SimpleNamespace(returncode=0, stdout='opencode\n' if argv[0].endswith('omarchy-default-agent') else str(binary)+'\n')
+            with patch.object(mod.Path, 'home', return_value=home), patch.object(mod.subprocess, 'run', side_effect=lookup):
+                env = mod.crash_environment()
+                self.assertEqual(env['PATH'], '/usr/share/omarchy/bin:/usr/bin:' + str(binary.parent))
+                self.assertEqual(calls, [['/usr/bin/omarchy-default-agent'], ['/usr/bin/mise', 'which', 'opencode']])
+                binary.parent.chmod(0o777)
+                with self.assertRaises(mod.ActionUnavailable): mod.crash_environment()
+                binary.parent.chmod(0o755)
+                outside = home/'opencode'; outside.write_text('fixture'); outside.chmod(0o755)
+                def escape(argv, **kwargs):
+                    return SimpleNamespace(returncode=0, stdout='opencode\n' if argv[0].endswith('omarchy-default-agent') else str(outside)+'\n')
+                with patch.object(mod.subprocess, 'run', side_effect=escape):
+                    with self.assertRaises(mod.ActionUnavailable): mod.crash_environment()
+
+    def test_full_executable_name_reference_accepts_kernel_truncation(self):
+        mod = load_helper()
+        selected = entry()
+        selected['crashReference'] = {'pid': '1080', 'comm': 'gnome-keyring-daemon',
+            'exe': '/usr/bin/gnome-keyring-daemon', 'signal': 'SIGABRT'}
+        result = mod.plan_action(selected, [record()], 1000, BOOT)
+        self.assertEqual(result['argv'][2], 'gnome-keyring-d')
+        for field, value in [('pid', '1081'), ('comm', 'gnome-keyring'),
+                             ('exe', '/bin/sh'), ('signal', 'SIGSEGV')]:
+            bad = dict(selected, crashReference=dict(selected['crashReference'], **{field: value}))
+            with self.subTest(field=field), self.assertRaises(mod.ActionUnavailable):
+                mod.plan_action(bad, [record()], 1000, BOOT)
+        renamed = record(); renamed['COREDUMP_COMM'] = 'different-name'
+        with self.assertRaises(mod.ActionUnavailable):
+            mod.plan_action(selected, [renamed], 1000, BOOT)
+
     def test_selected_crash_uses_fixed_command_and_authoritative_record(self):
         mod = load_helper()
         result = mod.plan_action(entry(), [record(), record('99', '/usr/bin/other')], 1000, BOOT)
