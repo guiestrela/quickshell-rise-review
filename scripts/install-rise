@@ -11,9 +11,18 @@ fail() { printf 'install-rise: %s\n' "$*" >&2; exit 1; }
 
 command -v omarchy >/dev/null 2>&1 || fail "Omarchy is required; install Rise with its supported plugin manager."
 
-# Omarchy intentionally keeps newly added plugins disabled, allowing users to
-# inspect the code before activation. Do not bypass its confirmation prompt.
-omarchy plugin add "$PLUGIN_REPO_URL"
+# When this script is launched as `curl ... | bash`, bash reads the installer
+# from stdin. Omarchy's add command is interactive, so give it the controlling
+# terminal instead of the exhausted script pipe. Keep Omarchy's confirmation
+# prompt; users can decline activation and review the cloned plugin first.
+if [[ ! -t 0 && -r /dev/tty ]]; then
+  omarchy plugin add "$PLUGIN_REPO_URL" </dev/tty
+else
+  omarchy plugin add "$PLUGIN_REPO_URL"
+fi
+
+# Refresh the running shell's plugin registry before the user enables Rise.
+omarchy-shell shell rescanPlugins || fail "Omarchy added Rise, but the shell could not rescan plugins. Run: omarchy-shell shell rescanPlugins"
 
 [[ -d "$PLUGIN_DIR" ]] || fail "Omarchy added the plugin but its expected directory is missing: $PLUGIN_DIR"
 [[ -x "$PLUGIN_DIR/scripts/install-ai-backends" ]] || fail "AI usage installer is missing or not executable in $PLUGIN_DIR"

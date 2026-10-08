@@ -18,10 +18,9 @@ folders. Its bar styling and interactions follow the Quickshell Rise design.
 
 ## Install
 
-After the installer change is published, install Rise and its AI usage
-collectors in one setup command. The supported
-Omarchy plugin manager asks for confirmation and leaves new plugins disabled
-so you can review them before activation:
+Install Rise and its AI usage collectors in one setup command. The supported
+Omarchy plugin manager asks for confirmation. Decline activation in its prompt
+if you want to review the installed plugin before enabling it:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/guiestrela/quickshell-rise-review/main/scripts/install-rise | bash
@@ -29,13 +28,24 @@ curl -fsSL https://raw.githubusercontent.com/guiestrela/quickshell-rise-review/m
 
 This uses `omarchy plugin add` (the Omarchy manager does not run plugin install
 hooks), then installs all four local collectors and their user systemd timers.
-It does not enable or restart the bar. After reviewing Rise, activate it and
-install the optional post-update recovery hook as needed:
+When run through the command above, the installer passes the terminal to
+Omarchy so its confirmation prompt remains interactive. Decline activation in
+that prompt to review the plugin first. After reviewing it, rescan the shell
+plugin registry and enable Rise if it is still disabled:
 
 ```bash
+omarchy-shell shell rescanPlugins
 omarchy plugin enable io.github.guiestrela.quickshell-rise
-omarchy hook install post-update "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/contrib/post-boot.d/quickshell-rise"
 omarchy restart shell
+```
+
+If you accepted activation during the add prompt, skip the enable command.
+Install the optional post-update recovery hook only after confirming its source
+file exists in the plugin checkout:
+
+```bash
+HOOK="$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/contrib/post-boot.d/quickshell-rise"
+test -f "$HOOK" && omarchy hook install post-update "$HOOK"
 ```
 
 The post-update hook makes Omarchy restart its shell after `omarchy update`
