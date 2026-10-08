@@ -18,58 +18,30 @@ folders. Its bar styling and interactions follow the Quickshell Rise design.
 
 ## Install
 
-Install Rise and its AI usage collectors in one setup command. In Omarchy's
-prompts, confirm that you want to add the repository. When it asks whether to
-enable Rise, decline if you want to review the installed plugin first:
+Install Rise with Omarchy's plugin manager. Confirm the repository when
+Omarchy asks:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/guiestrela/quickshell-rise-review/main/scripts/install-rise | bash
+omarchy plugin add https://github.com/guiestrela/quickshell-rise-review.git --enable
 ```
 
-This uses `omarchy plugin add` (the Omarchy manager does not run plugin install
-hooks), then installs all four local collectors and their user systemd timers.
-When run through the command above, the installer passes the terminal to
-Omarchy so both prompts remain interactive. The repository must be cloned
-before the installer can continue. Confirm the checkout exists before
-rescanning and enabling Rise:
+To install the AI usage collectors and their user systemd timers, run:
 
 ```bash
-test -d "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise" || {
-  echo "Rise was not installed. Re-run the install command and confirm adding the repository." >&2
-  exit 1
-}
-omarchy-shell shell rescanPlugins
-for _ in {1..20}; do
-  omarchy plugin list | grep -Fq 'io.github.guiestrela.quickshell-rise' && break
-  sleep 0.25
-done
-omarchy plugin list | grep -Fq 'io.github.guiestrela.quickshell-rise' || {
-  echo "Rise is not registered. Check the plugin checkout and manifest first." >&2
-  exit 1
-}
-omarchy plugin enable io.github.guiestrela.quickshell-rise
-omarchy restart shell
+"$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/scripts/install-ai-backends" \
+  "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise"
 ```
 
-If you accepted activation during the add prompt, skip the enable command.
-The rescan is asynchronous, so wait for Rise to appear in `omarchy plugin list`
-before enabling it. If it never appears, validate the checkout before retrying:
+The optional post-update recovery hook can be installed with:
 
 ```bash
-omarchy plugin validate "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise"
-```
-
-Install the optional post-update recovery hook only after confirming its source
-file exists in the plugin checkout:
-
-```bash
-HOOK="$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/contrib/post-boot.d/quickshell-rise"
-test -f "$HOOK" && omarchy hook install post-update "$HOOK"
+omarchy hook install post-update \
+  "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/contrib/post-boot.d/quickshell-rise"
 ```
 
 The post-update hook makes Omarchy restart its shell after `omarchy update`
 has released the update lock, so the selected Rise bar is loaded from updated
-plugin files. It is separate from AI usage setup.
+plugin files.
 
 The plugin replaces the built-in bar while enabled. Disable it to return to the
 Omarchy bar:
@@ -88,9 +60,8 @@ omarchy plugin validate ~/.config/omarchy/plugins/io.github.guiestrela.quickshel
 
 ## AI usage
 
-The installation command above also installs the Claude, OpenCode, Codex, and
-GitHub Copilot collectors and their timers automatically. No separate AI setup
-command or installation flag is needed.
+The collector command above installs Claude, OpenCode, Codex, and GitHub
+Copilot collectors and their timers. No provider-specific setup is needed.
 
 The installer requires `python3` and a working user `systemd` manager. It
 installs each collector script and service/timer unit regardless of whether
