@@ -58,6 +58,28 @@ omarchy plugin list
 omarchy plugin validate ~/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise
 ```
 
+## Update
+
+Update Rise from its Git repository with Omarchy's plugin manager:
+
+```bash
+omarchy plugin update io.github.guiestrela.quickshell-rise
+```
+
+Omarchy shows the changes for review, fast-forwards the installed plugin, and
+rescans the plugin registry after a successful update. If the running bar does
+not show the new version yet, restart the shell:
+
+```bash
+omarchy restart shell
+```
+
+To update every installed Git-managed plugin instead, run:
+
+```bash
+omarchy plugin update
+```
+
 ## AI usage
 
 The collector command above installs Claude, OpenCode, Codex, and GitHub
