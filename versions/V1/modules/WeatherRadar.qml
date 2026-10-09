@@ -145,8 +145,10 @@ Item {
                         readonly property int count: Math.pow(2, radar.tileZoom)
                         readonly property int tx: ((radar.tileX() + dx) % count + count) % count
                         readonly property int ty: radar.tileY() + dy
-                        x: ((dx + 1) * 256 - radar.pixelOffsetX()) * radar.zoomScale
-                        y: ((dy + 1) * 256 - radar.pixelOffsetY()) * radar.zoomScale
+                        // Place the configured location at the canvas center at
+                        // every zoom level; scale tile offsets around that point.
+                        x: 384 + (dx * 256 - radar.pixelOffsetX()) * radar.zoomScale
+                        y: 384 + (dy * 256 - radar.pixelOffsetY()) * radar.zoomScale
                         width: 256 * radar.zoomScale
                         height: 256 * radar.zoomScale
                         visible: ty >= 0 && ty < count
