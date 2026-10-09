@@ -34,7 +34,7 @@ Item {
 
     readonly property color shieldColor: connected ? root.seal : root.ink
     readonly property color contentColor: root.widgetContentColor("G19", shieldColor)
-    readonly property color iconColor: disconnected || unavailable
+    readonly property color iconColor: !connected
         ? Qt.rgba(contentColor.r, contentColor.g, contentColor.b, 0.3)
         : contentColor
     readonly property bool customStyle: root.widgetHasFill("G19") || root.widgetHasBorder("G19")
