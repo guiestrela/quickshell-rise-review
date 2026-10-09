@@ -12,7 +12,9 @@ Item {
     property real longitude: NaN
     property string radarHost: "https://tilecache.rainviewer.com"
     property string radarPath: ""
-    property real zoom: 10.5
+    // RainViewer's public radar tiles currently stop at z7. Start at that
+    // level so the precipitation layer is visible as soon as the panel opens.
+    property real zoom: 7
     readonly property int minZoom: 4
     readonly property int maxZoom: 12
     readonly property int radarMaxZoom: 7
@@ -22,7 +24,7 @@ Item {
     readonly property bool located: isFinite(latitude) && isFinite(longitude)
     readonly property bool tilesActive: root.weatherVisible
     implicitWidth: 276
-    implicitHeight: 179
+    implicitHeight: 209
 
     function tileX() { return Math.floor((longitude + 180) / 360 * Math.pow(2, tileZoom)) }
     function tileY() {
@@ -84,7 +86,7 @@ Item {
             height: 14
             UiText {
             anchors.left: parent.left
-                text: "LOCAL RADAR"
+                text: "RAINVIEWER RADAR · ESRI IMAGERY"
                 color: radar.root.sumiHi
                 font.family: radar.root.mono
                 font.pixelSize: 9
@@ -113,7 +115,7 @@ Item {
         }
         Rectangle {
             width: parent.width
-            height: 160
+            height: 190
             radius: radar.root.tileRadius
             clip: true
             color: radar.root.paper
@@ -161,9 +163,9 @@ Item {
                             anchors.fill: parent
                             visible: radar.radarPath !== "" && radar.zoom <= radar.radarMaxZoom
                             source: !radar.tilesActive || radar.radarPath === "" ? "" : radar.radarHost + radar.radarPath
-                                + "/256/" + radar.tileZoom + "/" + parent.tx + "/" + parent.ty + "/2/1_1.png"
+                                + "/512/" + radar.tileZoom + "/" + parent.tx + "/" + parent.ty + "/2/1_1.png"
                             asynchronous: true
-                            cache: false
+                            cache: true
                             opacity: 0.58
                             fillMode: Image.Stretch
                         }
