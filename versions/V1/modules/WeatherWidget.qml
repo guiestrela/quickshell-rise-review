@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "../integrations/WeatherData.js" as WeatherData
 
 Item {
     id: rootMod
@@ -12,6 +13,30 @@ Item {
     property string weatherDesc: ""
     property bool weatherLoaded: false
     property bool weatherUnavailable: false
+    property var locationSettings: ({})
+    property bool locationReady: false
+    property int locationGeneration: 0
+    property int requestGeneration: -1
+    property var requestSettings: ({})
+    property bool refreshPending: false
+
+    FileView {
+        id: locationFile
+        path: Quickshell.env("HOME") + "/.cache/quickshell-rise/weather-location"
+        printErrors: false
+        watchChanges: true
+        onFileChanged: reload()
+        onLoaded: {
+            var raw = String(text() || "").trim(), settings = null
+            try { settings = JSON.parse(raw) } catch (e) {}
+            var wasReady = rootMod.locationReady
+            rootMod.locationSettings = settings && typeof settings === "object" ? settings : {name: raw.slice(0,80)}
+            rootMod.locationGeneration += 1
+            rootMod.locationReady = true
+            if (wasReady && (rootMod.root.modWeather || rootMod.root.weatherVisible)) rootMod.refresh(true)
+        }
+        onLoadFailed: { rootMod.locationReady = true }
+    }
 
     // honor the global imperial toggle in the widget tooltip too (the panel already converts);
     // the fetch stores temp in °C, so convert here when imperial is set
@@ -31,26 +56,35 @@ Item {
 
     function refresh(force) {
         if (weatherProc.running) {
-            if (!force) return
-            weatherProc.running = false
+            if (force) rootMod.refreshPending = true
+            return
         }
+        rootMod.requestSettings = rootMod.locationSettings
+        rootMod.requestGeneration = rootMod.locationGeneration
         weatherProc.running = true
     }
 
     Process {
         id: weatherProc
         running: false
-        command: ["curl", "-fs", "--max-time", "3", "https://wttr.in?format=j1"]
+        onExited: {
+            if (rootMod.refreshPending) {
+                rootMod.refreshPending = false
+                Qt.callLater(function() { rootMod.refresh(false) })
+            }
+        }
+        command: ["curl", "-fsS", "--max-time", "5", WeatherData.weatherUrl(rootMod.requestSettings)]
         stdout: StdioCollector {
             waitForEnd: true
             onStreamFinished: {
+                if (rootMod.requestGeneration !== rootMod.locationGeneration) return
                 const txt = String(this.text || "").trim()
                 if (txt === "") {
                     rootMod.weatherUnavailable = true
                     return
                 }
                 try {
-                    const d = JSON.parse(txt)
+                    const d = WeatherData.normalize(JSON.parse(txt), rootMod.requestSettings)
                     const current = d.current_condition && d.current_condition[0] ? d.current_condition[0] : null
                     const area = d.nearest_area && d.nearest_area[0] ? d.nearest_area[0] : null
                     const astronomy = d.weather && d.weather[0] && d.weather[0].astronomy
@@ -63,7 +97,7 @@ Item {
 
                     rootMod.weatherIcon = rootMod.glyphForCode(
                         current.weatherCode,
-                        rootMod.isNight(astronomy ? astronomy.sunrise : "", astronomy ? astronomy.sunset : "")
+                        typeof d.isNight === "boolean" ? d.isNight : rootMod.isNight(astronomy ? astronomy.sunrise : "", astronomy ? astronomy.sunset : "")
                     )
                     rootMod.weatherTemp = current.temp_C || ""
                     rootMod.weatherDesc = current.weatherDesc && current.weatherDesc[0]
@@ -83,7 +117,7 @@ Item {
 
     Timer {
         interval: 60000
-        running: root.modWeather || root.weatherVisible
+        running: rootMod.locationReady && (root.modWeather || root.weatherVisible)
         repeat: true
         triggeredOnStart: true
         onTriggered: rootMod.refresh(false)
