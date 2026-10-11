@@ -1,0 +1,16 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
+const source=fs.readFileSync(path.join(__dirname,'../versions/V1/modules/DisplayManagerController.qml'),'utf8');
+function functionText(name){let start=source.indexOf('    function '+name+'(');assert.ok(start>=0,'Missing production function '+name);let open=source.indexOf('{',start),depth=1,end=open+1;for(;depth&&end<source.length;end++){if(source[end]==='{')depth++;else if(source[end]==='}')depth--;}return source.slice(start,end);}
+const active={name:'DP-1',width:2560,height:1440,x:0,y:560,scale:1,transform:0,disabled:false,mirrorOf:'none',refreshRate:155};
+const target={name:'DP-2',width:2560,height:1440,x:2579,y:-50,scale:1.25,transform:1,disabled:false,mirrorOf:'none',refreshRate:59.951};
+let disk='';
+function controller(){const c={monitors:[active,target],positions:{},savedDisplayStates:{},displayStateReady:true,busy:false,loading:false,rollbackPending:false,error:'',calls:[],accepted:true,displayStateFile:{setText:text=>{disk=text;c.displayStateSaved=true}}};c.monitor=name=>c.monitors.find(m=>m.name===name);c.safeMonitor=name=>typeof name==='string'&&/^[A-Za-z0-9_.:-]{1,64}$/.test(name);c.command=args=>{c.calls.push(args);return c.accepted};c.applyMonitor=(...args)=>{c.calls.push(args);return c.accepted};vm.createContext(c);for(const n of ['validSavedDisplayState','disableMonitor','enableMonitor'])vm.runInContext(functionText(n),c);return c;}
+let c=controller();assert.equal(c.disableMonitor('DP-2'),true);assert.ok(disk,'Disable must persist the real pre-disable geometry');
+const saved=JSON.parse(disk);assert.equal(saved['DP-2'].x,2579);assert.equal(saved['DP-2'].y,-50);assert.equal(saved['DP-2'].scale,1.25);assert.equal(saved['DP-2'].transform,1);assert.equal(saved['DP-2'].refreshRate,59.951);
+// A fresh instance reads the persisted file, while the compositor reports a disabled output with reset fields.
+c=controller();c.savedDisplayStates=saved;c.monitors=[active,{...target,disabled:true,x:0,y:0,width:0,height:0,scale:1,transform:0,refreshRate:0}];c.positions={'DP-2':{x:0,y:0}};assert.equal(c.enableMonitor('DP-2'),true);assert.deepEqual(c.calls[0],['DP-2','2560x1440@59.951',2579,-50,1.25,1,'none']);
+c=controller();c.savedDisplayStates=saved;c.monitors=[{...active,x:2579,y:-50}, {...target,disabled:true}];assert.equal(c.enableMonitor('DP-2'),false);assert.equal(c.calls.length,0);assert.match(c.error,/overlap|occupied/i,'Saved position must not be relocated silently');assert.equal(c.savedDisplayStates['DP-2'].x,2579);
+c=controller();disk='';c.busy=true;assert.equal(c.disableMonitor('DP-2'),false);assert.equal(disk,'');
+c=controller();disk='';c.monitors=[active];assert.equal(c.disableMonitor('DP-1'),false);assert.equal(disk,'');
+c=controller();disk='';c.displayStateFile.setText=()=>{throw new Error('write denied')};assert.equal(c.disableMonitor('DP-2'),false);assert.equal(c.calls.length,0,'Failed persistence must prevent Disable');
+console.log('POSITION_MEMORY_PASS disable captures durable geometry; fresh instance restores original position/mode/scale/rotation; saved overlap blocks; busy/last display/write failure send no action');

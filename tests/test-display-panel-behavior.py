@@ -47,8 +47,8 @@ for variant in ("V1", "V2"):
                 check(productionPanel.activeDisplayCount()===2, "active display count")
                 fakeController.positions=({})
                 count=fakeController.calls.length
-                check(!productionPanel.commitCanvasPosition("DP-2",2560,0,-1,0,1), "one-pixel overlap must be blocked")
-                check(fakeController.calls.length===count, "one-pixel overlap reached backend")
+                check(productionPanel.commitCanvasPosition("DP-2",2560,0,-1,0,1), "one-pixel overlap must snap outward")
+                check(fakeController.calls.length===count+1 && fakeController.calls[count][2]===2560, "shallow overlap must become touching edges, not overlap")
                 check(productionPanel.commitCanvasPosition("DP-2",2560,0,0,30,1), "touching edges must remain valid")
                 fakeController.positions=({})
                 fakeController.monitors=[{name:"DP-1",width:2560,height:1440,x:0,y:0,scale:1,transform:0,refreshRate:60,mirrorOf:"none"},{name:"DP-2",width:1920,height:1080,x:2560,y:0,scale:1,transform:1,refreshRate:60,mirrorOf:"none"}]

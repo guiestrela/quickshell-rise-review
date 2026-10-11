@@ -32,7 +32,7 @@ PanelWindow {
     }
     function commitCanvasPosition(name, startX, startY, dx, dy, ratio) {
         var m = controller.monitor(name)
-        if (!m || controller.busy || controller.loading || m.disabled || (m.mirrorOf && m.mirrorOf !== "none")
+        if (!m || controller.busy || controller.loading || controller.rollbackPending || m.disabled || (m.mirrorOf && m.mirrorOf !== "none")
             || !isFinite(dx) || !isFinite(dy) || !isFinite(ratio) || ratio <= 0) return false
         var x = Math.round(startX + dx / ratio), y = Math.round(startY + dy / ratio)
         if (x < -32768 || x > 32767 || y < -32768 || y > 32767) return false
@@ -40,6 +40,7 @@ PanelWindow {
         var w = Number(rotated ? m.height : m.width) / Number(m.scale || 1)
         var h = Number(rotated ? m.width : m.height) / Number(m.scale || 1)
         if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h) || w <= 0 || h <= 0) return false
+        var peers = []
         for (var i = 0; i < controller.monitors.length; i++) {
             var other = controller.monitors[i]
             if (other.name === name || other.disabled || (other.mirrorOf && other.mirrorOf !== "none")) continue
@@ -49,10 +50,38 @@ PanelWindow {
             var oh = Number(otherRotated ? other.width : other.height) / Number(other.scale || 1)
             var ox = Number(pos.x || 0), oy = Number(pos.y || 0)
             if (!isFinite(ox) || !isFinite(oy) || !isFinite(ow) || !isFinite(oh) || ow <= 0 || oh <= 0) return false
-            if (x < ox + ow && x + w > ox && y < oy + oh && y + h > oy) {
-                controller.error = "Displays cannot overlap. Place this display beside another."
-                return false
+            peers.push({ x: ox, y: oy, w: ow, h: oh })
+        }
+        function overlaps(px, py) {
+            for (var p of peers) {
+                if (px < p.x + p.w && px + w > p.x && py < p.y + p.h && py + h > p.y) return true
             }
+            return false
+        }
+        // Magnetic edge attachment: 12 pixels in the canvas, not desktop pixels.
+        // Snap only edges with a shared passage, never isolated corner contact.
+        var distance = 12 / ratio, best = null
+        function consider(px, py, adjustment) {
+            if (adjustment > distance || px < -32767 || px > 32767 || py < -32767 || py > 32767
+                || overlaps(px, py)) return
+            if (!best || adjustment < best.distance) best = { x: px, y: py, distance: adjustment }
+        }
+        for (var peer of peers) {
+            if (y < peer.y + peer.h && y + h > peer.y) {
+                var right = Math.ceil(peer.x + peer.w), left = Math.floor(peer.x - w)
+                consider(right, y, Math.abs(right - x))
+                consider(left, y, Math.abs(left - x))
+            }
+            if (x < peer.x + peer.w && x + w > peer.x) {
+                var bottom = Math.ceil(peer.y + peer.h), top = Math.floor(peer.y - h)
+                consider(x, bottom, Math.abs(bottom - y))
+                consider(x, top, Math.abs(top - y))
+            }
+        }
+        if (best) { x = best.x; y = best.y }
+        if (overlaps(x, y)) {
+            controller.error = "Displays cannot overlap. Place this display beside another."
+            return false
         }
         if (!controller.applyMonitor(name, modeFor(m), x, y, Number(m.scale || 1), Number(m.transform || 0), "none")) return false
         controller.setPosition(name, x, y)

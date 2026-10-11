@@ -1,0 +1,19 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
+const src=fs.readFileSync(path.join(__dirname,'../versions/V1/panels/DisplayManagerPanel.qml'),'utf8');
+const a={name:'A',x:0,y:560,width:2560,height:1440,scale:1,transform:0,disabled:false,mirrorOf:'none'},b={name:'B',x:2579,y:0,width:2560,height:1440,scale:1,transform:1,disabled:false,mirrorOf:'none'};
+const controller={monitors:[a,b],positions:{},selectedMonitor:'B',calls:[],error:'',busy:false,loading:false,rollbackPending:false,monitor:n=>controller.monitors.find(m=>m.name===n),applyMonitor:(...v)=>{controller.calls.push(v);return true},setPosition:(n,x,y)=>{controller.positions[n]={x,y}}};
+const c={controller};vm.createContext(c);vm.runInContext(src.slice(src.indexOf('    function modeFor('),src.indexOf('    component RiseButton:')),c);
+function move(x,y,ratio=.06,peers=[a,b]){controller.monitors=peers;controller.positions={};controller.calls=[];controller.error='';return c.commitCanvasPosition('B',x,y,0,0,ratio);}
+assert.equal(move(2579,0),true);assert.equal(controller.calls[0][2],2560,'Actual 19-pixel gap must snap closed');assert.equal(controller.calls[0][3],0,'Preserve vertical offset');
+assert.equal(move(2550,0),true);assert.equal(controller.calls[0][2],2560,'A shallow overlap must snap outward instead of failing');
+assert.equal(move(-1459,560),true);assert.equal(controller.calls[0][2],-1440,'Snap left edge, respecting rotated width');
+assert.equal(move(0,2020),true);assert.equal(controller.calls[0][3],2000,'Snap below');
+assert.equal(move(0,-2020),true);assert.equal(controller.calls[0][3],-2000,'Snap above using rotated height');
+assert.equal(move(4000,0),true);assert.equal(controller.calls[0][2],4000,'Far intentional placement must not be moved');
+assert.equal(move(2579,-2560),true);assert.equal(controller.calls[0][2],2579,'Corner-only contact is not a shared mouse passage');
+const scaled={...a,x:0,y:0,scale:2,transform:1};assert.equal(move(739,0,.06,[scaled,b]),true);assert.equal(controller.calls[0][2],720,'Peer bounds must use scale and rotation');
+const third={...a,name:'C',x:2600,y:0,width:2000,height:3000};assert.equal(move(2579,0,.06,[a,b,third]),false);assert.equal(controller.calls.length,0,'A snap must never collide with a third output');
+assert.equal(move(1000,600),false);assert.equal(controller.calls.length,0,'Deep overlap stays rejected');
+controller.rollbackPending=true;assert.equal(move(2579,0),false);assert.equal(controller.calls.length,0,'Pending guard blocks drag');controller.rollbackPending=false;
+assert.match(fs.readFileSync(path.join(__dirname,'../versions/V1/variants/V2/panels/DisplayManagerPanel.qml'),'utf8'),/Shared\.DisplayManagerPanel/);
+console.log('EDGE_SNAP_PASS shared V1/V2 actual gap, four directions, shallow/deep overlap, scale/rotation, offset, distant placement, corners, third output, pending guard');

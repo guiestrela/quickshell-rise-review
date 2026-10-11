@@ -110,6 +110,47 @@ Item {
     property int brightnessPercent: 0
     property string focusedMonitor: ""
     property var positions: ({})
+    property var savedDisplayStates: ({})
+    property bool displayStateReady: false
+    property bool displayStateSaved: false
+    FileView {
+        id: displayStateFile
+        path: Quickshell.env("HOME") + "/.cache/quickshell-rise/display-return-states.json"
+        preload: true
+        blockWrites: true
+        atomicWrites: true
+        printErrors: false
+        onLoaded: {
+            try {
+                var data = JSON.parse(text())
+                if (!data || typeof data !== "object" || Array.isArray(data) || Object.keys(data).length > 32)
+                    throw new Error("Invalid saved display state")
+                var valid = {}
+                for (var name of Object.keys(data)) {
+                    if (!controller.safeMonitor(name) || !controller.validSavedDisplayState(data[name]))
+                        throw new Error("Invalid saved display geometry")
+                    valid[name] = data[name]
+                }
+                controller.savedDisplayStates = valid
+                controller.displayStateReady = true
+            } catch (e) { controller.displayStateReady = false; controller.error = String(e) }
+        }
+        onLoadFailed: (code) => {
+            controller.displayStateReady = code === FileViewError.FileNotFound
+            if (!controller.displayStateReady) controller.error = "Cannot read the saved display positions."
+        }
+        onSaved: controller.displayStateSaved = true
+        onSaveFailed: controller.displayStateSaved = false
+    }
+    function validSavedDisplayState(m) {
+        return m && Number.isInteger(m.x) && Math.abs(m.x) <= 32767
+            && Number.isInteger(m.y) && Math.abs(m.y) <= 32767
+            && Number.isInteger(m.width) && m.width >= 10 && m.width <= 99999
+            && Number.isInteger(m.height) && m.height >= 10 && m.height <= 99999
+            && Number.isFinite(m.scale) && m.scale >= 0.1 && m.scale <= 4
+            && Number.isInteger(m.transform) && m.transform >= 0 && m.transform <= 7
+            && Number.isFinite(m.refreshRate) && m.refreshRate >= 1 && m.refreshRate < 1000
+    }
     property int textSizeIndex: 3
     readonly property var textSizeStops: [9, 10, 11, 12, 14, 16, 20]
     readonly property var scalePresets: [1, 1.25, 1.5, 1.6, 2, 3, 4]
@@ -173,6 +214,21 @@ Item {
         if (monitor(name).disabled || monitors.filter(function(m) { return !m.disabled && (!m.mirrorOf || m.mirrorOf === "none") }).length <= 1) {
             error = "Keep at least one independent display enabled."; return false
         }
+        if (busy || loading || rollbackPending || !displayStateReady) {
+            error = "Wait for the current operation and saved display positions."; return false
+        }
+        // Capture the actual applied geometry, never an un-applied drag position.
+        var m = monitor(name)
+        var snapshot = { x: m.x, y: m.y, width: m.width, height: m.height,
+                         scale: m.scale, transform: m.transform, refreshRate: m.refreshRate }
+        if (!validSavedDisplayState(snapshot)) { error = "Cannot save this display geometry safely."; return false }
+        var saved = Object.assign({}, savedDisplayStates)
+        saved[name] = snapshot
+        displayStateSaved = false
+        try { displayStateFile.setText(JSON.stringify(saved)) }
+        catch (e) { error = "Cannot save the display position: " + String(e); return false }
+        if (!displayStateSaved) { error = "Cannot save the display position; output was not disabled."; return false }
+        savedDisplayStates = saved
         return command(["--action", "disable", "--monitor", name])
     }
     property var mirrorReturnStates: ({})
@@ -211,7 +267,49 @@ Item {
         var mode = original.width + "x" + original.height + "@" + Number(original.refreshRate).toFixed(3)
         return applyMonitor(m.name, mode, Number(original.x || 0), Number(original.y || 0), Number(original.scale || 1), Number(original.transform || 0), "none")
     }
-    function enableMonitor(name) { return applyMonitor(name, "preferred", 0, 0, 1, 0, "none") }
+    function enableMonitor(name) {
+        var m = monitor(name)
+        if (!m) { error = "Output is no longer connected; refresh first."; return false }
+        if (!displayStateReady) { error = "Wait for the saved display positions to load."; return false }
+        var saved = m.disabled ? savedDisplayStates[name] : null
+        if (saved) {
+            if (!validSavedDisplayState(saved)) { error = "Invalid saved display geometry."; return false }
+            m = saved
+        }
+        function bounds(output, x, y) {
+            var scale = Number(output.scale), transform = Number(output.transform)
+            var width = Number(output.width), height = Number(output.height)
+            if (!Number.isInteger(width) || width <= 0 || !Number.isInteger(height) || height <= 0
+                || !isFinite(scale) || scale < 0.1 || scale > 4
+                || !Number.isInteger(transform) || transform < 0 || transform > 7
+                || !isFinite(x) || !isFinite(y)) return null
+            return { x:x, y:y, w:(transform % 2 ? height : width) / scale,
+                     h:(transform % 2 ? width : height) / scale }
+        }
+        var position = saved || positions[name] || m
+        var x = Number(position.x), y = Number(position.y)
+        var candidate = bounds(m, x, y)
+        if (!candidate) { error = "Invalid display geometry; no command was sent."; return false }
+        var overlap = false, right = -Infinity
+        for (var i = 0; i < monitors.length; i++) {
+            var peer = monitors[i]
+            if (peer.name === name || peer.disabled || (peer.mirrorOf && peer.mirrorOf !== "none")) continue
+            var rect = bounds(peer, Number(peer.x), Number(peer.y))
+            if (!rect) { error = "Invalid active display geometry; refresh first."; return false }
+            right = Math.max(right, rect.x + rect.w)
+            if (candidate.x < rect.x + rect.w && candidate.x + candidate.w > rect.x
+                && candidate.y < rect.y + rect.h && candidate.y + candidate.h > rect.y) overlap = true
+        }
+        // Keep a valid previous position; otherwise place beside active outputs.
+        if (overlap && saved) { error = "Saved display position overlaps another monitor; free that position first."; return false }
+        if (overlap) x = Math.ceil(right)
+        var refreshRate = Number(m.refreshRate)
+        if (!isFinite(refreshRate) || refreshRate <= 0) {
+            error = "Cannot restore the display mode safely; refresh first."; return false
+        }
+        var mode = m.width + "x" + m.height + "@" + refreshRate.toFixed(3)
+        return applyMonitor(name, mode, x, y, Number(m.scale), Number(m.transform), "none")
+    }
     function saveLayout() {
         var entries = []
         var extended = []
@@ -272,7 +370,11 @@ Item {
                     controller.focusedMonitor = (parsed.filter(function(m) { return m.focused })[0] || {}).name || ""
                     if (!controller.selectedMonitor || !controller.monitor(controller.selectedMonitor)) controller.selectedMonitor = parsed.length ? parsed[0].name : ""
                     var positions = {}
-                    for (var j = 0; j < parsed.length; j++) positions[parsed[j].name] = { x: Number(parsed[j].x || 0), y: Number(parsed[j].y || 0) }
+                    for (var j = 0; j < parsed.length; j++) {
+                        var remembered = parsed[j].disabled ? controller.savedDisplayStates[parsed[j].name] : null
+                        var origin = remembered || parsed[j]
+                        positions[parsed[j].name] = { x: Number(origin.x || 0), y: Number(origin.y || 0) }
+                    }
                     controller.positions = positions
                     controller.refreshBrightness()
                 } catch (e) { controller.error = "Invalid monitor data: " + String(e) }

@@ -71,6 +71,29 @@ with tempfile.TemporaryDirectory(prefix='display-pointer-',dir=os.environ['TMPDI
           pointer.wait(100)
           if(fakeController.calls.length!==1 || fakeController.calls[0][2]>=0) throw new Error("pointer drag did not dispatch changed position: calls="+JSON.stringify(fakeController.calls)+" card="+[card.x,card.y,card.width,card.height]+" area="+[area.x,area.y,area.width,area.height]+" stage="+[stage.x,stage.y,stage.width,stage.height]+" window="+[productionPanel.width,productionPanel.height])
           console.log("DISPLAY_POINTER_PASS QtTest events; normal Window fixture")
+          var savedCalls=fakeController.calls.slice(), savedPositions=fakeController.positions, savedSelected=fakeController.selectedMonitor
+          for(var snapStyle of [false,true]) {
+            productionPanel.connectedStyle=snapStyle
+            fakeController.positions=({});fakeController.calls=[]
+            pointer.wait(80)
+            var snapCard=null
+            for(var snapChild of stage.children) if(snapChild.modelData && snapChild.modelData.name==="DP-2") snapCard=snapChild
+            if(!snapCard) throw new Error("snap delegate absent")
+            var snapArea=snapCard.children[1]
+            var snapPoint=snapArea.mapToItem(productionPanel.contentItem,30,25)
+            productionPanel.requestActivate()
+            pointer.mousePress(productionPanel.contentItem,snapPoint.x,snapPoint.y,Qt.LeftButton)
+            if(!snapArea.pressed) throw new Error("snap press not delivered")
+            pointer.mouseMove(productionPanel.contentItem,snapPoint.x+20,snapPoint.y,80)
+            pointer.mouseMove(productionPanel.contentItem,snapPoint.x+8,snapPoint.y,80)
+            pointer.mouseRelease(productionPanel.contentItem,snapPoint.x+8,snapPoint.y,Qt.LeftButton)
+            pointer.wait(100)
+            if(fakeController.calls.length!==1 || fakeController.calls[0][0]!=="DP-2" || fakeController.calls[0][2]!==2560 || fakeController.calls[0][3]!==0) throw new Error("near-edge pointer release did not snap: "+JSON.stringify(fakeController.calls))
+          }
+          productionPanel.connectedStyle=false
+          fakeController.calls=savedCalls;fakeController.positions=savedPositions;fakeController.selectedMonitor=savedSelected
+          pointer.wait(50)
+          console.log("DISPLAY_EDGE_SNAP_POINTER_PASS V1/V2 real QtTest drag release attaches edges; controller inert")
           var rows=find(productionPanel.contentItem,"display-save").parent
           var column=rows.parent
           var footer=column.children[column.children.length-1]
