@@ -57,6 +57,39 @@ PanelWindow {
     property string nmConnectionError: ""
     property bool   nmConnecting: false
     property string networkActionError: ""
+
+    property bool wifiQrOpening: false
+    property string wifiQrError: ""
+    readonly property bool canOpenWifiQr: {
+        // The default route may be NordLynx/Ethernet while physical Wi-Fi is connected.
+        if (!root.useNM || !nmAdapterReady || wifiBlocked) return false
+        for (var entry of networks) {
+            if (entry.conn && (entry.sec === "open" || entry.sec === "psk" || entry.sec === "wep")) return true
+        }
+        return false
+    }
+
+    function openWifiQr() {
+        if (!canOpenWifiQr || wifiQrOpening) return false
+        wifiQrError = ""
+        wifiQrOpening = true
+        wifiQrRunner.running = true
+        return true
+    }
+
+    Process {
+        id: wifiQrRunner
+        // Native card detects the CURRENT Wi-Fi; no SSID/password is copied here.
+        command: ["/usr/bin/omarchy-shell", "shell", "summon", "omarchy.wifiqr", "{}"]
+        stdout: StdioCollector { id: wifiQrOutput; waitForEnd: true }
+        stderr: StdioCollector { waitForEnd: true }
+        onExited: (exitCode) => {
+            netPanel.wifiQrOpening = false
+            if (exitCode === 0 && wifiQrOutput.text.trim() === "ok") root.networkVisible = false
+            else netPanel.wifiQrError = "Could not open Wi-Fi QR code."
+        }
+    }
+
     property bool   nmProfilesLoaded: false
 
     // ── wifi radio ──
@@ -529,6 +562,12 @@ PanelWindow {
                 }
             }
 
+            NetworkDnsSection {
+                width: parent.width
+                theme: root
+                panelOpen: netPanel.visible
+            }
+
             Rectangle { width: parent.width; height: 1; color: root.sep }
 
             Column {
@@ -681,6 +720,58 @@ PanelWindow {
                         font.letterSpacing: 1
                     }
                 }
+            }
+
+            // QR of the connected Wi-Fi, below Speed Test (including its results).
+            Rectangle {
+                id: wifiQrButton
+                objectName: "wifi-qr-button"
+                width: parent.width
+                height: 28
+                radius: root.tileRadius
+                enabled: netPanel.canOpenWifiQr && !netPanel.wifiQrOpening
+                activeFocusOnTab: true
+                color: wifiQrMa.containsMouse ? root.fillHover : root.fillIdle
+                border.color: wifiQrMa.containsMouse || activeFocus ? root.seal : root.sep
+                border.width: 1
+                opacity: enabled ? 1 : 0.55
+                Accessible.role: Accessible.Button
+                Accessible.name: "Wi-Fi QR code"
+                Accessible.onPressAction: netPanel.openWifiQr()
+                Keys.onPressed: (event) => {
+                    if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                        netPanel.openWifiQr()
+                        event.accepted = true
+                    }
+                }
+                UiText {
+                    anchors.centerIn: parent
+                    text: netPanel.wifiQrOpening ? "opening…" : "Wi-Fi QR code"
+                    color: wifiQrButton.enabled ? root.seal : root.sumi
+                    font.family: root.mono
+                    font.pixelSize: 11
+                }
+                MouseArea {
+                    id: wifiQrMa
+                    objectName: "wifi-qr-hit"
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                    onClicked: {
+                        wifiQrButton.forceActiveFocus()
+                        netPanel.openWifiQr()
+                    }
+                }
+            }
+            UiText {
+                width: parent.width
+                visible: netPanel.wifiQrError !== ""
+                text: netPanel.wifiQrError
+                textFormat: Text.PlainText
+                color: root.seal
+                font.family: root.mono
+                font.pixelSize: 10
+                wrapMode: Text.Wrap
             }
 
             Rectangle { width: parent.width; height: 1; color: root.sep; visible: netPanel.hasWifi }
