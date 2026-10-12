@@ -104,6 +104,32 @@ def matches_requested(got, args):
 
 def restore(directory, data):
     m = data['before']
+    if isinstance(m, list):
+        current = monitors()
+        originals = {item['name']: item for item in m}
+        missing = sorted(set(originals) - {item['name'] for item in current})
+        originals = {name: item for name, item in originals.items() if name not in missing}
+        if not originals:
+            data['status'] = 'failed'
+            data['error'] = 'Rollback outputs disconnected: ' + ', '.join(missing)
+            write_state(directory, data)
+            return
+        desired = [originals.get(item['name'], item) for item in current]
+        payload = {'monitors': api['layout_snapshot'](desired), 'changed': list(originals)}
+        code, requested = api['preview_command'](payload, current, restoring=True)
+        result = api['run'](['hyprctl', 'eval', code], capture=True)
+        if result.stdout.strip() != 'ok':
+            raise ValueError('Batch rollback rejected')
+        for attempt in range(20):
+            got = {item['name']: item for item in monitors()}
+            if all(matches_requested(got.get(args.monitor), args) for args in requested):
+                data['status'] = 'failed' if missing else 'reverted'
+                if missing:
+                    data['error'] = 'Connected outputs restored; disconnected outputs could not be restored: ' + ', '.join(missing)
+                write_state(directory, data)
+                return
+            time.sleep(.1)
+        raise ValueError('Batch rollback does not match the original outputs')
     name = api['require_name'](m['name'])
     current = monitors()
     if not any(item['name'] == name for item in current):
@@ -179,24 +205,35 @@ def apply(payload, seconds):
 
 def apply_locked(payload, seconds):
     args = json.loads(payload)
-    if not isinstance(args, list) or len(args) > 30 or not all(isinstance(v, str) and len(v) <= 256 for v in args):
+    if not isinstance(args, list) or len(args) > 30 or not all(isinstance(v, str) and len(v) <= 32768 for v in args):
         raise ValueError('Invalid monitor command')
     parsed = api['parser_for_action']().parse_args(args)
-    if parsed.action not in ('monitor', 'disable'):
+    if parsed.action not in ('monitor', 'disable', 'preview'):
         raise ValueError('Only monitor changes may be previewed')
-    if parsed.action == 'monitor':
-        api['monitor_args'](parsed)
-    api['check_live_action'](parsed.monitor, parsed.mirror, disabling=parsed.action == 'disable')
     values = monitors()
-    original = next(m for m in values if m['name'] == parsed.monitor)
+    if parsed.action == 'preview':
+        if not parsed.payload or len(parsed.payload) > 32768:
+            raise ValueError('Invalid preview size')
+        _, requested = api['preview_command'](json.loads(parsed.payload), values)
+    else:
+        if any(len(v) > 256 for v in args):
+            raise ValueError('Invalid monitor argument')
+        if parsed.action == 'monitor':
+            api['monitor_args'](parsed)
+        api['check_live_action'](parsed.monitor, parsed.mirror, disabling=parsed.action == 'disable')
+        requested = [parsed]
+    names = {request.monitor for request in requested}
+    originals = [m for m in values if m['name'] in names]
+    original = originals if parsed.action == 'preview' else originals[0]
     # Fail BEFORE mutation if the original geometry cannot be safely represented.
-    api['require_name'](original['name'])
-    if not original.get('disabled', False):
-        api['monitor_args'](api['parser_for_action']().parse_args([
-            '--action', 'monitor', '--monitor', original['name'],
-            '--mode', str(original['width'])+'x'+str(original['height'])+'@'+str(round(float(original['refreshRate']), 3)),
-            '--x', str(original['x']), '--y', str(original['y']), '--scale', str(original['scale']),
-            '--transform', str(original.get('transform', 0)), '--mirror', original.get('mirrorOf') or 'none']))
+    for old in originals:
+        api['require_name'](old['name'])
+        if not old.get('disabled', False):
+            api['monitor_args'](api['parser_for_action']().parse_args([
+                '--action', 'monitor', '--monitor', old['name'],
+                '--mode', str(old['width'])+'x'+str(old['height'])+'@'+str(round(float(old['refreshRate']), 3)),
+                '--x', str(old['x']), '--y', str(old['y']), '--scale', str(old['scale']),
+                '--transform', str(old.get('transform', 0)), '--mirror', old.get('mirrorOf') or 'none']))
     root = root_directory()
     try:
         entries = [entry for entry in os.listdir(root) if TOKEN.fullmatch(entry)]
@@ -239,8 +276,11 @@ def apply_locked(payload, seconds):
                     if result.returncode != 0:
                         raise ValueError((result.stderr or result.stdout or 'Monitor change failed')[:2048])
                     for attempt in range(10):
-                        got = next((m for m in monitors() if m['name'] == parsed.monitor), None)
-                        if matches_requested(got, parsed):
+                        current = monitors()
+                        got = {m['name']: m for m in current}
+                        if all(matches_requested(got.get(request.monitor), request) for request in requested):
+                            if parsed.action == 'preview':
+                                api['preview_command']({'monitors': api['layout_snapshot'](current), 'changed': list(names)}, current)
                             break
                         time.sleep(.1)
                     else:

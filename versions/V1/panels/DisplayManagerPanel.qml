@@ -10,7 +10,20 @@ PanelWindow {
     property Component headerComponent: null
     readonly property Item surfaceHost: frameCard
     readonly property var controller: root.displayManagerControllerApi
-    readonly property var selectedDisplay: controller.monitor(controller.selectedMonitor)
+    readonly property var selectedDisplay: controller.previewMonitor(controller.selectedMonitor)
+    property bool draftAutoWorkspaces: root.displayManagerAutoWorkspaces
+    function applyChanges() {
+        if (controller.busy || controller.loading || controller.rollbackPending) return false
+        var m = selectedDisplay
+        if (m && !m.disabled) {
+            if (!posX.contentItem.acceptableInput || !posY.contentItem.acceptableInput) return false
+            var x = posX.valueFromText(posX.contentItem.text, posX.locale), y = posY.valueFromText(posY.contentItem.text, posY.locale)
+            if (!Number.isInteger(x) || !Number.isInteger(y) || !controller.stageMonitor(m.name, { x: x, y: y })) return false
+        }
+        if (!controller.applyDrafts()) return false
+        root.displayManagerAutoWorkspaces = draftAutoWorkspaces
+        return true
+    }
     screen: root.activePopupScreen
     visible: root.displayManagerVisible && root.activePopupScreen !== null
     color: "transparent"
@@ -19,19 +32,48 @@ PanelWindow {
     WlrLayershell.namespace: "quickshell-rise-display-manager"
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     exclusionMode: ExclusionMode.Ignore
-    onVisibleChanged: if (visible) panel.controller.refresh()
+    onVisibleChanged: if (visible) { panel.controller.refresh(); panel.controller.refreshWorkspaces() }
 
     function activeDisplayCount() {
-        return controller.monitors.filter(function(m) { return !m.disabled }).length
+        return controller.previewMonitors.filter(function(m) { return !m.disabled }).length
     }
     function mirrorTargets() {
-        return controller.monitors.filter(function(m) { return !m.disabled && m.name !== controller.selectedMonitor && (!m.mirrorOf || m.mirrorOf === "none") }).map(function(m) { return m.name })
+        return controller.previewMonitors.filter(function(m) { return !m.disabled && m.name !== controller.selectedMonitor && (!m.mirrorOf || m.mirrorOf === "none") }).map(function(m) { return m.name })
     }
     function modeFor(m) {
         return String(m.width) + "x" + String(m.height) + "@" + String(Number(m.refreshRate || 60))
     }
+    function displayMode(m) {
+        if (!m) return "preferred"
+        if (typeof m.mode === "string" && m.mode) return m.mode
+        var state = m.disabled && controller.savedDisplayStates ? controller.savedDisplayStates[m.name] || m : m
+        if (!(Number(state.width) > 0 && Number(state.height) > 0 && Number(state.refreshRate) > 0)) return "preferred"
+        return state.width + "x" + state.height + "@" + Number(state.refreshRate)
+    }
+    function sameMode(a, b) {
+        a = String(a).trim().replace(/Hz$/i, "")
+        b = String(b).trim().replace(/Hz$/i, "")
+        if (a === b) return true
+        var aa = a.split("@"), bb = b.split("@")
+        return aa.length === 2 && bb.length === 2 && aa[0] === bb[0]
+            && isFinite(Number(aa[1])) && isFinite(Number(bb[1])) && Math.abs(Number(aa[1]) - Number(bb[1])) < 0.05
+    }
+    function modeOptions(m) {
+        var options = ["preferred"]
+        if (m && Array.isArray(m.availableModes)) {
+            for (var mode of m.availableModes) if (typeof mode === "string" && options.indexOf(mode) < 0) options.push(mode)
+        }
+        var selected = displayMode(m)
+        if (!options.some(function(value) { return sameMode(value, selected) })) options.push(selected)
+        return options
+    }
+    function modeIndex(m, options) {
+        var selected = displayMode(m)
+        for (var i = 0; i < options.length; i++) if (sameMode(options[i], selected)) return i
+        return 0
+    }
     function commitCanvasPosition(name, startX, startY, dx, dy, ratio) {
-        var m = controller.monitor(name)
+        var m = controller.previewMonitor(name)
         if (!m || controller.busy || controller.loading || controller.rollbackPending || m.disabled || (m.mirrorOf && m.mirrorOf !== "none")
             || !isFinite(dx) || !isFinite(dy) || !isFinite(ratio) || ratio <= 0) return false
         var x = Math.round(startX + dx / ratio), y = Math.round(startY + dy / ratio)
@@ -41,10 +83,10 @@ PanelWindow {
         var h = Number(rotated ? m.width : m.height) / Number(m.scale || 1)
         if (!isFinite(x) || !isFinite(y) || !isFinite(w) || !isFinite(h) || w <= 0 || h <= 0) return false
         var peers = []
-        for (var i = 0; i < controller.monitors.length; i++) {
-            var other = controller.monitors[i]
+        for (var i = 0; i < controller.previewMonitors.length; i++) {
+            var other = controller.previewMonitors[i]
             if (other.name === name || other.disabled || (other.mirrorOf && other.mirrorOf !== "none")) continue
-            var pos = controller.positions[other.name] || other
+            var pos = controller.previewPositions[other.name] || other
             var otherRotated = Number(other.transform || 0) % 2 === 1
             var ow = Number(otherRotated ? other.height : other.width) / Number(other.scale || 1)
             var oh = Number(otherRotated ? other.width : other.height) / Number(other.scale || 1)
@@ -83,9 +125,7 @@ PanelWindow {
             controller.error = "Displays cannot overlap. Place this display beside another."
             return false
         }
-        if (!controller.applyMonitor(name, modeFor(m), x, y, Number(m.scale || 1), Number(m.transform || 0), "none")) return false
-        controller.setPosition(name, x, y)
-        return true
+        return controller.stageMonitor(name, { x: x, y: y })
     }
     component RiseButton: Controls.Button {
         id: button
@@ -98,8 +138,8 @@ PanelWindow {
         }
         background: Rectangle {
             radius: panel.root.tileRadius
-            color: button.down ? panel.root.fillActive : button.hovered ? panel.root.fillHover : panel.root.fillIdle
-            border.color: button.hovered ? panel.root.seal : panel.root.sep
+            color: button.down || button.checked ? panel.root.fillActive : button.hovered ? panel.root.fillHover : panel.root.fillIdle
+            border.color: button.hovered || button.checked ? panel.root.seal : panel.root.sep
             opacity: button.enabled ? 1 : 0.45
         }
     }
@@ -248,7 +288,7 @@ PanelWindow {
                     width: parent.width
                     height: 24
                     Text { id: displaySectionLabel; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "DISPLAYS · drag cards to arrange"; color: panel.root.ink; font.family: panel.root.mono; font.pixelSize: 11; font.bold: true }
-                    RiseButton { objectName: panel.connectedStyle ? "display-refresh-v2" : "display-refresh"; anchors.right: parent.right; width: 28; height: 24; text: "↻"; onClicked: panel.controller.refresh() }
+                    RiseButton { objectName: panel.connectedStyle ? "display-refresh-v2" : "display-refresh"; anchors.right: parent.right; width: 28; height: 24; text: "↻"; onClicked: { panel.controller.refresh(); panel.controller.refreshWorkspaces() } }
                 }
                 Text {
                     visible: panel.controller.busy || panel.controller.loading
@@ -263,9 +303,9 @@ PanelWindow {
                     clip: true
                     readonly property var bounds: {
                         var xs=[0], ys=[0]
-                        for (var i=0;i<panel.controller.monitors.length;i++) {
-                            var m=panel.controller.monitors[i]; if(m.disabled) continue
-                            var pos=panel.controller.positions[m.name] || m
+                        for (var i=0;i<panel.controller.previewMonitors.length;i++) {
+                            var m=panel.controller.previewMonitors[i]; if(m.disabled) continue
+                            var pos=panel.controller.previewPositions[m.name] || m
                             var rotated=Number(m.transform || 0) % 2 === 1
                             xs.push(Number(pos.x || 0),Number(pos.x || 0)+Number(rotated ? m.height : m.width)/Number(m.scale || 1))
                             ys.push(Number(pos.y || 0),Number(pos.y || 0)+Number(rotated ? m.width : m.height)/Number(m.scale || 1))
@@ -274,11 +314,11 @@ PanelWindow {
                     }
                     readonly property real ratio: Math.min((width-40)/Math.max(1,bounds.right-bounds.left),(height-40)/Math.max(1,bounds.bottom-bounds.top))
                     Repeater {
-                        model: panel.controller.monitors
+                        model: panel.controller.previewMonitors
                         delegate: Rectangle {
                             id: monitorCard
                             required property var modelData
-                            readonly property var position: panel.controller.positions[modelData.name] || modelData
+                            readonly property var position: panel.controller.previewPositions[modelData.name] || modelData
                             readonly property bool portrait: Number(modelData.transform || 0) % 2 === 1
                             x: 20 + (Number(position.x || 0) - stage.bounds.left) * stage.ratio
                             y: 20 + (Number(position.y || 0) - stage.bounds.top) * stage.ratio
@@ -322,7 +362,7 @@ PanelWindow {
                 Row {
                     objectName: "display-monitor-list"
                     width: parent.width; spacing: 6
-                    Repeater { model: panel.controller.monitors
+                    Repeater { model: panel.controller.previewMonitors
                         delegate: RiseButton { required property var modelData; text: modelData.name + (modelData.disabled ? " · OFF" : ""); onClicked: panel.controller.selectedMonitor=modelData.name }
                     }
                 }
@@ -337,23 +377,18 @@ PanelWindow {
                         id: modeBox
                         objectName: "display-resolution"
                         width: parent.width - 82
-                        model: {
-                            var m = panel.controller.monitor(panel.controller.selectedMonitor)
-                            return m && Array.isArray(m.availableModes) ? ["preferred"].concat(m.availableModes) : ["preferred"]
-                        }
-                        onActivated: {
-                            var m = panel.controller.monitor(panel.controller.selectedMonitor)
-                            if (m) panel.controller.applyMonitor(m.name, currentText, Number(m.x || 0), Number(m.y || 0), Number(m.scale || 1), Number(m.transform || 0), m.mirrorOf || "none")
-                        }
+                        model: panel.modeOptions(panel.selectedDisplay)
+                        currentIndex: panel.modeIndex(panel.selectedDisplay, model)
+                        onActivated: if (panel.selectedDisplay) panel.controller.stageMonitor(panel.selectedDisplay.name, { mode: currentText })
                     }
                 }
                 Row {
                     enabled: !panel.controller.busy && !panel.controller.loading && panel.controller.rollbackPending !== true && panel.controller.selectedMonitor !== ""
                     width: parent.width; spacing: 8
                     Text { text: "Position"; color: panel.root.ink; width: 74; anchors.verticalCenter: parent.verticalCenter; font.family: panel.root.mono; font.pixelSize: 11 }
-                    RiseSpinBox { id: posX; from: -32768; to: 32767; value: { var m = panel.controller.monitor(panel.controller.selectedMonitor); return m ? Number(m.x || 0) : 0 } editable: true }
-                    RiseSpinBox { id: posY; from: -32768; to: 32767; value: { var m = panel.controller.monitor(panel.controller.selectedMonitor); return m ? Number(m.y || 0) : 0 } editable: true }
-                    RiseButton { objectName: "display-position-apply"; text: "Apply"; onClicked: { var m = panel.controller.monitor(panel.controller.selectedMonitor); if (m) panel.controller.applyMonitor(m.name, panel.modeFor(m), posX.value, posY.value, Number(m.scale || 1), Number(m.transform || 0), m.mirrorOf || "none") } }
+                    RiseSpinBox { id: posX; from: -32767; to: 32767; value: panel.selectedDisplay ? Number(panel.selectedDisplay.x || 0) : 0; editable: true; onValueModified: if (panel.selectedDisplay) panel.controller.stageMonitor(panel.selectedDisplay.name, { x: value }) }
+                    RiseSpinBox { id: posY; from: -32767; to: 32767; value: panel.selectedDisplay ? Number(panel.selectedDisplay.y || 0) : 0; editable: true; onValueModified: if (panel.selectedDisplay) panel.controller.stageMonitor(panel.selectedDisplay.name, { y: value }) }
+                    RiseButton { objectName: "display-position-apply"; text: "Apply"; onClicked: panel.applyChanges() }
                 }
                 Row {
                     enabled: !panel.controller.busy && !panel.controller.loading && panel.controller.rollbackPending !== true && panel.controller.selectedMonitor !== ""
@@ -363,16 +398,43 @@ PanelWindow {
                         objectName: "display-scale"
                         width: 120
                         model: panel.controller.scalePresets
-                        currentIndex: { var m = panel.controller.monitor(panel.controller.selectedMonitor); return m ? Math.max(0, panel.controller.scalePresets.indexOf(Number(m.scale || 1))) : 0 }
-                        onActivated: { var m = panel.controller.monitor(panel.controller.selectedMonitor); if (m) panel.controller.applyMonitor(m.name, panel.modeFor(m), Number(m.x || 0), Number(m.y || 0), Number(currentText), Number(m.transform || 0), m.mirrorOf || "none") }
+                        currentIndex: { var m = panel.selectedDisplay; return m ? Math.max(0, panel.controller.scalePresets.indexOf(Number(m.scale || 1))) : 0 }
+                        onActivated: if (panel.selectedDisplay) panel.controller.stageMonitor(panel.selectedDisplay.name, { scale: Number(currentText) })
                     }
                     Text { text: "Rotation"; color: panel.root.ink; anchors.verticalCenter: parent.verticalCenter; font.family: panel.root.mono; font.pixelSize: 11 }
                     RiseComboBox {
                         objectName: "display-rotation"
                         width: 140
                         model: ["0°", "90°", "180°", "270°", "Flipped", "Flipped 90°", "Flipped 180°", "Flipped 270°"]
-                        currentIndex: { var m = panel.controller.monitor(panel.controller.selectedMonitor); return m ? Number(m.transform || 0) : 0 }
-                        onActivated: { var m = panel.controller.monitor(panel.controller.selectedMonitor); if (m) panel.controller.applyMonitor(m.name, panel.modeFor(m), Number(m.x || 0), Number(m.y || 0), Number(m.scale || 1), index, m.mirrorOf || "none") }
+                        currentIndex: { var m = panel.selectedDisplay; return m ? Number(m.transform || 0) : 0 }
+                        onActivated: (index) => { if (panel.selectedDisplay) panel.controller.stageMonitor(panel.selectedDisplay.name, { transform: index }) }
+                    }
+                }
+                Row {
+                    objectName: "display-monitor-workspaces"
+                    enabled: !panel.controller.busy && !panel.controller.loading && !panel.controller.rollbackPending
+                        && !panel.controller.workspaceLoading && !panel.controller.workspaceCommitPending
+                        && panel.controller.extraQueue.length === 0 && panel.controller.workspaceStateReady
+                        && panel.selectedDisplay && !panel.selectedDisplay.disabled
+                        && (!panel.selectedDisplay.mirrorOf || panel.selectedDisplay.mirrorOf === "none")
+                    width: parent.width; spacing: 8
+                    height: Math.max(30, workspaceButtons.implicitHeight)
+                    Text { text: "Workspaces"; color: panel.root.ink; width: 74; anchors.verticalCenter: parent.verticalCenter; font.family: panel.root.mono; font.pixelSize: 11 }
+                    Flow {
+                        id: workspaceButtons
+                        width: parent.width - 82; spacing: 3
+                        Repeater {
+                            model: 10
+                            delegate: RiseButton {
+                                required property int index
+                                objectName: "display-workspace-" + (index + 1)
+                                width: 28; height: 30; leftPadding: 0; rightPadding: 0
+                                checkable: true
+                                text: String(index + 1)
+                                checked: panel.controller.workspaceOwner(index + 1) === panel.controller.selectedMonitor
+                                onClicked: panel.controller.stageWorkspace(index + 1, panel.controller.selectedMonitor)
+                            }
+                        }
                     }
                 }
                 Row {
@@ -384,10 +446,10 @@ PanelWindow {
                         readonly property bool mirrorActive: Boolean(panel.selectedDisplay && panel.selectedDisplay.mirrorOf && panel.selectedDisplay.mirrorOf !== "none")
                         text: "Mirror · " + (mirrorActive ? "ON" : "OFF")
                         enabled: mirrorActive || (panel.mirrorTargets().length > 0 && panel.selectedDisplay && !panel.selectedDisplay.disabled)
-                        onClicked: panel.controller.toggleMirror()
+                        onClicked: panel.controller.toggleMirror(true)
                     }
-                    RiseButton { objectName: "display-enable"; text: "Enable"; onClicked: panel.controller.enableMonitor(panel.controller.selectedMonitor) }
-                    RiseButton { objectName: "display-disable"; enabled: panel.activeDisplayCount() > 1; text: "Disable"; onClicked: panel.controller.disableMonitor(panel.controller.selectedMonitor) }
+                    RiseButton { objectName: "display-enable"; text: "Enable"; onClicked: panel.controller.enableMonitor(panel.controller.selectedMonitor, true) }
+                    RiseButton { objectName: "display-disable"; enabled: panel.activeDisplayCount() > 1; text: "Disable"; onClicked: panel.controller.stageDisable(panel.controller.selectedMonitor) }
                 }
                 Rectangle { width: parent.width; height: 1; color: panel.root.sep }
                 Row {
@@ -401,13 +463,13 @@ PanelWindow {
                     enabled: !panel.controller.busy && !panel.controller.loading && panel.controller.rollbackPending !== true && panel.controller.selectedMonitor !== ""
                     width: parent.width; spacing: 8
                     Text { text: "Text size"; color: panel.root.ink; font.family: panel.root.mono; font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter }
-                    RiseComboBox { objectName: "display-text-size"; model: panel.controller.textSizeStops; currentIndex: panel.controller.textSizeIndex; onActivated: panel.controller.setTextSize(index) }
+                    RiseComboBox { objectName: "display-text-size"; model: panel.controller.textSizeStops; currentIndex: panel.controller.textSizeIndex; onActivated: (index) => panel.controller.setTextSize(index) }
                 }
                 Row {
                     enabled: !panel.controller.busy && !panel.controller.loading && panel.controller.rollbackPending !== true
                     width: parent.width; spacing: 8
-                    RiseCheckBox { objectName: "display-workspaces"; text: "Auto-bind workspaces"; checked: panel.root.displayManagerAutoWorkspaces; onToggled: panel.root.displayManagerAutoWorkspaces = checked }
-                    RiseButton { objectName: "display-save"; text: "Save layout"; enabled: !panel.controller.busy; onClicked: panel.controller.saveLayout() }
+                    RiseCheckBox { objectName: "display-workspaces"; text: "Auto-bind workspaces"; checked: panel.draftAutoWorkspaces; onToggled: panel.draftAutoWorkspaces = checked }
+                    RiseButton { objectName: "display-save"; text: "Save layout"; enabled: !panel.controller.busy && !panel.controller.hasDrafts && !panel.controller.workspaceLoading && !panel.controller.workspaceCommitPending && panel.draftAutoWorkspaces === panel.root.displayManagerAutoWorkspaces; onClicked: panel.controller.saveLayout() }
                 }
                 Column {
                     objectName: "display-confirmation"
@@ -426,10 +488,10 @@ PanelWindow {
                     }
                 }
                 Text {
-                    visible: panel.controller.error !== ""
+                    visible: panel.controller.error !== "" || panel.controller.workspaceError !== ""
                     width: parent.width
                     wrapMode: Text.Wrap
-                    text: panel.controller.error; textFormat: Text.PlainText
+                    text: panel.controller.error || panel.controller.workspaceError; textFormat: Text.PlainText
                     color: panel.root.seal
                     font.family: panel.root.mono
                     font.pixelSize: 11

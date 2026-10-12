@@ -1,0 +1,12 @@
+const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
+const src=fs.readFileSync(path.join(__dirname,'../versions/V1/panels/DisplayManagerPanel.qml'),'utf8');
+const brightness=src.split('\n').find(l=>l.includes('objectName: "display-brightness"'));
+const text=src.split('\n').find(l=>l.includes('objectName: "display-text-size"'));
+assert.ok(brightness.includes('onPressedChanged: if (!pressed) panel.controller.setBrightness(value)'), 'Brightness must keep its original immediate-on-release/keyboard handler');
+assert.ok(text.includes('panel.controller.setTextSize(index)'), 'Text size must dispatch from activation, not wait for Apply/Keep');
+const c={pressed:true,value:75,calls:[],applyCalls:0,rollbackSeconds:0};c.panel={controller:{setBrightness:v=>c.calls.push(['brightness',v]),setTextSize:i=>c.calls.push(['text-size',i]),applyDrafts:()=>c.applyCalls++}};vm.createContext(c);
+const handler=brightness.match(/onPressedChanged: (.+) }$/)[1];vm.runInContext(handler,c);assert.equal(c.calls.length,0);c.pressed=false;vm.runInContext(handler,c);
+const textHandler=text.match(/onActivated: (.+) }$/)[1];vm.runInContext('('+textHandler+')(4)',c);
+assert.equal(JSON.stringify(c.calls),JSON.stringify([['brightness',75],['text-size',4]]));assert.equal(c.applyCalls,0);assert.equal(c.rollbackSeconds,0);
+assert.ok(!brightness.includes('stageBrightness')&&!text.includes('stageTextSize'));
+console.log('LIVE_SETTINGS_PASS actual production handlers dispatch brightness/text size without Apply or timer; geometry draft workflow unchanged');

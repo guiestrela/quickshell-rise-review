@@ -29,7 +29,7 @@ with tempfile.TemporaryDirectory(prefix='display-pointer-',dir=os.environ['TMPDI
  fixture=fixture.replace('function setPosition() { }','function setPosition(name,x,y) { var next=Object.assign({},positions); next[name]={x:x,y:y}; positions=next }')
  fixture=fixture.replace('id: productionPanel; root: fakeRoot','id: productionPanel; root: fakeRoot; visible: true')
  controllerSource=(repo/'versions/V1/modules/DisplayManagerController.qml').read_text()
- toggleCode=controllerSource[controllerSource.index('    function toggleMirror()'):controllerSource.index('    function enableMonitor(name)')]
+ toggleCode=controllerSource[controllerSource.index('    function toggleMirror('):controllerSource.index('    function enableMonitor(')]
  fixture=fixture.replace('function applyMonitor(name,mode,x,y,scale,transform,mirror)', 'property var mirrorReturnStates: ({})\n'+toggleCode+'\nfunction applyMonitor(name,mode,x,y,scale,transform,mirror)')
  start=fixture.index('    Timer {')
  fixture=fixture[:start]+'''

@@ -1,6 +1,6 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
 const source=fs.readFileSync(path.join(__dirname,'../versions/V1/modules/DisplayManagerController.qml'),'utf8');
-const context={monitors:[],positions:{},savedDisplayStates:{},displayStateReady:true,calls:[],error:''};context.monitor=name=>context.monitors.find(m=>m.name===name);context.applyMonitor=(...args)=>{context.calls.push(args);return true};vm.createContext(context);vm.runInContext(source.slice(source.indexOf('    function enableMonitor(name)'),source.indexOf('    function saveLayout()')),context);
+const context={monitors:[],positions:{},savedDisplayStates:{},displayStateReady:true,calls:[],error:''};context.monitor=name=>context.monitors.find(m=>m.name===name);context.applyMonitor=(...args)=>{context.calls.push(args);return true};vm.createContext(context);vm.runInContext(source.slice(source.indexOf('    function enableMonitor('),source.indexOf('    function saveLayout()')),context);
 const active={name:'DP-1',width:2560,height:1440,x:0,y:560,scale:1,transform:0,disabled:false,mirrorOf:'none',refreshRate:155};
 const off={name:'DP-2',width:2560,height:1440,x:0,y:0,scale:1,transform:0,disabled:true,mirrorOf:'none',refreshRate:59.951};
 function reset(monitors,positions={}){context.monitors=monitors;context.positions=positions;context.calls.length=0;context.error='';}

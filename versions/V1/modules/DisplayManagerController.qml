@@ -28,9 +28,11 @@ Item {
         if (data.status === "pending") {
             rollbackToken = data.token
             rollbackSeconds = Math.max(0, Math.min(confirmationSeconds, Number(data.remaining || 0)))
+            drafts = ({})
         } else if (["confirmed", "reverted", "failed"].indexOf(data.status) >= 0) {
             rollbackToken = ""
             rollbackSeconds = 0
+            if (data.status !== "confirmed") extraQueue = []
             if (data.status === "reverted") error = "Previous display configuration restored."
             else if (data.status === "failed") error = "Automatic rollback failed: " + String(data.error || "Check display state.")
             else error = ""
@@ -99,6 +101,7 @@ Item {
         running: controller.busy
         onTriggered: {
             controller.actionTimedOut = true
+            controller.extraQueue = []
             controller.pendingTextSizeIndex = -1
             actionProc.running = false
             controller.error = "Display operation timed out; runtime state must be checked."
@@ -110,6 +113,175 @@ Item {
     property int brightnessPercent: 0
     property string focusedMonitor: ""
     property var positions: ({})
+    property var drafts: ({})
+    property var workspaceAssignments: ({})
+    property var workspaceOverrides: ({})
+    property var draftWorkspaceAssignments: ({})
+    property bool workspaceLoading: false
+    property bool workspaceStateReady: false
+    property string workspaceError: ""
+    property bool workspaceCommitPending: false
+    property int workspaceGeneration: 0
+    property int workspaceQueryGeneration: -1
+    property bool workspaceRefreshPending: false
+    function workspaceOwner(number) {
+        var key = String(number)
+        return draftWorkspaceAssignments[key] !== undefined ? draftWorkspaceAssignments[key] : workspaceAssignments[key] || ""
+    }
+    function stageWorkspace(number, name) {
+        var m = previewMonitor(name)
+        if (busy || loading || rollbackPending || workspaceLoading || extraQueue.length || workspaceCommitPending || !workspaceStateReady
+            || !Number.isInteger(number) || number < 1 || number > 10 || !safeMonitor(name)
+            || !m || m.disabled || (m.mirrorOf && m.mirrorOf !== "none")) return false
+        var copy = Object.assign({}, draftWorkspaceAssignments)
+        if (copy[String(number)] === name) delete copy[String(number)]
+        else copy[String(number)] = name
+        draftWorkspaceAssignments = copy; return true
+    }
+    function refreshWorkspaces() {
+        if (workspaceStateProc.running) { workspaceRefreshPending = true; return }
+        workspaceQueryGeneration = workspaceGeneration
+        workspaceRefreshPending = false
+        workspaceLoading = true; workspaceError = ""
+        workspaceStateProc.command = [helperPath, "--action", "workspace-state"]
+        workspaceStateProc.running = true
+    }
+    Timer {
+        interval: 15000; running: controller.workspaceLoading
+        onTriggered: {
+            workspaceStateProc.running = false; controller.workspaceLoading = false
+            controller.workspaceRefreshPending = false
+            controller.workspaceStateReady = false; controller.workspaceError = "Workspace query timed out."
+        }
+    }
+    Process {
+        id: workspaceStateProc
+        stdout: StdioCollector { waitForEnd: true }
+        stderr: StdioCollector { waitForEnd: true }
+        onExited: (code) => {
+            if (!controller.workspaceLoading) return
+            controller.workspaceLoading = false
+            if (controller.workspaceQueryGeneration !== controller.workspaceGeneration || controller.workspaceRefreshPending) {
+                Qt.callLater(function() { controller.refreshWorkspaces() }); return
+            }
+            if (code !== 0) { controller.workspaceStateReady = false; controller.workspaceError = "Could not read workspace assignments."; return }
+            try {
+                var state = JSON.parse(String(stdout.text))
+                for (var values of [state.bindings, state.overrides]) {
+                    if (!values || typeof values !== "object" || Array.isArray(values) || Object.keys(values).length > 10) throw new Error("Invalid workspace state")
+                    for (var key of Object.keys(values)) if (!/^(10|[1-9])$/.test(key) || !controller.safeMonitor(values[key])) throw new Error("Invalid workspace assignment")
+                }
+                controller.workspaceAssignments = state.bindings
+                controller.workspaceOverrides = state.overrides
+                controller.workspaceStateReady = true
+                if (controller.workspaceCommitPending) {
+                    controller.draftWorkspaceAssignments = ({})
+                    controller.workspaceCommitPending = false
+                }
+            } catch (e) { controller.workspaceStateReady = false; controller.workspaceError = String(e) }
+        }
+    }
+    property var draftBrightness: ({})
+    property int draftTextSizeIndex: -1
+    property var extraQueue: []
+    readonly property var previewMonitors: monitors.map(function(m) { return controller.previewMonitor(m.name) })
+    readonly property var previewPositions: {
+        var result = {}
+        for (var m of previewMonitors) result[m.name] = { x: m.x, y: m.y }
+        return result
+    }
+    readonly property bool hasDrafts: Object.keys(drafts).length > 0 || Object.keys(draftWorkspaceAssignments).length > 0 || Object.keys(draftBrightness).length > 0 || draftTextSizeIndex >= 0
+    function previewMonitor(name) {
+        var m = monitor(name)
+        return m ? Object.assign({}, m, drafts[name] || {}) : null
+    }
+    function stageMonitor(name, patch) {
+        if (busy || loading || rollbackPending || !safeMonitor(name) || !monitor(name)) return false
+        if (!patch || typeof patch !== "object" || Array.isArray(patch)) return false
+        var next = Object.assign({}, previewMonitor(name), patch)
+        if (patch.mode !== undefined) {
+            var mode = String(patch.mode).replace(/Hz$/, "")
+            if (!/^(preferred|[1-9][0-9]{1,4}x[1-9][0-9]{1,4}(@[1-9][0-9]{0,2}(\.[0-9]{1,3})?)?)$/.test(mode)) return false
+            next.mode = mode
+            if (mode !== "preferred") {
+                var parts = mode.split("@"), size = parts[0].split("x")
+                next.width = Number(size[0]); next.height = Number(size[1])
+                if (parts.length > 1) next.refreshRate = Number(parts[1])
+            }
+        }
+        if (!next.disabled && !validSavedDisplayState(next)) { error = "Invalid display draft."; return false }
+        if (next.mirrorOf && next.mirrorOf !== "none" && (!safeMonitor(next.mirrorOf) || next.mirrorOf === name || !monitor(next.mirrorOf))) return false
+        var copy = Object.assign({}, drafts); copy[name] = next; drafts = copy
+        error = ""; return true
+    }
+    function stageDisable(name) {
+        var m = previewMonitor(name)
+        if (!m || m.disabled || previewMonitors.filter(function(p) { return !p.disabled && (!p.mirrorOf || p.mirrorOf === "none") }).length <= 1) {
+            error = "Keep at least one independent display enabled."; return false
+        }
+        return stageMonitor(name, { disabled: true })
+    }
+    function stageBrightness(name, value) {
+        if (busy || loading || rollbackPending || !safeMonitor(name) || !monitor(name)) return false
+        var percent = Math.round(Number(value))
+        if (!isFinite(percent) || percent < 1 || percent > 100) return false
+        var copy = Object.assign({}, draftBrightness); copy[name] = percent; draftBrightness = copy; return true
+    }
+    function stageTextSize(index) {
+        if (busy || loading || rollbackPending || !Number.isInteger(index) || index < 0 || index >= textSizeStops.length) return false
+        draftTextSizeIndex = index; return true
+    }
+    function applyDrafts() {
+        if (busy || loading || rollbackPending || workspaceLoading || workspaceCommitPending || extraQueue.length) return false
+        var changed = Object.keys(drafts), entries = [], saved = Object.assign({}, savedDisplayStates), remember = false
+        for (var name of changed) if (!monitor(name)) { error = "Displays changed; refresh first."; return false }
+        for (var m of previewMonitors) {
+            entries.push({ output: m.name, mode: m.mode || (m.width + "x" + m.height + "@" + Number(m.refreshRate).toFixed(3)),
+                position: m.x + "x" + m.y, scale: Number(m.scale), transform: Number(m.transform),
+                disabled: Boolean(m.disabled), mirror: m.mirrorOf && m.mirrorOf !== "none" ? m.mirrorOf : "" })
+            var live = monitor(m.name)
+            if (drafts[m.name] && m.disabled && !live.disabled) {
+                var snapshot = { x: live.x, y: live.y, width: live.width, height: live.height,
+                    scale: live.scale, transform: live.transform, refreshRate: live.refreshRate }
+                if (!displayStateReady || !validSavedDisplayState(snapshot)) { error = "Cannot save the display return position."; return false }
+                saved[m.name] = snapshot; remember = true
+            }
+        }
+        if (remember) {
+            displayStateSaved = false
+            try { displayStateFile.setText(JSON.stringify(saved)) } catch (e) { error = String(e); return false }
+            if (!displayStateSaved) { error = "Cannot save display return positions; nothing applied."; return false }
+            savedDisplayStates = saved
+        }
+        var queue = []
+        var workspaceDrafts = typeof draftWorkspaceAssignments === "undefined" ? {} : draftWorkspaceAssignments
+        var assigned = []
+        for (var key of Object.keys(workspaceDrafts).sort(function(a, b) { return Number(a) - Number(b) })) {
+            var target = previewMonitor(workspaceDrafts[key])
+            if (!target || target.disabled || (target.mirrorOf && target.mirrorOf !== "none")) { error = "Assign workspaces to an active independent monitor."; return false }
+            assigned.push({ workspace: Number(key), monitor: workspaceDrafts[key] })
+        }
+        if (assigned.length) queue.push(["--action", "workspaces", "--payload", JSON.stringify(assigned)])
+        for (var output of Object.keys(draftBrightness)) queue.push(["--action", "brightness", "--monitor", output, "--percent", String(draftBrightness[output])])
+        if (draftTextSizeIndex >= 0) queue.push(["--action", "text-size", "--size", String(textSizeStops[draftTextSizeIndex])])
+        if (changed.length && !command(["--action", "preview", "--payload", JSON.stringify({ monitors: entries, changed: changed })])) return false
+        extraQueue = queue; draftBrightness = ({}); draftTextSizeIndex = -1
+
+        if (!changed.length) queueNextSetting()
+        return true
+    }
+    function queueNextSetting() {
+        if (busy || loading || rollbackPending || !extraQueue.length) return
+        var args = extraQueue[0]
+        if (!command(args)) return
+        extraQueue = extraQueue.slice(1)
+        if (args[1] === "text-size") pendingTextSizeIndex = textSizeStops.indexOf(Number(args[3]))
+    }
+    Timer {
+        interval: 50; repeat: true
+        running: controller.extraQueue.length > 0 && !controller.rollbackPending && !controller.busy && !controller.loading
+        onTriggered: controller.queueNextSetting()
+    }
     property var savedDisplayStates: ({})
     property bool displayStateReady: false
     property bool displayStateSaved: false
@@ -190,7 +362,7 @@ Item {
         pendingTextSizeIndex = -1
         busy = true
         error = ""
-        guardedAction = args[1] === "monitor" || args[1] === "disable"
+        guardedAction = args[1] === "monitor" || args[1] === "disable" || args[1] === "preview"
         actionProc.command = guardedAction ? [guardPath, "--apply", JSON.stringify(args), "--seconds", String(confirmationSeconds)] : [helperPath].concat(args)
         actionProc.running = true
         return true
@@ -232,13 +404,13 @@ Item {
         return command(["--action", "disable", "--monitor", name])
     }
     property var mirrorReturnStates: ({})
-    function toggleMirror() {
-        var m = monitor(selectedMonitor)
+    function toggleMirror(draftOnly) {
+        var m = draftOnly ? previewMonitor(selectedMonitor) : monitor(selectedMonitor)
         if (!m || busy || loading || rollbackPending) return false
         var mirrored = Boolean(m.mirrorOf && m.mirrorOf !== "none")
         var target = null
         for (var i = 0; i < monitors.length; i++) {
-            var other = monitors[i]
+            var other = draftOnly ? previewMonitor(monitors[i].name) : monitors[i]
             if (other.name !== m.name && !other.disabled && (!other.mirrorOf || other.mirrorOf === "none")) {
                 if (!target || other.name === m.mirrorOf) target = other
             }
@@ -248,6 +420,7 @@ Item {
             var next = Object.assign({}, mirrorReturnStates)
             next[m.name] = Object.assign({}, m)
             mirrorReturnStates = next
+            if (draftOnly) return stageMonitor(m.name, { mode: "preferred", mirrorOf: target.name })
             return applyMonitor(m.name, "preferred", Number(m.x || 0), Number(m.y || 0), Number(m.scale || 1), Number(m.transform || 0), target.name)
         }
         var original = mirrorReturnStates[m.name]
@@ -265,9 +438,11 @@ Item {
             original = Object.assign({}, m, {x: Math.floor(left - w), y: Number(target.y || 0)})
         }
         var mode = original.width + "x" + original.height + "@" + Number(original.refreshRate).toFixed(3)
+        if (draftOnly) return stageMonitor(m.name, { mode: mode, x: Number(original.x || 0), y: Number(original.y || 0),
+            scale: Number(original.scale || 1), transform: Number(original.transform || 0), mirrorOf: "none" })
         return applyMonitor(m.name, mode, Number(original.x || 0), Number(original.y || 0), Number(original.scale || 1), Number(original.transform || 0), "none")
     }
-    function enableMonitor(name) {
+    function enableMonitor(name, draftOnly) {
         var m = monitor(name)
         if (!m) { error = "Output is no longer connected; refresh first."; return false }
         if (!displayStateReady) { error = "Wait for the saved display positions to load."; return false }
@@ -291,8 +466,9 @@ Item {
         var candidate = bounds(m, x, y)
         if (!candidate) { error = "Invalid display geometry; no command was sent."; return false }
         var overlap = false, right = -Infinity
-        for (var i = 0; i < monitors.length; i++) {
-            var peer = monitors[i]
+        var peers = draftOnly ? previewMonitors : monitors
+        for (var i = 0; i < peers.length; i++) {
+            var peer = peers[i]
             if (peer.name === name || peer.disabled || (peer.mirrorOf && peer.mirrorOf !== "none")) continue
             var rect = bounds(peer, Number(peer.x), Number(peer.y))
             if (!rect) { error = "Invalid active display geometry; refresh first."; return false }
@@ -308,9 +484,12 @@ Item {
             error = "Cannot restore the display mode safely; refresh first."; return false
         }
         var mode = m.width + "x" + m.height + "@" + refreshRate.toFixed(3)
+        if (draftOnly) return stageMonitor(name, { mode: mode, x: x, y: y, scale: Number(m.scale),
+            transform: Number(m.transform), disabled: false, mirrorOf: "none" })
         return applyMonitor(name, mode, x, y, Number(m.scale), Number(m.transform), "none")
     }
     function saveLayout() {
+        if (hasDrafts || extraQueue.length || workspaceLoading || workspaceCommitPending) { error = "Apply pending changes before saving the layout."; return false }
         var entries = []
         var extended = []
         for (var i = 0; i < monitors.length; i++) {
@@ -332,7 +511,14 @@ Item {
                 workspaces.push({ workspace: ws, monitor: target })
             }
         }
-        return command(["--action", "save", "--payload", JSON.stringify({ monitors: entries, manageWorkspaces: theme.displayManagerAutoWorkspaces, workspaces: workspaces })])
+        for (var key of Object.keys(workspaceOverrides)) {
+            var target = workspaceOverrides[key]
+            if (extended.indexOf(target) < 0) continue
+            workspaces = workspaces.filter(function(entry) { return entry.workspace !== Number(key) })
+            workspaces.push({ workspace: Number(key), monitor: target })
+        }
+        workspaces.sort(function(a, b) { return a.workspace - b.workspace })
+        return command(["--action", "save", "--payload", JSON.stringify({ monitors: entries, manageWorkspaces: theme.displayManagerAutoWorkspaces || workspaces.length > 0, workspaces: workspaces })])
     }
     function setBrightness(value) {
         var percent = Math.max(1, Math.min(100, Math.round(Number(value))))
@@ -418,14 +604,19 @@ Item {
         onExited: (code) => {
             if (controller.actionTimedOut) return
             controller.busy = false
-            if (code !== 0) controller.error = String(stderr.text || "Display operation failed.").trim()
+            if (code !== 0) { controller.extraQueue = []; controller.error = String(stderr.text || "Display operation failed.").trim() }
             else {
                 controller.error = ""
                 if (controller.guardedAction) {
                     try { controller.updateRollback(String(stdout.text)) }
-                    catch (e) { controller.error = "Change was not confirmed; safety rollback remains armed. " + String(e) }
+                    catch (e) { controller.extraQueue = []; controller.error = "Change was not confirmed; safety rollback remains armed. " + String(e) }
                 }
                 if (controller.pendingTextSizeIndex >= 0) controller.textSizeIndex = controller.pendingTextSizeIndex
+                if (!controller.guardedAction && (actionProc.command[2] === "workspaces" || actionProc.command[2] === "save")) {
+                    controller.workspaceGeneration++
+                    if (actionProc.command[2] === "workspaces") controller.workspaceCommitPending = true
+                    controller.refreshWorkspaces()
+                }
             }
             controller.guardedAction = false
             controller.pendingTextSizeIndex = -1
