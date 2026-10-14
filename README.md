@@ -155,3 +155,8 @@ quickshell ipc -p "$OMARCHY_PATH/shell" call quickshell-rise.variant activate v2
 ## License
 
 [MIT](LICENSE)
+
+
+## Credits
+
+Quickshell Rise is based on [HANCORE-linux/quickshell-dots](https://github.com/HANCORE-linux/quickshell-dots).
