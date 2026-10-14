@@ -92,6 +92,16 @@ Item {
         pinnedPath = ""
         startNextScan()
     }
+    function refreshThemeFolder() {
+        var folder = String(theme.currentBackgroundsPath || "")
+        if (folder === "") return
+        var names = outputNames("all")
+        for (var i = 0; i < names.length; i++) {
+            var profile = profileFor(names[i])
+            if (String(profile.folder || "") === folder && String(profile.pinned || "") === "")
+                scanFolder(names[i])
+        }
+    }
     function startNextScan() {
         if (scanInFlight || scanJobs.length === 0) return
         var jobs = scanJobs.slice()
@@ -131,8 +141,19 @@ Item {
             rebuildPool()
             var previous = pathFor(job.name)
             var profile = profileFor(job.name)
-            var selected = values.indexOf(profile.pinned) >= 0 && !badPaths[profile.pinned] ? profile.pinned
-                : values.indexOf(previous) >= 0 && !badPaths[previous] ? previous : deal(previous, job.name)
+            var requested = String(profile.pinned || "")
+            var selected
+            if (requested !== "") {
+                if (values.indexOf(requested) >= 0 && !badPaths[requested]) selected = requested
+                else {
+                    selected = previous === requested ? previous : ""
+                    var pinErrors = Object.assign({}, scanErrors)
+                    pinErrors[job.name] = error || (badPaths[requested]
+                        ? "The selected wallpaper could not be loaded."
+                        : "The selected wallpaper is no longer in the folder.")
+                    scanErrors = pinErrors
+                }
+            } else selected = values.indexOf(previous) >= 0 && !badPaths[previous] ? previous : deal(previous, job.name)
             var next = Object.assign({}, currentByOutput)
             next[job.name] = selected
             currentByOutput = next
@@ -182,6 +203,8 @@ Item {
             var name = names[i]
             var previous = pathFor(name)
             var profile = profileFor(name)
+            // A specific selection is fixed even for an explicit Next action.
+            if (String(profile.pinned || "") !== "") continue
             if (profile.mode === "single" && forceAdvance !== true && poolFor(name).indexOf(previous) >= 0 && !badPaths[previous]) continue
             next[name] = deal(previous, name, next)
         }
@@ -208,7 +231,13 @@ Item {
         badPaths = next
         for (var i = 0; i < liveScreens.length; i++) {
             var name = String(liveScreens[i].name)
-            if (pathFor(name) === path) nextFor(name)
+            if (pathFor(name) === path) {
+                if (String(profileFor(name).pinned || "") === String(path)) {
+                    var errors = Object.assign({}, scanErrors)
+                    errors[name] = "The selected wallpaper could not be loaded."
+                    scanErrors = errors
+                } else nextFor(name)
+            }
         }
     }
 
@@ -233,6 +262,13 @@ Item {
         function onWallpaperSessionLockedChanged() { if (!manager.theme.wallpaperSessionLocked) manager.wakeShuffle() }
         function onWallpaperScreensaverShowingChanged() { if (!manager.theme.wallpaperScreensaverShowing) manager.wakeShuffle() }
         function onWallpaperManagerFolderChanged() { manager.badPaths = ({}); manager.pendingPin = ""; manager.scanFolder() }
+    }
+
+    Connections {
+        target: manager.theme
+        ignoreUnknownSignals: true
+        function onCurrentThemeNameChanged() { manager.refreshThemeFolder() }
+        function onCurrentBackgroundsPathChanged() { manager.refreshThemeFolder() }
     }
 
     Connections {

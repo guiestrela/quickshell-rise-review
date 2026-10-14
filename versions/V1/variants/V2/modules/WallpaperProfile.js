@@ -3,10 +3,15 @@ function safePath(path, home) {
     var value = String(path || "").trim()
     if (value === "~") value = String(home || "")
     else if (value.indexOf("~/") === 0) value = String(home || "") + value.substring(1)
+    while (value.length > 1 && value.charAt(value.length - 1) === "/") value = value.substring(0, value.length - 1)
     if (value.length > 4096 || value.charAt(0) !== "/"
         || /[\u0000-\u001f\u007f-\u009f]/.test(value)
         || value.split("/").indexOf("..") !== -1) return ""
     return value
+}
+
+function pathIsWithinFolder(path, folder) {
+    return folder !== "" && (folder === "/" ? path.indexOf("/") === 0 : path.indexOf(folder + "/") === 0)
 }
 
 function configFor(settings, outputName, home) {
@@ -19,7 +24,7 @@ function configFor(settings, outputName, home) {
     }
     var folder = safePath(pick("folder", settings.folder || ""), home)
     var pinned = safePath(pick("pinned", ""), home)
-    if (folder === "" || pinned.indexOf(folder + "/") !== 0) pinned = ""
+    if (!pathIsWithinFolder(pinned, folder)) pinned = ""
     return {
         folder: folder,
         recursive: pick("recursive", settings.recursive) !== false,
@@ -45,7 +50,7 @@ function updateDisplay(settings, outputName, patch, home) {
         changed.scaling = patch.scaling
     if (patch.pinned !== undefined) {
         var pin = safePath(patch.pinned, home)
-        if (patch.pinned === "" || (changed.folder !== "" && pin.indexOf(changed.folder + "/") === 0))
+        if (patch.pinned === "" || pathIsWithinFolder(pin, changed.folder))
             changed.pinned = pin
     }
     entries[key] = changed

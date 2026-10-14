@@ -16,23 +16,221 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "quickshell-rise-wallpaper-manager"
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    visible: root.wallpaperManagerVisible
-    readonly property alias folderPicker: folderDialog
+    visible: root.wallpaperManagerVisible && !wallpaperDialog.busy
+    readonly property alias folderPicker: wallpaperDialog
+    readonly property alias mediaFilePicker: wallpaperDialog
+    property string selectedWallpaperFile: ""
+    property string selectedWallpaperError: ""
+    property bool selectedWallpaperApplied: false
+    property bool selectedWallpaperApplying: false
+    property bool selectedWallpaperScanStarted: false
     function dismiss() {
-        if (!folderDialog.visible) panel.root.wallpaperManagerVisible = false
+        if (!wallpaperDialog.busy) panel.root.wallpaperManagerVisible = false
     }
     readonly property var profile: root.wallpaperProfileFor(root.wallpaperManagerDisplay)
+    readonly property string selectedSourcePath: String(profile.pinned || profile.folder || "")
+    readonly property bool selectedWallpaperCanApply: {
+        var service = root.wallpaperManagerServiceApi
+        var path = selectedWallpaperFile
+        if (path === "" || !isMediaFileInFolder(path, profile.folder) || !service || service.scanInFlight)
+            return false
+        var display = String(root.wallpaperManagerDisplay || "all")
+        var paths = display === "all" ? service.pool : service.poolFor(display)
+        return paths && paths.indexOf(path) >= 0
+    }
+    function currentWallpaperMatches(path, display) {
+        var service = panel.root.wallpaperManagerServiceApi
+        if (!service || service.scanInFlight || (service.scanJobs && service.scanJobs.length > 0)) return false
+        if (display !== "all") return String(service.pathFor(display) || "") === path
+        var screens = service.liveScreens || []
+        return screens.length > 0 && screens.every(function(screen) {
+            return String(service.pathFor(String(screen.name)) || "") === path
+        })
+    }
+    function verifySelectedWallpaperApplication() {
+        const wasApplying = panel.selectedWallpaperApplying
+        if (!wasApplying && !panel.selectedWallpaperApplied) return
+        var path = panel.selectedWallpaperFile
+        var display = String(panel.root.wallpaperManagerDisplay || "all")
+        var currentProfile = panel.root.wallpaperProfileFor(display)
+        if (!currentProfile || String(currentProfile.pinned || "") !== path) {
+            panel.selectedWallpaperApplying = false
+            panel.selectedWallpaperApplied = false
+            panel.selectedWallpaperScanStarted = false
+            panel.selectedWallpaperError = wasApplying ? "The selected file was not saved for this display." : ""
+            return
+        }
+        var service = panel.root.wallpaperManagerServiceApi
+        if (!service || service.scanInFlight || (service.scanJobs && service.scanJobs.length > 0)) return
+        var names = display === "all" ? (service.liveScreens || []).map(function(screen) { return String(screen.name) }) : [display]
+        var scanErrors = service.scanErrors || {}
+        var errors = names.map(function(name) { return String(scanErrors[name] || "") }).filter(function(message) { return message !== "" })
+        if (errors.length > 0) {
+            panel.selectedWallpaperApplying = false
+            panel.selectedWallpaperApplied = false
+            panel.selectedWallpaperScanStarted = false
+            panel.selectedWallpaperError = errors[0]
+            return
+        }
+        if (!panel.currentWallpaperMatches(path, display)) {
+            if (wasApplying && !panel.selectedWallpaperScanStarted) return
+            panel.selectedWallpaperApplying = false
+            panel.selectedWallpaperApplied = false
+            panel.selectedWallpaperScanStarted = false
+            panel.selectedWallpaperError = wasApplying ? "The wallpaper service did not confirm the selected file." : ""
+            return
+        }
+        panel.selectedWallpaperApplying = false
+        panel.selectedWallpaperApplied = true
+        panel.selectedWallpaperScanStarted = false
+        panel.selectedWallpaperError = ""
+    }
+    readonly property string selectedWallpaperStatus: {
+        if (selectedWallpaperError !== "") return selectedWallpaperError
+        if (profile.folder === "") return "Choose a folder first."
+        var service = root.wallpaperManagerServiceApi
+        if (selectedWallpaperFile === "")
+            return service.scanInFlight ? "Scanning the selected folder…" : "No file selected."
+        var name = selectedWallpaperFile.substring(selectedWallpaperFile.lastIndexOf("/") + 1)
+        if (selectedWallpaperApplying) return "Applying: " + name
+        if (service.scanInFlight) return "Scanning: " + name
+        if (!selectedWallpaperCanApply) return "File unavailable for this display."
+        return (selectedWallpaperApplied ? "Applied: " : "Selected: ") + name
+    }
+
+    function folderPickerStartUrl(folderPath) {
+        const raw = String(folderPath || "")
+        if (raw === "") return "file:///home"
+        const normalized = raw.replace(/\/+$/, "")
+        if (normalized === "") return "file:///"
+        const separator = normalized.lastIndexOf("/")
+        const parent = separator <= 0 ? "/" : normalized.slice(0, separator)
+        return "file://" + parent.split("/").map(encodeURIComponent).join("/")
+    }
+
+    function folderPickerSelectionUrl(folderPath) {
+        const raw = String(folderPath || "")
+        if (raw === "") return ""
+        return "file://" + raw.split("/").map(encodeURIComponent).join("/")
+    }
+
+    function localPathFromFileUrl(fileUrl) {
+        const raw = String(fileUrl || "")
+        if (!raw.startsWith("file:///")) return ""
+        try { return decodeURIComponent(raw.slice("file://".length)) }
+        catch (error) { return "" }
+    }
+
+    function isMediaFileInFolder(filePath, folderPath) {
+        const folder = String(folderPath || "").replace(/\/+$/, "")
+        const path = String(filePath || "")
+        return folder !== "" && path.indexOf(folder + "/") === 0
+            && /\.(jpg|jpeg|png|webp|bmp|gif|mp4|webm|mkv|mov|avi)$/i.test(path)
+    }
+
+    function stageWallpaperFile(fileUrl) {
+        const path = panel.localPathFromFileUrl(fileUrl)
+        if (!panel.isMediaFileInFolder(path, panel.profile.folder)) {
+            panel.selectedWallpaperFile = ""
+            panel.selectedWallpaperApplying = false
+            panel.selectedWallpaperApplied = false
+            panel.selectedWallpaperScanStarted = false
+            panel.selectedWallpaperError = "Choose an image or video inside the configured folder."
+            return false
+        }
+        panel.selectedWallpaperFile = path
+        panel.selectedWallpaperApplying = false
+        panel.selectedWallpaperApplied = false
+        panel.selectedWallpaperScanStarted = false
+        panel.selectedWallpaperError = ""
+        return true
+    }
+
+    function applyWallpaperSelection(kind, fileUrl, display) {
+        var path = panel.localPathFromFileUrl(fileUrl)
+        var service = panel.root.wallpaperManagerServiceApi
+        if (!service || !path.startsWith("/") || /[\u0000-\u001f\u007f-\u009f]/.test(path)
+                || (kind !== "folder" && kind !== "file")
+                || (kind === "file" && !/\.(jpg|jpeg|png|webp|bmp|gif|mp4|webm|mkv|mov|avi)$/i.test(path))) {
+            panel.selectedWallpaperError = "Choose a local folder, image or video."
+            return false
+        }
+        var screens = service.liveScreens || []
+        var names = display === "all" ? ["all"].concat(screens.map(function(screen) { return String(screen.name) })) : [display]
+        if (display === "all" && screens.length === 0) {
+            panel.selectedWallpaperError = "No connected displays are available."
+            return false
+        }
+        var folder = kind === "folder" ? path : path.substring(0, path.lastIndexOf("/")) || "/"
+        var patch = {folder: folder, mode: kind === "file" ? "single" : "shuffle", pinned: kind === "file" ? path : ""}
+        panel.selectedWallpaperFile = ""
+        panel.selectedWallpaperApplying = false
+        panel.selectedWallpaperApplied = false
+        panel.selectedWallpaperScanStarted = false
+        panel.selectedWallpaperError = ""
+        for (var i = 0; i < names.length; i++) panel.root.setWallpaperProfile(patch, names[i])
+        if (kind === "file") {
+            panel.selectedWallpaperFile = path
+            panel.selectedWallpaperApplying = true
+            panel.selectedWallpaperScanStarted = service.scanInFlight || (service.scanJobs && service.scanJobs.length > 0)
+            panel.verifySelectedWallpaperApplication()
+        }
+        return panel.selectedWallpaperError === ""
+    }
+
+    function applySelectedWallpaper() {
+        if (!panel.selectedWallpaperCanApply) return false
+        const path = panel.selectedWallpaperFile
+        const display = String(panel.root.wallpaperManagerDisplay || "all")
+        panel.selectedWallpaperApplying = true
+        panel.selectedWallpaperApplied = false
+        panel.selectedWallpaperScanStarted = false
+        panel.selectedWallpaperError = ""
+        panel.root.setWallpaperProfile({mode: "single", pinned: path}, display)
+        const savedProfile = panel.root.wallpaperProfileFor(display)
+        if (!savedProfile || String(savedProfile.pinned || "") !== path) {
+            panel.selectedWallpaperApplying = false
+            panel.selectedWallpaperScanStarted = false
+            panel.selectedWallpaperError = "The selected file was not saved for this display."
+            return false
+        }
+        panel.verifySelectedWallpaperApplication()
+        return panel.selectedWallpaperApplying || panel.selectedWallpaperApplied
+    }
 
     onProfileChanged: {
-        if (!folderInput.edited) folderInput.text = profile.folder
+        // The read-only source field stays bound to the persisted profile.
+        if (selectedWallpaperFile !== "" && !isMediaFileInFolder(selectedWallpaperFile, profile.folder)) {
+            selectedWallpaperFile = ""
+            selectedWallpaperApplying = false
+            selectedWallpaperApplied = false
+            selectedWallpaperScanStarted = false
+            selectedWallpaperError = ""
+        }
+        panel.verifySelectedWallpaperApplication()
     }
     Connections {
         target: panel.root
         function onWallpaperManagerDisplayChanged() {
             // A former monitor draft must never be committed to the new one.
             folderInput.edited = false
-            folderInput.text = panel.root.wallpaperProfileFor(panel.root.wallpaperManagerDisplay).folder
+            panel.selectedWallpaperFile = ""
+            panel.selectedWallpaperApplying = false
+            panel.selectedWallpaperApplied = false
+            panel.selectedWallpaperScanStarted = false
+            panel.selectedWallpaperError = ""
         }
+    }
+    Connections {
+        target: panel.root.wallpaperManagerServiceApi
+        function onScanInFlightChanged() {
+            var service = panel.root.wallpaperManagerServiceApi
+            if (service && (service.scanInFlight || (service.scanJobs && service.scanJobs.length > 0)))
+                panel.selectedWallpaperScanStarted = true
+            panel.verifySelectedWallpaperApplication()
+        }
+        function onCurrentByOutputChanged() { panel.verifySelectedWallpaperApplication() }
+        function onScanErrorsChanged() { panel.verifySelectedWallpaperApplication() }
     }
 
     component RiseButton: Rectangle {
@@ -210,40 +408,54 @@ PanelWindow {
                         }
                     }
                     SectionLabel { visible: !panel.root.wallpaperManagerSettings.perDisplayConfig; text: "All displays" }
-                    SectionLabel { text: "FOLDER" }
+                    SectionLabel { text: "SOURCE" }
                     Row {
                         width: parent.width; spacing: 8
                         Rectangle {
                             width: parent.width - browseButton.width - 8; height: 32
                             radius: panel.root.tileRadius
                             color: panel.root.fillIdle; border.color: folderInput.activeFocus ? panel.root.seal : panel.root.sep
-                            TextInput {
+                            Text {
                                 id: folderInput
                                 objectName: "wallpaper-folder"
                                 property bool edited: false
                                 anchors.fill: parent; anchors.margins: 8
-                                text: panel.profile.folder
-                                color: panel.root.ink; selectionColor: panel.root.seal
+                                text: panel.selectedSourcePath
+                                color: panel.root.ink
                                 font.family: panel.root.mono; font.pixelSize: 11; clip: true
-                                onTextEdited: edited = true
-                                onAccepted: { edited = false; panel.root.setWallpaperProfile({folder: text.trim()}) }
-                                onEditingFinished: {
-                                    if (!edited) return
-                                    edited = false
-                                    if (text.trim() !== panel.profile.folder) panel.root.setWallpaperProfile({folder: text.trim()})
-                                }
+                                elide: Text.ElideMiddle
+                                verticalAlignment: Text.AlignVCenter
                             }
                         }
-                        RiseButton { id: browseButton; objectName: "wallpaper-browse"; label: "Browse…"; height: 32; onActivated: { folderDialog.targetDisplay = panel.root.wallpaperManagerDisplay; folderDialog.open() } }
+                        RiseButton { id: browseButton; objectName: "wallpaper-browse"; label: "Choose wallpaper…"; height: 32; onActivated: {
+                            const folder = panel.profile.folder
+                            wallpaperDialog.targetDisplay = panel.root.wallpaperManagerDisplay
+                            wallpaperDialog.currentFolder = folder === "" ? "file:///home" : panel.folderPickerSelectionUrl(folder)
+                            wallpaperDialog.open()
+                        } }
+                    }
+                    Text {
+                        objectName: "wallpaper-media-selection"
+                        width: parent.width
+                        text: panel.selectedWallpaperError !== "" ? panel.selectedWallpaperError
+                            : panel.selectedWallpaperFile !== "" ? panel.selectedWallpaperStatus
+                            : panel.root.wallpaperManagerServiceApi.scanInFlight ? "Scanning the selected folder…" : "Choose a folder or a specific image/video."
+                        color: panel.selectedWallpaperError !== "" ? panel.root.seal : panel.root.muted
+                        font.family: panel.root.mono; font.pixelSize: 10
+                        textFormat: Text.PlainText; wrapMode: Text.WordWrap
                     }
                     SectionLabel { text: panel.root.wallpaperManagerServiceApi.countFor(panel.root.wallpaperManagerDisplay) + " images found." }
                     RiseButton {
                         objectName: "wallpaper-clear"
                         width: parent.width
-                        visible: panel.profile.folder !== ""
-                        label: "Clear folder (use default backgrounds)"
+                        visible: panel.profile.folder !== String(panel.root.currentBackgroundsPath || "") || String(panel.profile.pinned || "") !== ""
+                        enabled: String(panel.root.currentBackgroundsPath || "") !== ""
+                        label: "Use current theme wallpapers"
                         leftAlign: true
-                        onActivated: { folderInput.edited = false; panel.root.setWallpaperProfile({folder: ""}) }
+                        onActivated: {
+                            folderInput.edited = false
+                            panel.applyWallpaperSelection("folder", panel.folderPickerSelectionUrl(panel.root.currentBackgroundsPath), String(panel.root.wallpaperManagerDisplay || "all"))
+                        }
                     }
                     RiseToggle {
                         objectName: "wallpaper-recursive"
@@ -386,18 +598,15 @@ PanelWindow {
             }
         }
     }
-    FolderDialog {
-        id: folderDialog
-        objectName: "wallpaper-folder-picker"
-        options: FolderDialog.DontUseNativeDialog | FolderDialog.ReadOnly
-        popupType: Controls.Popup.Item
-        parentWindow: panel.contentItem.Window.window
-        modality: Qt.WindowModal
-        property string targetDisplay: "all"
-        currentFolder: panel.profile.folder !== "" ? "file://" + panel.profile.folder.split("/").map(encodeURIComponent).join("/") : "file:///home"
+    WallpaperExternalPicker {
+        id: wallpaperDialog
+        objectName: "wallpaper-source-picker"
+        currentFolder: panel.profile.folder === "" ? "file:///home" : panel.folderPickerSelectionUrl(panel.profile.folder)
         onAccepted: {
-            if (targetDisplay === panel.root.wallpaperManagerDisplay) folderInput.edited = false
-            panel.root.setWallpaperProfile({folder: decodeURIComponent(String(selectedFolder).replace(/^file:\/\//, ""))}, targetDisplay)
+            if (targetDisplay !== panel.root.wallpaperManagerDisplay) return
+            folderInput.edited = false
+            panel.applyWallpaperSelection(selectionKind, selectionKind === "folder" ? selectedFolder : selectedFile, targetDisplay)
         }
+        onFailed: message => panel.selectedWallpaperError = message
     }
 }

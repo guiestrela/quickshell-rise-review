@@ -49,6 +49,16 @@ Scope {
         property color fillActive: "#555555"
         property color widgetIconColor: "white"
         property int tileRadius: 12
+        property int panelButtonRadius: 12
+        property int panelRadius: 16
+        property color panelBorder: "#555555"
+        property color panelOuterBorderColor: "#555555"
+        property real panelOuterBorderW: 1
+        property color bg: "#181616"
+        property bool styleShadow: false
+        property color pillShadow: "#000000"
+        property int v2BarHeight: 40
+        property string barPosition: "top"
         property real wallpaperManagerAnchorX: 150
         property real wallpaperManagerAnchorY: 32
         property color pill: "#222222"
@@ -61,7 +71,9 @@ Scope {
         property string mono: "monospace"
         function hideTooltip() {}
         function showTooltip() {}
+        function setPanelInsetX(x) {}
         function widgetContentColor(gid,fallback) { return fallback }
+        function widgetHasFill(gid) { return false }
         function toggleWallpaperManager(screen, owner) {
             if (!wallpaperManagerVisible) {
                 activePopupScreen = screen
@@ -111,7 +123,11 @@ Scope {
                 if(stage===-1) {
                     require(s.countFor("DP-1")===2 && s.countFor("DP-2")===2,"widget integration started before scanner");
                     managerWidget.handleButton(Qt.LeftButton);
-                    require(stub.wallpaperManagerVisible && panelInstance.visible,"widget did not open production panel over service");
+                    require(stub.wallpaperManagerVisible,"widget did not toggle its owner state");
+                    stage=-2;return;
+                }
+                if(stage===-2) {
+                    require(panelInstance.visible,"panel did not become visible after the display animation");
                     stage=0;return;
                 }
                 if(stage===0) {
@@ -153,6 +169,24 @@ Scope {
                 if(stage===4) {
                     require(stub.wallpaperProfileFor("DP-1").folder===FOLDER_C,"unsaved B draft wrote to A");
                     require(input.text===FOLDER_C,"A field did not restore");
+                    let candidate=FOLDER_C+"/new.png";
+                    let before=JSON.stringify(stub.wallpaperManagerSettings);
+                    let prior=s.pathFor("DP-1");
+                    let url="file://"+FOLDER_C.split("/").map(encodeURIComponent).join("/")+"/new.png";
+                    require(panelInstance.mediaFilePicker!==undefined,"FileDialog was not instantiated");
+                    let pickerFolder=String(panelInstance.mediaFilePicker.currentFolder);
+                    require(pickerFolder.indexOf("folder%20C")>=0 || pickerFolder.indexOf("folder C")>=0,"FileDialog did not open in the configured folder: "+pickerFolder);
+                    require(panelInstance.stageWallpaperFile(url),"valid media file was not staged");
+                    require(JSON.stringify(stub.wallpaperManagerSettings)===before,"staging a file changed saved profile");
+                    require(s.pathFor("DP-1")===prior,"staging a file changed the current wallpaper");
+                    require(panelInstance.applySelectedWallpaper(),"Apply button logic rejected a valid file");
+                    stage=5;return;
+                }
+                if(stage===5) {
+                    let profile=stub.wallpaperProfileFor("DP-1");
+                    require(profile.mode==="single" && profile.pinned===FOLDER_C+"/new.png","selected file was not saved as the single wallpaper");
+                    require(s.pathFor("DP-1")===FOLDER_C+"/new.png","selected file was not applied to DP-1");
+                    require(s.pathFor("DP-2")==="","applying DP-1 changed DP-2");
                     console.log("PER_DISPLAY_QML_REAL_SCANNER_PASS");Qt.exit(0);
                 }
             } catch(e) { console.warn("PER_DISPLAY_FAIL",e.message);Qt.exit(1); }
@@ -166,7 +200,7 @@ for variant in variants:
     theme=(root/'Theme.qml').read_text()
     q='import "'+str((root/'modules').relative_to(base))+'" as Service\nimport "'+str((root/'modules').relative_to(base))+'" as WallpaperWidgetModule\n'+qml
     replacements={'PROFILE':json.dumps(str((root/'modules/WallpaperProfile.js').relative_to(base))),'WIDGET_MODULE':json.dumps(str((root/'modules').relative_to(base))),'SERVICE_MODULE':'Service','SETTINGS':'('+json.dumps(settings)+')',
-      'PANEL_URL':json.dumps((base/'versions/V1/panels/WallpaperManagerQuickPanel.qml').as_uri()),
+      'PANEL_URL':json.dumps((root/'panels/WallpaperManagerQuickPanel.qml').as_uri()),
       'THEME_FUNCTIONS':'\n'.join(extract(theme,n) for n in ['setWallpaperProfile','setWallpaperPerDisplay','nextWallpaper']),
       'FOLDER_A':json.dumps(str(A)),'FOLDER_B':json.dumps(str(B)),'FOLDER_C':json.dumps(str(C))}
     for k,v in replacements.items(): q=q.replace(k,v)

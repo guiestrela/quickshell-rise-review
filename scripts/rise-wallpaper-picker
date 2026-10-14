@@ -1,0 +1,68 @@
+#!/usr/bin/python3
+"""Choose an entire directory or one wallpaper in one out-of-process window."""
+import argparse
+import json
+import os
+from pathlib import Path
+import sys
+
+EXTENSIONS = {'.jpg', '.jpeg', '.png', '.webp', '.bmp', '.gif', '.mp4', '.webm', '.mkv', '.mov', '.avi'}
+
+def valid_path(path):
+    return path.startswith('/') and not any(ord(c) < 32 or 127 <= ord(c) <= 159 for c in path)
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--folder', required=True)
+    parser.add_argument('--title', default='Choose wallpaper')
+    args = parser.parse_args()
+    if not valid_path(args.folder):
+        return 2
+    import gi
+    gi.require_version('Gtk', '3.0')
+    from gi.repository import Gtk, GLib
+    GLib.set_prgname('rise-wallpaper-picker')
+    Gtk.init([])
+    confirm = 42
+    dialog = Gtk.Dialog(title=args.title)
+    chooser = Gtk.FileChooserWidget(action=Gtk.FileChooserAction.OPEN)
+    dialog.get_content_area().pack_start(chooser, True, True, 0)
+    dialog.set_default_size(875, 600)
+    chooser.set_select_multiple(False)
+    dialog.add_button('Cancel', Gtk.ResponseType.CANCEL)
+    dialog.add_button('Apply selection', confirm)
+    dialog.set_default_response(confirm)
+    start = args.folder if os.path.isdir(args.folder) else os.path.expanduser('~')
+    chooser.set_current_folder(start)
+    media = Gtk.FileFilter()
+    media.set_name('Wallpaper folders, images and videos')
+    media.add_custom(Gtk.FileFilterFlags.FILENAME,
+                     lambda info: os.path.isdir(info.filename) or Path(info.filename).suffix.lower() in EXTENSIONS)
+    chooser.add_filter(media)
+    tip = Gtk.Label(label='Select a folder or an image/video. With no item selected, use the open folder.')
+    tip.set_line_wrap(True)
+    chooser.set_extra_widget(tip)
+    tip.show()
+    # A file activation selects it; only the explicit confirmation applies it.
+    dialog.show_all()
+    try:
+        response = dialog.run()
+        if response != confirm:
+            return 1
+        selected = chooser.get_filename() or chooser.get_current_folder()
+        if not selected or not valid_path(selected):
+            return 2
+        path = os.path.abspath(selected)
+        if os.path.isdir(path):
+            kind = 'folder'
+        elif os.path.isfile(path) and Path(path).suffix.lower() in EXTENSIONS:
+            kind = 'file'
+        else:
+            return 2
+        print(json.dumps({'schema': 1, 'kind': kind, 'path': path}), flush=True)
+        return 0
+    finally:
+        dialog.destroy()
+
+if __name__ == '__main__':
+    raise SystemExit(main())

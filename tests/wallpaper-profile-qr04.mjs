@@ -121,4 +121,18 @@ for (const [name, path] of variants) {
     const moved = api.updateDisplay(pinned, 'DP-1', { folder: '/new' }, '/home/test');
     assert.equal(api.configFor(moved, 'DP-1', '/home/test').pinned, '');
   });
+
+  test(`${name}: pasta com barra final normaliza e mantém pin dentro dela`, () => {
+    const api = profile(path);
+    const chosen = '/fixture/A/chosen.mp4';
+    const settings = {
+      perDisplayConfig: true,
+      displayConfig: { 'DP-1': { folder: '/fixture/A/', mode: 'shuffle', pinned: '' } },
+    };
+    const updated = api.updateDisplay(settings, 'DP-1', { mode: 'single', pinned: chosen }, '/home/test');
+    const config = api.configFor(updated, 'DP-1', '/home/test');
+    assert.equal(config.folder, '/fixture/A');
+    assert.equal(config.pinned, chosen);
+    assert.equal(config.mode, 'single');
+  });
 }
