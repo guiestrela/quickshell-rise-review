@@ -1,5 +1,7 @@
 # Quickshell Rise
 
+**Version:** 1.0.0
+
 Quickshell Rise is a full-bar plugin for Omarchy. It replaces the built-in
 Omarchy bar with the Rise interface and runs inside Omarchy's existing
 `omarchy-shell` process. V1 and V2 are included and can be switched without

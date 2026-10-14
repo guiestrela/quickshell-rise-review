@@ -257,6 +257,7 @@ Item {
         interval: Math.max(1, manager.intervalSeconds) * 1000
         running: manager.pool.length > 0 && manager.intervalSeconds > 0
             && manager.pinnedPath === "" && manager.hasShuffleOutput()
+            && !manager.theme.wallpaperShuffleOnWake
         repeat: true
         onTriggered: manager.shuffleAll()
     }
@@ -281,6 +282,30 @@ Item {
                 readonly property bool video: /\.(mp4|webm|mkv|mov|avi)$/i.test(imagePath)
                 readonly property bool animated: /\.gif$/i.test(imagePath)
                 readonly property string scaling: manager.scalingFor(modelData.name)
+                readonly property bool animationBlocked: manager.theme.wallpaperSessionLocked
+                    || manager.theme.wallpaperScreensaverShowing
+                property bool playbackInitialized: false
+
+                function synchronizePlayback() {
+                    if (!playbackInitialized) return
+                    if (!visible || !video) {
+                        wallpaperVideoPlayer.stop()
+                    } else if (animationBlocked) {
+                        wallpaperVideoPlayer.pause()
+                    } else {
+                        // Rebuild the playback clock after compositor/decoder suspension.
+                        // Keep the selected source (including Single); never shuffle here.
+                        wallpaperVideoPlayer.stop()
+                        wallpaperVideoPlayer.play()
+                    }
+                }
+                onAnimationBlockedChanged: Qt.callLater(synchronizePlayback)
+                onVisibleChanged: Qt.callLater(synchronizePlayback)
+                onVideoChanged: Qt.callLater(synchronizePlayback)
+                Component.onCompleted: {
+                    playbackInitialized = true
+                    synchronizePlayback()
+                }
 
                 AnimatedImage {
                     anchors.centerIn: parent
@@ -295,13 +320,15 @@ Item {
                             ? implicitHeight * parent.width / Math.max(1, implicitWidth)
                             : wallpaperWindow.scaling === "fitHeight" ? parent.height : implicitHeight
                     visible: wallpaperWindow.imagePath !== "" && !wallpaperWindow.video
-                    source: visible ? wallpaperWindow.imageUrl : ""
+                    source: wallpaperWindow.imagePath !== "" && !/\.(mp4|webm|mkv|mov|avi)$/i.test(wallpaperWindow.imagePath)
+                        ? manager.fileUrl(wallpaperWindow.imagePath) : ""
                     fillMode: wallpaperWindow.scaling === "zoom"
                         ? Image.PreserveAspectCrop : Image.PreserveAspectFit
                     asynchronous: true
                     cache: false
                     smooth: true
                     playing: wallpaperWindow.visible && wallpaperWindow.animated
+                    paused: wallpaperWindow.animationBlocked
                     onStatusChanged: if (status === Image.Error) manager.markBad(wallpaperWindow.imagePath)
                 }
 
@@ -315,8 +342,10 @@ Item {
                         ? VideoOutput.PreserveAspectCrop : VideoOutput.PreserveAspectFit
                 }
                 MediaPlayer {
-                    source: wallpaperWindow.video ? wallpaperWindow.imageUrl : ""
-                    autoPlay: wallpaperWindow.visible && wallpaperWindow.video
+                    id: wallpaperVideoPlayer
+                    source: /\.(mp4|webm|mkv|mov|avi)$/i.test(wallpaperWindow.imagePath)
+                        ? manager.fileUrl(wallpaperWindow.imagePath) : ""
+                    autoPlay: wallpaperWindow.visible && wallpaperWindow.video && !wallpaperWindow.animationBlocked
                     loops: MediaPlayer.Infinite
                     videoOutput: videoOutput
                     audioOutput: AudioOutput { muted: true }

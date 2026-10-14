@@ -1,0 +1,45 @@
+#!/usr/bin/python3
+"""Emit only lock/screensaver booleans. Never expose a live authentication service."""
+import json
+import subprocess
+import sys
+
+def parse_states(lock, idle):
+    if type(lock) is not bool or not isinstance(idle, dict):
+        raise ValueError('Invalid session state')
+    count = idle.get('screensaverWindows')
+    if type(count) is not int or not 0 <= count <= 64:
+        raise ValueError('Invalid screensaver state')
+    return {'schema': 1, 'locked': lock,
+            'screensaverShowing': count > 0}
+
+
+def invoke(command):
+    completed = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                               text=True, timeout=3, check=True)
+    if len(completed.stdout) > 16384:
+        raise ValueError('Invalid session response size')
+    return completed.stdout
+
+
+def read_state(call=invoke):
+    lock = json.loads(call(['/usr/bin/omarchy-shell', 'lock', 'isLocked']))
+    idle = json.loads(call(['/usr/bin/omarchy-shell', 'idle', 'status']))
+    return parse_states(lock, idle)
+
+
+def main():
+    if len(sys.argv) != 1:
+        return 2
+    try:
+        result = read_state()
+    except (OSError, ValueError, subprocess.SubprocessError):
+        # No command stderr, authentication metadata or raw response is logged.
+        print('Session state unavailable', file=sys.stderr)
+        return 1
+    print(json.dumps(result, separators=(',', ':')))
+    return 0
+
+
+if __name__ == '__main__':
+    sys.exit(main())
