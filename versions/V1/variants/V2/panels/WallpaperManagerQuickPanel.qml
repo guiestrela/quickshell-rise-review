@@ -311,7 +311,7 @@ PanelWindow {
     Rectangle {
         id: card
         objectName: "wallpaper-card"
-        width: Math.min(420, panel.width - 32)
+        width: Math.min(300, panel.width - 32)
         height: Math.min(content.implicitHeight + 28, panel.height - 32)
         color: "transparent"
         border.color: panel.root.panelBorder

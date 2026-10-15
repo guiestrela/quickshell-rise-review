@@ -306,7 +306,7 @@ PanelWindow {
             panel.root.wallpaperManagerAnchorX - width / 2))
         y: Math.max(8, Math.min(panel.height - height - 8,
             panel.root.wallpaperManagerAnchorY + 8))
-        width: Math.min(420, panel.width - 32)
+        width: Math.min(300, panel.width - 32)
         height: Math.min(content.implicitHeight + 28, panel.height - 32)
         color: panel.root.paper
         border.color: panel.root.pillBorder

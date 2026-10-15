@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "io.github.guiestrela.quickshell-rise",
   "name": "Quickshell Rise",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "author": "Guiestrela",
   "license": "MIT",
   "description": "A full Omarchy bar with the Quickshell Rise design, system panels, and integrated services.",
