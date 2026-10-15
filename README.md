@@ -15,6 +15,7 @@ folders. Its bar styling and interactions follow the Quickshell Rise design.
 
 - Omarchy with the Quickshell plugin system and `omarchy-shell`.
 - Quickshell dependencies used by the selected Rise widgets.
+- `cava` with PipeWire support for the Muse/full media audio visualizer (see below).
 - Optional integrations require their respective tools or accounts. See
   [Integrated services](docs/integrations.md).
 
@@ -81,6 +82,23 @@ To update every installed Git-managed plugin instead, run:
 ```bash
 omarchy plugin update
 ```
+
+## Audio visualizer
+
+The Muse/full media waveform uses `cava` to read the playback output through
+PipeWire. It reacts to the sound being played, not the microphone, and does
+not record audio. This is separate from the Reactor animation between bar sections.
+
+Install the dependency on Omarchy:
+
+```bash
+omarchy pkg add cava
+```
+
+Without `cava`, the waveform stays at its minimum height and can look like a
+static row of dots. If playback was already running when you installed it,
+pause and resume the media to restart the visualizer's capture. The full media
+waveform must be enabled and an MPRIS player must report active playback.
 
 ## AI usage
 
