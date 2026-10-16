@@ -66,7 +66,7 @@ omarchy plugin validate ~/.config/omarchy/plugins/io.github.guiestrela.quickshel
 Update Rise from its Git repository with Omarchy's plugin manager:
 
 ```bash
-omarchy plugin update io.github.guiestrela.quickshell-rise
+ 
 ```
 
 Omarchy shows the changes for review, fast-forwards the installed plugin, and

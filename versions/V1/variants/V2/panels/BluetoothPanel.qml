@@ -23,14 +23,19 @@ PanelWindow {
 
     property bool btOn: false
     property bool scanning: false
+    property bool scanOwned: false
     property var devices: []   // [{name, mac, connected, paired}]
-    readonly property var shownDevices: devices.slice(0, 8)
+    readonly property var shownDevices: devices.filter(function(device) {
+        return String(device.name || "").trim().toLowerCase() !== "bt5.0 kb"
+    }).slice(0, 8)
     readonly property int numConnected: {
         var n = 0
         for (var i = 0; i < devices.length; i++) if (devices[i].connected) n++
         return n
     }
-    property string connCmd: ""
+    property string connMac: ""
+    property string connPhase: ""
+    property string connectionNotice: ""
     property string expandedDeviceKey: ""
     readonly property bool actionBusy: forgetBusy || trustPending
     property bool trustPending: false
@@ -97,7 +102,8 @@ PanelWindow {
         var adapter = Bluetooth.defaultAdapter
         if (!btPanel.btOn || !adapter || !adapter.enabled || btPanel.scanning) return
         btPanel.scanning = true
-        adapter.discovering = true
+        btPanel.scanOwned = !adapter.discovering
+        if (btPanel.scanOwned) adapter.discovering = true
         scanTimer.restart()
         btPanel.refresh()
     }
@@ -150,16 +156,33 @@ PanelWindow {
         if (!device || connProc.running || btPanel.actionBusy) return
         var mac = String(device.mac || "")
         if (!/^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/.test(mac)) return
+        connectionNotice = ""
+        connMac = mac
         if (device.connected) {
-            connCmd = "bluetoothctl disconnect " + mac
+            connPhase = "disconnect"
         } else if (device.paired) {
-            connCmd = "bluetoothctl connect " + mac
+            connPhase = "connect"
         } else {
-            connCmd = "bluetoothctl trust " + mac
-                + " && bluetoothctl pair " + mac
-                + " && bluetoothctl connect " + mac
+            connPhase = "trust"
         }
         connProc.running = true
+    }
+
+    function finishConnection(message) {
+        connectionTimeout.stop()
+        connPhase = ""
+        if (message) connectionNotice = message
+        refresh()
+    }
+
+    Timer {
+        id: connectionNoticeTimer
+        interval: 7000; repeat: false
+        onTriggered: btPanel.connectionNotice = ""
+    }
+    onConnectionNoticeChanged: {
+        if (connectionNotice !== "") connectionNoticeTimer.restart()
+        else connectionNoticeTimer.stop()
     }
 
     property real reveal: root.bluetoothVisible ? 1 : 0
@@ -313,6 +336,15 @@ PanelWindow {
                 }
             }
 
+            UiText {
+                visible: btPanel.connectionNotice !== ""
+                width: parent.width
+                text: btPanel.connectionNotice
+                color: root.seal
+                font.family: root.mono; font.pixelSize: 10
+                wrapMode: Text.Wrap
+            }
+
             // ── device list ──
             Column {
                 width: parent.width
@@ -320,9 +352,25 @@ PanelWindow {
                 visible: btPanel.btOn
                 Repeater {
                     model: btPanel.shownDevices
-                    delegate: Rectangle {
-                        id: devTile
+                    delegate: Column {
                         required property var modelData
+                        required property int index
+                        width: col.width
+                        spacing: 4
+                        readonly property bool available: !modelData.connected && !modelData.paired
+                        readonly property bool firstAvailable: available
+                            && (index === 0 || btPanel.shownDevices[index - 1].connected
+                                || btPanel.shownDevices[index - 1].paired)
+                        UiText {
+                            visible: parent.firstAvailable
+                            width: parent.width
+                            text: "Available devices"
+                            color: root.seal
+                            font.family: root.mono; font.pixelSize: 10
+                            topPadding: 4; bottomPadding: 2
+                        }
+                        Rectangle {
+                        id: devTile
                         readonly property bool expanded: btPanel.expandedDeviceKey === btPanel.deviceActionKey(modelData)
                         readonly property bool hovered: tileHover.containsMouse || actionMa.containsMouse
                         width: col.width
@@ -515,6 +563,7 @@ PanelWindow {
                             color: root.seal; font.family: root.mono; font.pixelSize: 9; wrapMode: Text.WordWrap
                         }
                     }
+                    }
                 }
                                                     UiText {
                                 visible: btPanel.trustError !== ""
@@ -558,7 +607,7 @@ PanelWindow {
         }
     }
 
-    // ── data: power state + device list with connected/paired flags ──
+    // ── power state; devices come from BlueZ's live adapter models ──
     Process {
         id: btData
         command: ["bash", "-c",
@@ -595,37 +644,42 @@ PanelWindow {
                     for (var nd = 0; nd < adapterDevices.length; nd++)
                         nativeDevices.push(adapterDevices[nd])
                 }
+                // bluetoothctl includes discovered, unpaired devices from the
+                // current BlueZ cache; keep those rows even when the native model
+                // has not published their Device1 object to this shell yet.
                 for (var i = 1; i < lines.length; i++) {
                     var parts = lines[i].split("|")
                     if (parts.length < 4) continue
+                    var mac = String(parts[2] || "").toUpperCase()
+                    if (!/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/.test(mac)) continue
+                    if (devs.some(function(device) { return String(device.mac).toUpperCase() === mac })) continue
                     var name = parts.slice(3).join("|").trim()
-                    if (!name || name === parts[2]) name = parts[2]   // fall back to mac
+                    if (!name || name === parts[2]) name = parts[2]
                     var nativeIdentity = null
                     for (var d = 0; d < nativeDevices.length; d++) {
-                        if (nativeDevices[d].address === parts[2] && nativeDevices[d].adapter) {
+                        if (String(nativeDevices[d].address).toUpperCase() === mac && nativeDevices[d].adapter) {
                             nativeIdentity = nativeDevices[d]
                             break
                         }
                     }
                     devs.push({
                         connected: parts[0] === "1",
-                        paired:    parts[1] === "1",
-                        mac:       parts[2],
+                        paired: parts[1] === "1",
+                        mac: mac,
                         adapterId: nativeIdentity ? nativeIdentity.adapter.adapterId : "",
                         dbusPath: nativeIdentity ? nativeIdentity.dbusPath : "",
-                        name:      name
+                        name: name
                     })
                 }
-                // bluetoothctl's cached list can lag behind discovery. Include
-                // BlueZ Device1 objects as soon as the adapter publishes them.
+                // Read all Device1 objects from the live adapter model. The
+                // global Bluetooth.devices model omits unconnected discoveries.
                 for (var discoveredIndex = 0; discoveredIndex < nativeDevices.length; discoveredIndex++) {
                     var discovered = nativeDevices[discoveredIndex]
                     var address = String(discovered.address || "")
                     if (!/^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/.test(address)) continue
                     if (!discovered.adapter) continue
                     var alreadyListed = devs.some(function(device) {
-                        return device.mac === address
-                            && device.adapterId === discovered.adapter.adapterId
+                        return String(device.mac).toUpperCase() === address.toUpperCase()
                     })
                     if (alreadyListed) continue
                     devs.push({
@@ -651,7 +705,7 @@ PanelWindow {
                     })
                     // bluetoothctl may list only its default adapter. A missing row
                     // is not proof of removal while the selected native device is paired.
-                    var liveReadbackDevices = Bluetooth.devices.values
+                    var liveReadbackDevices = nativeDevices
                     for (var n = 0; n < liveReadbackDevices.length; n++) {
                         var liveDevice = liveReadbackDevices[n]
                         if (liveDevice.dbusPath === btPanel.forgetTarget.dbusPath
@@ -689,9 +743,22 @@ PanelWindow {
         repeat: false
         onTriggered: {
             var adapter = Bluetooth.defaultAdapter
-            if (adapter && adapter.discovering) adapter.discovering = false
-            btPanel.scanning = false
+            if (btPanel.scanOwned && adapter && adapter.discovering) adapter.discovering = false
+            btPanel.scanOwned = false
+            btPanel.scanning = !!(adapter && adapter.discovering)
             btPanel.refresh()
+        }
+    }
+    Connections {
+        target: Bluetooth.defaultAdapter
+        function onDiscoveringChanged() {
+            var adapter = Bluetooth.defaultAdapter
+            if (btPanel.scanning && adapter && !adapter.discovering) {
+                btPanel.scanning = false
+                btPanel.scanOwned = false
+                scanTimer.stop()
+                btPanel.refresh()
+            }
         }
     }
     Timer {
@@ -703,9 +770,38 @@ PanelWindow {
     // ── connect / disconnect / pair ──
     Process {
         id: connProc
-        command: ["bash", "-c", btPanel.connCmd]
+        command: ["/usr/bin/timeout", "12s", "bluetoothctl", btPanel.connPhase, btPanel.connMac]
         running: false
-        onExited: btPanel.refresh()
+        onExited: (exitCode) => {
+            connectionTimeout.stop()
+            if (exitCode !== 0) {
+                var failedPhase = btPanel.connPhase
+                btPanel.finishConnection(exitCode === 124
+                    ? "Bluetooth " + failedPhase + " timed out. Check that the device is awake and in pairing mode."
+                    : "Bluetooth " + failedPhase + " failed. Check the device and Bluetooth adapter.")
+                return
+            }
+            if (btPanel.connPhase === "trust") btPanel.connPhase = "pair"
+            else if (btPanel.connPhase === "pair") btPanel.connPhase = "connect"
+            else { btPanel.finishConnection(""); return }
+            Qt.callLater(() => { connProc.running = true })
+        }
+    }
+    Timer {
+        id: connectionTimeout
+        interval: 14000; repeat: false
+        onTriggered: {
+            if (!connProc.running) return
+            connProc.running = false
+            btPanel.finishConnection("Bluetooth action timed out. Check the device and Bluetooth adapter.")
+        }
+    }
+    Connections {
+        target: connProc
+        function onRunningChanged() {
+            if (connProc.running) connectionTimeout.restart()
+            else connectionTimeout.stop()
+        }
     }
 
     Process {
