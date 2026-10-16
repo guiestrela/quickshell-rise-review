@@ -580,13 +580,19 @@ PanelWindow {
                 }
                 btPanel.btOn = true
                 var devs = []
+                var nativeDevices = []
+                var adapters = Bluetooth.adapters.values
+                for (var a = 0; a < adapters.length; a++) {
+                    var adapterDevices = adapters[a].devices.values
+                    for (var nd = 0; nd < adapterDevices.length; nd++)
+                        nativeDevices.push(adapterDevices[nd])
+                }
                 for (var i = 1; i < lines.length; i++) {
                     var parts = lines[i].split("|")
                     if (parts.length < 4) continue
                     var name = parts.slice(3).join("|").trim()
                     if (!name || name === parts[2]) name = parts[2]   // fall back to mac
                     var nativeIdentity = null
-                    var nativeDevices = Bluetooth.devices.values
                     for (var d = 0; d < nativeDevices.length; d++) {
                         if (nativeDevices[d].address === parts[2] && nativeDevices[d].adapter) {
                             nativeIdentity = nativeDevices[d]
@@ -600,6 +606,27 @@ PanelWindow {
                         adapterId: nativeIdentity ? nativeIdentity.adapter.adapterId : "",
                         dbusPath: nativeIdentity ? nativeIdentity.dbusPath : "",
                         name:      name
+                    })
+                }
+                // bluetoothctl's cached list can lag behind discovery. Include
+                // BlueZ Device1 objects as soon as the adapter publishes them.
+                for (var discoveredIndex = 0; discoveredIndex < nativeDevices.length; discoveredIndex++) {
+                    var discovered = nativeDevices[discoveredIndex]
+                    var address = String(discovered.address || "")
+                    if (!/^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/.test(address)) continue
+                    if (!discovered.adapter) continue
+                    var alreadyListed = devs.some(function(device) {
+                        return device.mac === address
+                            && device.adapterId === discovered.adapter.adapterId
+                    })
+                    if (alreadyListed) continue
+                    devs.push({
+                        connected: !!discovered.connected,
+                        paired: !!discovered.paired,
+                        mac: address,
+                        adapterId: discovered.adapter.adapterId,
+                        dbusPath: discovered.dbusPath,
+                        name: String(discovered.name || discovered.deviceName || address)
                     })
                 }
                 // connected first, then paired, then the rest
