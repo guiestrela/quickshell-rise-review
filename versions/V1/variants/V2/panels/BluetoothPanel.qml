@@ -26,6 +26,7 @@ PanelWindow {
     property bool scanOwned: false
     property var devices: []   // [{name, mac, connected, paired}]
     readonly property var shownDevices: devices.filter(function(device) {
+        if (device.connected || device.paired) return true
         return String(device.name || "").trim().toLowerCase() !== "bt5.0 kb"
     }).slice(0, 8)
     readonly property int numConnected: {
@@ -352,25 +353,9 @@ PanelWindow {
                 visible: btPanel.btOn
                 Repeater {
                     model: btPanel.shownDevices
-                    delegate: Column {
-                        required property var modelData
-                        required property int index
-                        width: col.width
-                        spacing: 4
-                        readonly property bool available: !modelData.connected && !modelData.paired
-                        readonly property bool firstAvailable: available
-                            && (index === 0 || btPanel.shownDevices[index - 1].connected
-                                || btPanel.shownDevices[index - 1].paired)
-                        UiText {
-                            visible: parent.firstAvailable
-                            width: parent.width
-                            text: "Available devices"
-                            color: root.seal
-                            font.family: root.mono; font.pixelSize: 10
-                            topPadding: 4; bottomPadding: 2
-                        }
-                        Rectangle {
+                    delegate: Rectangle {
                         id: devTile
+                        required property var modelData
                         readonly property bool expanded: btPanel.expandedDeviceKey === btPanel.deviceActionKey(modelData)
                         readonly property bool hovered: tileHover.containsMouse || actionMa.containsMouse
                         width: col.width
@@ -562,7 +547,6 @@ PanelWindow {
                             width: parent.width; text: btPanel.forgetError
                             color: root.seal; font.family: root.mono; font.pixelSize: 9; wrapMode: Text.WordWrap
                         }
-                    }
                     }
                 }
                                                     UiText {
