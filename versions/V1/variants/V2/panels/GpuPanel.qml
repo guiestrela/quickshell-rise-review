@@ -197,6 +197,10 @@ PanelWindow {
                 value: gpuPanel.gpuTemp > 0 ? gpuPanel.gpuTemp + "°C" : ""
             }
             InfoRow {
+                label: "Fan"
+                value: root.gpuFanRpm >= 0 ? root.gpuFanRpm + " RPM" : ""
+            }
+            InfoRow {
                 label: "VRAM"
                 value: gpuPanel.gpuMemTotal > 0
                     ? gpuPanel.gib(gpuPanel.gpuMemUsed) + " / " + gpuPanel.gib(gpuPanel.gpuMemTotal)

@@ -1253,6 +1253,7 @@ Item {
     property real gpuPowerLimitW: 0
     property string gpuPerformanceState: ""
     property int gpuFanPercent: 0
+    property int gpuFanRpm: -1
     readonly property bool gpuAvailable: gpuBackend !== ""
 
     property int cpuTemperatureC: 0
@@ -1459,6 +1460,7 @@ Item {
             gpuPowerLimitW = 0
             gpuPerformanceState = ""
             gpuFanPercent = 0
+            gpuFanRpm = -1
             return
         }
 
@@ -1468,6 +1470,8 @@ Item {
             return isNaN(parsed) ? 0 : parsed
         }
 
+        var rpm = clean(fields[12])
+        gpuFanRpm = /^\d+$/.test(rpm) ? Number(rpm) : -1
         gpuBackend = clean(fields[0])
         gpuName = clean(fields[1])
         gpuDriverVersion = clean(fields[2])
@@ -1693,7 +1697,9 @@ Item {
             + "[[ -r $busy ]] || continue; read -r util < \"$busy\"; temp=0; "
             + "for sensor in \"${busy%/gpu_busy_percent}\"/hwmon/hwmon*/temp1_input; do "
             + "[[ -r $sensor ]] || continue; read -r raw < \"$sensor\"; temp=$((raw / 1000)); break; done; "
-            + "printf 'sysfs|GPU||%s|%s|0|0|0|0|0||0\\n' \"$util\" \"$temp\"; exit 0; done; "
+            + "rpm=''; for sensor in \"${busy%/gpu_busy_percent}\"/hwmon/hwmon*/fan1_input; do "
+            + "[[ -r $sensor ]] || continue; read -r raw < \"$sensor\"; [[ $raw =~ ^[0-9]+$ ]] && rpm=$raw; break; done; "
+            + "printf 'sysfs|GPU||%s|%s|0|0|0|0|0||0|%s\\n' \"$util\" \"$temp\" \"$rpm\"; exit 0; done; "
             + "printf 'none|||||||||||\\n'"]
         stdout: StdioCollector { onStreamFinished: theme.parseGpuTelemetry(this.text) }
     }
