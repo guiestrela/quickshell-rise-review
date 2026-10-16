@@ -25,10 +25,13 @@ PanelWindow {
     property bool scanning: false
     property bool scanOwned: false
     property var devices: []   // [{name, mac, connected, paired}]
-    readonly property var shownDevices: devices.filter(function(device) {
-        if (device.connected || device.paired) return true
-        return String(device.name || "").trim().toLowerCase() !== "bt5.0 kb"
+    readonly property var connectedDevices: devices.filter(function(device) { return device.connected })
+    readonly property var pairedDevices: devices.filter(function(device) { return !device.connected && device.paired })
+    readonly property var foundDevices: devices.filter(function(device) {
+        return !device.connected && !device.paired
+            && String(device.name || "").trim().toLowerCase() !== "bt5.0 kb"
     }).slice(0, 8)
+    readonly property var shownDevices: connectedDevices.concat(pairedDevices).concat(foundDevices)
     readonly property int numConnected: {
         var n = 0
         for (var i = 0; i < devices.length; i++) if (devices[i].connected) n++
@@ -36,9 +39,12 @@ PanelWindow {
     }
     property string connMac: ""
     property string connPhase: ""
+    property string connVerifyPhase: ""
+    property string connFailureMessage: ""
     property string connectionNotice: ""
     property string expandedDeviceKey: ""
-    readonly property bool actionBusy: forgetBusy || trustPending
+    readonly property bool connectionBusy: connProc.running || connVerify.running || connPhase !== ""
+    readonly property bool actionBusy: forgetBusy || trustPending || connectionBusy
     property bool trustPending: false
     property var trustTarget: null
     property string trustError: ""
@@ -54,7 +60,7 @@ PanelWindow {
         return null
     }
     function requestTrustDevice(device) {
-        if (btPanel.actionBusy || connProc.running) return
+        if (btPanel.actionBusy || btPanel.connectionBusy) return
         if (!btPanel.validBluetoothIdentity({paired: true, mac: device.mac,
                 adapterId: device.adapterId, dbusPath: device.dbusPath})) return
         var nativeDevice = btPanel.nativeDeviceForDevice(device)
@@ -69,7 +75,7 @@ PanelWindow {
         return String(device.adapterId || "") + "|" + String(device.mac || "")
     }
     function toggleDeviceActions(device) {
-        if (btPanel.actionBusy || connProc.running) return
+        if (btPanel.actionBusy || btPanel.connectionBusy) return
         var key = btPanel.deviceActionKey(device)
         btPanel.cancelForgetDevice()
         btPanel.expandedDeviceKey = btPanel.expandedDeviceKey === key ? "" : key
@@ -104,8 +110,11 @@ PanelWindow {
         if (!btPanel.btOn || !adapter || !adapter.enabled || btPanel.scanning || scanProc.running) return
         connectionNotice = ""
         btPanel.scanning = true
-        btPanel.scanOwned = !adapter.discovering
-        if (btPanel.scanOwned) scanProc.running = true
+        btPanel.scanOwned = false
+        if (!adapter.discovering) {
+            scanProc.output = ""
+            scanProc.running = true
+        }
         scanTimer.restart()
         btPanel.refresh()
     }
@@ -118,7 +127,7 @@ PanelWindow {
     }
 
     function requestForgetDevice(device) {
-        if (btPanel.trustPending || forgetProc.running || connProc.running || forgetReadbackPending) return
+        if (btPanel.trustPending || forgetProc.running || btPanel.connectionBusy || forgetReadbackPending) return
         if (!validBluetoothIdentity(device)) return
         forgetError = ""
         forgetNotice = ""
@@ -132,7 +141,7 @@ PanelWindow {
     }
 
     function confirmForgetDevice() {
-        if (btPanel.trustPending || !forgetTarget || !validBluetoothIdentity(forgetTarget) || forgetProc.running || connProc.running || forgetReadbackPending) return
+        if (btPanel.trustPending || !forgetTarget || !validBluetoothIdentity(forgetTarget) || forgetProc.running || btPanel.connectionBusy || forgetReadbackPending) return
         forgetError = ""
         forgetCommandAdapter = "/org/bluez/" + forgetTarget.adapterId
         forgetCommandDevice = forgetTarget.dbusPath
@@ -155,7 +164,7 @@ PanelWindow {
     }
 
     function activateDevice(device) {
-        if (!device || connProc.running || btPanel.actionBusy) return
+        if (!device || btPanel.connectionBusy || btPanel.actionBusy) return
         var mac = String(device.mac || "")
         if (!/^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/.test(mac)) return
         connectionNotice = ""
@@ -168,12 +177,15 @@ PanelWindow {
             connPhase = "trust"
         }
         connProc.output = ""
+        connFailureMessage = ""
         connProc.running = true
     }
 
     function finishConnection(message) {
         connectionTimeout.stop()
         connPhase = ""
+        connVerifyPhase = ""
+        connFailureMessage = ""
         if (message) connectionNotice = message
         refresh()
     }
@@ -345,9 +357,30 @@ PanelWindow {
                 width: parent.width
                 spacing: 4
                 visible: btPanel.btOn
-                Repeater {
-                    model: btPanel.shownDevices
-                    delegate: Rectangle {
+                UiText {
+                    visible: btPanel.connectedDevices.length > 0
+                    width: parent.width; text: "Connected"
+                    color: root.ink; font.family: root.mono; font.pixelSize: 10; font.weight: Font.Medium
+                    topPadding: 2
+                }
+                Repeater { model: btPanel.connectedDevices; delegate: deviceTileDelegate }
+                UiText {
+                    visible: btPanel.pairedDevices.length > 0
+                    width: parent.width; text: "Paired"
+                    color: root.ink; font.family: root.mono; font.pixelSize: 10; font.weight: Font.Medium
+                    topPadding: 2
+                }
+                Repeater { model: btPanel.pairedDevices; delegate: deviceTileDelegate }
+                UiText {
+                    visible: btPanel.foundDevices.length > 0
+                    width: parent.width; text: "Found while scanning"
+                    color: root.ink; font.family: root.mono; font.pixelSize: 10; font.weight: Font.Medium
+                    topPadding: 2
+                }
+                Repeater { model: btPanel.foundDevices; delegate: deviceTileDelegate }
+                Component {
+                    id: deviceTileDelegate
+                    Rectangle {
                         id: devTile
                         required property var modelData
                         readonly property bool expanded: btPanel.expandedDeviceKey === btPanel.deviceActionKey(modelData)
@@ -425,7 +458,7 @@ PanelWindow {
                             color: btPanel.deviceActionFill
                             border.color: root.sep
                             border.width: 1
-                            opacity: connProc.running || btPanel.actionBusy ? 0.45 : 1
+                            opacity: btPanel.connectionBusy || btPanel.actionBusy ? 0.45 : 1
                             UiText {
                                 id: actionLabel
                                 anchors.centerIn: parent
@@ -436,7 +469,7 @@ PanelWindow {
                             MouseArea {
                                 id: actionMa
                                 anchors.fill: parent
-                                enabled: !connProc.running && !btPanel.actionBusy
+                                enabled: !btPanel.connectionBusy && !btPanel.actionBusy
                                 hoverEnabled: true
                                 cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                                 onClicked: btPanel.activateDevice(devTile.modelData)
@@ -462,7 +495,7 @@ PanelWindow {
                             height: 24; radius: root.tileRadius
                             color: forgetMa.containsMouse && forgetMa.enabled ? root.fillHover : btPanel.deviceActionFill
                             border.color: root.sep; border.width: 1
-                            opacity: !devTile.modelData.paired || btPanel.actionBusy || connProc.running ? 0.48 : 1
+                            opacity: !devTile.modelData.paired || btPanel.actionBusy || btPanel.connectionBusy ? 0.48 : 1
                             UiText {
                                 id: forgetLabel
                                 anchors.centerIn: parent
@@ -473,7 +506,7 @@ PanelWindow {
                             MouseArea {
                                 id: forgetMa
                                 anchors.fill: parent
-                                enabled: devTile.modelData.paired && !btPanel.actionBusy && !connProc.running
+                                enabled: devTile.modelData.paired && !btPanel.actionBusy && !btPanel.connectionBusy
                                 hoverEnabled: true
                                 cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                                 onClicked: btPanel.requestForgetDevice(devTile.modelData)
@@ -498,7 +531,7 @@ PanelWindow {
                                         id: trustMa
                                         anchors.fill: parent
                                         enabled: trustButton.nativeDevice !== null && !trustButton.nativeDevice.trusted
-                                            && !btPanel.actionBusy && !connProc.running
+                                            && !btPanel.actionBusy && !btPanel.connectionBusy
                                         hoverEnabled: true
                                         cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                                         onClicked: btPanel.requestTrustDevice(devTile.modelData)
@@ -559,7 +592,7 @@ PanelWindow {
                     color: root.seal; font.family: root.mono; font.pixelSize: 9; wrapMode: Text.WordWrap
                 }
                 UiText {
-                    visible: btPanel.btOn && btPanel.devices.length === 0
+                    visible: btPanel.btOn && btPanel.shownDevices.length === 0
                     width: parent.width; horizontalAlignment: Text.AlignHCenter
                     text: btPanel.scanning ? "Searching…" : "No devices — tap Scan"
                     color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.3)
@@ -632,7 +665,13 @@ PanelWindow {
                     if (!/^([0-9A-F]{2}:){5}[0-9A-F]{2}$/.test(mac)) continue
                     if (devs.some(function(device) { return String(device.mac).toUpperCase() === mac })) continue
                     var name = parts.slice(3).join("|").trim()
-                    if (!name || name === parts[2]) name = parts[2]
+                    // BlueZ's devices cache includes anonymous LE advertisements.
+                    // Do not present their address as a device name; retain rows
+                    // with no name only when they are already paired/connected.
+                    var isConnected = parts[0] === "1"
+                    var isPaired = parts[1] === "1"
+                    if ((!name || name.toUpperCase() === mac) && !isConnected && !isPaired) continue
+                    if (!name || name.toUpperCase() === mac) name = mac
                     var nativeIdentity = null
                     for (var d = 0; d < nativeDevices.length; d++) {
                         if (String(nativeDevices[d].address).toUpperCase() === mac && nativeDevices[d].adapter) {
@@ -641,8 +680,8 @@ PanelWindow {
                         }
                     }
                     devs.push({
-                        connected: parts[0] === "1",
-                        paired: parts[1] === "1",
+                        connected: isConnected,
+                        paired: isPaired,
                         mac: mac,
                         adapterId: nativeIdentity ? nativeIdentity.adapter.adapterId : "",
                         dbusPath: nativeIdentity ? nativeIdentity.dbusPath : "",
@@ -656,6 +695,9 @@ PanelWindow {
                     var address = String(discovered.address || "")
                     if (!/^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/.test(address)) continue
                     if (!discovered.adapter) continue
+                    var discoveredName = String(discovered.name || discovered.deviceName || "").trim()
+                    if ((!discoveredName || discoveredName.toUpperCase() === address.toUpperCase())
+                            && !discovered.connected && !discovered.paired) continue
                     var alreadyListed = devs.some(function(device) {
                         return String(device.mac).toUpperCase() === address.toUpperCase()
                     })
@@ -666,7 +708,7 @@ PanelWindow {
                         mac: address,
                         adapterId: discovered.adapter.adapterId,
                         dbusPath: discovered.dbusPath,
-                        name: String(discovered.name || discovered.deviceName || address)
+                        name: discoveredName || address
                     })
                 }
                 // connected first, then paired, then the rest
@@ -717,7 +759,7 @@ PanelWindow {
     Process {
         id: scanProc
         property string output: ""
-        command: ["/usr/bin/timeout", "12s", "bluetoothctl", "scan", "on"]
+        command: ["/usr/bin/timeout", "11s", "bluetoothctl", "--timeout", "8", "scan", "on"]
         running: false
         stdout: StdioCollector {
             onStreamFinished: scanProc.output = String(this.text || "").trim()
@@ -729,7 +771,12 @@ PanelWindow {
             }
         }
         onExited: (exitCode) => {
-            if (exitCode === 0) return
+            if (exitCode === 0) {
+                scanTimer.stop()
+                btPanel.scanning = false
+                btPanel.refresh()
+                return
+            }
             scanTimer.stop()
             btPanel.scanning = false
             btPanel.scanOwned = false
@@ -796,12 +843,16 @@ PanelWindow {
             if (exitCode !== 0) {
                 var failedPhase = btPanel.connPhase
                 var detail = String(connProc.output || "")
-                var message = detail.indexOf("NotReady") >= 0
-                    ? "Bluetooth adapter is not ready. Reconnect the USB adapter and try again."
-                    : exitCode === 124
-                        ? "Bluetooth " + failedPhase + " timed out. Check that the device is awake and in pairing mode."
-                        : "Bluetooth " + failedPhase + " failed. " + (detail || "Check the device and adapter.")
-                btPanel.finishConnection(message)
+                btPanel.connVerifyPhase = failedPhase
+                if (!btPanel.connFailureMessage) {
+                    btPanel.connFailureMessage = detail.indexOf("NotReady") >= 0
+                        ? "Bluetooth adapter is not ready. Reconnect the USB adapter and try again."
+                        : exitCode === 124
+                            ? "Bluetooth " + failedPhase + " timed out. Check that the device is awake and in pairing mode."
+                            : "Bluetooth " + failedPhase + " failed. " + (detail || "Check the device and adapter.")
+                }
+                connVerify.output = ""
+                connVerify.running = true
                 return
             }
             if (btPanel.connPhase === "trust") btPanel.connPhase = "pair"
@@ -816,8 +867,8 @@ PanelWindow {
         interval: 14000; repeat: false
         onTriggered: {
             if (!connProc.running) return
+            btPanel.connFailureMessage = "Bluetooth " + btPanel.connPhase + " timed out. Checking the device status."
             connProc.running = false
-            btPanel.finishConnection("Bluetooth action timed out. Check the device and Bluetooth adapter.")
         }
     }
     Connections {
@@ -825,6 +876,42 @@ PanelWindow {
         function onRunningChanged() {
             if (connProc.running) connectionTimeout.restart()
             else connectionTimeout.stop()
+        }
+    }
+    Process {
+        id: connVerify
+        property string output: ""
+        command: ["/usr/bin/timeout", "6s", "bluetoothctl", "info", btPanel.connMac]
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: connVerify.output = String(this.text || "")
+        }
+        onExited: (exitCode) => {
+            var phase = btPanel.connVerifyPhase
+            var detail = String(connVerify.output || "")
+            var paired = detail.indexOf("\tPaired: yes") >= 0 || detail.indexOf(" Paired: yes") >= 0
+            var trusted = detail.indexOf("\tTrusted: yes") >= 0 || detail.indexOf(" Trusted: yes") >= 0
+            var connected = detail.indexOf("\tConnected: yes") >= 0 || detail.indexOf(" Connected: yes") >= 0
+            if (exitCode === 0 && phase === "disconnect" && !connected) {
+                btPanel.finishConnection("")
+            } else if (exitCode === 0 && connected && phase !== "disconnect") {
+                btPanel.finishConnection("")
+            } else if (exitCode === 0 && phase === "pair" && paired) {
+                btPanel.connVerifyPhase = ""
+                btPanel.connFailureMessage = ""
+                btPanel.connPhase = "connect"
+                connProc.output = ""
+                Qt.callLater(() => { connProc.running = true })
+            } else if (exitCode === 0 && phase === "trust" && trusted) {
+                btPanel.connVerifyPhase = ""
+                btPanel.connFailureMessage = ""
+                btPanel.connPhase = "pair"
+                connProc.output = ""
+                Qt.callLater(() => { connProc.running = true })
+            } else {
+                btPanel.finishConnection(btPanel.connFailureMessage
+                    || "Bluetooth " + phase + " failed. " + (exitCode === 0 ? "The device did not reach the requested state." : "Could not read the device state."))
+            }
         }
     }
 
