@@ -101,10 +101,11 @@ PanelWindow {
 
     function startScan() {
         var adapter = Bluetooth.defaultAdapter
-        if (!btPanel.btOn || !adapter || !adapter.enabled || btPanel.scanning) return
+        if (!btPanel.btOn || !adapter || !adapter.enabled || btPanel.scanning || scanProc.running) return
+        connectionNotice = ""
         btPanel.scanning = true
         btPanel.scanOwned = !adapter.discovering
-        if (btPanel.scanOwned) adapter.discovering = true
+        if (btPanel.scanOwned) scanProc.running = true
         scanTimer.restart()
         btPanel.refresh()
     }
@@ -166,6 +167,7 @@ PanelWindow {
         } else {
             connPhase = "trust"
         }
+        connProc.output = ""
         connProc.running = true
     }
 
@@ -720,6 +722,37 @@ PanelWindow {
         onExited: btPanel.refresh()
     }
 
+    Process {
+        id: scanProc
+        property string output: ""
+        command: ["/usr/bin/timeout", "12s", "bluetoothctl", "scan", "on"]
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: scanProc.output = String(this.text || "").trim()
+        }
+        stderr: StdioCollector {
+            onStreamFinished: {
+                var error = String(this.text || "").trim()
+                if (error) scanProc.output = error
+            }
+        }
+        onExited: (exitCode) => {
+            if (exitCode === 0) return
+            scanTimer.stop()
+            btPanel.scanning = false
+            btPanel.scanOwned = false
+            var detail = String(scanProc.output || "")
+            btPanel.connectionNotice = detail.indexOf("NotReady") >= 0
+                ? "Bluetooth adapter is not ready. Reconnect the USB adapter and try again."
+                : detail.indexOf("InProgress") >= 0
+                    ? "A Bluetooth scan is already in progress. Wait a moment and try again."
+                    : exitCode === 124
+                        ? "Bluetooth scan timed out. Check the adapter and try again."
+                        : "Bluetooth scan failed. " + (detail || "Check the adapter and try again.")
+            btPanel.refresh()
+        }
+    }
+
     // ── timed discovery scan ──
     Timer {
         id: scanTimer
@@ -754,20 +787,35 @@ PanelWindow {
     // ── connect / disconnect / pair ──
     Process {
         id: connProc
+        property string output: ""
         command: ["/usr/bin/timeout", "12s", "bluetoothctl", btPanel.connPhase, btPanel.connMac]
         running: false
+        stdout: StdioCollector {
+            onStreamFinished: connProc.output = String(this.text || "").trim()
+        }
+        stderr: StdioCollector {
+            onStreamFinished: {
+                var error = String(this.text || "").trim()
+                if (error) connProc.output = error
+            }
+        }
         onExited: (exitCode) => {
             connectionTimeout.stop()
             if (exitCode !== 0) {
                 var failedPhase = btPanel.connPhase
-                btPanel.finishConnection(exitCode === 124
-                    ? "Bluetooth " + failedPhase + " timed out. Check that the device is awake and in pairing mode."
-                    : "Bluetooth " + failedPhase + " failed. Check the device and Bluetooth adapter.")
+                var detail = String(connProc.output || "")
+                var message = detail.indexOf("NotReady") >= 0
+                    ? "Bluetooth adapter is not ready. Reconnect the USB adapter and try again."
+                    : exitCode === 124
+                        ? "Bluetooth " + failedPhase + " timed out. Check that the device is awake and in pairing mode."
+                        : "Bluetooth " + failedPhase + " failed. " + (detail || "Check the device and adapter.")
+                btPanel.finishConnection(message)
                 return
             }
             if (btPanel.connPhase === "trust") btPanel.connPhase = "pair"
             else if (btPanel.connPhase === "pair") btPanel.connPhase = "connect"
             else { btPanel.finishConnection(""); return }
+            connProc.output = ""
             Qt.callLater(() => { connProc.running = true })
         }
     }
