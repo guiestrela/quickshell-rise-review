@@ -1,6 +1,7 @@
 import QtQuick
 import "../modules"
 import Quickshell
+import Quickshell.Bluetooth
 import Quickshell.Io
 import Quickshell.Wayland
 import "../IconMap.js" as IconMap
@@ -30,6 +31,60 @@ PanelWindow {
         return n
     }
     property string connCmd: ""
+    property string expandedDeviceKey: ""
+    readonly property bool actionBusy: forgetBusy || trustPending
+    property bool trustPending: false
+    property var trustTarget: null
+    property string trustError: ""
+    property bool trustReadbackValid: false
+    property bool trustReadbackValue: false
+    function nativeDeviceForDevice(device) {
+        var list = Bluetooth.devices.values
+        for (var i = 0; i < list.length; i++) {
+            var candidate = list[i]
+            if (candidate.dbusPath === device.dbusPath && candidate.adapter
+                    && candidate.adapter.adapterId === device.adapterId) return candidate
+        }
+        return null
+    }
+    function requestTrustDevice(device) {
+        if (btPanel.actionBusy || connProc.running) return
+        if (!btPanel.validBluetoothIdentity({paired: true, mac: device.mac,
+                adapterId: device.adapterId, dbusPath: device.dbusPath})) return
+        var nativeDevice = btPanel.nativeDeviceForDevice(device)
+        if (!nativeDevice || nativeDevice.trusted) return
+        btPanel.trustTarget = {dbusPath: device.dbusPath, adapterId: device.adapterId}
+        btPanel.trustError = ""
+        btPanel.trustPending = true
+        trustProc.running = true
+    }
+
+    function deviceActionKey(device) {
+        return String(device.adapterId || "") + "|" + String(device.mac || "")
+    }
+    function toggleDeviceActions(device) {
+        if (btPanel.actionBusy || connProc.running) return
+        var key = btPanel.deviceActionKey(device)
+        btPanel.cancelForgetDevice()
+        btPanel.expandedDeviceKey = btPanel.expandedDeviceKey === key ? "" : key
+    }
+    property var forgetTarget: null
+    property string forgetError: ""
+    property string forgetCommandAdapter: ""
+    property string forgetCommandDevice: ""
+    property bool forgetReadbackPending: false
+    property bool forgetTimedOut: false
+    property string forgetNotice: ""
+    onForgetNoticeChanged: {
+        if (forgetNotice !== "") forgetNoticeTimer.restart()
+        else forgetNoticeTimer.stop()
+    }
+    Timer {
+        id: forgetNoticeTimer
+        interval: 5000; repeat: false
+        onTriggered: btPanel.forgetNotice = ""
+    }
+    readonly property bool forgetBusy: forgetProc.running || forgetReadbackPending
     readonly property color deviceActionFill: Qt.rgba(
         root.paper.r * 0.88,
         root.paper.g * 0.88,
@@ -38,8 +93,61 @@ PanelWindow {
 
     function refresh() { btData.running = false; btData.running = true }
 
+    function startScan() {
+        var adapter = Bluetooth.defaultAdapter
+        if (!btPanel.btOn || !adapter || !adapter.enabled || btPanel.scanning) return
+        btPanel.scanning = true
+        adapter.discovering = true
+        scanTimer.restart()
+        btPanel.refresh()
+    }
+
+    function validBluetoothIdentity(device) {
+        return !!device && device.paired === true
+            && /^hci[0-9]+$/.test(String(device.adapterId || ""))
+            && /^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/.test(String(device.mac || ""))
+            && String(device.dbusPath || "") === "/org/bluez/" + device.adapterId + "/dev_" + device.mac.replace(/:/g, "_")
+    }
+
+    function requestForgetDevice(device) {
+        if (btPanel.trustPending || forgetProc.running || connProc.running || forgetReadbackPending) return
+        if (!validBluetoothIdentity(device)) return
+        forgetError = ""
+        forgetNotice = ""
+        forgetTarget = { name: String(device.name || "Bluetooth device"), adapterId: String(device.adapterId), mac: String(device.mac), dbusPath: String(device.dbusPath), paired: true }
+    }
+
+    function cancelForgetDevice() {
+        if (btPanel.trustPending || forgetProc.running || forgetReadbackPending) return
+        forgetTarget = null
+        forgetError = ""
+    }
+
+    function confirmForgetDevice() {
+        if (btPanel.trustPending || !forgetTarget || !validBluetoothIdentity(forgetTarget) || forgetProc.running || connProc.running || forgetReadbackPending) return
+        forgetError = ""
+        forgetCommandAdapter = "/org/bluez/" + forgetTarget.adapterId
+        forgetCommandDevice = forgetTarget.dbusPath
+        forgetTimedOut = false
+        forgetProc.running = true
+    }
+
+    function batteryPercentForDevice(mac, rowConnected) {
+        if (!rowConnected) return null
+        var liveDevices = Bluetooth.devices.values
+        for (var i = 0; i < liveDevices.length; i++) {
+            var device = liveDevices[i]
+            if (device.address !== mac) continue
+            if (!device.connected || !device.batteryAvailable) return null
+            var level = Number(device.battery)
+            if (!isFinite(level) || level < 0 || level > 1) return null
+            return Math.round(level * 100)
+        }
+        return null
+    }
+
     function activateDevice(device) {
-        if (!device || connProc.running) return
+        if (!device || connProc.running || btPanel.actionBusy) return
         var mac = String(device.mac || "")
         if (!/^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/.test(mac)) return
         if (device.connected) {
@@ -154,7 +262,7 @@ PanelWindow {
                         MouseArea {
                             anchors.fill: parent
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: { powerProc.running = false; powerProc.running = true }
+                            onClicked: { if (!btPanel.actionBusy) { powerProc.running = false; powerProc.running = true } }
                         }
                     }
                     UiText {
@@ -200,8 +308,8 @@ PanelWindow {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    enabled: !btPanel.scanning
-                    onClicked: { scanProc.running = false; scanProc.running = true }
+                    enabled: !btPanel.scanning && !btPanel.actionBusy
+                    onClicked: btPanel.startScan()
                 }
             }
 
@@ -215,9 +323,10 @@ PanelWindow {
                     delegate: Rectangle {
                         id: devTile
                         required property var modelData
+                        readonly property bool expanded: btPanel.expandedDeviceKey === btPanel.deviceActionKey(modelData)
                         readonly property bool hovered: tileHover.containsMouse || actionMa.containsMouse
                         width: col.width
-                        height: 42; radius: root.panelButtonRadius
+                        height: 42 + (expanded ? deviceActions.implicitHeight + 8 : 0); radius: root.panelButtonRadius
                         color: modelData.connected ? root.fillActive
                                : hovered ? root.fillHover : root.fillIdle
                         border.color: modelData.connected ? root.seal
@@ -225,10 +334,14 @@ PanelWindow {
                         border.width: 1
                         Behavior on color { ColorAnimation { duration: 120 } }
 
+                        Item {
+                            id: deviceHeader
+                            width: parent.width; height: 42
                         MouseArea {
                             id: tileHover
                             anchors.fill: parent
-                            acceptedButtons: Qt.NoButton
+                            acceptedButtons: Qt.LeftButton
+                            onClicked: btPanel.toggleDeviceActions(devTile.modelData)
                             hoverEnabled: true
                         }
 
@@ -243,13 +356,36 @@ PanelWindow {
                                 color: root.ink; font.family: root.mono; font.pixelSize: 11
                                 elide: Text.ElideRight
                             }
-                            UiText {
+                            Row {
                                 width: parent.width
-                                text: devTile.modelData.connected ? "Connected"
-                                      : devTile.modelData.paired ? "Paired" : "Available"
-                                color: root.ink
-                                font.family: root.mono; font.pixelSize: 10; font.weight: Font.Medium
-                                elide: Text.ElideRight
+                                spacing: 4
+                                UiText {
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: Math.max(0, parent.width - (batteryLabel.visible ? batteryLabel.width + parent.spacing : 0))
+                                    text: devTile.modelData.connected ? "Connected"
+                                          : devTile.modelData.paired ? "Paired" : "Available"
+                                    color: root.ink
+                                    font.family: root.mono; font.pixelSize: 10; font.weight: Font.Medium
+                                    elide: Text.ElideRight
+                                }
+                                Row {
+                                    id: batteryLabel
+                                    readonly property var percent: btPanel.batteryPercentForDevice(devTile.modelData.mac, devTile.modelData.connected)
+                                    visible: percent !== null
+                                    spacing: 2
+                                    IconText {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: "\uE1A4"
+                                        color: root.seal
+                                        font.pixelSize: 12
+                                    }
+                                    UiText {
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: String(batteryLabel.percent) + "%"
+                                        color: root.ink
+                                        font.family: root.mono; font.pixelSize: 10
+                                    }
+                                }
                             }
                         }
 
@@ -262,7 +398,7 @@ PanelWindow {
                             color: btPanel.deviceActionFill
                             border.color: root.sep
                             border.width: 1
-                            opacity: connProc.running ? 0.45 : 1
+                            opacity: connProc.running || btPanel.actionBusy ? 0.45 : 1
                             UiText {
                                 id: actionLabel
                                 anchors.centerIn: parent
@@ -273,13 +409,127 @@ PanelWindow {
                             MouseArea {
                                 id: actionMa
                                 anchors.fill: parent
-                                enabled: !connProc.running
+                                enabled: !connProc.running && !btPanel.actionBusy
                                 hoverEnabled: true
                                 cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
                                 onClicked: btPanel.activateDevice(devTile.modelData)
                             }
                         }
+
+                                            }
+
+                        Column {
+                            id: deviceActions
+                            x: 8; y: 46; width: parent.width - 16
+                            visible: devTile.expanded
+                            spacing: 8
+                            Rectangle { width: parent.width; height: 1; color: root.sep }
+                            Row {
+                                id: deviceActionRow
+                                spacing: 8
+                                Rectangle {
+                            id: forgetButton
+
+
+                            width: forgetLabel.implicitWidth + 12
+                            height: 24; radius: root.panelButtonRadius
+                            color: forgetMa.containsMouse && forgetMa.enabled ? root.fillHover : btPanel.deviceActionFill
+                            border.color: root.sep; border.width: 1
+                            opacity: !devTile.modelData.paired || btPanel.actionBusy || connProc.running ? 0.48 : 1
+                            UiText {
+                                id: forgetLabel
+                                anchors.centerIn: parent
+                                text: devTile.modelData.paired ? "Forget" : "Not paired"
+                                color: forgetMa.containsMouse && forgetMa.enabled ? root.seal : root.ink
+                                font.family: root.mono; font.pixelSize: 9
+                            }
+                            MouseArea {
+                                id: forgetMa
+                                anchors.fill: parent
+                                enabled: devTile.modelData.paired && !btPanel.actionBusy && !connProc.running
+                                hoverEnabled: true
+                                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                onClicked: btPanel.requestForgetDevice(devTile.modelData)
+                            }
+                        }
+                                                            Rectangle {
+                                    id: trustButton
+                                    readonly property var nativeDevice: btPanel.nativeDeviceForDevice(devTile.modelData)
+                                    width: trustLabel.implicitWidth + 14
+                                    height: 24; radius: root.panelButtonRadius
+                                    color: trustMa.containsMouse && trustMa.enabled ? root.fillHover : btPanel.deviceActionFill
+                                    border.color: root.sep; border.width: 1
+                                    opacity: trustMa.enabled ? 1 : 0.48
+                                    UiText {
+                                        id: trustLabel
+                                        anchors.centerIn: parent
+                                        text: trustButton.nativeDevice && trustButton.nativeDevice.trusted ? "Trusted" : "Trust"
+                                        color: trustMa.containsMouse && trustMa.enabled ? root.seal : root.ink
+                                        font.family: root.mono; font.pixelSize: 9
+                                    }
+                                    MouseArea {
+                                        id: trustMa
+                                        anchors.fill: parent
+                                        enabled: trustButton.nativeDevice !== null && !trustButton.nativeDevice.trusted
+                                            && !btPanel.actionBusy && !connProc.running
+                                        hoverEnabled: true
+                                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                        onClicked: btPanel.requestTrustDevice(devTile.modelData)
+                                    }
+                                }
+}
+                            Rectangle {
+                    id: forgetConfirmation
+                    visible: btPanel.forgetTarget !== null && btPanel.deviceActionKey(btPanel.forgetTarget) === btPanel.deviceActionKey(devTile.modelData)
+                    width: parent.width
+                    height: visible ? forgetConfirmationContent.implicitHeight + 16 : 0
+                    radius: root.panelButtonRadius; color: root.fillIdle
+                    border.color: root.seal; border.width: 1
+                    Column {
+                        id: forgetConfirmationContent
+                        anchors.fill: parent; anchors.margins: 8; spacing: 5
+                        UiText {
+                            id: prompt
+                            width: parent.width
+                            text: "Forget " + (btPanel.forgetTarget ? btPanel.forgetTarget.name : "")
+                                + "? Removes pairing and may disconnect; pair again to reconnect."
+                            color: root.ink; font.family: root.mono; font.pixelSize: 9
+                            wrapMode: Text.WordWrap
+                        }
+                        Row {
+                            spacing: 6
+                            Rectangle {
+                                width: 64; height: 22; radius: root.panelButtonRadius; color: root.seal
+                                UiText { anchors.centerIn: parent; text: btPanel.actionBusy ? "Working…" : "Confirm"; color: root.paper; font.family: root.mono; font.pixelSize: 9 }
+                                MouseArea { anchors.fill: parent; enabled: !btPanel.actionBusy; onClicked: btPanel.confirmForgetDevice() }
+                            }
+                            Rectangle {
+                                width: 54; height: 22; radius: root.panelButtonRadius; color: root.fillHover
+                                UiText { anchors.centerIn: parent; text: "Cancel"; color: root.ink; font.family: root.mono; font.pixelSize: 9 }
+                                MouseArea { anchors.fill: parent; enabled: !btPanel.actionBusy; onClicked: btPanel.cancelForgetDevice() }
+                            }
+                        }
+                        UiText {
+                            visible: btPanel.forgetError !== ""
+                            width: parent.width; text: btPanel.forgetError
+                            color: root.seal; font.family: root.mono; font.pixelSize: 9; wrapMode: Text.WordWrap
+                        }
                     }
+                }
+                                                    UiText {
+                                visible: btPanel.trustError !== ""
+                                width: parent.width; text: btPanel.trustError
+                                color: root.seal; font.family: root.mono; font.pixelSize: 9
+                                wrapMode: Text.WordWrap
+                            }
+}
+}
+                }
+
+                UiText {
+                    visible: btPanel.forgetNotice !== "" && btPanel.forgetTarget === null
+                    width: parent.width; text: btPanel.forgetNotice
+                    color: root.seal; font.family: root.mono; font.pixelSize: 9; wrapMode: Text.WordWrap
                 }
                 UiText {
                     visible: btPanel.btOn && btPanel.devices.length === 0
@@ -328,7 +578,14 @@ PanelWindow {
         stdout: StdioCollector {
             onStreamFinished: {
                 var lines = this.text.trim().split("\n")
-                if (lines[0] !== "ON") { btPanel.btOn = false; btPanel.devices = []; return }
+                if (lines[0] !== "ON") {
+                    btPanel.btOn = false; btPanel.devices = []
+                    if (btPanel.forgetReadbackPending) {
+                        btPanel.forgetReadbackPending = false
+                        btPanel.forgetError = "Could not verify whether the device was forgotten."
+                    }
+                    return
+                }
                 btPanel.btOn = true
                 var devs = []
                 for (var i = 1; i < lines.length; i++) {
@@ -336,10 +593,20 @@ PanelWindow {
                     if (parts.length < 4) continue
                     var name = parts.slice(3).join("|").trim()
                     if (!name || name === parts[2]) name = parts[2]   // fall back to mac
+                    var nativeIdentity = null
+                    var nativeDevices = Bluetooth.devices.values
+                    for (var d = 0; d < nativeDevices.length; d++) {
+                        if (nativeDevices[d].address === parts[2] && nativeDevices[d].adapter) {
+                            nativeIdentity = nativeDevices[d]
+                            break
+                        }
+                    }
                     devs.push({
                         connected: parts[0] === "1",
                         paired:    parts[1] === "1",
                         mac:       parts[2],
+                        adapterId: nativeIdentity ? nativeIdentity.adapter.adapterId : "",
+                        dbusPath: nativeIdentity ? nativeIdentity.dbusPath : "",
                         name:      name
                     })
                 }
@@ -350,6 +617,32 @@ PanelWindow {
                     return ra - rb
                 })
                 btPanel.devices = devs
+                if (btPanel.forgetReadbackPending && btPanel.forgetTarget) {
+                    var remainsPaired = devs.some(function(device) {
+                        return device.mac === btPanel.forgetTarget.mac
+                            && device.adapterId === btPanel.forgetTarget.adapterId && device.paired
+                    })
+                    // bluetoothctl may list only its default adapter. A missing row
+                    // is not proof of removal while the selected native device is paired.
+                    var liveReadbackDevices = Bluetooth.devices.values
+                    for (var n = 0; n < liveReadbackDevices.length; n++) {
+                        var liveDevice = liveReadbackDevices[n]
+                        if (liveDevice.dbusPath === btPanel.forgetTarget.dbusPath
+                                && liveDevice.adapter
+                                && liveDevice.adapter.adapterId === btPanel.forgetTarget.adapterId
+                                && liveDevice.paired) {
+                            remainsPaired = true
+                            break
+                        }
+                    }
+                    btPanel.forgetReadbackPending = false
+                    if (remainsPaired) {
+                        btPanel.forgetError = "The device is still paired; it was not removed."
+                    } else {
+                        btPanel.forgetNotice = "Device forgotten. Pair it again before reconnecting."
+                        btPanel.forgetTarget = null
+                    }
+                }
             }
         }
     }
@@ -363,11 +656,16 @@ PanelWindow {
     }
 
     // ── timed discovery scan ──
-    Process {
-        id: scanProc
-        command: ["bash", "-c", "bluetoothctl --timeout 10 scan on >/dev/null 2>&1"]
-        running: false
-        onRunningChanged: { btPanel.scanning = running; if (!running) btPanel.refresh() }
+    Timer {
+        id: scanTimer
+        interval: 10000
+        repeat: false
+        onTriggered: {
+            var adapter = Bluetooth.defaultAdapter
+            if (adapter && adapter.discovering) adapter.discovering = false
+            btPanel.scanning = false
+            btPanel.refresh()
+        }
     }
     Timer {
         interval: 1500; repeat: true
@@ -381,6 +679,87 @@ PanelWindow {
         command: ["bash", "-c", btPanel.connCmd]
         running: false
         onExited: btPanel.refresh()
+    }
+
+    Process {
+        id: forgetProc
+        command: ["busctl", "--system", "call", "org.bluez", btPanel.forgetCommandAdapter,
+            "org.bluez.Adapter1", "RemoveDevice", "o", btPanel.forgetCommandDevice]
+        running: false
+        onExited: (exitCode) => {
+            forgetTimeout.stop()
+            if (btPanel.forgetTimedOut) {
+                btPanel.forgetTimedOut = false
+                return
+            }
+            if (exitCode !== 0) {
+                btPanel.forgetError = "Could not forget this device; pairing may remain."
+                btPanel.refresh()
+                return
+            }
+            btPanel.forgetReadbackPending = true
+            btPanel.refresh()
+        }
+    }
+    Timer {
+        id: forgetTimeout
+        interval: 12000; repeat: false
+        onTriggered: {
+            if (!forgetProc.running) return
+            btPanel.forgetTimedOut = true
+            forgetProc.running = false
+            btPanel.forgetReadbackPending = true
+            btPanel.forgetError = "Forgetting timed out; device state was not assumed."
+            btPanel.refresh()
+        }
+    }
+    Connections {
+        target: forgetProc
+        function onRunningChanged() {
+            if (forgetProc.running) forgetTimeout.restart()
+            else forgetTimeout.stop()
+        }
+    }
+
+    Process {
+        id: trustProc
+        command: ["/usr/bin/timeout", "8", "/usr/bin/busctl", "--timeout=6", "--system",
+            "set-property", "org.bluez", btPanel.trustTarget ? btPanel.trustTarget.dbusPath : "",
+            "org.bluez.Device1", "Trusted", "b", "true"]
+        running: false
+        onExited: (exitCode) => {
+            if (!btPanel.trustPending) return
+            if (exitCode !== 0) {
+                btPanel.trustError = "Trust change failed or timed out."
+                btPanel.trustPending = false
+                return
+            }
+            btPanel.trustReadbackValid = false
+            trustVerify.running = true
+        }
+    }
+    Process {
+        id: trustVerify
+        command: ["/usr/bin/timeout", "8", "/usr/bin/busctl", "--timeout=6", "--system", "--json=short",
+            "get-property", "org.bluez", btPanel.trustTarget ? btPanel.trustTarget.dbusPath : "",
+            "org.bluez.Device1", "Trusted"]
+        running: false
+        stdout: StdioCollector {
+            onStreamFinished: {
+                if (!btPanel.trustPending) return
+                try {
+                    var response = JSON.parse(this.text)
+                    btPanel.trustReadbackValid = response.type === "b" && typeof response.data === "boolean"
+                    btPanel.trustReadbackValue = response.data === true
+                } catch (error) { btPanel.trustReadbackValid = false }
+            }
+        }
+        onExited: (exitCode) => {
+            if (!btPanel.trustPending) return
+            btPanel.trustError = exitCode === 0 && btPanel.trustReadbackValid && btPanel.trustReadbackValue
+                ? "" : "Trust was not confirmed."
+            btPanel.trustPending = false
+        }
     }
 
     Process { id: btRunner; command: ["bash", "-c", root.launchBtCmd] }
