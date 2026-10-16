@@ -819,8 +819,8 @@ PanelWindow {
     }
     Timer {
         interval: 1500; repeat: true
-        running: btPanel.scanning && btPanel.visible
-        onTriggered: btPanel.refresh()
+        running: btPanel.visible
+        onTriggered: if (!btData.running) btPanel.refresh()
     }
 
     // ── connect / disconnect / pair ──
