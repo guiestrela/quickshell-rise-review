@@ -67,6 +67,12 @@ PanelWindow {
     property var    apps:        []   // [{idx, name, vol, muted}]
     property var    sinks:       []   // [{index, name, desc}]
     property string defaultSink: ""
+    property var sources: []
+    property string defaultSource: ""
+    property bool sourceSwitchPending: false
+    property string sourceSwitchTarget: ""
+    property string sourceSwitchError: ""
+
     property string _appsRaw:    ""
     property string _sinksRaw:   ""
     property bool   audioErrorNotified: false
@@ -153,8 +159,31 @@ PanelWindow {
         volPanel.run(cmd, true)
     }
 
+    function parseInputDevices(raw) {
+        try {
+            var list = JSON.parse(raw)
+            if (!Array.isArray(list)) return []
+            return list.filter(function(d) {
+                return typeof d.name === "string" && d.name !== ""
+                    && !d.name.endsWith(".monitor")
+                    && (d.monitor_of_sink === undefined || d.monitor_of_sink === null
+                        || d.monitor_of_sink === 4294967295 || d.monitor_of_sink === "4294967295")
+            }).map(function(d) { return { name: d.name, desc: d.description || d.name } })
+        } catch (e) { return [] }
+    }
+    function setDefaultSource(dev) {
+        if (sourceSwitchPending || defSourceProc.running || !dev || !sources.some(function(s) { return s.name === dev.name })) return
+        sourceSwitchError = ""
+        sourceSwitchTarget = dev.name
+        sourceSwitchPending = true
+        sourceSwitchProc.command = ["timeout", "4", "pactl", "set-default-source", dev.name]
+        sourceSwitchProc.running = true
+    }
+
     function refreshAll() {
         audio.refresh()
+        if (!sourcesProc.running) sourcesProc.running = true
+        if (!sourceSwitchPending && !defSourceProc.running) defSourceProc.running = true
         appsProc.running   = false; appsProc.running   = true
         sinksProc.running  = false; sinksProc.running  = true
         defSinkProc.running = false; defSinkProc.running = true
@@ -483,6 +512,71 @@ PanelWindow {
                 }
             }
 
+            // ── input device switcher ──
+            UiText {
+                text: "INPUT DEVICE"
+                color: root.sumiHi
+                font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+            }
+            Column {
+                width: parent.width
+                spacing: 4
+                Repeater {
+                    model: volPanel.sources
+                    delegate: Rectangle {
+                        id: inputDevTile
+                        required property var modelData
+                        readonly property bool isDef:   inputDevTile.modelData.name === volPanel.defaultSource
+                        readonly property bool hovered: inputDevMa.containsMouse
+                        width: parent.width
+                        height: 26; radius: root.tileRadius
+                        color: isDef     ? root.fillActive
+                             : hovered ? root.fillHover : root.fillIdle
+                        border.color: (isDef || hovered) ? root.seal : root.sep
+                        border.width: 1
+                        Behavior on color { ColorAnimation { duration: 120 } }
+                        Row {
+                            anchors.fill: parent
+                            anchors.leftMargin: 8; anchors.rightMargin: 8
+                            spacing: 6
+                            UiText {
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: inputDevTile.isDef ? "●" : "○"
+                                color: inputDevTile.isDef ? root.seal : root.sumi
+                                font.family: root.mono; font.pixelSize: 10
+                            }
+                            UiText {
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: parent.width - 22
+                                text: inputDevTile.modelData.desc
+                                color: (inputDevTile.isDef || inputDevTile.hovered) ? root.seal : root.ink
+                                font.family: root.mono; font.pixelSize: 11
+                                elide: Text.ElideRight
+                            }
+                        }
+                        MouseArea {
+                            id: inputDevMa
+                            anchors.fill: parent
+                            enabled: !volPanel.sourceSwitchPending
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                volPanel.setDefaultSource(inputDevTile.modelData)
+                            }
+                        }
+                    }
+                }
+            }
+
+            UiText {
+                width: parent.width
+                visible: volPanel.sourceSwitchError !== ""
+                text: volPanel.sourceSwitchError
+                color: root.seal
+                font.family: root.mono; font.pixelSize: 10
+                wrapMode: Text.WordWrap
+            }
+
             Row {
                 width: parent.width
                 UiText {
@@ -695,6 +789,37 @@ PanelWindow {
         }
     }
 
+    Process {
+        id: sourcesProc
+        command: ["timeout", "4", "pactl", "-f", "json", "list", "sources"]
+        stdout: StdioCollector { id: sourcesOut }
+        onExited: (code) => { volPanel.sources = code === 0 ? volPanel.parseInputDevices(sourcesOut.text) : [] }
+    }
+    Process {
+        id: defSourceProc
+        command: ["timeout", "4", "pactl", "get-default-source"]
+        stdout: StdioCollector { id: defSourceOut }
+        onExited: (code) => {
+            if (code === 0) volPanel.defaultSource = defSourceOut.text.trim()
+            if (volPanel.sourceSwitchPending && !sourceSwitchProc.running) {
+                if (code !== 0 || volPanel.defaultSource !== volPanel.sourceSwitchTarget)
+                    volPanel.sourceSwitchError = "Could not verify input device"
+                volPanel.sourceSwitchPending = false
+                volPanel.refreshMicState(false)
+            }
+        }
+    }
+    Process {
+        id: sourceSwitchProc
+        onExited: (code) => {
+            if (code !== 0) {
+                volPanel.sourceSwitchError = "Could not change input device"
+                volPanel.sourceSwitchPending = false
+                return
+            }
+            defSourceProc.running = true
+        }
+    }
     // output devices
     Process {
         id: sinksProc
@@ -737,6 +862,8 @@ PanelWindow {
         interval: 2000; repeat: true
         running: volPanel.visible
         onTriggered: {
+            if (!sourcesProc.running) sourcesProc.running = true
+            if (!volPanel.sourceSwitchPending && !defSourceProc.running) defSourceProc.running = true
             appsProc.running   = false; appsProc.running   = true
             defSinkProc.running = false; defSinkProc.running = true
         }
