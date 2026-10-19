@@ -1575,7 +1575,8 @@ Item {
     }
 
     Timer {
-        interval: 2500; repeat: true; triggeredOnStart: true
+        interval: theme.gpuVisible ? 500 : 1000
+        repeat: true; triggeredOnStart: true
         running: theme.modGpu || theme.gpuVisible
         onTriggered: if (!gpuTelemetryProc.running) gpuTelemetryProc.running = true
     }

@@ -1770,7 +1770,7 @@ Item {
     }
 
     Timer {
-        interval: 2500
+        interval: theme.gpuVisible ? 500 : 1000
         running: theme.modGpu || theme.gpuVisible || theme.thermalVisible
         repeat: true
         triggeredOnStart: true
