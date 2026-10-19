@@ -104,7 +104,7 @@ Item {
         checkExitCode = -1
         checkTimedOut = false
         var cmd = [
-            "bash", Quickshell.env("HOME") + "/.local/bin/qs-arch-update-check.sh"
+            "bash", decodeURIComponent(String(Qt.resolvedUrl("../../../scripts/qs-arch-update-check.sh")).replace(/^(file|qs):\/\//, ""))
         ]
         rootMod.refreshing = true
         refreshWatchdog.restart()

@@ -3,6 +3,7 @@
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -45,12 +46,19 @@ class UpdatePanelTests(unittest.TestCase):
             with self.subTest(generation=generation), tempfile.TemporaryDirectory(prefix='rise-update-test-') as temporary:
                 work = Path(temporary)
                 home = work / 'home'
-                binary = home / '.local/bin/qs-arch-update-check.sh'
+                home.mkdir()
+                fixture = work / 'plugin'
+                modules = fixture / generation.relative_to(ROOT) / 'modules'
+                modules.mkdir(parents=True)
+                for source in ['ArchUpdaterWidget.qml', 'IconText.qml', 'TooltipMixin.qml']:
+                    shutil.copy2(generation / 'modules' / source, modules / source)
+                shutil.copy2(generation / 'IconMap.js', modules.parent / 'IconMap.js')
+                binary = fixture / 'scripts/qs-arch-update-check.sh'
                 binary.parent.mkdir(parents=True)
                 binary.write_text(HELPER)
                 binary.chmod(0o700)
                 probe = work / 'probe.qml'
-                probe.write_text(PROBE.replace('@MODULES@', (generation / 'modules').as_uri()))
+                probe.write_text(PROBE.replace('@MODULES@', modules.as_uri()))
                 env = dict(os.environ, HOME=str(home))
                 env.pop('DISPLAY', None)
                 result = subprocess.run(['qs', '-p', str(probe)], env=env, capture_output=True, text=True, timeout=15)

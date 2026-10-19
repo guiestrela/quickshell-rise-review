@@ -15,17 +15,35 @@ folders. Its bar styling and interactions follow the Quickshell Rise design.
 
 - Omarchy with the Quickshell plugin system and `omarchy-shell`.
 - Quickshell dependencies used by the selected Rise widgets.
+- Required fonts: `ttf-jetbrains-mono-nerd` and `ttf-material-symbols-variable`.
 - `cava` with PipeWire support for the Muse/full media audio visualizer (see below).
 - Optional integrations require their respective tools or accounts. See
   [Integrated services](docs/integrations.md).
 
 ## Install
 
-Install Rise with Omarchy's plugin manager. Confirm the repository when
+Install the required fonts **before enabling the plugin**:
+
+```bash
+omarchy pkg add ttf-jetbrains-mono-nerd ttf-material-symbols-variable
+```
+
+The plugin manager does not run `install.sh` or install these font dependencies.
+Without **Material Symbols Rounded**, icon names such as `planner_review` and
+`graphic_eq` appear as text and overlap neighboring widgets.
+
+Then install Rise with Omarchy's plugin manager. Confirm the repository when
 Omarchy asks:
 
 ```bash
 omarchy plugin add https://github.com/guiestrela/quickshell-rise-review.git --enable
+```
+
+If Rise was already running when the fonts were installed, reload its font
+selection by restarting the shell:
+
+```bash
+omarchy restart shell
 ```
 
 To install the AI usage collectors and their user systemd timers, run:

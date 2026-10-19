@@ -29,8 +29,8 @@ PanelWindow {
 
     readonly property url packageFrontendUrl: Qt.resolvedUrl("../core/qs-system-update.sh")
     readonly property string packageFrontendScript: decodeURIComponent(
-        String(packageFrontendUrl).replace(/^file:\/\//, ""))
-    readonly property string packageApplyScript: Quickshell.env("HOME") + "/.local/bin/qs-arch-apply-update.sh"
+        String(packageFrontendUrl).replace(/^(file|qs):\/\//, ""))
+    readonly property string packageApplyScript: decodeURIComponent(String(Qt.resolvedUrl("../../../scripts/qs-arch-apply-update.sh")).replace(/^(file|qs):\/\//, ""))
     property string packageUpdateBackend: "detecting"
     property string packageUpdateMode: ""
     property string packageUpdateCommand: ""
@@ -185,7 +185,7 @@ PanelWindow {
 
     Process {
         id: themeCheckProc
-        command: ["bash", Quickshell.env("HOME") + "/.config/quickshell/bin/qs-theme-update-check.sh"]
+        command: ["bash", decodeURIComponent(String(Qt.resolvedUrl("../../../scripts/qs-theme-update-check.sh")).replace(/^(file|qs):\/\//, ""))]
         running: false
         onExited: {
             root.themeUpdChecking = false
@@ -384,8 +384,8 @@ PanelWindow {
     // The check script records baseCommit/targetCommit. The apply script refuses
     // to move if the theme changed since the scan, if the upstream identity
     // changed, or if the saved target is no longer reachable.
-    readonly property string themeCheckScript: Quickshell.env("HOME") + "/.config/quickshell/bin/qs-theme-update-check.sh"
-    readonly property string themeApplyScript: Quickshell.env("HOME") + "/.config/quickshell/bin/qs-theme-apply-update.sh"
+    readonly property string themeCheckScript: decodeURIComponent(String(Qt.resolvedUrl("../../../scripts/qs-theme-update-check.sh")).replace(/^(file|qs):\/\//, ""))
+    readonly property string themeApplyScript: decodeURIComponent(String(Qt.resolvedUrl("../../../scripts/qs-theme-apply-update.sh")).replace(/^(file|qs):\/\//, ""))
 
     function launchThemeTerminal(inner) {
         panelUpdateRunner.command = ["bash", "-c",

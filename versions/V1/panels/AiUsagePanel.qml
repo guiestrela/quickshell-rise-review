@@ -89,18 +89,40 @@ PanelWindow {
     }
     Process {
         id: authStatusProcess
-        command: [Quickshell.env("HOME") + "/.local/bin/rise-ai-auth-status"]
+        command: ["python3", decodeURIComponent(String(Qt.resolvedUrl("../../../scripts/rise-ai-auth-status")).replace(/^(file|qs):\/\//, ""))]
+        onExited: (exitCode) => {
+            if (exitCode !== 0) {
+                authStatusWatchdog.stop()
+                aiPanel.applyAuthStatus({})
+            }
+        }
         stdout: StdioCollector {
             onStreamFinished: {
+                authStatusWatchdog.stop()
                 try { aiPanel.applyAuthStatus(JSON.parse(this.text)) }
                 catch (e) { aiPanel.applyAuthStatus({}) }
             }
         }
     }
+    // Start the deadline before launching: a missing interpreter/helper may
+    // fail to start without producing stdout or an exited signal.
+    function refreshAuthStatus() {
+        if (authStatusProcess.running) return
+        authStatusWatchdog.restart()
+        authStatusProcess.running = true
+    }
+    Timer {
+        id: authStatusWatchdog
+        interval: 15000
+        onTriggered: {
+            authStatusProcess.running = false
+            aiPanel.applyAuthStatus({})
+        }
+    }
     Timer {
         interval: 60000; repeat: true; triggeredOnStart: true
         running: aiPanel.root.aiUsageVisible
-        onTriggered: { if (!authStatusProcess.running) authStatusProcess.running = true }
+        onTriggered: aiPanel.refreshAuthStatus()
     }
 
     readonly property bool   showClaude:  availableTools.length > 0 && root.aiTool === "claude"

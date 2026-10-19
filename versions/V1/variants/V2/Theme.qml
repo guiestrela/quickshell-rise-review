@@ -2944,7 +2944,7 @@ Item {
             stdinEnabled = true   // re-arm stdin each run — onStarted sets it false to send EOF; without this the 2nd+ run reads disabled stdin and hangs in 'scanning'
             running = true
         }
-        command: ["bash", Quickshell.env("HOME") + "/.local/bin/qs-arch-security-gate.sh"]
+        command: ["bash", decodeURIComponent(String(Qt.resolvedUrl("../../../../scripts/qs-arch-security-gate.sh")).replace(/^(file|qs):\/\//, ""))]
         stdinEnabled: true
         onStarted: {
             // Feed "pkg|repo|old|new" — exactly the gate's stdin format.
