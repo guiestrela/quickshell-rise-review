@@ -15,7 +15,8 @@ Item {
     readonly property int percent: root.systemCpuPercent
     readonly property var history: root.systemCpuHistory
     readonly property int maxSamples: 30
-    readonly property string tooltipText: percent + "%"
+    readonly property string tooltipText: "CPU · " + percent + "%"
+        + (root.cpuTemperatureC > 0 ? " · " + root.cpuTemperatureC + "°C" : "")
 
     Rectangle {
         x: 0; anchors.verticalCenter: parent.verticalCenter

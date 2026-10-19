@@ -18,14 +18,21 @@ PanelWindow {
 
     readonly property int barBottom: 35
     readonly property int gap: 8
-
     readonly property int cpuPct: root.systemCpuPercent
-    property string gpuDriver: ""
-    property int gpuUtil: 0
-    property int gpuTemp: 0
-    property int gpuMemUsed: 0
-    property int gpuMemTotal: 0
-    readonly property bool hasGpu: gpuDriver !== "" && gpuDriver !== "none"
+
+    readonly property string topologySummary: root.cpuCoreCount > 0 && root.cpuThreadCount > 0
+        ? root.cpuCoreCount + "C / " + root.cpuThreadCount + "T" : ""
+    readonly property string clockSummary: root.cpuClockMHz > 0
+        ? (root.cpuClockMHz / 1000).toFixed(1) + " / "
+            + (root.cpuMaxClockMHz / 1000).toFixed(1) + " GHz"
+        : ""
+    readonly property string loadSummary: root.systemLoad1.toFixed(2) + " · "
+        + root.systemLoad5.toFixed(2) + " · " + root.systemLoad15.toFixed(2)
+    readonly property string powerMode: {
+        var mode = root.cpuEnergyPreference !== ""
+            ? root.cpuEnergyPreference : root.cpuScalingGovernor
+        return mode.replace(/_/g, " ")
+    }
 
     property real reveal: root.cpuVisible ? 1 : 0
     Behavior on reveal {
@@ -36,6 +43,38 @@ PanelWindow {
     }
     visible: reveal > 0.001
     WlrLayershell.keyboardFocus: root.cpuVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+
+    component InfoRow: Item {
+        property string label: ""
+        property string value: ""
+        property color valueColor: cpuPanel.root.ink
+
+        width: parent ? parent.width : 0
+        height: 16
+        visible: value !== ""
+
+        UiText {
+            id: infoLabel
+            anchors.left: parent.left
+            anchors.verticalCenter: parent.verticalCenter
+            text: label
+            color: cpuPanel.root.sumiHi
+            font.family: cpuPanel.root.mono
+            font.pixelSize: 10
+        }
+        UiText {
+            anchors.left: infoLabel.right
+            anchors.leftMargin: 12
+            anchors.right: parent.right
+            anchors.verticalCenter: parent.verticalCenter
+            text: value
+            color: valueColor
+            font.family: cpuPanel.root.mono
+            font.pixelSize: 10
+            elide: Text.ElideRight
+            horizontalAlignment: Text.AlignRight
+        }
+    }
 
     MouseArea {
         anchors.fill: parent
@@ -52,15 +91,18 @@ PanelWindow {
         border.width: root.pillBorderW
         PillShadow { theme: root }
 
+
         x: Math.round(Math.max(6, Math.min(root.cpuBarX - width / 2, parent.width - width - 6)))
-        y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
+        y: root.barPosition === "bottom"
+            ? (parent.height - barBottom - gap - height) + 2 * (1 - cpuPanel.reveal)
+            : (barBottom + gap) - 2 * (1 - cpuPanel.reveal)
         opacity: cpuPanel.reveal
         focus: root.cpuVisible
 
         Keys.onPressed: function(event) {
             if (event.key === Qt.Key_Escape) {
-                root.cpuVisible = false;
-                event.accepted = true;
+                root.cpuVisible = false
+                event.accepted = true
             }
         }
 
@@ -72,14 +114,13 @@ PanelWindow {
             anchors.margins: 12
             spacing: 8
 
-            // ── header ──
             Item {
                 width: parent.width
                 height: 24
                 UiText {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "CPU \u00B7 GPU"
+                    text: "CPU"
                     color: root.ink
                     font.family: root.mono
                     font.pixelSize: 13
@@ -87,9 +128,19 @@ PanelWindow {
                     font.weight: Font.Medium
                 }
                 UiText {
+                    anchors.right: closeText.left
+                    anchors.rightMargin: 16
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "KERNEL " + root.kernelRelease
+                    color: root.sumiHi
+                    font.family: root.mono
+                    font.pixelSize: 9
+                }
+                UiText {
+                    id: closeText
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "\u2715"
+                    text: "✕"
                     color: closeMa.containsMouse ? root.seal : root.sumi
                     font.pixelSize: 12
                     Behavior on color { ColorAnimation { duration: 120 } }
@@ -105,116 +156,180 @@ PanelWindow {
 
             Rectangle { width: parent.width; height: 1; color: root.sep }
 
-            // ── CPU (label · bar · % on one row) ──
+            Item {
+                width: parent.width
+                height: 16
+                UiText {
+                    anchors.left: parent.left
+                    anchors.right: topologyValue.left
+                    anchors.rightMargin: 12
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: root.cpuModelName
+                    color: root.ink
+                    font.family: root.mono
+                    font.pixelSize: 10
+                    elide: Text.ElideRight
+                }
+                UiText {
+                    id: topologyValue
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: cpuPanel.topologySummary
+                    color: root.sumiHi
+                    font.family: root.mono
+                    font.pixelSize: 10
+                }
+            }
+
             Item {
                 width: parent.width
                 height: 16
                 UiText {
                     id: cpuLbl
-                    anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                    text: "CPU"; color: root.sumiHi
-                    font.family: root.mono; font.pixelSize: 11; font.letterSpacing: 1
+                    anchors.left: parent.left
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "USAGE"
+                    color: root.sumiHi
+                    font.family: root.mono
+                    font.pixelSize: 11
+                    font.letterSpacing: 1
                 }
                 UiText {
                     id: cpuVal
-                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                    text: cpuPanel.cpuPct + "%"; color: root.seal
-                    font.family: root.mono; font.pixelSize: 11; font.weight: Font.Medium
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: cpuPanel.cpuPct + "%"
+                    color: root.seal
+                    font.family: root.mono
+                    font.pixelSize: 11
+                    font.weight: Font.Medium
                 }
                 Rectangle {
-                    anchors.left: cpuLbl.right; anchors.leftMargin: 8
-                    anchors.right: cpuVal.left; anchors.rightMargin: 8
+                    anchors.left: cpuLbl.right
+                    anchors.leftMargin: 8
+                    anchors.right: cpuVal.left
+                    anchors.rightMargin: 8
                     anchors.verticalCenter: parent.verticalCenter
-                    height: 8; radius: 4
+                    height: 8
+                    radius: 4
                     color: root.fillActive
                     Rectangle {
                         width: parent.width * cpuPanel.cpuPct / 100
-                        height: parent.height; radius: 4
+                        height: parent.height
+                        radius: 4
                         color: root.seal
                         Behavior on width { NumberAnimation { duration: 300 } }
                     }
                 }
             }
 
-            // ── GPU (label · bar · % on one row) ──
+            FanRpmHistory {
+                width: parent.width
+                theme: cpuPanel.root
+                active: cpuPanel.root.cpuVisible
+            }
+
+            InfoRow { label: "Clock"; value: cpuPanel.clockSummary }
+            InfoRow { label: "Load 1 · 5 · 15"; value: cpuPanel.loadSummary }
+            InfoRow {
+                label: "Breakdown"
+                value: "User " + root.systemCpuUserPercent + "% · System "
+                    + root.systemCpuSystemPercent + "% · I/O " + root.systemCpuIoWaitPercent + "%"
+            }
+            InfoRow { label: "Power mode"; value: cpuPanel.powerMode }
+            InfoRow {
+                label: "Throttling"
+                value: root.cpuThrottleCount > 0 ? root.cpuThrottleCount + " events" : ""
+                valueColor: root.sealRaw
+            }
+
+            Rectangle { width: parent.width; height: 1; color: root.sep }
+
             Item {
                 width: parent.width
-                height: 16
-                visible: cpuPanel.hasGpu
+                height: 14
                 UiText {
-                    id: gpuLbl
-                    anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                    text: "GPU"; color: root.sumiHi
-                    font.family: root.mono; font.pixelSize: 11; font.letterSpacing: 1
-                }
-                UiText {
-                    id: gpuVal
-                    anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                    text: cpuPanel.gpuUtil + "%"; color: root.seal
-                    font.family: root.mono; font.pixelSize: 11; font.weight: Font.Medium
-                }
-                Rectangle {
-                    anchors.left: gpuLbl.right; anchors.leftMargin: 8
-                    anchors.right: gpuVal.left; anchors.rightMargin: 8
+                    anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    height: 8; radius: 4
-                    color: root.fillActive
-                    Rectangle {
-                        width: parent.width * cpuPanel.gpuUtil / 100
-                        height: parent.height; radius: 4
-                        color: root.seal
-                        Behavior on width { NumberAnimation { duration: 300 } }
+                    text: "TOP PROCESSES"
+                    color: root.sumiHi
+                    font.family: root.mono
+                    font.pixelSize: 9
+                    font.letterSpacing: 1
+                }
+                UiText {
+                    anchors.right: parent.right
+                    anchors.verticalCenter: parent.verticalCenter
+                    text: "CPU"
+                    color: root.sumi
+                    font.family: root.mono
+                    font.pixelSize: 9
+                }
+            }
+
+            Column {
+                width: parent.width
+                spacing: 4
+
+                Repeater {
+                    model: 3
+                    delegate: Item {
+                        required property int index
+                        readonly property var process: index < root.cpuTopProcesses.length
+                            ? root.cpuTopProcesses[index] : null
+                        width: col.width
+                        height: 16
+
+                        UiText {
+                            id: processRank
+                            anchors.left: parent.left
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: String(index + 1).padStart(2, "0")
+                            color: root.sumi
+                            font.family: root.mono
+                            font.pixelSize: 9
+                        }
+                        UiText {
+                            anchors.left: processRank.right
+                            anchors.leftMargin: 10
+                            anchors.right: processValue.left
+                            anchors.rightMargin: 8
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: process ? process.name : (index === 0 ? "Collecting…" : "—")
+                            color: process ? root.ink : root.sumi
+                            font.family: root.mono
+                            font.pixelSize: 10
+                            elide: Text.ElideRight
+                        }
+                        UiText {
+                            id: processValue
+                            width: 52
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: process ? Number(process.percent).toFixed(1) + "%" : "—"
+                            color: process ? root.ink : root.sumi
+                            font.family: root.mono
+                            font.pixelSize: 10
+                            horizontalAlignment: Text.AlignRight
+                        }
                     }
-                }
-            }
-
-            Row {
-                width: parent.width
-                visible: cpuPanel.hasGpu && cpuPanel.gpuTemp > 0
-                UiText {
-                    text: "Temperature"
-                    color: root.sumiHi
-                    font.family: root.mono; font.pixelSize: 11
-                    width: parent.width * 0.4
-                }
-                UiText {
-                    text: cpuPanel.gpuTemp + "\u00B0C"
-                    color: root.ink
-                    font.family: root.mono; font.pixelSize: 11
-                    width: parent.width * 0.3
-                }
-            }
-
-            Row {
-                width: parent.width
-                visible: cpuPanel.hasGpu && cpuPanel.gpuMemTotal > 0
-                UiText {
-                    text: "VRAM"
-                    color: root.sumiHi
-                    font.family: root.mono; font.pixelSize: 11
-                    width: parent.width * 0.4
-                }
-                UiText {
-                    text: cpuPanel.gpuMemUsed + " / " + cpuPanel.gpuMemTotal + " MiB"
-                    color: root.ink
-                    font.family: root.mono; font.pixelSize: 11
-                    width: parent.width * 0.3
                 }
             }
 
             Rectangle { width: parent.width; height: 1; color: root.sep }
 
-            // ── button ──
             Rectangle {
                 width: parent.width
-                height: 28; radius: root.tileRadius
+                height: 28
+                radius: root.tileRadius
                 color: btopMa.containsMouse ? root.fillPrimaryHover : root.seal
                 Behavior on color { ColorAnimation { duration: 120 } }
                 UiText {
                     anchors.centerIn: parent
                     text: "Open btop"
                     color: root.paper
-                    font.family: root.mono; font.pixelSize: 11
+                    font.family: root.mono
+                    font.pixelSize: 11
                 }
                 MouseArea {
                     id: btopMa
@@ -222,41 +337,9 @@ PanelWindow {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        root.cpuVisible = false;
-                        btopRunner.running = false;
-                        btopRunner.running = true;
-                    }
-                }
-            }
-        }
-    }
-
-    Process {
-        id: dataProc
-        command: ["bash", "-c",
-            "if command -v nvidia-smi &>/dev/null; then " +
-            "  nvidia-smi --query-gpu=utilization.gpu,temperature.gpu,memory.used,memory.total --format=csv,noheader,nounits 2>/dev/null | " +
-            "  awk -F', ' '{printf \"GPU %s %s %s %s\\n\", $1, $2, $3, $4}'; " +
-            "elif [ -f /sys/class/drm/card0/device/gpu_busy_percent ]; then " +
-            "  read p < /sys/class/drm/card0/device/gpu_busy_percent; " +
-            "  echo \"GPU $p 0 0 0\"; " +
-            "elif [ -f /sys/class/hwmon/hwmon2/device/gpu_busy_percent ]; then " +
-            "  read p < /sys/class/hwmon/hwmon2/device/gpu_busy_percent; " +
-            "  echo \"GPU $p 0 0 0\"; " +
-            "else echo GPU none 0 0 0; " +
-            "fi"
-        ]
-        stdout: StdioCollector {
-            onStreamFinished: {
-                var lines = this.text.trim().split("\n")
-                for (var i = 0; i < lines.length; i++) {
-                    var parts = lines[i].trim().split(/\s+/)
-                    if (parts[0] === "GPU" && parts.length >= 2) {
-                        cpuPanel.gpuDriver = parts[1] === "none" ? "none" : "detected"
-                        cpuPanel.gpuUtil = parseInt(parts[1]) || 0
-                        cpuPanel.gpuTemp = parseInt(parts[2]) || 0
-                        cpuPanel.gpuMemUsed = parseInt(parts[3]) || 0
-                        cpuPanel.gpuMemTotal = parseInt(parts[4]) || 0
+                        root.cpuVisible = false
+                        btopRunner.running = false
+                        btopRunner.running = true
                     }
                 }
             }
@@ -266,14 +349,5 @@ PanelWindow {
     Process {
         id: btopRunner
         command: ["bash", "-c", "omarchy-launch-floating-terminal-with-presentation 'btop'"]
-    }
-
-    // refresh live while the panel is open
-    Timer {
-        interval: 1500
-        running: cpuPanel.visible && root.cpuVisible
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: { dataProc.running = false; dataProc.running = true }
     }
 }

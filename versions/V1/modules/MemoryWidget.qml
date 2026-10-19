@@ -16,7 +16,7 @@ Item {
     readonly property int percent: root.systemMemPercent
     readonly property real usedGiB: root.systemMemUsedGiB
     readonly property real totalGiB: root.systemMemTotalGiB
-    readonly property string usedLabel: String(Math.round(usedGiB)).padStart(2, '0') + "G"
+    readonly property string usedLabel: usedGiB.toFixed(1) + "G"
     readonly property string tooltipText: usedGiB.toFixed(1) + "/" + totalGiB.toFixed(0) + "G"
 
     Rectangle {

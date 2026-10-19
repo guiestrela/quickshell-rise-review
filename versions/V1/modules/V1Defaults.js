@@ -3,7 +3,7 @@
 
 function defaultOrder() {
     return {
-        left: ["G1", "G2", "G3", "G4", "G5", "G6", "G7"],
+        left: ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "G19"],
         center: ["G8"],
         right: ["G9", "G10", "G17", "G14", "G12", "G13", "G11", "G16", "G15", "G18"]
     }
@@ -11,7 +11,7 @@ function defaultOrder() {
 
 function defaultSplits() {
     return {
-        left: [true, true, true, true, true, true],
+        left: [true, true, true, true, true, true, true],
         right: [true, true, true, true, true, true, true, true],
         boundary: [true, true]
     }
@@ -23,6 +23,7 @@ function defaultCompact() {
         compactBattery: false,
         compactBrightness: false,
         compactCpu: true,
+        compactGpu: false,
         compactMemory: true,
         compactVolume: true,
         compactBluetooth: true,

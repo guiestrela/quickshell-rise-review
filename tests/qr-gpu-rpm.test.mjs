@@ -17,5 +17,7 @@ test('RPM numeric, stopped, unavailable and stale reset',()=>{
 });
 test('panel displays zero RPM and hides unavailable',()=>{
  const panel=fs.readFileSync('versions/V1/variants/V2/panels/GpuPanel.qml','utf8');
- assert.match(panel,/root.gpuFanRpm >= 0 \? root.gpuFanRpm \+ " RPM" : ""/);
+ assert.match(panel,/externalRpm: root.gpuFanRpm/);
+ const meter=fs.readFileSync("versions/V1/modules/FanRpmHistory.qml","utf8");
+ assert.match(meter,/fan.rpm >= 0 \? fan.rpm \+ " RPM" : "Unavailable"/);
 });

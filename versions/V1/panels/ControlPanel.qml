@@ -555,6 +555,7 @@ PanelWindow {
                 Tile { width: root.evenW((wwCol.width - 8) / 2); label: "Quick tools"; active: root.modQuick;   onActivated: root.modQuick = !root.modQuick }
                 Tile { width: root.evenW((wwCol.width - 8) / 2); label: "Status";      active: root.modStatus;  onActivated: root.modStatus = !root.modStatus }
                 Tile { width: root.evenW((wwCol.width - 8) / 2); label: "CPU";         active: root.modCpu;     onActivated: root.modCpu = !root.modCpu }
+                Tile { width: root.evenW((wwCol.width - 8) / 2); label: "GPU";         active: root.modGpu;     onActivated: root.modGpu = !root.modGpu }
                 Tile { width: root.evenW((wwCol.width - 8) / 2); label: "Volume";      active: root.modVolume;  onActivated: root.modVolume = !root.modVolume }
                 Tile { width: root.evenW((wwCol.width - 8) / 2); label: "Now playing"; active: root.modMpris;   onActivated: root.modMpris = !root.modMpris }
                 Tile { width: root.evenW((wwCol.width - 8) / 2); label: "Battery";     visible: root.hasBattery; active: true; enabled: false }
@@ -580,6 +581,7 @@ PanelWindow {
                 CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "Bluetooth";  active: root.compactBluetooth;  onToggled: root.compactBluetooth = !root.compactBluetooth }
                 CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "Power";      active: root.compactPower;      onToggled: root.compactPower = !root.compactPower }
                 CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "CPU";        active: root.compactCpu;        onToggled: root.compactCpu = !root.compactCpu }
+                CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "GPU";        active: root.compactGpu;        onToggled: root.compactGpu = !root.compactGpu }
                 CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "Memory";     active: root.compactMemory;     onToggled: root.compactMemory = !root.compactMemory }
                 CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "Volume";     active: root.compactVolume;     onToggled: root.compactVolume = !root.compactVolume }
                 CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "Now playing"; active: root.compactMpris;      onToggled: root.compactMpris = !root.compactMpris }

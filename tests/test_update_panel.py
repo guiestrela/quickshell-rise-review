@@ -12,6 +12,13 @@ GENERATIONS = [ROOT / 'versions/V1', ROOT / 'versions/V1/variants/V2']
 
 
 class UpdatePanelTests(unittest.TestCase):
+    def test_packages_tab_shows_last_update_check_time(self):
+        for generation in GENERATIONS:
+            with self.subTest(generation=generation):
+                panel = (generation / 'panels/ArchUpdaterPanel.qml').read_text()
+                self.assertIn('last check ', panel)
+                self.assertIn('Qt.formatDateTime(new Date(root.archScanCheckedEpoch * 1000)', panel)
+
     def test_shell_updater_is_removed_from_runtime_and_installation(self):
         for generation in GENERATIONS:
             with self.subTest(generation=generation):

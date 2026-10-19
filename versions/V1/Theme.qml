@@ -295,7 +295,7 @@ Item {
     property var barLayoutControllers: ({})
     property bool _barLayoutSyncing: false
 
-    readonly property bool anyPopupVisible: calendarVisible || cpuVisible || aiUsageVisible
+    readonly property bool anyPopupVisible: calendarVisible || cpuVisible || gpuVisible || aiUsageVisible
         || memVisible || volVisible || controlVisible || networkVisible || bluetoothVisible
         || batteryVisible || brightnessVisible || mprisVisible || weatherVisible
         || workspaceVisible || vpnVisible || imagePickerVisible || mediaBrowserVisible || notifVisible
@@ -407,6 +407,7 @@ Item {
                    || compactBattery !== defaults.compactBattery
                    || compactBrightness !== defaults.compactBrightness
                    || compactCpu !== defaults.compactCpu
+                   || compactGpu !== defaults.compactGpu
                    || compactMemory !== defaults.compactMemory
                    || compactVolume !== defaults.compactVolume
                    || compactBluetooth !== defaults.compactBluetooth
@@ -419,6 +420,7 @@ Item {
         compactBattery = defaults.compactBattery
         compactBrightness = defaults.compactBrightness
         compactCpu = defaults.compactCpu
+        compactGpu = defaults.compactGpu
         compactMemory = defaults.compactMemory
         compactVolume = defaults.compactVolume
         compactBluetooth = defaults.compactBluetooth
@@ -511,6 +513,7 @@ Item {
         else if (name === "battery") batteryBarX = x
         else if (name === "memory") memoryBarX = x
         else if (name === "cpu") cpuBarX = x
+        else if (name === "gpu") gpuBarX = x
         else if (name === "ai") aiBarX = x
         else if (name === "workspace") workspaceBarX = x
         else if (name === "arch") archBarX = x
@@ -562,6 +565,7 @@ Item {
         _closingPopups = true
         if (except !== "calendarVisible") calendarVisible = false
         if (except !== "cpuVisible") cpuVisible = false
+        if (except !== "gpuVisible") gpuVisible = false
         if (except !== "aiUsageVisible") aiUsageVisible = false
         if (except !== "memVisible") memVisible = false
         if (except !== "volVisible") volVisible = false
@@ -768,6 +772,8 @@ Item {
     // ── CPU panel state ──
     property bool cpuVisible: false
     onCpuVisibleChanged: popupOpened("cpuVisible")
+    property bool gpuVisible: false
+    onGpuVisibleChanged: popupOpened("gpuVisible")
 
     // ── AI usage panel state + which tool the bar pill shows ──
     property bool   aiUsageVisible: false
@@ -1214,13 +1220,41 @@ Item {
     readonly property real systemMemUsedGiB: systemMemUsedMiB / 1024
     readonly property real systemMemTotalGiB: systemMemTotalMiB / 1024
 
+    property int systemCpuUserPercent: 0
+    property int systemCpuSystemPercent: 0
+    property int systemCpuIoWaitPercent: 0
+    property real _systemCpuPrevUser: -1
+    property real _systemCpuPrevSystem: -1
+    property real _systemCpuPrevIoWait: -1
+    property string cpuModelName: ""
+    property int cpuCoreCount: 0
+    property int cpuThreadCount: 0
+    property int cpuClockMHz: 0
+    property int cpuTemperatureC: 0
+    property int cpuMaxClockMHz: 0
+    property string cpuEnergyPreference: ""
+    property string cpuScalingGovernor: ""
+    property int cpuThrottleCount: 0
+    property real systemLoad1: 0
+    property real systemLoad5: 0
+    property real systemLoad15: 0
+    property string kernelRelease: ""
+    property var cpuTopProcesses: []
+
     function parseSystemCpu(text) {
         var lines = String(text || "").split("\n")
         if (lines.length === 0 || lines[0].indexOf("cpu ") !== 0) return
         var parts = lines[0].trim().split(/\s+/)
         if (parts.length < 8) return
 
-        var idle = parseFloat(parts[4]) + parseFloat(parts[5])
+        function field(index) {
+            var value = parseFloat(parts[index])
+            return isNaN(value) ? 0 : value
+        }
+        var user = field(1) + field(2)
+        var system = field(3) + field(6) + field(7) + field(8)
+        var ioWait = field(5)
+        var idle = field(4) + ioWait
         var total = 0
         for (var i = 1; i < parts.length; i++) {
             var v = parseFloat(parts[i])
@@ -1233,15 +1267,89 @@ Item {
             var idleDelta = idle - _systemCpuPrevIdle
             var busy = totalDelta > 0 ? Math.round((totalDelta - idleDelta) / totalDelta * 100) : 0
             systemCpuPercent = Math.max(0, Math.min(100, busy))
-
             var h = systemCpuHistory.slice()
             h.push(systemCpuPercent / 100)
             if (h.length > systemCpuMaxSamples) h.shift()
             systemCpuHistory = h
+            systemCpuUserPercent = Math.max(0, Math.min(100,
+                Math.round((user - _systemCpuPrevUser) / totalDelta * 100)))
+            systemCpuSystemPercent = Math.max(0, Math.min(100,
+                Math.round((system - _systemCpuPrevSystem) / totalDelta * 100)))
+            systemCpuIoWaitPercent = Math.max(0, Math.min(100,
+                Math.round((ioWait - _systemCpuPrevIoWait) / totalDelta * 100)))
         }
 
         _systemCpuPrevIdle = idle
         _systemCpuPrevTotal = total
+        _systemCpuPrevUser = user
+        _systemCpuPrevSystem = system
+        _systemCpuPrevIoWait = ioWait
+    }
+
+    function parseCpuInfo(text) {
+        var blocks = String(text || "").trim().split(/\n\s*\n/)
+        var model = ""
+        var threads = 0
+        var cores = {}
+        var fallbackCores = 0
+
+        for (var i = 0; i < blocks.length; i++) {
+            var lines = blocks[i].split("\n")
+            var physical = "0"
+            var core = ""
+            var processorFound = false
+            for (var j = 0; j < lines.length; j++) {
+                var splitAt = lines[j].indexOf(":")
+                if (splitAt < 0) continue
+                var key = lines[j].slice(0, splitAt).trim()
+                var value = lines[j].slice(splitAt + 1).trim()
+                if (key === "processor") processorFound = true
+                else if ((key === "model name" || key === "Hardware") && model === "") model = value
+                else if (key === "physical id") physical = value
+                else if (key === "core id") core = value
+                else if (key === "cpu cores" && fallbackCores === 0) fallbackCores = parseInt(value) || 0
+            }
+            if (processorFound) threads++
+            if (core !== "") cores[physical + ":" + core] = true
+        }
+
+        cpuModelName = model.replace(/\(R\)|\(TM\)/g, "")
+            .replace(/\s+CPU\s+@\s+.*$/, "").replace(/\s+/g, " ").trim()
+        cpuThreadCount = threads
+        var coreKeys = Object.keys(cores)
+        cpuCoreCount = coreKeys.length > 0 ? coreKeys.length : fallbackCores
+    }
+
+    function parseSystemLoad(text) {
+        var fields = String(text || "").trim().split(/\s+/)
+        if (fields.length < 3) return
+        systemLoad1 = parseFloat(fields[0]) || 0
+        systemLoad5 = parseFloat(fields[1]) || 0
+        systemLoad15 = parseFloat(fields[2]) || 0
+    }
+
+    function parseCpuDetail(text) {
+        var fields = String(text || "").trim().split("|")
+        cpuTemperatureC = Math.max(0, parseInt(fields[5]) || 0)
+        if (fields.length < 5) return
+        cpuClockMHz = Math.max(0, parseInt(fields[0]) || 0)
+        cpuMaxClockMHz = Math.max(0, parseInt(fields[1]) || 0)
+        cpuEnergyPreference = String(fields[2] || "").trim()
+        cpuScalingGovernor = String(fields[3] || "").trim()
+        cpuThrottleCount = Math.max(0, parseInt(fields[4]) || 0)
+    }
+
+    function parseCpuTopProcesses(text) {
+        var lines = String(text || "").split("\n")
+        var processes = []
+        for (var i = 0; i < lines.length && processes.length < 3; i++) {
+            var match = lines[i].trim().match(/^(.*\S)\s+([0-9]+(?:[.,][0-9]+)?)$/)
+            if (!match || match[1] === "ps") continue
+            var percent = parseFloat(match[2].replace(",", "."))
+            if (isNaN(percent)) continue
+            processes.push({ name: match[1], percent: percent })
+        }
+        cpuTopProcesses = processes
     }
 
     function parseSystemMem(text) {
@@ -1283,6 +1391,7 @@ Item {
         running: true; repeat: true; triggeredOnStart: true
         onTriggered: {
             systemCpuFile.reload()
+            systemLoadFile.reload()
             systemMemFile.reload()
         }
     }
@@ -1385,10 +1494,153 @@ Item {
 
     Process { id: splitSaveProc }   // command is set imperatively in saveSplits()
 
+    property string gpuBackend: ""
+    property string gpuName: ""
+    property string gpuDriverVersion: ""
+    property int gpuPercent: 0
+    property var gpuHistory: []
+    property int gpuTemperatureC: 0
+    property int gpuMemoryUsedMiB: 0
+    property int gpuMemoryTotalMiB: 0
+    property int gpuClockMHz: 0
+    property real gpuPowerW: 0
+    property real gpuPowerLimitW: 0
+    property string gpuPerformanceState: ""
+    property int gpuFanPercent: 0
+    property int gpuFanRpm: -1
+    readonly property bool gpuAvailable: gpuBackend !== ""
+
+    function parseGpuTelemetry(text) {
+        var fields = String(text || "").trim().split("|")
+        if (fields.length < 12 || fields[0] === "none") {
+            gpuBackend = ""
+            gpuName = ""
+            gpuDriverVersion = ""
+            gpuPercent = 0
+            gpuHistory = []
+            gpuTemperatureC = 0
+            gpuMemoryUsedMiB = 0
+            gpuMemoryTotalMiB = 0
+            gpuClockMHz = 0
+            gpuPowerW = 0
+            gpuPowerLimitW = 0
+            gpuPerformanceState = ""
+            gpuFanPercent = 0
+            gpuFanRpm = -1
+            return
+        }
+
+        function clean(value) { return String(value || "").trim() }
+        function number(value) {
+            var parsed = parseFloat(clean(value))
+            return isNaN(parsed) ? 0 : parsed
+        }
+
+        var rpm = clean(fields[12])
+        gpuFanRpm = /^\d+$/.test(rpm) ? Number(rpm) : -1
+        gpuBackend = clean(fields[0])
+        gpuName = clean(fields[1])
+        gpuDriverVersion = clean(fields[2])
+        gpuPercent = Math.max(0, Math.min(100, Math.round(number(fields[3]))))
+        var history = gpuHistory.slice(-29)
+        history.push(gpuPercent / 100)
+        gpuHistory = history
+        gpuTemperatureC = Math.max(0, Math.round(number(fields[4])))
+        gpuMemoryUsedMiB = Math.max(0, Math.round(number(fields[5])))
+        gpuMemoryTotalMiB = Math.max(0, Math.round(number(fields[6])))
+        gpuClockMHz = Math.max(0, Math.round(number(fields[7])))
+        gpuPowerW = Math.max(0, number(fields[8]))
+        gpuPowerLimitW = Math.max(0, number(fields[9]))
+        gpuPerformanceState = clean(fields[10])
+        gpuFanPercent = Math.max(0, Math.min(100, Math.round(number(fields[11]))))
+    }
+
+    Process {
+        id: gpuTelemetryProc
+        command: ["bash", "-c",
+            "if command -v nvidia-smi >/dev/null 2>&1; then "
+            + "IFS=, read -r name driver util temp used total clock power limit pstate fan < <(nvidia-smi --query-gpu=name,driver_version,utilization.gpu,temperature.gpu,memory.used,memory.total,clocks.current.graphics,power.draw,power.limit,pstate,fan.speed --format=csv,noheader,nounits 2>/dev/null | head -n1); "
+            + "if [[ $util =~ ^[[:space:]]*[0-9]+[[:space:]]*$ && $temp =~ ^[[:space:]]*[0-9]+[[:space:]]*$ && $used =~ ^[[:space:]]*[0-9]+[[:space:]]*$ && $total =~ ^[[:space:]]*[0-9]+[[:space:]]*$ ]]; then "
+            + "printf 'nvidia|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\\n' \"$name\" \"$driver\" \"$util\" \"$temp\" \"$used\" \"$total\" \"$clock\" \"$power\" \"$limit\" \"$pstate\" \"$fan\"; exit 0; fi; "
+            + "fi; "
+            + "for busy in /sys/class/drm/card*/device/gpu_busy_percent; do "
+            + "[[ -r $busy ]] || continue; read -r util < \"$busy\"; temp=0; "
+            + "for sensor in \"${busy%/gpu_busy_percent}\"/hwmon/hwmon*/temp1_input; do "
+            + "[[ -r $sensor ]] || continue; read -r raw < \"$sensor\"; temp=$((raw / 1000)); break; done; "
+            + "rpm=''; for sensor in \"${busy%/gpu_busy_percent}\"/hwmon/hwmon*/fan1_input; do "
+            + "[[ -r $sensor ]] || continue; read -r raw < \"$sensor\"; [[ $raw =~ ^[0-9]+$ ]] && rpm=$raw; break; done; "
+            + "printf 'sysfs|GPU||%s|%s|0|0|0|0|0||0|%s\\n' \"$util\" \"$temp\" \"$rpm\"; exit 0; done; "
+            + "printf 'none|||||||||||\\n'"]
+        stdout: StdioCollector { onStreamFinished: theme.parseGpuTelemetry(this.text) }
+    }
+
+    Timer {
+        interval: 2500; repeat: true; triggeredOnStart: true
+        running: theme.modGpu || theme.gpuVisible
+        onTriggered: if (!gpuTelemetryProc.running) gpuTelemetryProc.running = true
+    }
+
+    FileView {
+        id: systemCpuInfoFile
+        path: "/proc/cpuinfo"
+        onLoaded: theme.parseCpuInfo(systemCpuInfoFile.text())
+    }
+
+    FileView {
+        id: systemLoadFile
+        path: "/proc/loadavg"
+        onLoaded: theme.parseSystemLoad(systemLoadFile.text())
+    }
+
+    FileView {
+        id: kernelReleaseFile
+        path: "/proc/sys/kernel/osrelease"
+        onLoaded: theme.kernelRelease = String(kernelReleaseFile.text() || "").trim()
+    }
+
+    Process {
+        id: cpuDetailProc
+        command: ["bash", "-c",
+            "sum=0; count=0; max=0; epp=''; governor=''; throttle=0; "
+            + "for f in /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq; do [[ -r $f ]] || continue; IFS= read -r v < \"$f\"; "
+            + "[[ $v =~ ^[0-9]+$ ]] || continue; sum=$((sum + v)); count=$((count + 1)); done; "
+            + "(( count > 0 )) && avg=$((sum / count / 1000)) || avg=0; "
+            + "f=/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq; [[ -r $f ]] && { IFS= read -r v < \"$f\"; [[ $v =~ ^[0-9]+$ ]] && max=$((v / 1000)); }; "
+            + "f=/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference; [[ -r $f ]] && IFS= read -r epp < \"$f\"; "
+            + "f=/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor; [[ -r $f ]] && IFS= read -r governor < \"$f\"; "
+            + "f=/sys/devices/system/cpu/cpu0/thermal_throttle/package_throttle_count; [[ -r $f ]] && { IFS= read -r v < \"$f\"; [[ $v =~ ^[0-9]+$ ]] && throttle=$v; }; "
+            + "temp=0; for d in /sys/class/hwmon/hwmon*; do [[ -r $d/name ]] || continue; read -r name < \"$d/name\"; "
+            + "case $name in coretemp|k10temp|zenpower|cpu_thermal) "
+            + "for input in \"$d\"/temp*_input; do [[ -r $input ]] || continue; label=''; "
+            + "[[ -r ${input%_input}_label ]] && IFS= read -r label < \"${input%_input}_label\"; "
+            + "case $label in 'Package id '*|Tctl|Tdie|'CPU Package'|CPU) read -r raw < \"$input\"; "
+            + "[[ $raw =~ ^[0-9]+$ ]] && (( raw / 1000 > temp )) && temp=$((raw / 1000));; esac; done;; esac; done; "
+            + "printf '%s|%s|%s|%s|%s|%s\\n' \"$avg\" \"$max\" \"$epp\" \"$governor\" \"$throttle\" \"$temp\""]
+        stdout: StdioCollector { onStreamFinished: theme.parseCpuDetail(this.text) }
+    }
+
+    Process {
+        id: cpuTopProcessesProc
+        command: ["ps", "-eo", "comm=,%cpu=", "--sort=-%cpu"]
+        stdout: StdioCollector { onStreamFinished: theme.parseCpuTopProcesses(this.text) }
+    }
+
+    Timer {
+        interval: 2500; repeat: true; triggeredOnStart: true
+        running: theme.modCpu || theme.cpuVisible
+        onTriggered: if (!cpuDetailProc.running) cpuDetailProc.running = true
+    }
+    Timer {
+        interval: 3000; repeat: true; triggeredOnStart: true
+        running: theme.cpuVisible
+        onTriggered: if (!cpuTopProcessesProc.running) cpuTopProcessesProc.running = true
+    }
+
     // ── module enable flags (controlled by ControlPanel) ──
     property bool modStatus:     true
     property bool modMemory:     true
     property bool modCpu:        true
+    property bool modGpu:        true
     property bool modVolume:     true
     property bool modWeather:    true
     property bool modNetwork:    true
@@ -1820,6 +2072,7 @@ Item {
     property bool compactBattery:    V1Defaults.defaultCompact().compactBattery
     property bool compactBrightness: V1Defaults.defaultCompact().compactBrightness
     property bool compactCpu:        V1Defaults.defaultCompact().compactCpu
+    property bool compactGpu:        V1Defaults.defaultCompact().compactGpu
     property bool compactMemory:     V1Defaults.defaultCompact().compactMemory
     property bool compactVolume:     V1Defaults.defaultCompact().compactVolume
     property bool compactBluetooth:  V1Defaults.defaultCompact().compactBluetooth
@@ -1866,6 +2119,7 @@ Item {
     onModStatusChanged:     if (_widgetsLoaded) saveWidgets()
     onModQuickChanged:      if (_widgetsLoaded) saveWidgets()
     onModCpuChanged:        if (_widgetsLoaded) saveWidgets()
+    onModGpuChanged:        if (_widgetsLoaded) saveWidgets()
     onModVolumeChanged:     if (_widgetsLoaded) saveWidgets()
     onModMprisChanged:      if (_widgetsLoaded) saveWidgets()
     onAiToolChanged:        if (_widgetsLoaded) saveWidgets()
@@ -1882,6 +2136,7 @@ Item {
     onCompactBatteryChanged:    if (_widgetsLoaded && !_compactResetting) saveWidgets()
     onCompactBrightnessChanged: if (_widgetsLoaded && !_compactResetting) saveWidgets()
     onCompactCpuChanged:        if (_widgetsLoaded && !_compactResetting) saveWidgets()
+    onCompactGpuChanged:        if (_widgetsLoaded && !_compactResetting) saveWidgets()
     onCompactMemoryChanged:     if (_widgetsLoaded && !_compactResetting) saveWidgets()
     onCompactVolumeChanged:     if (_widgetsLoaded && !_compactResetting) saveWidgets()
     onCompactBluetoothChanged:  if (_widgetsLoaded && !_compactResetting) saveWidgets()
@@ -1939,7 +2194,9 @@ Item {
                  + (modWallpapers     ? "1" : "0") + " "  // +34 Wallpapers; append-only schema
                  + (modDisplayManager ? "1" : "0") + " "  // +35 Display Manager; append-only schema
                  + (displayManagerAutoWorkspaces ? "1" : "0") + " " // +36 Display Manager workspace preference
-                 + V1Defaults.compactCacheFields(compactNordVpn, compactAi).join(" ") // +37..+38, append-only
+                 + V1Defaults.compactCacheFields(compactNordVpn, compactAi).join(" ") + " " // +37..+38, append-only
+                 + (modGpu ? "1" : "0") + " " // +39 GPU; preserve all older fields
+                 + (compactGpu ? "1" : "0") // +40 GPU compact; append-only
         widgetSaveProc.command = ["bash", "-c",
             "echo '" + line + "' > '" + widgetsCachePath + "'"]
         widgetSaveProc.running = false
@@ -2150,6 +2407,8 @@ Item {
                     if (parts.length > wsField + 34) theme.modWallpapers    = parts[wsField + 34] === "1"
                     if (parts.length > wsField + 35) theme.modDisplayManager = parts[wsField + 35] === "1"
                     if (parts.length > wsField + 36) theme.displayManagerAutoWorkspaces = parts[wsField + 36] === "1"
+                    if (parts.length > wsField + 39) theme.modGpu = parts[wsField + 39] !== "0"
+                    if (parts.length > wsField + 40) theme.compactGpu = parts[wsField + 40] === "1"
                     var compactFields = V1Defaults.parseCompactCacheFields(parts, wsField)
                     theme.compactNordVpn = compactFields.compactNordVpn
                     theme.compactAi = compactFields.compactAi
@@ -2390,6 +2649,7 @@ Item {
     property real batteryBarX:    0
     property real memoryBarX:     0
     property real cpuBarX:        0
+    property real gpuBarX:        0
     property real aiBarX:         0
     property real workspaceBarX:  0
     property real archBarX:       0

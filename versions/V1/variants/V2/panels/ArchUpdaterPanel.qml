@@ -888,6 +888,8 @@ PanelWindow {
                         if (root.archGateListDate !== "") b += " · " + root.archGateListDate
                         p.push('<a href="bl">' + seg(b, root.ink) + '</a>')   // only this part is clickable
                     }
+                    if (root.archScanCheckedEpoch > 0)
+                        p.push(seg("last check " + Qt.formatDateTime(new Date(root.archScanCheckedEpoch * 1000), "yyyy-MM-dd HH:mm"), root.ink))
                     return p.join(' <font color="' + hx(root.sumi) + '">·</font> ')
                 }
                 onLinkActivated: Quickshell.execDetached(["bash", "-c",

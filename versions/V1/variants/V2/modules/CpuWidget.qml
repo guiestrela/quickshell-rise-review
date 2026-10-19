@@ -13,7 +13,8 @@ Item {
     Behavior on opacity      { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
 
     readonly property int percent: root.systemCpuPercent
-    readonly property string tooltipText: percent + "%"
+    readonly property string tooltipText: "CPU · " + percent + "%"
+        + (root.cpuTemperatureC > 0 ? " · " + root.cpuTemperatureC + "°C" : "")
     readonly property color contentColor: root.widgetContentColor("G5", root.widgetIconColor)
 
     Row {

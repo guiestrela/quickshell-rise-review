@@ -196,9 +196,13 @@ PanelWindow {
                 label: "Temperature"
                 value: gpuPanel.gpuTemp > 0 ? gpuPanel.gpuTemp + "°C" : ""
             }
-            InfoRow {
-                label: "Fan"
-                value: root.gpuFanRpm >= 0 ? root.gpuFanRpm + " RPM" : ""
+            FanRpmHistory {
+                width: parent.width
+                theme: gpuPanel.root
+                active: gpuPanel.root.gpuVisible
+                externalSource: true
+                externalRpm: root.gpuFanRpm
+                sensorLabel: "FAN"
             }
             InfoRow {
                 label: "VRAM"

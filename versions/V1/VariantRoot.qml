@@ -255,6 +255,7 @@ Item {
     PowerProfilePanel { root: theme }
     MemoryPanel { root: theme }
     CpuPanel { root: theme }
+    GpuPanel { root: theme }
     AiUsagePanel { root: theme }
     VolumePanel { root: theme }
     TrayPanel { root: theme }
