@@ -21,6 +21,7 @@ PanelWindow {
 
     readonly property int barBottom: root.v2BarHeight
     readonly property int gap: 6
+    readonly property int contentPadding: 16
 
     // ── usage data: rendered from root.ai* — the single shared parse in Theme.qml
     //    that the bar pill uses too, so the two views can never drift apart. ──
@@ -252,8 +253,8 @@ PanelWindow {
 
     Rectangle {
         id: card
-        width: 360
-        height: Math.min(col.implicitHeight + 24, parent.height - 2 * (barBottom + gap))
+        width: Math.min(360, parent.width - 12)
+        height: Math.min(col.implicitHeight + 2 * aiPanel.contentPadding, parent.height - 2 * (barBottom + gap))
         radius: reveal > 0.001 ? root.panelRadius : 0
         color: "transparent"
         border.color: root.panelBorder
@@ -285,7 +286,7 @@ PanelWindow {
         Flickable {
             id: scroller
             anchors.fill: parent
-            anchors.margins: 12
+            anchors.margins: aiPanel.contentPadding
             contentWidth: width
             contentHeight: col.implicitHeight
             clip: true
@@ -338,14 +339,14 @@ PanelWindow {
                 // ── segmented switch: which tool the bar shows ──
                 Row {
                     width: parent.width
-                    height: 28
+                    height: 32
                     spacing: 6
                     Repeater {
                         model: aiPanel.availableTools
                         Rectangle {
                             required property var modelData
-                            width: root.evenW((parent.width - Math.max(0, aiPanel.availableTools.length - 1) * 6) / Math.max(1, aiPanel.availableTools.length))
-                            height: 28; radius: root.panelButtonRadius
+                            width: (parent.width - Math.max(0, aiPanel.availableTools.length - 1) * 6) / Math.max(1, aiPanel.availableTools.length)
+                            height: 32; radius: root.panelButtonRadius
                             readonly property bool active: root.aiTool === modelData.id
                             color: active ? root.fillActive
                                   : segMa.containsMouse ? root.fillHover : root.fillIdle
