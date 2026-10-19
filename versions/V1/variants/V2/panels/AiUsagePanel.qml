@@ -71,8 +71,8 @@ PanelWindow {
     property bool authChecked: false
     function applyAuthStatus(states) {
         var tools = [ { id: "claude", label: "Claude" }, { id: "codex", label: "Codex" }, { id: "opencode", label: "OpenCode" }, { id: "copilot", label: "Copilot" } ]
-        // OpenCode stays available explicitly requested, including local/no-login use.
-        availableTools = tools.filter(function(tool) { return tool.id === "opencode" || (states && states[tool.id] === true) })
+        // Keep OpenCode and Copilot accessible even without a detected CLI login.
+        availableTools = tools.filter(function(tool) { return tool.id === "opencode" || tool.id === "copilot" || (states && states[tool.id] === true) })
         authChecked = true
         if (availableTools.length > 0 && !availableTools.some(function(tool) { return tool.id === aiPanel.root.aiTool }))
             aiPanel.root.aiTool = availableTools[0].id

@@ -25,7 +25,7 @@ for variant in ('versions/V1', 'versions/V1/variants/V2'):
                 'missing': 'authStatusProcess.command = ["/nonexistent/rise-auth-helper"];',
                 'timeout': 'authStatusProcess.command = ["python3", "-c", "import time; time.sleep(10)"];',
             }[mode]
-            expected = '2' if mode == 'success' else '1'
+            expected = '3' if mode == 'success' else '2'
             panel.write_text('''import QtQuick
 import Quickshell
 import Quickshell.Io
