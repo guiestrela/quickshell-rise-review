@@ -18,6 +18,10 @@ PanelWindow {
     readonly property int gap: 6
     property string countryTarget: ""
     property string autoCountryTarget: ""
+    property bool dnsEditorExpanded: false
+    property alias testDnsInput: dnsInput
+    property alias testDnsSetHandler: dnsSetMouse
+    property alias testDnsResetHandler: dnsResetMouse
     property bool countryChooserExpanded: false
     property bool autoCountryChooserExpanded: false
     readonly property var countryOptions: controller.countryOptions || []
@@ -46,7 +50,7 @@ PanelWindow {
             if (!vpnPanel.root.vpnVisible) vpnPanel.pauseSelectorExpanded = false
         }
     }
-    function closePanel() { pauseSelectorExpanded = false; countryChooserExpanded = false; autoCountryChooserExpanded = false; vpnPanel.root.vpnVisible = false }
+    function closePanel() { dnsEditorExpanded = false; pauseSelectorExpanded = false; countryChooserExpanded = false; autoCountryChooserExpanded = false; vpnPanel.root.vpnVisible = false }
     function selectCountry(country) {
         if (countryOptions.indexOf(String(country)) < 0) return false
         countryTarget = String(country)
@@ -68,11 +72,21 @@ PanelWindow {
     function disconnect() { controller.disconnectVpn() }
     function connectCountry() { controller.connectVpnCountry(countryTarget) }
     function pause(duration) { controller.pauseVpn(duration) }
-    function changeSetting(key) { controller.setVpnSetting(key) }
+    function changeSetting(key) {
+        if (key === "dns") {
+            if (!controller.canMutate) return
+            dnsEditorExpanded = !dnsEditorExpanded
+            if (dnsEditorExpanded) {
+                var current = String(controller.vpnSettings.dns || "")
+                dnsInput.text = /^(disabled|off|default)$/i.test(current) ? "" : current
+                dnsInput.forceActiveFocus()
+            }
+        } else controller.setVpnSetting(key)
+    }
     function changeTechnology(technology) { controller.setVpnSetting("technology", technology) }
     function changeProtocol(protocol) { controller.setVpnSetting("protocol", protocol) }
     function applyDns() { controller.setDnsServers(dnsInput.text) }
-    function resetDns() { controller.resetDnsServers() }
+    function resetDns() { if (controller.resetDnsServers()) dnsInput.text = "" }
 
     MouseArea { anchors.fill: parent; onClicked: vpnPanel.closePanel() }
     Rectangle {
@@ -243,9 +257,43 @@ PanelWindow {
                         UiText { anchors.left: parent.left; anchors.right: switchTrack.left; anchors.rightMargin: 5; anchors.verticalCenter: parent.verticalCenter; text: modelData.label; color: parent.enabledSetting ? vpnPanel.root.ink : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10; wrapMode: Text.WordWrap; maximumLineCount: 2 }
                         Rectangle { id: switchTrack; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; width: 50; height: 22; radius: height / 2; color: parent.enabledSetting ? vpnPanel.root.fillActive : settingMouse.containsMouse && settingMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle; border.color: parent.enabledSetting || (settingMouse.containsMouse && settingMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep; border.width: 1
                             Behavior on color { ColorAnimation { duration: 120 } }
-                            UiText { anchors.centerIn: parent; text: parent.parent.enabledSetting ? "ON" : "OFF"; color: parent.parent.enabledSetting ? vpnPanel.root.seal : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
+                            UiText { anchors.centerIn: parent; text: modelData.key === "dns" ? "EDIT" : parent.parent.enabledSetting ? "ON" : "OFF"; color: parent.parent.enabledSetting ? vpnPanel.root.seal : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
                         }
-                        MouseArea { objectName: "vpn-setting-" + modelData.key; id: settingMouse; Component.onCompleted: vpnPanel.testTargets[objectName] = settingMouse; anchors.fill: parent; hoverEnabled: true; enabled: controller.vpnState !== "Unavailable" && modelData.key !== "dns"; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: vpnPanel.changeSetting(modelData.key) }
+                        MouseArea { objectName: "vpn-setting-" + modelData.key; id: settingMouse; Component.onCompleted: vpnPanel.testTargets[objectName] = settingMouse; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: vpnPanel.changeSetting(modelData.key) }
+                    }
+                }
+            }
+            Column {
+                width: parent.width; spacing: 6; visible: vpnPanel.dnsEditorExpanded
+                UiText { text: "CUSTOM DNS · 1–3 IPv4 addresses"; color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
+                Rectangle {
+                    width: parent.width; height: 30; radius: vpnPanel.root.panelButtonRadius
+                    color: vpnPanel.root.fillIdle; border.color: dnsInput.activeFocus ? vpnPanel.root.seal : vpnPanel.root.sep
+                    TextInput {
+                        id: dnsInput; objectName: "vpn-dns-input"
+                        anchors.fill: parent; anchors.margins: 8
+                        color: vpnPanel.root.ink; selectionColor: vpnPanel.root.seal
+                        font.family: vpnPanel.root.mono; font.pixelSize: 10
+                        clip: true; selectByMouse: true; enabled: controller.canMutate
+                        onAccepted: vpnPanel.applyDns()
+                    }
+                    UiText { anchors.fill: dnsInput; visible: !dnsInput.text && !dnsInput.activeFocus; text: "e.g. 1.1.1.1, 8.8.8.8"; color: vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
+                }
+                Row {
+                    width: parent.width; spacing: 6
+                    Rectangle {
+                        width: (parent.width - 6) / 2; height: 28; radius: vpnPanel.root.panelButtonRadius
+                        color: dnsSetMouse.containsMouse && dnsSetMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle
+                        border.color: vpnPanel.root.sep; opacity: dnsSetMouse.enabled ? 1 : 0.5
+                        UiText { anchors.centerIn: parent; text: "Apply"; color: vpnPanel.root.seal; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
+                        MouseArea { id: dnsSetMouse; objectName: "vpn-dns-apply"; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate && dnsInput.text.trim() !== ""; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: vpnPanel.applyDns() }
+                    }
+                    Rectangle {
+                        width: (parent.width - 6) / 2; height: 28; radius: vpnPanel.root.panelButtonRadius
+                        color: dnsResetMouse.containsMouse && dnsResetMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle
+                        border.color: vpnPanel.root.sep; opacity: dnsResetMouse.enabled ? 1 : 0.5
+                        UiText { anchors.centerIn: parent; text: "Reset"; color: vpnPanel.root.seal; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
+                        MouseArea { id: dnsResetMouse; objectName: "vpn-dns-reset"; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: vpnPanel.resetDns() }
                     }
                 }
             }
