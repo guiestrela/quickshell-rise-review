@@ -22,6 +22,22 @@ folders. Its bar styling and interactions follow the Quickshell Rise design.
 
 ## Install
 
+For a complete installation with one command, including fonts, `cava`, Rise,
+AI usage collectors, the post-update recovery hook, and a shell restart, run:
+
+```bash
+omarchy pkg add ttf-jetbrains-mono-nerd ttf-material-symbols-variable cava && \
+  omarchy plugin add https://github.com/guiestrela/quickshell-rise-review.git --enable && \
+  "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/scripts/install-ai-backends" \
+    "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise" && \
+  omarchy hook install post-update \
+    "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/contrib/post-boot.d/quickshell-rise" && \
+  omarchy restart shell
+```
+
+Confirm the repository when Omarchy asks. Each step runs only if the previous
+step succeeds. To install the parts separately, use the commands below.
+
 Install Rise with Omarchy's plugin manager. Confirm the repository when
 Omarchy asks:
 
