@@ -22,28 +22,11 @@ folders. Its bar styling and interactions follow the Quickshell Rise design.
 
 ## Install
 
-Install the required fonts **before enabling the plugin**:
-
-```bash
-omarchy pkg add ttf-jetbrains-mono-nerd ttf-material-symbols-variable
-```
-
-The plugin manager does not run `install.sh` or install these font dependencies.
-Without **Material Symbols Rounded**, icon names such as `planner_review` and
-`graphic_eq` appear as text and overlap neighboring widgets.
-
-Then install Rise with Omarchy's plugin manager. Confirm the repository when
+Install Rise with Omarchy's plugin manager. Confirm the repository when
 Omarchy asks:
 
 ```bash
 omarchy plugin add https://github.com/guiestrela/quickshell-rise-review.git --enable
-```
-
-If Rise was already running when the fonts were installed, reload its font
-selection by restarting the shell:
-
-```bash
-omarchy restart shell
 ```
 
 To install the AI usage collectors and their user systemd timers, run:
@@ -63,6 +46,23 @@ omarchy hook install post-update \
 The post-update hook makes Omarchy restart its shell after `omarchy update`
 has released the update lock, so the selected Rise bar is loaded from updated
 plugin files.
+
+Install the required fonts **before enabling the plugin**:
+
+```bash
+omarchy pkg add ttf-jetbrains-mono-nerd ttf-material-symbols-variable
+```
+
+The plugin manager does not run `install.sh` or install these font dependencies.
+Without **Material Symbols Rounded**, icon names such as `planner_review` and
+`graphic_eq` appear as text and overlap neighboring widgets.
+
+If Rise was already running when the fonts were installed, reload its font
+selection by restarting the shell:
+
+```bash
+omarchy restart shell
+```
 
 The plugin replaces the built-in bar while enabled. Disable it to return to the
 Omarchy bar:
