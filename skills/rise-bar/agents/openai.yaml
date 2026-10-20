@@ -1,0 +1,4 @@
+interface:
+  display_name: "Rise Bar"
+  short_description: "Instalar, ajustar e diagnosticar a Rise Bar"
+  default_prompt: "Use $rise-bar para cuidar da Rise Bar preservando os plugins instalados."

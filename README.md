@@ -97,6 +97,34 @@ omarchy plugin list
 omarchy plugin validate ~/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise
 ```
 
+## Rise Bar skill for Codex
+
+The repository includes a specialized [Rise Bar skill](skills/rise-bar/SKILL.md)
+for installation, V1/V2 development, configuration and crash diagnosis while
+preserving installed plugins and local settings. It includes the complete bar
+installation command above.
+
+To install the skill, run from the root of this repository:
+
+```bash
+mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
+cp -R ./skills/rise-bar "${CODEX_HOME:-$HOME/.codex}/skills/"
+```
+
+If Rise is already installed, you can copy the skill from the plugin instead:
+
+```bash
+mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
+cp -R "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/skills/rise-bar" \
+  "${CODEX_HOME:-$HOME/.codex}/skills/"
+```
+
+If a `rise-bar` skill is already present, review your local changes before
+copying over it. Open a new Codex session after installation and invoke it with
+`$rise-bar`, for example: “Use $rise-bar to diagnose a Rise bar crash while
+preserving my plugins.” Installing the skill alone does not install or enable
+the bar; use the complete command in [Install](#install) for that.
+
 ## Update
 
 Update Rise from its Git repository with Omarchy's plugin manager:
