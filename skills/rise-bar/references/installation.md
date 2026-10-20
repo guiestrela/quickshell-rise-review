@@ -1,6 +1,6 @@
 # Install Quickshell Rise
 
-Use this procedure when the user requests installation of the Rise bar on Omarchy. It installs the bar, not the Codex skill. For an existing installation, inspect local modifications and the enabled plugin list before deciding whether installation or update is appropriate.
+Use this procedure when the user requests installation of the Rise bar on Omarchy. It installs the bar, not the AI agent skill. For an existing installation, inspect local modifications and the enabled plugin list before deciding whether installation or update is appropriate.
 
 For a complete installation with one command, including fonts, `cava`, Rise,
 AI usage collectors, the post-update recovery hook, and a shell restart, run:

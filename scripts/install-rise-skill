@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Install the portable Rise skill into an agent's skills directory.
+set -euo pipefail
+
+if [[ $# -ne 1 || -z "$1" ]]; then
+  printf 'Usage: bash scripts/install-rise-skill <agent-skills-directory>\n' >&2
+  exit 2
+fi
+
+source_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../skills/rise-bar" && pwd)"
+destination="$1/rise-bar"
+if [[ -e "$destination" || -L "$destination" ]]; then
+  printf 'Skill already exists: %s. Review or back it up before replacing it.\n' "$destination" >&2
+  exit 1
+fi
+mkdir -p -- "$1"
+cp -R -- "$source_dir" "$destination"
+printf 'Rise Bar skill installed: %s\n' "$destination"

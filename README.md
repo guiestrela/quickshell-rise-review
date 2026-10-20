@@ -97,33 +97,44 @@ omarchy plugin list
 omarchy plugin validate ~/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise
 ```
 
-## Rise Bar skill for Codex
+## Rise Bar skill for AI agents
 
-The repository includes a specialized [Rise Bar skill](skills/rise-bar/SKILL.md)
+The repository includes a portable [Rise Bar skill](skills/rise-bar/SKILL.md)
 for installation, V1/V2 development, configuration and crash diagnosis while
 preserving installed plugins and local settings. It includes the complete bar
-installation command above.
+installation command above. The skill is not specific to Codex: install it for
+any AI agent that supports the `SKILL.md` format, using that agent's documented
+skills directory.
 
-To install the skill, run from the root of this repository:
-
-```bash
-mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
-cp -R ./skills/rise-bar "${CODEX_HOME:-$HOME/.codex}/skills/"
-```
-
-If Rise is already installed, you can copy the skill from the plugin instead:
+From the root of this repository, pass the agent's skills directory:
 
 ```bash
-mkdir -p "${CODEX_HOME:-$HOME/.codex}/skills"
-cp -R "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/skills/rise-bar" \
-  "${CODEX_HOME:-$HOME/.codex}/skills/"
+bash scripts/install-rise-skill /path/to/your/agent/skills
 ```
 
-If a `rise-bar` skill is already present, review your local changes before
-copying over it. Open a new Codex session after installation and invoke it with
-`$rise-bar`, for example: “Use $rise-bar to diagnose a Rise bar crash while
-preserving my plugins.” Installing the skill alone does not install or enable
-the bar; use the complete command in [Install](#install) for that.
+Repeat for each AI agent installed on your system. The installer copies the
+complete skill, including its references, and refuses to overwrite an existing
+`rise-bar` directory so you can review or back up local changes first.
+
+For example, for Codex:
+
+```bash
+bash scripts/install-rise-skill "${CODEX_HOME:-$HOME/.codex}/skills"
+```
+
+If Rise is already installed, the same installer is available in the plugin:
+
+```bash
+bash "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/scripts/install-rise-skill" \
+  /path/to/your/agent/skills
+```
+
+Start a new agent session after installation and use its skill invocation
+mechanism. In Codex, invoke `$rise-bar`, for example: “Use $rise-bar to diagnose
+a Rise bar crash while preserving my plugins.” For an AI without native skill
+support, provide `SKILL.md` and the referenced files as context; automatic
+skill discovery depends on the application. Installing the skill alone does
+not install or enable the bar; use the complete command in [Install](#install).
 
 ## Update
 
