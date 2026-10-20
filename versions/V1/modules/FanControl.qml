@@ -50,7 +50,11 @@ Column {
     }
     onActiveChanged: {
         if (active) start()
-        else { pendingMode = ""; backend.stdinEnabled = false }
+        else {
+            pendingMode = ""
+            // Keep the controller and its temperature monitoring alive for the selected mode.
+            if (currentMode === "") backend.stdinEnabled = false
+        }
     }
     Component.onCompleted: start()
 
@@ -62,13 +66,16 @@ Column {
         height: 24
         radius: 3
         color: chosen ? control.theme.seal : control.theme.fillActive
+        border.width: chosen ? 1 : 0
+        border.color: control.theme.ink
         opacity: available ? 1 : 0.45
         UiText {
             anchors.centerIn: parent
-            text: parent.label
+            text: (parent.chosen ? "✓ " : "") + parent.label
             color: parent.chosen ? control.theme.paper : control.theme.ink
             font.family: control.theme.mono
             font.pixelSize: 9
+            font.weight: parent.chosen ? Font.DemiBold : Font.Normal
         }
         MouseArea {
             anchors.fill: parent
@@ -80,7 +87,11 @@ Column {
     UiText {
         width: parent.width
         text: control.channels.length
-            ? "CPU fans · Auto · " + control.channels.map(c => c.label).join(" + ")
+            ? "CPU fans · " + (control.currentMode === "" ? "Auto"
+                : control.currentMode === "manual" ? "Manual " + control.percent + "%"
+                : control.currentMode === "full" ? "Full speed"
+                : control.currentMode.charAt(0).toUpperCase() + control.currentMode.slice(1))
+                + " · " + control.channels.map(c => c.label).join(" + ")
             : "No CPU fan control detected"
         color: control.theme.ink
         font.family: control.theme.mono
