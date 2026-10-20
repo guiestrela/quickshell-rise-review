@@ -229,6 +229,12 @@ PanelWindow {
                 active: cpuPanel.root.cpuVisible
             }
 
+            FanControl {
+                width: parent.width
+                theme: cpuPanel.root
+                active: cpuPanel.root.cpuVisible
+            }
+
             InfoRow { label: "Clock"; value: cpuPanel.clockSummary }
             InfoRow { label: "Load 1 · 5 · 15"; value: cpuPanel.loadSummary }
             InfoRow {

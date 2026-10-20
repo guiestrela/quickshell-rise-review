@@ -188,6 +188,7 @@ quickshell ipc -p "$OMARCHY_PATH/shell" call quickshell-rise.variant activate v2
 ## Features
 
 - Omarchy theme and system status integration.
+- Motherboard fan profiles and manual PWM control ([setup and compatibility](docs/fan-control.md)).
 - Rise panels for workspaces, audio, network, Bluetooth, brightness, power,
   media, calendar, weather, updates, and notification history.
 - Weather forecasts and radar, with a configurable location.

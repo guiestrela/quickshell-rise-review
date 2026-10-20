@@ -1,0 +1,245 @@
+#!/usr/bin/env python3
+"""Session-scoped hwmon fan control. JSON-lines stdin/stdout; never elevates."""
+import fcntl
+import json
+import os
+from pathlib import Path
+import re
+import select
+import signal
+import sys
+import tempfile
+
+ROOT = Path('/sys/class/hwmon')
+GPU = {'amdgpu', 'nouveau', 'nvidia'}
+
+
+def number(path):
+    return int(path.read_text().strip())
+
+
+def channels(root=ROOT):
+    result = []
+    for device in sorted(root.glob('hwmon*')):
+        try:
+            name = (device / 'name').read_text().strip()
+            if name in GPU:
+                continue
+            for pwm in sorted(device.glob('pwm*')):
+                if not re.fullmatch(r'pwm[1-9][0-9]*', pwm.name):
+                    continue
+                enable = pwm.with_name(pwm.name + '_enable')
+                if not enable.exists():
+                    continue
+                # Keep tachometer metadata for automatic selection, never probe by
+                # changing a fan's speed.
+                tach = device / (pwm.name.replace('pwm', 'fan') + '_input')
+                label = device / (pwm.name.replace('pwm', 'fan') + '_label')
+                rpm = number(tach) if tach.exists() else 0
+                fan_label = label.read_text().strip() if label.exists() else ''
+                source = pwm.with_name(pwm.name + '_temp_sel')
+                source_label = device / ('temp' + str(number(source)) + '_label') if source.exists() else None
+                cpu_source = source_label.read_text().strip() if source_label and source_label.exists() else ''
+                result.append({'id': str(pwm), 'label': name + ' / ' + pwm.name,
+                               'rpm': rpm, 'fan_label': fan_label,
+                               'cpu_source': cpu_source,
+                               'writable': os.access(pwm, os.W_OK) and os.access(enable, os.W_OK)})
+        except (OSError, ValueError):
+            continue
+    return result
+
+
+def automatic_channels(available):
+    """Use explicit CPU labels or NCT6791 channels routed to CPU temperature.
+
+    Resolve pwmN_temp_sel through tempN_label rather than hardcoding indices.
+    Include idle
+    channels too, so CPU_FAN2 stays selected even when its tachometer is zero.
+    """
+    return [c for c in available if 'cpu' in c['fan_label'].lower()
+            or (c['label'].startswith('nct6791 / ')
+                and c['cpu_source'] in {'CPUTIN', 'PECI Agent 0', 'PECI Agent 1'})]
+
+
+def temperature(root=ROOT):
+    readings = []
+    for device in root.glob('hwmon*'):
+        try:
+            name = (device / 'name').read_text().strip()
+            if name not in {'coretemp', 'k10temp', 'zenpower', 'cpu_thermal'}:
+                continue
+            for sensor in device.glob('temp*_input'):
+                value = number(sensor) / 1000
+                if not 0 < value < 130:
+                    raise ValueError('Invalid CPU temperature')
+                readings.append(value)
+        except OSError:
+            continue
+    if not readings:
+        raise ValueError('CPU temperature unavailable; control refused')
+    return max(readings)
+
+
+def duty(mode, percent, temp):
+    if temp >= 80:
+        return 100
+    if mode == 'manual':
+        return max(40, min(100, int(percent)))
+    floors = {'silent': 40, 'standard': 55, 'performance': 70, 'full': 100}
+    floor = floors[mode]
+    return round(floor + (100 - floor) * max(0, min(1, (temp - 40) / 40)))
+
+
+class Controller:
+    def __init__(self):
+        self.saved = None
+        self.lock = None
+        self.mode = ''
+        self.percent = 60
+
+    def restore(self):
+        if self.saved:
+            pwm, value, mode = self.saved
+            enable = pwm.with_name(pwm.name + '_enable')
+            # NCT6791 rejects duty writes in automatic mode (EBUSY).
+            enable.write_text('1')
+            pwm.write_text('255')
+            pwm.write_text(str(value))
+            enable.write_text(str(mode))
+            self.saved = None
+        if self.lock:
+            self.lock.close()
+            self.lock = None
+        self.mode = ''
+
+    def apply(self, request):
+        mode = request['mode']
+        if mode == 'restore':
+            self.restore()
+            return {'status': 'Original control restored'}
+        if mode not in {'silent', 'standard', 'performance', 'full', 'manual'}:
+            raise ValueError('Unknown fan profile')
+        percent = int(request.get('percent', 60))
+        if not 40 <= percent <= 100:
+            raise ValueError('Manual range: 40–100%')
+        channel = next((c for c in channels() if c['id'] == request['id']), None)
+        if not channel or not channel['writable']:
+            raise ValueError('PWM unavailable or permission denied')
+        temp = temperature()
+        pwm = Path(channel['id'])
+        if not self.saved or self.saved[0] != pwm:
+            self.restore()
+            lockpath = Path(tempfile.gettempdir()) / ('rise-fan-' + pwm.parent.name + '-' + pwm.name + '.lock')
+            fd = os.open(lockpath, os.O_CREAT | os.O_RDWR | os.O_NOFOLLOW, 0o600)
+            self.lock = os.fdopen(fd, 'w')
+            fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            enable = pwm.with_name(pwm.name + '_enable')
+            original_mode, original_pwm = number(enable), number(pwm)
+            if not 0 <= original_pwm <= 255 or original_mode < 0:
+                raise ValueError('Unsupported PWM range')
+            self.saved = (pwm, original_pwm, original_mode)
+            enable.write_text('1')
+            pwm.write_text('255')
+        self.mode, self.percent = mode, percent
+        return self.tick(temp)
+
+    def tick(self, temp=None):
+        if not self.saved:
+            return {}
+        try:
+            temp = temperature() if temp is None else temp
+            percent = duty(self.mode, self.percent, temp)
+            self.saved[0].write_text(str(round(percent * 255 / 100)))
+            return {'status': self.mode + ' · ' + str(percent) + '% · ' + str(round(temp)) + '°C'}
+        except (OSError, ValueError):
+            self.saved[0].write_text('255')
+            raise
+
+
+class AutomaticController:
+    def __init__(self):
+        self.controllers = {}
+
+    @property
+    def saved(self):
+        return any(c.saved for c in self.controllers.values())
+
+    def restore(self):
+        errors = []
+        for controller in self.controllers.values():
+            try:
+                controller.restore()
+            except OSError as error:
+                errors.append(error)
+        if errors:
+            raise errors[0]
+        self.controllers.clear()
+
+    def apply(self, request):
+        if request.get('mode') == 'restore':
+            self.restore()
+            return {'status': 'Original control restored'}
+        targets = automatic_channels(channels())
+        # Keep the selected group stable while controlling, including a stalled fan.
+        ids = list(self.controllers) or [c['id'] for c in targets]
+        if not ids:
+            raise ValueError('No connected CPU fan detected')
+        try:
+            for channel_id in ids:
+                controller = self.controllers.setdefault(channel_id, Controller())
+                result = controller.apply(dict(request, id=channel_id))
+            return result
+        except (OSError, ValueError, KeyError, TypeError):
+            self.restore()
+            raise
+
+    def tick(self):
+        result = {}
+        for controller in self.controllers.values():
+            result = controller.tick()
+        return result
+
+
+def discovery():
+    available = channels()
+    selected = automatic_channels(available)
+    return {'channels': selected, 'uid': os.getuid(),
+            'status': 'CPU fans selected automatically' if selected
+                      else 'No connected CPU fan detected'}
+
+
+def emit(value):
+    print(json.dumps(value), flush=True)
+
+
+def main():
+    controller = AutomaticController()
+    def stop(_sig, _frame):
+        raise SystemExit()
+    signal.signal(signal.SIGTERM, stop)
+    signal.signal(signal.SIGINT, stop)
+    emit(discovery())
+    try:
+        while True:
+            ready, _, _ = select.select([sys.stdin], [], [], 2)
+            try:
+                if ready:
+                    line = sys.stdin.readline()
+                    if not line:
+                        break
+                    request = json.loads(line)
+                    if request.get('mode') == 'discover':
+                        emit(discovery())
+                    else:
+                        emit(controller.apply(request))
+                elif controller.saved:
+                    emit(controller.tick())
+            except (OSError, ValueError, KeyError, TypeError) as error:
+                controller.restore()
+                emit({'error': str(error)})
+    finally:
+        controller.restore()
+
+
+if __name__ == '__main__':
+    main()
