@@ -224,7 +224,15 @@ Item {
         if (!entry.network)
             return
 
-        if (entry.sec === "open" || entry.known || entry.conn) {
+        // A profile can exist after a failed join without usable credentials.
+        if (supportsInlinePsk(entry.sec) && entry.known && entry.profileUuid
+                && profilesLoaded && !(Number(entry.lastSuccessful || 0) > 0)) {
+            if (panel)
+                panel.beginNmPassword(entry)
+            return
+        }
+
+        if (entry.sec === "open" || entry.sec === "owe" || entry.known || entry.conn) {
             entry.network.connect()
             refreshAfterAction.restart()
             return

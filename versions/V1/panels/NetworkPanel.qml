@@ -384,8 +384,20 @@ PanelWindow {
             return
 
         var name = network.name || ""
-        if (name !== nmPasswordSsid)
+        if (name !== nmPasswordSsid) {
+            // Saved credentials may be stale. Let the user retry in this panel.
+            if (nmAdapterReady) {
+                for (var i = 0; i < networks.length; i++) {
+                    if (networks[i].network === network && networks[i].sec === "psk") {
+                        beginNmPassword(networks[i])
+                        nmConnectionError = "Connection failed. Check the password and retry."
+                        return
+                    }
+                }
+            }
+            networkActionError = "Connection failed"
             return
+        }
 
         nmConnecting = false
         nmConnectTimeout.stop()
