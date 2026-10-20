@@ -36,7 +36,9 @@ omarchy pkg add ttf-jetbrains-mono-nerd ttf-material-symbols-variable cava && \
 ```
 
 Confirm the repository when Omarchy asks. Each step runs only if the previous
-step succeeds. To install the parts separately, use the commands below.
+step succeeds. The first step also installs `cava`, which is required for the
+Muse/full media waveform to react to audio. To install the parts separately,
+use the commands below.
 
 Install Rise with Omarchy's plugin manager. Confirm the repository when
 Omarchy asks:
