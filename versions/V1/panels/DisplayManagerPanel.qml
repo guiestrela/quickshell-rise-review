@@ -351,8 +351,12 @@ PanelWindow {
                                 }
                                 onPositionChanged: if (drag.active) moved=true
                                 onReleased: {
-                                    if (moved) panel.commitCanvasPosition(monitorCard.modelData.name,monitorX,monitorY,monitorCard.x-originX,monitorCard.y-originY,dragRatio)
+                                    // Staging rebuilds previewMonitors and can destroy this delegate.
+                                    // Restore its bindings before handing control to the controller.
+                                    var name = monitorCard.modelData.name
+                                    var dx = monitorCard.x-originX, dy = monitorCard.y-originY
                                     restoreBindings()
+                                    if (moved) panel.commitCanvasPosition(name,monitorX,monitorY,dx,dy,dragRatio)
                                 }
                                 onCanceled: restoreBindings()
                             }

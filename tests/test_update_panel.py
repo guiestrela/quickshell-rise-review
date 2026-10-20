@@ -59,7 +59,7 @@ class UpdatePanelTests(unittest.TestCase):
                 binary.chmod(0o700)
                 probe = work / 'probe.qml'
                 probe.write_text(PROBE.replace('@MODULES@', modules.as_uri()))
-                env = dict(os.environ, HOME=str(home))
+                env = dict(os.environ, HOME=str(home), QT_QPA_PLATFORM="offscreen", QT_QUICK_BACKEND="software", QT_QPA_PLATFORMTHEME="", XDG_RUNTIME_DIR=str(work))
                 env.pop('DISPLAY', None)
                 result = subprocess.run(['qs', '-p', str(probe)], env=env, capture_output=True, text=True, timeout=15)
                 output = result.stdout + result.stderr

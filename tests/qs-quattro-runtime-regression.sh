@@ -237,6 +237,14 @@ qsr_warn_stock_bar_hide_failure() {
 }
 SCRIPT
 
+  # Collector installation is covered by install-ai-backends-integration.sh.
+  # Keep lifecycle fixtures inert while honoring the now-required installer API.
+  cat > "$repo/scripts/install-ai-backends" <<'SCRIPT'
+#!/usr/bin/env bash
+exit 0
+SCRIPT
+  chmod 0755 "$repo/scripts/install-ai-backends"
+
   cp "$REPO_ROOT/scripts/qs-barctl" "$repo/scripts/qs-barctl"
   cat > "$repo/scripts/qs-proj" <<'SCRIPT'
 #!/usr/bin/env bash
@@ -370,7 +378,7 @@ export QSR_STABLE_ROUNDS=2
 export QSR_POLL_INTERVAL=0
 export QSR_COMMAND_TIMEOUT=1
 export PATH="$root/bin:/usr/bin:/bin"
-exec /usr/bin/bash "$WORK/install-under-test.sh" V1 --no-ai-backend "\$@"
+exec /usr/bin/bash "$WORK/install-under-test.sh" V1 "\$@"
 SCRIPT
   chmod 0755 "$root/run-installer"
 }
@@ -414,7 +422,7 @@ run_installer_preserving_without_tty() {
   QSR_POLL_INTERVAL=0 \
   QSR_COMMAND_TIMEOUT=1 \
   PATH="$root/bin:/usr/bin:/bin" \
-    /usr/bin/bash "$WORK/install-under-test.sh" --no-ai-backend --no-autostart \
+    /usr/bin/bash "$WORK/install-under-test.sh" --no-autostart \
       > "$root/installer.out" 2>&1
 }
 
@@ -1195,7 +1203,7 @@ case_static_contracts() {
   assert_before "if ! qsr_release_owned_stock_bar" "if ! qsr_stop_bar_instances" "$UNINSTALLER" "show before stop"
   assert_contains "left it stopped because the Omarchy stock bar is active" "$UNINSTALLER" "backup double-bar guard"
   assert_contains "Other Hyprland systems" "$MAINTENANCE" "non-Omarchy compatibility docs"
-  assert_contains "Flags let non-interactive installs choose autostart" \
+  assert_contains "A non-interactive install without" \
     "$GETTING_STARTED" "non-interactive prompt docs"
   assert_contains "hypridle cava)" "$INSTALLER" "CAVA optional dependency check"
   assert_contains "real-time CAVA waveform" "$USAGE" "CAVA optional dependency docs"
@@ -1228,7 +1236,7 @@ case_static_contracts() {
       "$connected_panel" "V2 connected panel owner binding"
   done < <(grep -Rl --include='*.qml' 'ConnectedPanelSurface {' \
     "$REPO_ROOT/versions/V1/variants/V2/panels")
-  assert_eq "22" "$connected_panel_count" "V2 connected panel owner coverage"
+  assert_eq "23" "$connected_panel_count" "V2 connected panel owner coverage"
   for theme_file in "$V1_THEME" "$V2_THEME"; do
     assert_contains 'omarchy-shell idle status' "$theme_file" "live Omarchy idle service probe"
     assert_contains 'omarchy-shell notifications ping' "$theme_file" "live Omarchy notification service probe"
@@ -1311,7 +1319,7 @@ case_static_contracts() {
   assert_contains 'property bool compactMpris:' "$V1_THEME" "V1 MPRIS presentation state"
   assert_contains '(compactMpris      ? "1" : "0")' "$V1_THEME" "V1 MPRIS presentation save"
   assert_contains 'parts.length > wsField + 32' "$V1_THEME" "V1 MPRIS presentation restore"
-  assert_contains 'compactMpris = false' "$V1_THEME" "V1 MPRIS default-layout reset"
+  assert_contains 'compactMpris = defaults.compactMpris' "$V1_THEME" "V1 MPRIS default-layout reset"
   assert_contains 'model: root.barColorOptions' "$V1_CONTROL_PANEL" "V1 bar palette control"
   assert_contains 'label: "Now playing"' "$V1_CONTROL_PANEL" "V1 MPRIS presentation control"
   assert_contains 'readonly property bool fullMode: root.compactMpris' "$V1_MPRIS_WIDGET" "V1 FULL presentation binding"

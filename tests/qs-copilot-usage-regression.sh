@@ -31,6 +31,7 @@ mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 
 snapshot = json.loads(Path(snapshot_path).read_text())
+mod.gh_token = lambda: "fixture-token"
 mod.fetch = lambda _token: snapshot
 mod.CACHE_FILE = Path(out_path)
 mod.main()

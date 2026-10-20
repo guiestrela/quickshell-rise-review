@@ -21,6 +21,15 @@ Item {
     property var pluginRegistry: null
     property var barWidgetRegistry: null
 
+    // Shared services read these from shell.bar, including during variant swaps.
+    readonly property string fontFamily: variantHost.activeItem
+        ? variantHost.activeItem.fontFamily : "JetBrainsMono Nerd Font"
+    readonly property string position: variantHost.activeItem
+        ? variantHost.activeItem.position : "top"
+    readonly property int barSize: variantHost.activeItem
+        ? variantHost.activeItem.barSize : 35
+    readonly property bool barHidden: !variantHost.ready
+
     width: 0
     height: 0
 

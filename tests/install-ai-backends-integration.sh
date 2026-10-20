@@ -32,6 +32,10 @@ for provider in claude opencode codex copilot; do
   done
 done
 MOCK
+cat > "$mockbin/omarchy-shell" <<'MOCK'
+#!/usr/bin/env bash
+[[ "$*" == "shell rescanPlugins" ]]
+MOCK
 cat > "$mockbin/claude" <<'MOCK'
 #!/usr/bin/env bash
 printf 'unexpected Claude invocation\n' >&2; exit 91

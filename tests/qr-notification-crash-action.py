@@ -126,7 +126,7 @@ class CrashAction(unittest.TestCase):
         from types import SimpleNamespace
         from unittest.mock import patch
         mod = load_helper()
-        with tempfile.TemporaryDirectory() as directory:
+        with tempfile.TemporaryDirectory(dir=ROOT) as directory:
             home = Path(directory)
             binary = home / '.local/share/mise/installs/opencode/1.0/opencode'
             binary.parent.mkdir(parents=True); binary.write_text('fixture'); binary.chmod(0o755)

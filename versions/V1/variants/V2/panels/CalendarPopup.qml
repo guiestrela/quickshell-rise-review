@@ -352,7 +352,7 @@ PanelWindow {
             }
             Rectangle { width: parent.width; height: 1; color: root.sep }
 
-            Row {
+            Item {
                 width: parent.width
                 height: 18
                 UiText {

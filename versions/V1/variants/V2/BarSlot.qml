@@ -1306,9 +1306,9 @@ PanelWindow {
                 readonly property var contentItem: ldr.item
                 readonly property bool hasContent: occupied && Math.round(ldr.implicitWidth) > 0.5
                 readonly property real contentLeftInset: contentItem
-                    ? contentItem.barContentLeftInset : 0
+                    ? (Number(contentItem.barContentLeftInset) || 0) : 0
                 readonly property real contentRightInset: contentItem
-                    ? contentItem.barContentRightInset : 0
+                    ? (Number(contentItem.barContentRightInset) || 0) : 0
                 readonly property bool hasVisualSurface:
                     barSlot.root.widgetHasFill(gid) || barSlot.root.widgetHasBorder(gid)
                 readonly property real visualLeftEdge: pad

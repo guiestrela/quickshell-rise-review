@@ -18,6 +18,9 @@ Item {
     id: root
 
     required property var variantHost
+    readonly property string fontFamily: theme.mono
+    readonly property string position: theme.barPosition
+    readonly property int barSize: 35
     readonly property string variantId: "v1"
     readonly property bool ready: lifecycleReady()
 

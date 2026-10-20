@@ -10,7 +10,6 @@ const variants = [
   ['V1', 'versions/V1/panels/WallpaperManagerQuickPanel.qml'],
   ['V2', 'versions/V1/variants/V2/panels/WallpaperManagerQuickPanel.qml'],
 ];
-const mediaPatterns = ['*.jpg', '*.jpeg', '*.png', '*.webp', '*.bmp', '*.gif', '*.mp4', '*.webm', '*.mkv', '*.mov', '*.avi'];
 
 function extractBlock(source, marker) {
   const start = source.indexOf(marker);
@@ -28,14 +27,6 @@ function extractBlockAt(source, open, marker) {
   assert.fail(`${marker} has an unterminated block`);
 }
 
-function extractRiseButton(source, objectName) {
-  const name = source.indexOf(`objectName: "${objectName}"`);
-  assert.notEqual(name, -1, `${objectName} must exist`);
-  const start = source.lastIndexOf('RiseButton {', name);
-  assert.notEqual(start, -1, `${objectName} must belong to a RiseButton`);
-  return extractBlockAt(source, source.indexOf('{', start), objectName);
-}
-
 function extractFunction(source, name) {
   const start = source.indexOf(`function ${name}(`);
   assert.notEqual(start, -1, `${name} must exist`);
@@ -46,21 +37,13 @@ function extractFunction(source, name) {
 for (const [variant, relativePath] of variants) {
   test(`${variant}: stage a media file, then apply only to the selected display`, () => {
     const qml = readFileSync(join(repo, relativePath), 'utf8');
-    assert.ok(qml.includes('FileDialog {'), 'a file picker must be separate from the folder picker');
-    assert.match(qml, /fileMode:\s*FileDialog\.OpenFile/);
-    const fileDialog = extractBlock(qml, 'FileDialog {');
-    for (const pattern of mediaPatterns) assert.ok(fileDialog.includes(pattern), `file filter must include ${pattern}`);
-    assert.ok(fileDialog.includes('FileDialog.DontUseNativeDialog'), 'keep the file picker on the existing non-native dialog path');
-    assert.ok(fileDialog.includes('currentFolder: panel.profile.folder === "" ? "file:///home"'), 'open at the configured folder');
-    assert.match(fileDialog, /onAccepted:\s*panel\.stageWallpaperFile\(selectedFile\)/);
-    assert.doesNotMatch(fileDialog, /setWallpaperProfile|pinWallpaper/, 'accepting the dialog must not change wallpaper');
+    // The chooser now runs outside the shell to isolate toolkit crashes.
+    assert.match(qml, /WallpaperExternalPicker\s*\{/);
+    const picker = extractBlock(qml, 'WallpaperExternalPicker {');
+    assert.match(picker, /targetDisplay !== panel\.root\.wallpaperManagerDisplay/);
+    assert.match(picker, /panel\.applyWallpaperSelection\(/);
+    assert.match(qml, /wallpaperDialog\.open\(\)/);
 
-    const chooseButton = extractRiseButton(qml, 'wallpaper-media-browse');
-    assert.match(chooseButton, /mediaFileDialog\.currentFolder\s*=\s*panel\.folderPickerSelectionUrl\(panel\.profile\.folder\)/);
-    assert.match(chooseButton, /mediaFileDialog\.open\(\)/);
-    const applyButton = extractRiseButton(qml, 'wallpaper-media-apply');
-    assert.match(applyButton, /enabled:\s*panel\.selectedWallpaperCanApply/);
-    assert.match(applyButton, /panel\.applySelectedWallpaper\(\)/);
     assert.ok(qml.includes('var paths = display === "all" ? service.pool : service.poolFor(display)'), 'validate against the selected output pool');
 
     const localPathFromFileUrl = vm.runInNewContext(`(${extractFunction(qml, 'localPathFromFileUrl')})`);

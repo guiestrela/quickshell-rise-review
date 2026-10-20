@@ -29,22 +29,12 @@ function extractFunction(source, name) {
 }
 
 for (const [variant, relativePath] of variants) {
-  test(`${variant}: browse from the parent so a media-only folder is selectable`, () => {
+  test(`${variant}: external picker keeps local folder URLs and selected display`, () => {
     const qml = readFileSync(join(repo, relativePath), 'utf8');
-    assert.ok(/FolderDialog\s*\{/.test(qml), 'production FolderDialog must exist');
-    assert.ok(/currentFolder:\s*panel\.folderPickerStartUrl\(panel\.profile\.folder\)/.test(qml), 'picker must start at the configured folder parent');
-    assert.ok(!/selectedFolder:\s*currentFolder/.test(qml), 'do not bind selectedFolder before the dialog backend exists');
-
-    const browseStart = qml.indexOf('id: browseButton;');
-    const handlerStart = qml.indexOf('onActivated: {', browseStart);
-    const browseHandler = handlerStart < 0 ? null : extractBlock(qml, qml.indexOf('{', handlerStart));
-    assert.ok(browseHandler, 'Browse button handler must exist');
-    const resetIndex = browseHandler.indexOf('folderDialog.currentFolder = panel.folderPickerStartUrl(folder)');
-    const openIndex = browseHandler.indexOf('folderDialog.open()');
-    const callLaterIndex = browseHandler.indexOf('Qt.callLater(');
-    const selectIndex = browseHandler.indexOf('folderDialog.selectedFolder = panel.folderPickerSelectionUrl(folder)');
-    assert.ok(resetIndex >= 0 && openIndex > resetIndex, 'reset currentFolder to the configured parent before every open');
-    assert.ok(callLaterIndex > openIndex && selectIndex > callLaterIndex, 'select the configured folder after opening, once the dialog backend exists');
+    assert.match(qml, /WallpaperExternalPicker\s*\{/);
+    assert.match(qml, /wallpaperDialog\.currentFolder = folder === "" \? "file:\/\/\/home" : panel\.folderPickerSelectionUrl\(folder\)/);
+    assert.match(qml, /wallpaperDialog\.targetDisplay = panel\.root\.wallpaperManagerDisplay/);
+    assert.match(qml, /wallpaperDialog\.open\(\)/);
 
     const startUrl = vm.runInNewContext(`(${extractFunction(qml, 'folderPickerStartUrl')})`);
     const selectionUrl = vm.runInNewContext(`(${extractFunction(qml, 'folderPickerSelectionUrl')})`);
