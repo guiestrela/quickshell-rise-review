@@ -50,7 +50,7 @@ Item {
         running: rootMod.visible && rootMod.active && rootMod.fullMode && rootMod.playing
         command: ["bash", "-c",
             "command -v cava >/dev/null 2>&1 || exit 0; " +
-            "exec cava -p <(printf '%s\\n' " +
+            "exec cava -p <(printf '%s\n' " +
             "'[general]' 'bars = 24' 'framerate = 60' 'autosens = 1' 'sleep_timer = 0' " +
             "'[input]' 'method = pipewire' 'source = auto' " +
             "'[output]' 'method = raw' 'raw_target = /dev/stdout' " +
