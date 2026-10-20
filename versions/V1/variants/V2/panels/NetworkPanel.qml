@@ -53,6 +53,7 @@ PanelWindow {
 
     property string nmPasswordSsid: ""
     property string nmPasswordText: ""
+    property bool nmPasswordVisible: false
     property var    nmPasswordNetwork: null
     property string nmConnectionError: ""
     property bool   nmConnecting: false
@@ -339,6 +340,7 @@ PanelWindow {
         nmPasswordSsid = entry.ssid || ""
         nmPasswordNetwork = entry.network
         nmPasswordText = ""
+        nmPasswordVisible = false
         nmConnectionError = ""
         nmConnecting = false
         nmConnectTimeout.stop()
@@ -351,6 +353,7 @@ PanelWindow {
     function clearNmPassword() {
         nmPasswordSsid = ""
         nmPasswordText = ""
+        nmPasswordVisible = false
         nmPasswordNetwork = null
         nmConnectionError = ""
         nmConnecting = false
@@ -1177,10 +1180,10 @@ PanelWindow {
                             id: nmPasswordInput
                             anchors.fill: parent
                             anchors.leftMargin: 8
-                            anchors.rightMargin: 8
+                            anchors.rightMargin: 66
                             verticalAlignment: TextInput.AlignVCenter
                             text: netPanel.nmPasswordText
-                            echoMode: TextInput.Password
+                            echoMode: netPanel.nmPasswordVisible ? TextInput.Normal : TextInput.Password
                             color: root.ink
                             selectionColor: root.seal
                             selectedTextColor: root.paper
@@ -1199,6 +1202,33 @@ PanelWindow {
                                 }
                             }
                         }
+                        Rectangle {
+                            anchors.right: parent.right
+                            anchors.rightMargin: 3
+                            anchors.verticalCenter: parent.verticalCenter
+                            width: 58
+                            height: 20
+                            radius: root.tileRadius
+                            color: passwordVisibilityMa.containsMouse ? root.fillHover : root.fillIdle
+                            Text {
+                                anchors.centerIn: parent
+                                text: netPanel.nmPasswordVisible ? "hide" : "show"
+                                color: root.seal
+                                font.family: root.mono
+                                font.pixelSize: 10
+                            }
+                            MouseArea {
+                                id: passwordVisibilityMa
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    netPanel.nmPasswordVisible = !netPanel.nmPasswordVisible
+                                    nmPasswordInput.forceActiveFocus()
+                                }
+                            }
+                        }
+
                     }
 
                     Row {
