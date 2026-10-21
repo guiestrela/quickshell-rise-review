@@ -484,10 +484,9 @@ PanelWindow {
                             model: [{key:"zoom", label:"Zoom"}, {key:"fitHeight", label:"Fit ↕"}, {key:"fitWidth", label:"Fit ↔"}, {key:"actual", label:"Actual"}]
                             delegate: RiseButton {
                                 required property var modelData
-                                readonly property string scalingKey: modelData.key === "actual" ? "zoom" : modelData.key === "zoom" ? "actual" : modelData.key
                                 objectName: "wallpaper-scale-" + modelData.key
-                                label: modelData.label; selected: panel.profile.scaling === scalingKey
-                                onActivated: panel.root.setWallpaperProfile({scaling: scalingKey})
+                                label: modelData.label; selected: panel.profile.scaling === modelData.key
+                                onActivated: panel.root.setWallpaperProfile({scaling: modelData.key})
                             }
                         }
                     }

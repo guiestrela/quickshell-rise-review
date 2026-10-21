@@ -101,12 +101,23 @@ Item {
             return false
         }
         vpnMessage = ""
+        // NordVPN returns an error for ALREADY_SET. Avoid a redundant write;
+        // DNS order is immaterial to its own equality check as well.
+        var configured = String(vpnSettings.dns || "").trim().split(/[\s,]+/).filter(function(value) { return value.length > 0 })
+        if (configured.slice().sort().join(",") === servers.slice().sort().join(",")) {
+            vpnActionMessage = "DNS already configured: " + servers.join(", ")
+            return true
+        }
         vpnActionMessage = "Updating DNS servers…"
         return _runAction([cli, "set", "dns"].concat(servers))
     }
     function resetDnsServers() {
         if (!canMutate) return false
         vpnMessage = ""
+        if (/^(disabled|off|default)$/i.test(String(vpnSettings.dns || "").trim())) {
+            vpnActionMessage = "Custom DNS is already disabled"
+            return true
+        }
         vpnActionMessage = "Resetting DNS…"
         return _runAction([cli, "set", "dns", "off"])
     }
@@ -141,6 +152,27 @@ Item {
         } else {
             value = /^(enabled|on|yes|true)$/.test(current) ? "off" : "on"
         }
+        // NordVPN refuses Routing OFF while Meshnet is enabled, but its CLI
+        // can return exit 0 for that dependency warning. Never claim success.
+        if (key === "routing" && value === "off"
+                && /^(enabled|on|yes|true)$/i.test(String(vpnSettings.meshnet || ""))) {
+            vpnMessage = "Routing is required by Meshnet. Turn Meshnet off first to disable Routing. Disabling Routing stops VPN traffic routing."
+            vpnActionMessage = "Routing unchanged: Meshnet is enabled"
+            return false
+        }
+        if (key === "post-quantum-vpn" && value === "on") {
+            if (/^(enabled|on|yes|true)$/i.test(String(vpnSettings.meshnet || ""))) {
+                vpnMessage = "Post-quantum VPN is incompatible with Meshnet. Turn Meshnet off first; no settings were changed."
+                vpnActionMessage = "Post-quantum VPN unchanged: Meshnet is enabled"
+                return false
+            }
+            if (String(vpnSettings.technology || "").toUpperCase() !== "NORDLYNX") {
+                vpnMessage = "Post-quantum VPN requires NordLynx. Select NordLynx first; no settings were changed."
+                vpnActionMessage = "Post-quantum VPN unchanged: NordLynx is required"
+                return false
+            }
+        }
+        vpnMessage = ""
         vpnActionMessage = key === "technology" ? "Setting VPN technology to " + value + "…"
             : key === "protocol" ? "Setting OpenVPN protocol to " + value + "…"
             : key === "threat-protection-lite" ? "Updating Real-time Protection…"
@@ -149,6 +181,7 @@ Item {
     }
     function _runAction(argv) {
         if (!enabled || actionProcess.running) return false
+        vpnMessage = ""
         actionProcess.command = argv
         actionProcess.running = true
         return true
@@ -205,7 +238,8 @@ Item {
                     : /disconnecting/i.test(value) ? "Disconnecting" : "Disconnected"
                 controller.vpnCountry = country ? country[1].trim() : ""
                 controller.vpnServer = server ? server[1].trim() : ""
-                if (!controller.vpnBusy) controller.vpnMessage = ""
+                // Status polling is not an action result; retain errors until
+                // the next user action rather than erasing their explanation.
             }
         }
         onExited: function(exitCode) {
@@ -220,18 +254,24 @@ Item {
         id: actionProcess
         command: [controller.cli, "status"]
         running: false
-        stderr: StdioCollector {
-            onStreamFinished: {
-                var message = String(this.text || "").trim()
-                if (message) controller.vpnMessage = message
-            }
-        }
+        stdout: StdioCollector { id: actionStdout; waitForEnd: true }
+        stderr: StdioCollector { id: actionStderr; waitForEnd: true }
         onExited: function(exitCode) {
-            if (exitCode !== 0 && controller.vpnMessage === "") controller.vpnMessage = "NordVPN command failed"
-            if (exitCode === 0) controller.vpnActionMessage = "NordVPN command completed"
-            else controller.vpnActionMessage = "NordVPN command failed"
-            refreshTimer.restart()
-            settingsTimer.restart()
+            // stdout carries dependency warnings even when NordVPN exits 0.
+            // Wait until collectors drain, and preserve the actual CLI response.
+            Qt.callLater(function() {
+                var response = String(actionStdout.text || "")
+                    .replace(/\x1b\[[0-?]*[ -\/]*[@-~]/g, "").replace(/\r/g, "").trim()
+                var error = String(actionStderr.text || "")
+                    .replace(/\x1b\[[0-?]*[ -\/]*[@-~]/g, "").replace(/\r/g, "").trim()
+                controller.vpnMessage = exitCode !== 0
+                    ? error || response || "NordVPN command failed" : error
+                controller.vpnActionMessage = exitCode === 0
+                    ? response || "NordVPN command completed"
+                    : "NordVPN command failed"
+                refreshTimer.restart()
+                settingsTimer.restart()
+            })
         }
     }
 

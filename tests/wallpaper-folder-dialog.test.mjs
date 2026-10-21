@@ -29,15 +29,35 @@ function extractFunction(source, name) {
 }
 
 for (const [variant, relativePath] of variants) {
-  test(`${variant}: external picker keeps local folder URLs and selected display`, () => {
+  test(`${variant}: unified chooser opens the configured folder before selecting files or directories`, () => {
     const qml = readFileSync(join(repo, relativePath), 'utf8');
     assert.match(qml, /WallpaperExternalPicker\s*\{/);
-    assert.match(qml, /wallpaperDialog\.currentFolder = folder === "" \? "file:\/\/\/home" : panel\.folderPickerSelectionUrl\(folder\)/);
-    assert.match(qml, /wallpaperDialog\.targetDisplay = panel\.root\.wallpaperManagerDisplay/);
-    assert.match(qml, /wallpaperDialog\.open\(\)/);
+    assert.match(qml, /currentFolder:\s*panel\.profile\.folder === "" \? "file:\/\/\/home" : panel\.folderPickerSelectionUrl\(panel\.profile\.folder\)/);
+    assert.doesNotMatch(qml, /(?:FolderDialog|FileDialog)\s*\{/, 'keep toolkit chooser lifecycles outside the shell');
+
+    const browseStart = qml.indexOf('id: browseButton;');
+    const handlerStart = qml.indexOf('onActivated: {', browseStart);
+    assert.ok(browseStart >= 0 && handlerStart >= 0, 'Browse button handler must exist');
+    const browseHandler = extractBlock(qml, qml.indexOf('{', handlerStart));
+    const selectionUrl = vm.runInNewContext(`(${extractFunction(qml, 'folderPickerSelectionUrl')})`);
+    for (const folder of ['/home/test/Wallpapers/Live Set', '/home/test/Wallpapers/media-only', '/', '']) {
+      const calls = [];
+      const picker = { open() { calls.push({ folder: this.currentFolder, display: this.targetDisplay }); } };
+      vm.runInNewContext(browseHandler, {
+        panel: { profile: { folder }, root: { wallpaperManagerDisplay: 'DP-2' }, folderPickerSelectionUrl: selectionUrl },
+        wallpaperDialog: picker,
+      });
+      assert.deepEqual(calls, [{ folder: folder ? selectionUrl(folder) : 'file:///home', display: 'DP-2' }]);
+    }
+    const helper = readFileSync(join(repo, 'scripts/rise-wallpaper-picker'), 'utf8');
+    assert.match(helper, /os\.path\.isdir\(info\.filename\) or Path\(info\.filename\)\.suffix\.lower\(\) in EXTENSIONS/,
+      'filter must retain directories even when they only contain media files');
+    assert.match(helper, /chooser\.get_filename\(\) or chooser\.get_current_folder\(\)/,
+      'confirmation with no selected item applies the open folder');
+    assert.match(helper, /if os\.path\.isdir\(path\):\s*kind = 'folder'/);
+    assert.match(helper, /elif os\.path\.isfile\(path\).*:\s*kind = 'file'/);
 
     const startUrl = vm.runInNewContext(`(${extractFunction(qml, 'folderPickerStartUrl')})`);
-    const selectionUrl = vm.runInNewContext(`(${extractFunction(qml, 'folderPickerSelectionUrl')})`);
     assert.equal(selectionUrl('/home/guiestrela/Wallpapers/horizontalLive'), 'file:///home/guiestrela/Wallpapers/horizontalLive');
     assert.equal(selectionUrl('/home/guiestrela/Wallpapers/Live Set'), 'file:///home/guiestrela/Wallpapers/Live%20Set');
     assert.equal(startUrl('/home/guiestrela/Wallpapers/horizontalLive'), 'file:///home/guiestrela/Wallpapers');

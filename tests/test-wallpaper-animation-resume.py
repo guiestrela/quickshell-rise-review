@@ -6,6 +6,8 @@ R=Path(__file__).resolve().parents[1]
 MEDIA=Path(os.environ['RISE_ANIMATION_TEST_MEDIA'])
 with tempfile.TemporaryDirectory(prefix='resume-render-',dir=os.environ['TMPDIR']) as directory:
  t=Path(directory)
+ # A distinct URL with identical content isolates MP4 -> MP4 source changes.
+ second_video=t/'second.mp4';second_video.write_bytes((MEDIA/'moving.mp4').read_bytes())
  for i,rel in enumerate(['versions/V1/modules/WallpaperManagerService.qml','versions/V1/variants/V2/modules/WallpaperManagerService.qml'],1):
   src=(R/rel).read_text();a=src.index('            PanelWindow {');b=src.index('\n            }\n        }\n    }',a)+14
   renderer=src[a:b].replace('PanelWindow {','Rectangle {',1)
@@ -38,6 +40,13 @@ Item {
     load.setSource("RenderV"+variant+".qml",{manager:manager,modelData:{name:"TEST"}});tryCompare(load,"status",Loader.Ready)
     var renderer=load.item,player=findChild(renderer,"qa-player")
     verify(player!==null);tryVerify(function(){return renderer.frameCount>3},2500)
+    var output=findChild(renderer,"qa-output");verify(output.width>0&&output.height>0)
+    // Shuffle/Next replaces a video URL without changing the `video` boolean.
+    var beforeNext=renderer.frameCount;manager.path=SECOND_FILE
+    tryVerify(function(){return player.playbackState===MediaPlayer.PlayingState&&renderer.frameCount>beforeNext+3},2200)
+    verify(player.position>0);compare(manager.bad,0)
+    beforeNext=renderer.frameCount;manager.path=VIDEO_FILE
+    tryVerify(function(){return player.playbackState===MediaPlayer.PlayingState&&renderer.frameCount>beforeNext+3},2200)
     var sameSource=player.source.toString()
     theme.wallpaperSessionLocked=true;wait(100)
     // Inject a halted decoder during a simulated lock, not a host lock.
@@ -59,7 +68,7 @@ Item {
   }
  }
 }
-'''.replace('VIDEO_FILE',json.dumps((MEDIA/'moving.mp4').as_uri())).replace('GIF_FILE',json.dumps((MEDIA/'moving.gif').as_uri()))
+'''.replace('SECOND_FILE',json.dumps(second_video.as_uri())).replace('VIDEO_FILE',json.dumps((MEDIA/'moving.mp4').as_uri())).replace('GIF_FILE',json.dumps((MEDIA/'moving.gif').as_uri()))
  probe=t/'test.qml';probe.write_text(qml)
  env=os.environ.copy();env.pop('DISPLAY',None);env['QT_QPA_PLATFORM']='wayland'
  z=subprocess.run(['/usr/lib/qt6/bin/qmltestrunner','-input',str(probe)],env=env,capture_output=True,text=True,timeout=15);out=z.stdout+z.stderr

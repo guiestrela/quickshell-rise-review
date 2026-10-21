@@ -337,6 +337,8 @@ Item {
                 onAnimationBlockedChanged: Qt.callLater(synchronizePlayback)
                 onVisibleChanged: Qt.callLater(synchronizePlayback)
                 onVideoChanged: Qt.callLater(synchronizePlayback)
+                // MP4 -> MP4 keeps `video` true; explicitly restart the new source.
+                onImageUrlChanged: Qt.callLater(synchronizePlayback)
                 Component.onCompleted: {
                     playbackInitialized = true
                     synchronizePlayback()

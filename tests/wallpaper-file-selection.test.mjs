@@ -10,6 +10,7 @@ const variants = [
   ['V1', 'versions/V1/panels/WallpaperManagerQuickPanel.qml'],
   ['V2', 'versions/V1/variants/V2/panels/WallpaperManagerQuickPanel.qml'],
 ];
+const mediaPatterns = ['*.jpg', '*.jpeg', '*.png', '*.webp', '*.bmp', '*.gif', '*.mp4', '*.webm', '*.mkv', '*.mov', '*.avi'];
 
 function extractBlock(source, marker) {
   const start = source.indexOf(marker);
@@ -27,6 +28,14 @@ function extractBlockAt(source, open, marker) {
   assert.fail(`${marker} has an unterminated block`);
 }
 
+function extractRiseButton(source, objectName) {
+  const name = source.indexOf(`objectName: "${objectName}"`);
+  assert.notEqual(name, -1, `${objectName} must exist`);
+  const start = source.lastIndexOf('RiseButton {', name);
+  assert.notEqual(start, -1, `${objectName} must belong to a RiseButton`);
+  return extractBlockAt(source, source.indexOf('{', start), objectName);
+}
+
 function extractFunction(source, name) {
   const start = source.indexOf(`function ${name}(`);
   assert.notEqual(start, -1, `${name} must exist`);
@@ -35,15 +44,70 @@ function extractFunction(source, name) {
 }
 
 for (const [variant, relativePath] of variants) {
+  test(`${variant}: confirmed chooser results apply only to their target outputs`, () => {
+    const qml = readFileSync(join(repo, relativePath), 'utf8');
+    const calls = [];
+    const current = { 'DP-1': '/old/first.png', 'DP-2': '/old/second.png' };
+    const profiles = { 'DP-1': { folder: '/old', pinned: '' }, 'DP-2': { folder: '/old', pinned: '' } };
+    const panel = { selectedWallpaperError: '', root: {
+      wallpaperManagerDisplay: 'DP-2',
+      wallpaperManagerServiceApi: {
+        scanInFlight: false, scanJobs: [], scanErrors: {},
+        liveScreens: [{ name: 'DP-1' }, { name: 'DP-2' }],
+        pathFor: name => current[name] || '',
+      },
+      wallpaperProfileFor: name => profiles[name] || {},
+      setWallpaperProfile: (patch, name) => {
+        calls.push({ patch: JSON.parse(JSON.stringify(patch)), name });
+        profiles[name] = { ...profiles[name], ...patch };
+        if (patch.pinned) current[name] = patch.pinned;
+      },
+    } };
+    for (const name of ['localPathFromFileUrl', 'currentWallpaperMatches', 'verifySelectedWallpaperApplication', 'applyWallpaperSelection'])
+      panel[name] = vm.runInNewContext(`(${extractFunction(qml, name)})`, { panel });
+    const oldFirst = { ...profiles['DP-1'] };
+    assert.equal(panel.applyWallpaperSelection('file', 'file:///new/Live%20Set/clip.MP4', 'DP-2'), true);
+    assert.deepEqual(calls, [{ name: 'DP-2', patch: { folder: '/new/Live Set', mode: 'single', pinned: '/new/Live Set/clip.MP4' } }]);
+    assert.deepEqual(profiles['DP-1'], oldFirst, 'a DP-2 selection must leave DP-1 intact');
+    assert.equal(panel.selectedWallpaperApplied, true, 'renderer path readback confirms the file');
+    assert.equal(panel.applyWallpaperSelection('folder', 'file:///new/Other%20Set', 'DP-2'), true);
+    assert.deepEqual(calls.at(-1), { name: 'DP-2', patch: { folder: '/new/Other Set', mode: 'shuffle', pinned: '' } });
+    assert.equal(panel.selectedWallpaperApplied, false, 'folder selection clears previous file status');
+
+    calls.length = 0; panel.root.wallpaperManagerDisplay = 'all';
+    assert.equal(panel.applyWallpaperSelection('file', 'file:///shared/chosen.mp4', 'all'), true);
+    assert.deepEqual(calls.map(call => call.name), ['all', 'DP-1', 'DP-2']);
+    assert.equal(panel.selectedWallpaperApplied, true);
+    assert.equal(current['DP-1'], '/shared/chosen.mp4');
+    assert.equal(current['DP-2'], '/shared/chosen.mp4');
+    for (const [kind, url] of [['file', 'https://host/clip.mp4'], ['file', 'file:///bad.txt'], ['file', 'file:///bad%0A.mp4'], ['folder', 'file:///%ZZ'], ['unknown', 'file:///safe']]) {
+      const before = calls.length;
+      assert.equal(panel.applyWallpaperSelection(kind, url, 'all'), false);
+      assert.equal(calls.length, before, 'invalid selection must never update a profile');
+      assert.notEqual(panel.selectedWallpaperError, '');
+    }
+    panel.root.wallpaperManagerServiceApi.liveScreens = [];
+    const before = calls.length;
+    assert.equal(panel.applyWallpaperSelection('folder', 'file:///shared', 'all'), false);
+    assert.equal(calls.length, before, 'no writes when no displays are connected');
+  });
   test(`${variant}: stage a media file, then apply only to the selected display`, () => {
     const qml = readFileSync(join(repo, relativePath), 'utf8');
-    // The chooser now runs outside the shell to isolate toolkit crashes.
-    assert.match(qml, /WallpaperExternalPicker\s*\{/);
-    const picker = extractBlock(qml, 'WallpaperExternalPicker {');
-    assert.match(picker, /targetDisplay !== panel\.root\.wallpaperManagerDisplay/);
-    assert.match(picker, /panel\.applyWallpaperSelection\(/);
-    assert.match(qml, /wallpaperDialog\.open\(\)/);
+    const fileDialog = extractBlock(qml, 'WallpaperExternalPicker {');
+    assert.match(fileDialog, /currentFolder:\s*panel\.profile\.folder === "" \? "file:\/\/\/home"/);
+    assert.match(fileDialog, /if \(targetDisplay !== panel\.root\.wallpaperManagerDisplay\) return/,
+      'ignore a picker result when its target display is no longer selected');
+    assert.match(fileDialog, /panel\.applyWallpaperSelection\(selectionKind, selectionKind === "folder" \? selectedFolder : selectedFile, targetDisplay\)/);
+    const helper = readFileSync(join(repo, 'scripts/rise-wallpaper-picker'), 'utf8');
+    for (const pattern of mediaPatterns) assert.ok(helper.includes(`'${pattern.slice(1)}'`), `file filter must include ${pattern}`);
+    assert.match(helper, /if response != confirm:\s*return 1/, 'cancel must not emit a selection');
+    assert.match(helper, /dialog\.add_button\('Apply selection', confirm\)/, 'explicit confirmation is required');
 
+    const chooseButton = extractRiseButton(qml, 'wallpaper-browse');
+    assert.match(chooseButton, /wallpaperDialog\.targetDisplay = panel\.root\.wallpaperManagerDisplay/);
+    assert.match(chooseButton, /wallpaperDialog\.currentFolder = folder === "" \? "file:\/\/\/home" : panel\.folderPickerSelectionUrl\(folder\)/);
+    assert.match(chooseButton, /wallpaperDialog\.open\(\)/);
+    assert.doesNotMatch(chooseButton, /setWallpaperProfile|applyWallpaperSelection/, 'opening the chooser must not apply anything');
     assert.ok(qml.includes('var paths = display === "all" ? service.pool : service.poolFor(display)'), 'validate against the selected output pool');
 
     const localPathFromFileUrl = vm.runInNewContext(`(${extractFunction(qml, 'localPathFromFileUrl')})`);

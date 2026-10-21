@@ -66,8 +66,7 @@ Column {
         height: 24
         radius: 3
         color: chosen ? control.theme.seal : control.theme.fillActive
-        border.width: chosen ? 1 : 0
-        border.color: control.theme.ink
+        border.width: 0
         opacity: available ? 1 : 0.45
         UiText {
             anchors.centerIn: parent
