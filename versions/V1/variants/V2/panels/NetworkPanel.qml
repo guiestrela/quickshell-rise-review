@@ -86,7 +86,10 @@ PanelWindow {
         stderr: StdioCollector { waitForEnd: true }
         onExited: (exitCode) => {
             netPanel.wifiQrOpening = false
-            if (exitCode === 0 && wifiQrOutput.text.trim() === "ok") root.networkVisible = false
+            var response = wifiQrOutput.text.trim()
+            if (exitCode === 0 && response === "ok") root.networkVisible = false
+            else if (response === "unknown")
+                netPanel.wifiQrError = "Wi-Fi QR panel is disabled or unavailable. Run: omarchy plugin enable omarchy.wifiqr"
             else netPanel.wifiQrError = "Could not open Wi-Fi QR code."
         }
     }

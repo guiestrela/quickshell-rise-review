@@ -92,7 +92,7 @@ Item {
     verify(!theme.networkVisible);compare(panel.wifiQrError,"")
     theme.networkVisible=true;Fixture.Backend.exitCode=1;button.forceActiveFocus();keyClick(Qt.Key_Space)
     wait(20);verify(panel.wifiQrOpening,"keyboard must dispatch");tryCompare(panel,"wifiQrOpening",false,1000);verify(theme.networkVisible);verify(panel.wifiQrError!=="")
-    Fixture.Backend.exitCode=0;Fixture.Backend.reply="unknown";mouseClick(hit);tryCompare(panel,"wifiQrOpening",false,1000);verify(theme.networkVisible);verify(panel.wifiQrError!=="")
+    Fixture.Backend.exitCode=0;Fixture.Backend.reply="unknown";mouseClick(hit);tryCompare(panel,"wifiQrOpening",false,1000);compare(panel.wifiQrError,"Wi-Fi QR panel is disabled or unavailable. Run: omarchy plugin enable omarchy.wifiqr");verify(theme.networkVisible)
     Fixture.Backend.reply="ok"
     panel.wifiBlocked=true;wait(20);verify(!button.enabled)
     panel.wifiBlocked=false;theme.useNM=false;wait(20);verify(!button.enabled)
