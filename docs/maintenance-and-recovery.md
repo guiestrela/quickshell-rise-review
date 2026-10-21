@@ -2,21 +2,6 @@
 
 This guide covers lifecycle commands, updates, logs, compatibility, duplicate-instance recovery, and stock-bar recovery. The controller targets the exact installed Rise path and leaves unrelated Quickshell applications running.
 
-## Icon names appear as text or widgets overlap
-
-If the bar shows words such as `planner_review` or `graphic_eq` instead of
-icons, the **Material Symbols Rounded** font is missing. Install the required
-fonts and restart the shell so Qt loads them:
-
-```bash
-omarchy pkg add ttf-jetbrains-mono-nerd ttf-material-symbols-variable
-omarchy restart shell
-```
-
-This also applies to installations made with `omarchy plugin add`: the plugin
-manager does not execute Rise's legacy `install.sh` font installation step.
-Resetting the bar configuration is unnecessary for this issue.
-
 ## Check the installed bar
 
 Use the lifecycle controller installed with Rise:

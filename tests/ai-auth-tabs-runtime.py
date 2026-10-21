@@ -28,9 +28,9 @@ ShellRoot {
   applyAuthStatus({codex:true, copilot:true});
   if (root.aiTool !== "copilot") { Qt.exit(2); return; }
   applyAuthStatus({codex:false, copilot:false});
-  if (availableTools.length !== 2 || availableTools[0].id !== "opencode" || availableTools[1].id !== "copilot" || root.aiTool !== "copilot" || !authChecked) { Qt.exit(3); return; }
+  if (availableTools.length !== 1 || availableTools[0].id !== "opencode" || root.aiTool !== "opencode" || !authChecked) { Qt.exit(3); return; }
   applyAuthStatus({codex:"true", claude:null});
-  if (availableTools.length !== 2 || availableTools[0].id !== "opencode" || availableTools[1].id !== "copilot") { Qt.exit(4); return; }
+  if (availableTools.length !== 1 || availableTools[0].id !== "opencode") { Qt.exit(4); return; }
   console.log("AI_AUTH_TABS_RUNTIME_PASS"); Qt.exit(0);
  })
 }

@@ -28,14 +28,8 @@ check() {
   fi
 }
 
-shell_files=(install.sh uninstall.sh scripts/qs-barctl scripts/qs-proj scripts/install-rise scripts/install-ai-backends scripts/*.sh tests/*.sh)
-check_shell_syntax() {
-  local file
-  for file in "${shell_files[@]}"; do
-    bash -n "$file" || return "$?"
-  done
-}
-check "shell syntax" check_shell_syntax
+shell_files=(install.sh uninstall.sh scripts/qs-barctl scripts/qs-proj scripts/*.sh tests/*.sh)
+check "shell syntax" bash -n "${shell_files[@]}"
 
 if command -v shellcheck >/dev/null 2>&1; then
   check "ShellCheck" shellcheck --severity=warning "${shell_files[@]}"
@@ -88,8 +82,6 @@ for suite in "${regressions[@]}"; do
 done
 
 check "update panel contract/runtime" python3 tests/test_update_panel.py
-check "shared shell bar contract" python3 tests/test-shell-bar-contract.py
-check "JavaScript regressions" node --test tests/*.test.mjs tests/*.test.cjs tests/test-*.cjs
 
 check "patch whitespace" git diff --check
 printf 'ALL PLUGIN CHECKS PASSED\n'

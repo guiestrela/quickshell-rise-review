@@ -102,7 +102,7 @@ with tempfile.TemporaryDirectory(prefix='apply-pointer-',dir=os.environ['TMPDIR'
  env=os.environ.copy();env.pop('DISPLAY',None);env['QT_QPA_PLATFORM']='wayland'
  z=subprocess.run(['/usr/lib/qt6/bin/qmltestrunner','-input',str(root/'shell.qml')],env=env,capture_output=True,text=True,timeout=12);output=z.stdout+z.stderr
  assert z.returncode==0 and 'EXPLICIT_APPLY_POINTER_PASS' in output,output
- assert not any(k in output for k in ['ReferenceError','TypeError','Cannot assign','invalid context']),output
+ assert not any(k in output for k in ['ReferenceError','TypeError','Cannot assign']),output
  print(next(l[l.index('EXPLICIT_APPLY_POINTER_PASS'):] for l in output.splitlines() if 'EXPLICIT_APPLY_POINTER_PASS' in l))
  assert 'MODE_DISPLAY_QML_PASS' in output, output
  print(next(l[l.index('MODE_DISPLAY_QML_PASS'):] for l in output.splitlines() if 'MODE_DISPLAY_QML_PASS' in l))

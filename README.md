@@ -15,30 +15,11 @@ folders. Its bar styling and interactions follow the Quickshell Rise design.
 
 - Omarchy with the Quickshell plugin system and `omarchy-shell`.
 - Quickshell dependencies used by the selected Rise widgets.
-- Required fonts: `ttf-jetbrains-mono-nerd` and `ttf-material-symbols-variable`.
 - `cava` with PipeWire support for the Muse/full media audio visualizer (see below).
 - Optional integrations require their respective tools or accounts. See
   [Integrated services](docs/integrations.md).
 
 ## Install
-
-For a complete installation with one command, including fonts, `cava`, Rise,
-AI usage collectors, the post-update recovery hook, and a shell restart, run:
-
-```bash
-omarchy pkg add ttf-jetbrains-mono-nerd ttf-material-symbols-variable cava && \
-  omarchy plugin add https://github.com/guiestrela/quickshell-rise-review.git --enable && \
-  "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/scripts/install-ai-backends" \
-    "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise" && \
-  omarchy hook install post-update \
-    "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/contrib/post-boot.d/quickshell-rise" && \
-  omarchy restart shell
-```
-
-Confirm the repository when Omarchy asks. Each step runs only if the previous
-step succeeds. The first step also installs `cava`, which is required for the
-Muse/full media waveform to react to audio. To install the parts separately,
-use the commands below.
 
 Install Rise with Omarchy's plugin manager. Confirm the repository when
 Omarchy asks:
@@ -65,23 +46,6 @@ The post-update hook makes Omarchy restart its shell after `omarchy update`
 has released the update lock, so the selected Rise bar is loaded from updated
 plugin files.
 
-Install the required fonts **before enabling the plugin**:
-
-```bash
-omarchy pkg add ttf-jetbrains-mono-nerd ttf-material-symbols-variable
-```
-
-The plugin manager does not run `install.sh` or install these font dependencies.
-Without **Material Symbols Rounded**, icon names such as `planner_review` and
-`graphic_eq` appear as text and overlap neighboring widgets.
-
-If Rise was already running when the fonts were installed, reload its font
-selection by restarting the shell:
-
-```bash
-omarchy restart shell
-```
-
 The plugin replaces the built-in bar while enabled. Disable it to return to the
 Omarchy bar:
 
@@ -101,8 +65,9 @@ omarchy plugin validate ~/.config/omarchy/plugins/io.github.guiestrela.quickshel
 
 The repository includes a portable [Rise Bar skill](skills/rise-bar/SKILL.md)
 for installation, V1/V2 development, configuration and crash diagnosis while
-preserving installed plugins and local settings. It includes the complete bar
-installation command above. The skill is not specific to Codex: install it for
+preserving installed plugins and local settings. Its
+[installation reference](skills/rise-bar/references/installation.md) includes
+the complete bar installation command. The skill is not specific to Codex: install it for
 any AI agent that supports the `SKILL.md` format, using that agent's documented
 skills directory.
 
@@ -122,7 +87,8 @@ For example, for Codex:
 bash scripts/install-rise-skill "${CODEX_HOME:-$HOME/.codex}/skills"
 ```
 
-If Rise is already installed, the same installer is available in the plugin:
+If Rise is already installed and its plugin directory includes
+`scripts/install-rise-skill`, you can use that copy of the installer:
 
 ```bash
 bash "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/scripts/install-rise-skill" \
@@ -134,14 +100,14 @@ mechanism. In Codex, invoke `$rise-bar`, for example: “Use $rise-bar to diagno
 a Rise bar crash while preserving my plugins.” For an AI without native skill
 support, provide `SKILL.md` and the referenced files as context; automatic
 skill discovery depends on the application. Installing the skill alone does
-not install or enable the bar; use the complete command in [Install](#install).
+not install or enable the bar; follow [Install](#install) to install the bar.
 
 ## Update
 
 Update Rise from its Git repository with Omarchy's plugin manager:
 
 ```bash
-omarchy plugin update io.github.guiestrela.quickshell-rise
+ 
 ```
 
 Omarchy shows the changes for review, fast-forwards the installed plugin, and
@@ -227,7 +193,6 @@ quickshell ipc -p "$OMARCHY_PATH/shell" call quickshell-rise.variant activate v2
 ## Features
 
 - Omarchy theme and system status integration.
-- Motherboard fan profiles and manual PWM control ([setup and compatibility](docs/fan-control.md)).
 - Rise panels for workspaces, audio, network, Bluetooth, brightness, power,
   media, calendar, weather, updates, and notification history.
 - Weather forecasts and radar, with a configurable location.

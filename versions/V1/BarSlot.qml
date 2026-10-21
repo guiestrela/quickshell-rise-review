@@ -436,7 +436,7 @@ PanelWindow {
         }
     }
 
-    Component { id: compMpris; MprisWidget { root: barSlot.root; screen: barSlot.screen } }
+    Component { id: compMpris; MprisWidget { root: barSlot.root } }
     Component {
         id: compQuick                                    // G10: idle-inhib · media · theme
         Item {
@@ -680,10 +680,10 @@ PanelWindow {
         property int narrowStage: 0            // 0 normal · 1 compact · 2 portrait · 3 emergency
         property real g8FloorWidth: 80         // published by G8: its clock-only minimal width
         function groupVisibleAtStage(gid, stage) {
-            if (gid === "G8" || gid === "G9") return true                                        // keep clock and media on every monitor
+            if (gid === "G8") return true                                        // clock has its own stages
             if (stage <= 0) return true
-            if (stage === 1) return ["G7", "G10"].indexOf(gid) < 0         // drop AI · Quick
-            if (stage === 2) return ["G4", "G5", "G7", "G10"].indexOf(gid) < 0   // also MEM · CPU
+            if (stage === 1) return ["G7", "G9", "G10"].indexOf(gid) < 0         // drop AI · MPRIS · Quick
+            if (stage === 2) return ["G4", "G5", "G7", "G9", "G10"].indexOf(gid) < 0   // also MEM · CPU
             return ["G1", "G2", "G6", "G8", "G11", "G14"].indexOf(gid) >= 0      // emergency whitelist
         }
         function sideNaturalWidth(row, stage) {

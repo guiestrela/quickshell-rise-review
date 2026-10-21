@@ -7,13 +7,6 @@ import Quickshell.Services.Mpris
 Item {
     id: rootMod
     required property var root
-    property var screen: null
-
-    function togglePanel() {
-        var closing = root.mprisVisible && root.activePopupScreen === screen
-        root.activatePopupScreen(screen)
-        root.mprisVisible = !closing
-    }
 
     // shared player selection (ghost-filtering) — see MprisSelect.qml
     MprisSelect { id: sel }
@@ -148,7 +141,7 @@ Item {
             anchors.fill: parent
             acceptedButtons: Qt.LeftButton
             cursorShape: Qt.PointingHandCursor
-            onClicked: rootMod.togglePanel()
+            onClicked: root.mprisVisible = !root.mprisVisible
         }
     }
 
@@ -527,6 +520,6 @@ Item {
         acceptedButtons: Qt.RightButton
         onEntered: { if (rootMod.tooltipText) tip.show() }
         onExited:  { tip.hide() }
-        onClicked: { tip.hide(); rootMod.togglePanel() }
+        onClicked: { tip.hide(); root.mprisVisible = !root.mprisVisible }
     }
 }

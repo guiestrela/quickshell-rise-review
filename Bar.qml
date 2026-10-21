@@ -33,14 +33,6 @@ Item {
     width: 0
     height: 0
 
-    Component.onCompleted: {
-        if (Qt.fontFamilies().indexOf("Material Symbols Rounded") === -1) {
-            console.warn("[Rise] Missing Material Symbols Rounded: icon names may overlap widgets. "
-                + "Run: omarchy pkg add ttf-jetbrains-mono-nerd ttf-material-symbols-variable; "
-                + "then: omarchy restart shell")
-        }
-    }
-
     StateService { id: variantState }
     WallpaperWakeBridge { id: wakeBridge }
 

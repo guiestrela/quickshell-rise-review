@@ -66,9 +66,6 @@ PanelWindow {
     function applyAutoConnect() {
         return controller.setAutoConnect(autoConnectEnabled, autoCountryTarget)
     }
-    function toggleAutoConnect() {
-        return controller.setAutoConnect(!autoConnectEnabled, autoCountryTarget)
-    }
     property bool autoConnectEnabled: /^(enabled|on|yes|true)$/i.test(String(controller.vpnSettings["auto-connect"] || ""))
     function toggleConnection() { if (controller.vpnConnected) disconnect(); else connect() }
     function connect() { controller.connectVpn() }
@@ -222,7 +219,7 @@ PanelWindow {
                     width: 48; height: 28; radius: vpnPanel.root.tileRadius; color: vpnPanel.autoConnectEnabled ? vpnPanel.root.fillActive : autoConnectMouse.containsMouse && autoConnectMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle; border.color: vpnPanel.autoConnectEnabled || (autoConnectMouse.containsMouse && autoConnectMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep
                     Behavior on color { ColorAnimation { duration: 120 } }
                     UiText { anchors.centerIn: parent; text: vpnPanel.autoConnectEnabled ? "ON" : "OFF"; color: vpnPanel.autoConnectEnabled ? vpnPanel.root.seal : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
-                    MouseArea { id: autoConnectMouse; objectName: "vpn-autoconnect-toggle"; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate && controller.countriesState === "Ready" && (vpnPanel.autoConnectEnabled || vpnPanel.autoCountryTarget !== ""); onClicked: vpnPanel.toggleAutoConnect() }
+                    MouseArea { id: autoConnectMouse; objectName: "vpn-autoconnect-toggle"; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate; onClicked: vpnPanel.autoConnectEnabled = !vpnPanel.autoConnectEnabled }
                 }
                 Rectangle {
                     width: 54; height: 28; radius: vpnPanel.root.tileRadius; color: autoConnectApplyMouse.containsMouse && autoConnectApplyMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle; border.color: autoConnectApplyMouse.containsMouse && autoConnectApplyMouse.enabled ? vpnPanel.root.seal : vpnPanel.root.sep

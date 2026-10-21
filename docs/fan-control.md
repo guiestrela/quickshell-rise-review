@@ -37,10 +37,8 @@ routing determines group membership, so changing that routing in UEFI can
 change automatic selection. Use one controller per channel and disable
 conflicting fan-control software before applying a mode.
 
-The selected mode remains active when the CPU panel is closed and is shown
-again when it is reopened. The helper keeps monitoring CPU temperature while
-the panel is closed. Restore, normal shell exit, or helper SIGTERM restores
-the saved PWM and enable mode. Missing
+Control lasts while the CPU panel is open. Restore, closing the panel, normal
+shell exit, or helper SIGTERM restores the saved PWM and enable mode. Missing
 CPU temperature ends control and restores the saved state. SIGKILL or power
 loss cannot execute restoration; firmware initializes control at boot. The
 40% floor is a software limit, not a guarantee that every fan can spin at that

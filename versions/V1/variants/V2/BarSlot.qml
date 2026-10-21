@@ -1160,7 +1160,6 @@ PanelWindow {
         id: compMpris
         MprisWidget {
             root: barSlot.root
-            screen: barSlot.screen
             readonly property real barContentLeftInset: active ? 9 : 8
             readonly property real barContentRightInset: active ? 9 : 8
         }
@@ -1306,9 +1305,9 @@ PanelWindow {
                 readonly property var contentItem: ldr.item
                 readonly property bool hasContent: occupied && Math.round(ldr.implicitWidth) > 0.5
                 readonly property real contentLeftInset: contentItem
-                    ? (Number(contentItem.barContentLeftInset) || 0) : 0
+                    ? (contentItem.barContentLeftInset ?? 0) : 0
                 readonly property real contentRightInset: contentItem
-                    ? (Number(contentItem.barContentRightInset) || 0) : 0
+                    ? (contentItem.barContentRightInset ?? 0) : 0
                 readonly property bool hasVisualSurface:
                     barSlot.root.widgetHasFill(gid) || barSlot.root.widgetHasBorder(gid)
                 readonly property real visualLeftEdge: pad
@@ -1897,10 +1896,10 @@ PanelWindow {
         property int narrowStage: 0            // 0 normal · 1 compact · 2 portrait · 3 emergency
         property real g8FloorWidth: 80         // published by G8: its clock-only minimal width
         function groupVisibleAtStage(gid, stage) {
-            if (gid === "G8" || gid === "G9") return true                                        // keep clock and media on every monitor
+            if (gid === "G8") return true                                        // clock has its own stages
             if (stage <= 0) return true
-            if (stage === 1) return ["G7", "G10"].indexOf(gid) < 0         // drop AI · Quick
-            if (stage === 2) return ["G4", "G7", "G10", "G17", "G18"].indexOf(gid) < 0   // also MEM · GPU · HDD
+            if (stage === 1) return ["G7", "G9", "G10"].indexOf(gid) < 0         // drop AI · MPRIS · Quick
+            if (stage === 2) return ["G4", "G7", "G9", "G10", "G17", "G18"].indexOf(gid) < 0   // also MEM · GPU · HDD
             return ["G1", "G2", "G6", "G8", "G11", "G14"].indexOf(gid) >= 0      // emergency whitelist
         }
         function sideNaturalWidth(row, stage) {
