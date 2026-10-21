@@ -167,7 +167,15 @@ PanelWindow {
                 }
             }
             UiText { text: "SETTINGS"; color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
-            UiText { text: "TECHNOLOGY · " + String(controller.vpnSettings.technology || "Checking…").toUpperCase(); color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 0.5 }
+            UiText { text: "TECHNOLOGY · " + String(controller.vpnSettings.technology || (controller.vpnSettings["selection-notice"] ? "Unavailable" : "Checking…")).toUpperCase(); color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 0.5 }
+            UiText {
+                objectName: "vpn-selection-notice"
+                width: parent.width
+                text: String(controller.vpnSettings["selection-notice"] || "")
+                visible: text !== ""
+                color: vpnPanel.root.seal
+                font.family: vpnPanel.root.mono; font.pixelSize: 9; wrapMode: Text.WordWrap
+            }
             Row {
                 width: parent.width; spacing: 6
                 Repeater {
@@ -177,29 +185,34 @@ PanelWindow {
                         width: (parent.width - 12) / 3; height: 28; radius: vpnPanel.root.tileRadius
                         readonly property bool selected: String(controller.vpnSettings.technology || "").toUpperCase() === modelData
                         color: selected ? vpnPanel.root.fillActive : technologyMouse.containsMouse && technologyMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle
+                        border.width: 1
                         border.color: selected || (technologyMouse.containsMouse && technologyMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep
                         UiText { anchors.centerIn: parent; text: modelData; color: parent.selected ? vpnPanel.root.seal : vpnPanel.root.ink; font.family: vpnPanel.root.mono; font.pixelSize: 10; elide: Text.ElideRight }
                         MouseArea { id: technologyMouse; objectName: "vpn-technology-" + modelData.toLowerCase(); Component.onCompleted: vpnPanel.testTargets[objectName] = technologyMouse; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: vpnPanel.changeTechnology(modelData) }
                     }
                 }
             }
-            UiText { text: "PROTOCOL · OPENVPN TRANSPORT"; color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 0.5 }
-            UiText { width: parent.width; text: "UDP is faster · TCP can be more reliable on restricted networks"; color: vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 9; wrapMode: Text.Wrap }
+
+            UiText { width: parent.width; text: controller.vpnSettings["protocol-api"] === "unified" && controller.vpnSettings.technology !== "OPENVPN"
+                ? "UDP/TCP apply to OpenVPN. Choosing either switches to OpenVPN."
+                : "UDP is faster · TCP can be more reliable on restricted networks"; color: vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 9; wrapMode: Text.Wrap }
             Row {
                 width: parent.width; spacing: 6
                 Rectangle {
                     width: (parent.width - 6) / 2; height: 28; radius: vpnPanel.root.tileRadius
-                    readonly property bool selected: String(controller.vpnSettings.protocol || "UDP").toUpperCase() === "UDP"
+                    readonly property bool selected: String(controller.vpnSettings.protocol || "").toUpperCase() === "UDP"
                     color: selected ? vpnPanel.root.fillActive : protocolMouse.containsMouse && protocolMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle
-                    border.color: selected || (protocolMouse.containsMouse && protocolMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep
+                    border.width: 1
+                        border.color: selected || (protocolMouse.containsMouse && protocolMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep
                     UiText { anchors.centerIn: parent; text: "UDP"; color: parent.selected ? vpnPanel.root.seal : vpnPanel.root.ink; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
                     MouseArea { id: protocolMouse; objectName: "vpn-protocol"; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: vpnPanel.changeProtocol("UDP") }
                 }
                 Rectangle {
                     width: (parent.width - 6) / 2; height: 28; radius: vpnPanel.root.tileRadius
-                    readonly property bool selected: String(controller.vpnSettings.protocol || "UDP").toUpperCase() === "TCP"
+                    readonly property bool selected: String(controller.vpnSettings.protocol || "").toUpperCase() === "TCP"
                     color: selected ? vpnPanel.root.fillActive : tcpProtocolMouse.containsMouse && tcpProtocolMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle
-                    border.color: selected || (tcpProtocolMouse.containsMouse && tcpProtocolMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep
+                    border.width: 1
+                        border.color: selected || (tcpProtocolMouse.containsMouse && tcpProtocolMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep
                     UiText { anchors.centerIn: parent; text: "TCP"; color: parent.selected ? vpnPanel.root.seal : vpnPanel.root.ink; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
                     MouseArea { id: tcpProtocolMouse; objectName: "vpn-protocol-tcp"; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: vpnPanel.changeProtocol("TCP") }
                 }

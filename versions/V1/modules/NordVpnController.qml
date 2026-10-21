@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell.Io
+import "NordVpnProtocol.js" as VpnProtocol
 
 // One V1-scoped NordVPN owner shared by every bar slot and both VPN/network
 // surfaces. All CLI input is passed as argv; no shell command strings.
@@ -25,6 +26,63 @@ Item {
     readonly property bool canMutate: enabled
         && (vpnState === "Connected" || vpnState === "Disconnected") && !vpnBusy
     property string _queryKind: "status"
+    property int _settingsGeneration: 0
+    property var _selectionRequest: null
+    property int _selectionEpoch: 0
+    property bool _selectionPending: false
+    property string selectionReader: decodeURIComponent(String(Qt.resolvedUrl("../../../scripts/rise-nordvpn-selection")).replace(/^(file|qs):\/\//, ""))
+
+    function refreshSelectionReadback() {
+        if (!enabled || !vpnSettings["selection-notice"]
+                || vpnSettings["protocol-api"] !== "unified") {
+            _selectionPending = false
+            return false
+        }
+        if (!_selectionRequest || _selectionRequest.generation !== _settingsGeneration
+                || _selectionRequest.epoch !== _selectionEpoch)
+            _selectionPending = true
+        return _drainSelectionReadback()
+    }
+    function _drainSelectionReadback() {
+        // Retain ownership through the deferred completion, not just process exit.
+        if (_selectionRequest || selectionProbe.running || !_selectionPending) return false
+        _selectionPending = false
+        if (!enabled || !vpnSettings["selection-notice"]
+                || vpnSettings["protocol-api"] !== "unified") return false
+        _selectionRequest = { generation: _settingsGeneration, epoch: _selectionEpoch }
+        selectionProbe.command = ["python3", selectionReader]
+        selectionProbe.running = true
+        return true
+    }
+
+    function _selectionOutputFinished(text) {
+        var request = _selectionRequest
+        if (!request) return
+        request.output = String(text || "")
+        request.outputFinished = true
+        _completeSelectionReadback(request)
+    }
+    function _completeSelectionReadback(request) {
+        // Exit and collector completion may arrive in either order. Keep the
+        // slot owned until both arrive, then snapshot before deferring delivery.
+        if (!request || !request.exited || !request.outputFinished || request.scheduled) return
+        request.scheduled = true
+        var text = request.output
+        var exitCode = request.exitCode
+        Qt.callLater(function() {
+            if (controller._selectionRequest !== request) return
+            if (controller.enabled && exitCode === 0
+                    && request.epoch === controller._selectionEpoch
+                    && request.generation === controller._settingsGeneration
+                    && text.length <= 4096) {
+                try {
+                    controller.vpnSettings = VpnProtocol.applyDaemonSelection(controller.vpnSettings, JSON.parse(text))
+                } catch (error) { /* Keep the explicit unknown state. */ }
+            }
+            controller._selectionRequest = null
+            controller._drainSelectionReadback()
+        })
+    }
 
     function _startQuery(kind) {
         if (!enabled || queryProcess.running) return false
@@ -172,6 +230,23 @@ Item {
                 return false
             }
         }
+        // NordVPN 6 removed `set technology`; all choices use unified protocol.
+        if ((key === "technology" || key === "protocol") && vpnSettings["protocol-api"] === "unified") {
+            if (vpnSettings["selection-notice"] || vpnSettings["selection-write-notice"]) {
+                vpnMessage = String(vpnSettings["selection-notice"] || vpnSettings["selection-write-notice"])
+                vpnActionMessage = vpnSettings["selection-notice"]
+                    ? "Protocol unchanged: current selection unavailable"
+                    : "Protocol unchanged: writes blocked by CLI/daemon version mismatch"
+                return false
+            }
+            var unified = key === "protocol" ? (value === "TCP" ? "openvpn_tcp" : "openvpn_udp")
+                : value === "NORDLYNX" ? "nordlynx"
+                : value === "NORDWHISPER" ? "nordwhisper"
+                : String(vpnSettings.protocol || "").toUpperCase() === "TCP" ? "openvpn_tcp" : "openvpn_udp"
+            vpnMessage = ""
+            vpnActionMessage = "Setting VPN protocol to " + unified + "…"
+            return _runAction([cli, "set", "protocol", unified])
+        }
         vpnMessage = ""
         vpnActionMessage = key === "technology" ? "Setting VPN technology to " + value + "…"
             : key === "protocol" ? "Setting OpenVPN protocol to " + value + "…"
@@ -189,6 +264,9 @@ Item {
 
     onEnabledChanged: {
             if (!enabled) {
+                _selectionEpoch += 1
+                _selectionPending = false
+                if (selectionProbe.running) selectionProbe.running = false
                 if (queryProcess.running) queryProcess.running = false
                 if (countriesProcess.running) countriesProcess.running = false
                 countriesState = "Unavailable"
@@ -220,7 +298,9 @@ Item {
                             parsed[settingKey] = match[2].trim()
                         }
                     }
-                    controller.vpnSettings = parsed
+                    controller._settingsGeneration += 1
+                    controller.vpnSettings = VpnProtocol.normalizeSettings(parsed)
+                    controller.refreshSelectionReadback()
                     return
                 }
                 var state = raw.match(/^Status\s*:\s*(.+)$/im)
@@ -247,6 +327,23 @@ Item {
                 if (controller._queryKind === "status") controller.vpnState = "Unavailable"
                 else controller.vpnSettings = ({})
             }
+        }
+    }
+
+    Process {
+        id: selectionProbe
+        running: false
+        stdout: StdioCollector {
+            waitForEnd: true
+            onStreamFinished: controller._selectionOutputFinished(String(this.text || ""))
+        }
+        stderr: StdioCollector { waitForEnd: true }
+        onExited: function(exitCode) {
+            var request = controller._selectionRequest
+            if (!request) return
+            request.exitCode = exitCode
+            request.exited = true
+            controller._completeSelectionReadback(request)
         }
     }
 
