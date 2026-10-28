@@ -11,6 +11,23 @@ The project includes system panels and integrations for Omarchy themes,
 notifications, audio, network, weather, calendar, NordVPN, and wallpaper
 folders. Its bar styling and interactions follow the Quickshell Rise design.
 
+## Screenshots
+
+### V1
+
+![Rise V1 — preview 1](docs/media/v1-preview01.png)
+![Rise V1 — preview 2](docs/media/v1-preview02.png)
+![Rise V1 — preview 3](docs/media/v1-preview03.png)
+![Rise V1 — preview 4](docs/media/v1-preview04.png)
+
+### V2
+
+![Rise V2 — preview 1](docs/media/v2-preview01.png)
+![Rise V2 — preview 2](docs/media/v2-preview02.png)
+![Rise V2 — preview 3](docs/media/v2-preview03.png)
+![Rise V2 — preview 4](docs/media/v2-preview04.png)
+![Rise V2 — preview 5](docs/media/v2-preview05.png)
+
 ## Requirements
 
 - Omarchy with the Quickshell plugin system and `omarchy-shell`.
