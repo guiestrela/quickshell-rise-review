@@ -70,6 +70,9 @@ check_qml() {
 }
 check_qml
 
+check "bar style settings" node --test tests/bar-style-settings.test.mjs
+check "bar style previews" python3 tests/test-bar-style-preview.py
+
 regressions=(
   tests/qs-arch-update-regression.sh
   tests/qs-barctl-regression.sh

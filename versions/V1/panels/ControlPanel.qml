@@ -435,6 +435,8 @@ PanelWindow {
             }
             Tile { width: parent.width; label: "Split all";      accent: root.seal;   onActivated: { if (root.fnSplitAll) root.fnSplitAll() } }
             Tile { width: parent.width; label: "Merge all";                            onActivated: { if (root.fnMergeAll) root.fnMergeAll() } }
+            Tile { width: parent.width; label: "Protect layout"; active: root.layoutProtected; onActivated: { root.layoutProtected = !root.layoutProtected; root.barUnlocked = false } }
+            Tile { width: parent.width; label: "Edit slots"; onActivated: { root.controlVisible = false; root.barUnlocked = true } }
             Tile { width: parent.width; label: "Default layout"; accent: root.seal;   onActivated: { if (root.fnDefaultLayout) root.fnDefaultLayout() } }
 
             Rectangle { width: parent.width; height: 1; color: root.sep }
@@ -683,9 +685,9 @@ PanelWindow {
             Row {
                 width: parent.width; spacing: 4
                 // independent toggles: each highlights when ON, click flips it (Border+Frost+Shadow combinable)
-                Tile { width: root.evenW((wwCol.width - 8) / 3); label: "Border"; active: root.styleBorder; onActivated: root.styleBorder = !root.styleBorder }
-                Tile { width: root.evenW((wwCol.width - 8) / 3); label: "Frost";  active: root.styleFrost;  onActivated: root.styleFrost = !root.styleFrost }
-                Tile { width: root.evenW((wwCol.width - 8) / 3); label: "Shadow"; active: root.styleShadow; onActivated: root.styleShadow = !root.styleShadow }
+                BarStylePreview { width: (wwCol.width - 8) / 3; theme: root; mode: "islands"; label: "Border"; selected: root.styleBorder; outline: root.styleBorder; onChosen: root.styleBorder = !root.styleBorder }
+                BarStylePreview { width: (wwCol.width - 8) / 3; theme: root; mode: "islands"; label: "Frost"; selected: root.styleFrost; frost: root.styleFrost; onChosen: root.styleFrost = !root.styleFrost }
+                BarStylePreview { width: (wwCol.width - 8) / 3; theme: root; mode: "islands"; label: "Shadow"; selected: root.styleShadow; shadow: root.styleShadow; onChosen: root.styleShadow = !root.styleShadow }
             }
             Row {
                 width: parent.width; spacing: 4

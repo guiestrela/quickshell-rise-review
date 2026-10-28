@@ -1421,6 +1421,7 @@ Item {
     property int barAnim: 0   // 0=off, 1=stream, 2=surge, 3=bolt, 4=bolt2, 5=stream2, 6=surge2, 7=reactor, 8=quotes
 
     // ── Bar layout / unlock (drag&drop reorder). barUnlocked is transient. ──
+    property bool layoutProtected: false
     property bool barUnlocked: false
     // split-control hooks called by the ControlPanel split sub-panel.
     property var  fnSplitAll:      function () { theme.splitAllBars() }
@@ -2147,6 +2148,7 @@ Item {
     onCompactAiChanged:        if (_widgetsLoaded && !_compactResetting) saveWidgets()
     onStyleBorderChanged:      if (_widgetsLoaded) saveWidgets()
     onStyleShadowChanged:      if (_widgetsLoaded) saveWidgets()
+    onLayoutProtectedChanged: if (_widgetsLoaded) saveWidgets()
     onStyleFrostChanged:       if (_widgetsLoaded) saveWidgets()
     onStyleRadiusSmallChanged: if (_widgetsLoaded) saveWidgets()
     onWorkspaceStyleChanged:   if (_widgetsLoaded) saveWidgets()
@@ -2197,7 +2199,8 @@ Item {
                  + (displayManagerAutoWorkspaces ? "1" : "0") + " " // +36 Display Manager workspace preference
                  + V1Defaults.compactCacheFields(compactNordVpn, compactAi).join(" ") + " " // +37..+38, append-only
                  + (modGpu ? "1" : "0") + " " // +39 GPU; preserve all older fields
-                 + (compactGpu ? "1" : "0") // +40 GPU compact; append-only
+                 + (compactGpu ? "1" : "0") + " " // +40 GPU compact; append-only
+                 + (layoutProtected ? "1" : "0") // +41 layout protection
         widgetSaveProc.command = ["bash", "-c",
             "echo '" + line + "' > '" + widgetsCachePath + "'"]
         widgetSaveProc.running = false
@@ -2414,6 +2417,7 @@ Item {
                     theme.compactNordVpn = compactFields.compactNordVpn
                     theme.compactAi = compactFields.compactAi
                 }
+                if (parts.length > wsField + 41) theme.layoutProtected = parts[wsField + 41] === "1"
                 theme._widgetsLoaded = true
             }
         }

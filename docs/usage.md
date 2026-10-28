@@ -29,6 +29,8 @@ The most common widget bindings are:
 | Tray widget | Open hidden-app panel | None | None |
 | Tray icon | Activate application | Hide icon | None |
 
+Both variants offer **Protect layout**, saved separately for V1 and V2. When enabled, double-clicking the bar and clicking gap/divider markers cannot change the layout. Use **Edit slots** to explicitly enter editing mode; `Esc` exits editing without turning protection off. Widget settings remain available in the Control Panel.
+
 The Media Player Remote Interfacing Specification (MPRIS) widget has two bar presentations. **Default** shows transport controls, track text, and equalizer motion. **FULL** shows a vinyl mark, real-time CAVA waveform, and transport state. In FULL mode, click the surface to play or pause, scroll up for the next track, and scroll down for the previous track.
 
 ## Switch between V1 and V2
@@ -62,7 +64,7 @@ V2 adds four outer-shell layouts:
 - **Dock**: attach a content-width surface to the screen edge
 - **Notch**: attach the compact surface with continuous side transitions
 
-V2 can place every shell at the top or bottom edge. The Bar Border and Panel & Tooltip Border controls are independent.
+V2 can place every shell at the top or bottom edge. The style cards preview each shell. The Bar Border and Panel & Tooltip Border controls are independent. Notch also offers Frost, which lowers its background opacity; compositor blur depends on the active desktop theme.
 
 ## Apply colors and widget styles
 
@@ -73,6 +75,8 @@ V2 also exposes a palette button for each configurable widget group. Use it to:
 - Apply a palette color or return to inherited color
 - Enable a widget border without enabling fill
 - Select automatic, foreground, or background contrast for a filled widget
+- Cycle surface opacity, corners, padding, border width, and an independent border color
+- Use **Reset surface** to restore geometry and border color while keeping the widget’s palette assignment
 
 Status-driven icons keep their semantic state colors where required. Other icons use the assigned widget color or Foreground according to the selected rule.
 

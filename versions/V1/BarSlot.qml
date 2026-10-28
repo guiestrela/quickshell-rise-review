@@ -598,7 +598,7 @@ PanelWindow {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: if (toggleGap) toggleGap(slot.index)
+                        onClicked: if ((!barSlot.root.layoutProtected || barSlot.root.barUnlocked) && toggleGap) toggleGap(slot.index)
                     }
                 }
             }
@@ -643,7 +643,7 @@ PanelWindow {
         MouseArea {
             anchors.fill: parent
             z: -1
-            onDoubleClicked: barSlot.root.barUnlocked = true
+            onDoubleClicked: if (!barSlot.root.layoutProtected) barSlot.root.barUnlocked = true
         }
 
         // ── split state (positional, per within-region gap) ──
@@ -972,7 +972,7 @@ PanelWindow {
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onClicked: if (bm.toggleFn) bm.toggleFn()
+                onClicked: if ((!barSlot.root.layoutProtected || barSlot.root.barUnlocked) && bm.toggleFn) bm.toggleFn()
             }
         }
         BoundaryMarker {

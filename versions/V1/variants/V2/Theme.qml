@@ -239,12 +239,14 @@ Item {
     readonly property string mono:  "JetBrainsMono Nerd Font"
 
     // ── transparency knobs (0.0 = fully transparent, 1.0 = opaque) ──
+    property bool notchFrost: false
     property real barOpacity:  0.94   // durchgehende V2-Leiste
     property real pillOpacity: 0.18   // einzelne Widget-Pillen (workspace, mem, cpu, …)
 
     readonly property real surfaceOpacity: barOpacity
     readonly property color bg:     Qt.rgba(paper.r, paper.g, paper.b, surfaceOpacity)
-    readonly property color barBg:  Qt.rgba(paper.r, paper.g, paper.b, surfaceOpacity)
+    readonly property color barBg:  Qt.rgba(paper.r, paper.g, paper.b,
+        barShellStyle === "notch" && notchFrost ? 0.68 : surfaceOpacity)
     readonly property color pill:   Qt.rgba(paper.r, paper.g, paper.b, pillOpacity)
     readonly property color fg:     ink
     readonly property color muted:  sumi
@@ -1824,6 +1826,7 @@ Item {
     }
 
     // ── Bar layout / unlock (drag&drop reorder). barUnlocked is transient. ──
+    property bool layoutProtected: false
     property bool barUnlocked: false
     property var  fnDefaultLayout: function () { theme.resetAllBarLayouts() }
     property bool wwSubVisible: false   // "Widgets & Workspaces" fly-out
@@ -2313,6 +2316,72 @@ Item {
     // ── per-widget palette styles ──
     // Stored by stable GID, so slot reordering and temporarily hidden widgets
     // never lose their visual assignment.
+    property var widgetSurfaceStyles: ({})
+    function widgetSurfaceStyle(gid) {
+        return normalizeWidgetSurfaceStyle(widgetSurfaceStyles[gid] || {})
+    }
+    function normalizeWidgetSurfaceStyle(raw) {
+        var opacity = Number(raw.opacity)
+        var borderWidth = Number(raw.borderWidth)
+        return {
+            borderColor: raw.borderColor === "inherit" || paletteColorValid(raw.borderColor) ? raw.borderColor : "inherit",
+            opacity: isFinite(opacity) ? Math.max(0.35, Math.min(1, opacity)) : 1,
+            radius: ["auto", "square", "soft", "round"].indexOf(raw.radius) >= 0 ? raw.radius : "auto",
+            padding: ["auto", "none", "compact", "roomy"].indexOf(raw.padding) >= 0 ? raw.padding : "auto",
+            borderWidth: isFinite(borderWidth) ? Math.round(Math.max(0.5, Math.min(2, borderWidth)) * 2) / 2 : 1
+        }
+    }
+    function setWidgetSurfaceStyle(gid, key, value) {
+        if (!widgetGidValid(gid) || ["opacity", "radius", "padding", "borderWidth", "borderColor"].indexOf(key) < 0) return
+        var style = widgetSurfaceStyle(gid)
+        style[key] = value
+        var next = Object.assign({}, widgetSurfaceStyles)
+        next[gid] = normalizeWidgetSurfaceStyle(style)
+        widgetSurfaceStyles = next
+        if (_widgetsLoaded) saveWidgets()
+    }
+    function resetWidgetSurfaceStyle(gid) {
+        var next = Object.assign({}, widgetSurfaceStyles)
+        delete next[gid]
+        widgetSurfaceStyles = next
+        if (_widgetsLoaded) saveWidgets()
+    }
+    function widgetSurfacePadding(gid) {
+        var padding = widgetSurfaceStyle(gid).padding
+        return padding === "compact" ? 3 : padding === "roomy" ? 6 : 0
+    }
+    function widgetSurfaceRadius(gid) {
+        var radius = widgetSurfaceStyle(gid).radius
+        return radius === "square" ? 0 : radius === "soft" ? 6 : radius === "round" ? 12 : panelButtonRadius
+    }
+    function serializeWidgetSurfaceStyles() {
+        var out = []
+        for (var n = 1; n <= 21; n++) {
+            var gid = "G" + n
+            if (!widgetSurfaceStyles[gid]) continue
+            var style = widgetSurfaceStyle(gid)
+            out.push([gid, style.opacity, style.radius, style.padding, style.borderWidth, style.borderColor].join("~"))
+        }
+        return out.length ? out.join(",") : "-"
+    }
+    function parseWidgetSurfaceStyles(raw) {
+        var out = {}
+        if (!raw || raw === "-") return out
+        var entries = String(raw).split(",")
+        for (var i = 0; i < entries.length; i++) {
+            var f = entries[i].split("~")
+            if ((f.length !== 5 && f.length !== 6) || !widgetGidValid(f[0])
+                || !/^(0(?:\.\d+)?|1(?:\.0+)?)$/.test(f[1])
+                || Number(f[1]) < 0.35
+                || ["auto", "square", "soft", "round"].indexOf(f[2]) < 0
+                || ["auto", "none", "compact", "roomy"].indexOf(f[3]) < 0
+                || ["0.5", "1", "1.5", "2"].indexOf(f[4]) < 0
+                || (f.length === 6 && f[5] !== "inherit" && !paletteColorValid(f[5]))) continue
+            out[f[0]] = { opacity: Number(f[1]), radius: f[2], padding: f[3], borderWidth: Number(f[4]), borderColor: f[5] || "inherit" }
+        }
+        return out
+    }
+
     property var widgetColorStyles: ({})
     function widgetGidValid(gid) {
         var m = String(gid || "").match(/^G(\d{1,2})$/)
@@ -2457,7 +2526,8 @@ Item {
     }
     function widgetBorderColor(gid) {
         if (!widgetHasBorder(gid)) return Qt.rgba(0, 0, 0, 0)
-        return panelBorder
+        var colorId = widgetSurfaceStyle(gid).borderColor
+        return colorId === "inherit" ? panelBorder : paletteColor(colorId)
     }
     function serializeWidgetColorStyles() {
         var out = []
@@ -2522,6 +2592,8 @@ Item {
     onArchBadgeThemesChanged:   if (_widgetsLoaded) saveWidgets()
     onWorkspaceStyleChanged:   if (_widgetsLoaded) saveWidgets()
     onBarPositionChanged:      if (_widgetsLoaded) saveWidgets()
+    onNotchFrostChanged: if (_widgetsLoaded) saveWidgets()
+    onLayoutProtectedChanged: if (_widgetsLoaded) saveWidgets()
     onBarShellStyleChanged:    if (_widgetsLoaded) saveWidgets()
     onBarBorderEnabledChanged: if (_widgetsLoaded) saveWidgets()
     onPanelTooltipBorderEnabledChanged: if (_widgetsLoaded) saveWidgets()
@@ -2575,7 +2647,10 @@ Item {
                  + (modNordVpn ? "1" : "0") + " "                        // +45 NordVPN
                  + (modWallpapers ? "1" : "0") + " "                    // +46 Wallpapers; append-only schema
                  + (modDisplayManager ? "1" : "0") + " "                  // +47 Display Manager; append-only schema
-                 + (displayManagerAutoWorkspaces ? "1" : "0") // +48 Display Manager workspace preference
+                 + (displayManagerAutoWorkspaces ? "1" : "0") + " " // +48 Display Manager workspace preference
+                 + (notchFrost ? "1" : "0") + " " // +49 Notch Frost
+                 + (layoutProtected ? "1" : "0") + " " // +50 layout protection
+                 + serializeWidgetSurfaceStyles() // +51 widget surface geometry
         widgetSaveProc.command = ["bash", "-c",
             "echo '" + line + "' > '" + widgetsCachePath + "'"]
         widgetSaveProc.running = false
@@ -2800,6 +2875,9 @@ Item {
                 if (parts.length > wsField + 46) theme.modWallpapers = parts[wsField + 46] === "1"
                 if (parts.length > wsField + 47) theme.modDisplayManager = parts[wsField + 47] === "1"
                     if (parts.length > wsField + 48) theme.displayManagerAutoWorkspaces = parts[wsField + 48] === "1"
+                if (parts.length > wsField + 49) theme.notchFrost = parts[wsField + 49] === "1"
+                if (parts.length > wsField + 50) theme.layoutProtected = parts[wsField + 50] === "1"
+                if (parts.length > wsField + 51) theme.widgetSurfaceStyles = theme.parseWidgetSurfaceStyles(parts[wsField + 51])
                 theme._widgetsLoaded = true
             }
         }

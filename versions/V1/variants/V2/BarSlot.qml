@@ -1301,7 +1301,8 @@ PanelWindow {
                 readonly property bool occupied: gid !== "" && barSlot.registry[gid] !== undefined
                 // workspace draws a pill 4px wider than its implicitWidth on each
                 // side; pad its slot symmetrically so inter-group gaps stay uniform.
-                readonly property int pad: slot.gid === "G2" ? barSlot.root.wsPillPad : 0
+                readonly property int surfacePadding: barSlot.root.widgetSurfacePadding(gid)
+                readonly property int pad: (slot.gid === "G2" ? barSlot.root.wsPillPad : 0) + surfacePadding
                 readonly property var contentItem: ldr.item
                 readonly property bool hasContent: occupied && Math.round(ldr.implicitWidth) > 0.5
                 readonly property real contentLeftInset: contentItem
@@ -1386,13 +1387,14 @@ PanelWindow {
                         4.25 * edgeBorder.curvedInsetReveal
                     readonly property real fillCurveTipControl:
                         2 * edgeBorder.curvedInsetReveal
-                    x: slot.pad
+                    x: slot.pad - slot.surfacePadding
                     anchors.verticalCenter: parent.verticalCenter
-                    width: Math.round(ldr.implicitWidth)
+                    width: Math.round(ldr.implicitWidth) + 2 * slot.surfacePadding
                     // Keep every optional fill/border surface slightly inset from
                     // the bar edges so all widget treatments share one geometry.
                     height: 24
-                    radius: barSlot.root.panelButtonRadius
+                    radius: barSlot.root.widgetSurfaceRadius(slot.gid)
+                    opacity: barSlot.root.widgetSurfaceStyle(slot.gid).opacity
                     clip: true
                     visible: slot.occupied && slot.hasContent && slot.autoShown
                         && (barSlot.root.widgetHasFill(slot.gid)
@@ -1403,7 +1405,7 @@ PanelWindow {
                     border.color: barSlot.root.widgetBorderColor(slot.gid)
                     border.width: barSlot.root.widgetHasBorder(slot.gid)
                         && !connectedBorderCut
-                        ? barSlot.root.panelBorderW
+                        ? barSlot.root.widgetSurfaceStyle(slot.gid).borderWidth
                         : 0
                     Behavior on color {
                         enabled: !edgeBorder.curvedInsetRendering
@@ -1552,7 +1554,7 @@ PanelWindow {
 
                         ShapePath {
                             strokeColor: barSlot.root.widgetBorderColor(slot.gid)
-                            strokeWidth: barSlot.root.panelBorderW
+                            strokeWidth: barSlot.root.widgetSurfaceStyle(slot.gid).borderWidth
                             fillColor: "transparent"
                             capStyle: ShapePath.FlatCap
                             joinStyle: ShapePath.RoundJoin
@@ -1606,7 +1608,7 @@ PanelWindow {
 
                         ShapePath {
                             strokeColor: barSlot.root.widgetBorderColor(slot.gid)
-                            strokeWidth: barSlot.root.panelBorderW
+                            strokeWidth: barSlot.root.widgetSurfaceStyle(slot.gid).borderWidth
                             fillColor: "transparent"
                             capStyle: ShapePath.FlatCap
                             joinStyle: ShapePath.RoundJoin
@@ -1764,7 +1766,7 @@ PanelWindow {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: barSlot.root.toggleSep(slot.gid)
+                        onClicked: if (!barSlot.root.layoutProtected || barSlot.root.barUnlocked) barSlot.root.toggleSep(slot.gid)
                     }
                 }
             }
@@ -1848,7 +1850,7 @@ PanelWindow {
         MouseArea {
             anchors.fill: parent
             z: -1
-            onDoubleClicked: barSlot.root.barUnlocked = true
+            onDoubleClicked: if (!barSlot.root.layoutProtected) barSlot.root.barUnlocked = true
         }
 
         // ── Center-region collision handling (narrow-monitor overlap fix) ──
