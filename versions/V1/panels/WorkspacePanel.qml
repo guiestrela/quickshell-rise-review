@@ -126,4 +126,5 @@ PanelWindow {
         }
     }
 
+    SidePanelPositioner { root: wsPanel.root; target: card; anchorName: "workspace" }
 }

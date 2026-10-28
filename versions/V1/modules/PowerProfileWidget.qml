@@ -5,6 +5,7 @@ import Quickshell.Io
 Item {
     id: rootMod
     required property var root
+    readonly property bool verticalCompact: root.barVertical === true || root.compactPower
 
     property string profile: root.powerProfileCurrent
 
@@ -61,7 +62,7 @@ Item {
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactPower
+            visible: !rootMod.verticalCompact
             text: "PWR"
             color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
             font.family: root.mono
@@ -71,7 +72,7 @@ Item {
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.compactPower
+            visible: rootMod.verticalCompact
             text: rootMod.profileIcon
             renderType: Text.QtRendering
             color: rootMod.profileColor
@@ -82,7 +83,7 @@ Item {
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactPower
+            visible: !rootMod.verticalCompact
             text: rootMod.shortName
             color: rootMod.profileColor
             font.family: root.mono

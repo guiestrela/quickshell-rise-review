@@ -112,11 +112,11 @@ Item {
 
     visible: implicitWidth > 0.5
     implicitWidth: root.modMpris
-        ? (active
+        ? (root.barVertical ? 34 : active
             ? ((fullMode ? fullRow.implicitWidth : defaultRow.implicitWidth) + 18)
             : (idleNote.implicitWidth + 16))
         : 0
-    implicitHeight: 28
+    implicitHeight: root.barVertical && active && fullMode ? 160 : 28
     opacity: root.modMpris ? 1 : 0
 
     Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
@@ -126,11 +126,9 @@ Item {
     }
 
     Rectangle {
-        x: 0; anchors.verticalCenter: parent.verticalCenter
-        width: rootMod.active
-            ? (Math.round(rootMod.fullMode ? fullRow.implicitWidth : defaultRow.implicitWidth) + 18)
-            : (Math.round(idleNote.implicitWidth) + 16)
-        height: root.pillH
+        anchors.centerIn: parent
+        width: rootMod.width
+        height: root.barVertical && rootMod.active && rootMod.fullMode ? rootMod.height : root.pillH
         radius: root.pillRadius
         color: root.pill
         border.color: root.pillBorder
@@ -142,7 +140,7 @@ Item {
     IconText {
         id: idleNote
         anchors.centerIn: parent
-        visible: !rootMod.active
+        visible: !rootMod.active || (root.barVertical && !rootMod.fullMode)
         text: ""   // music_note
         font.pixelSize: 15
         color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.45)
@@ -156,7 +154,7 @@ Item {
 
     Row {
         id: defaultRow
-        visible: rootMod.active && !rootMod.fullMode
+        visible: !root.barVertical && rootMod.active && !rootMod.fullMode
         anchors.centerIn: parent
         spacing: 4
 
@@ -223,6 +221,7 @@ Item {
         // ── marquee title ──
         Item {
             id: marqueeClip
+            visible: root.barVertical !== true
             implicitWidth: 88
             width: 88
             height: 28
@@ -283,6 +282,7 @@ Item {
         // ── equalizer canvas ──
         Canvas {
             id: eqCanvas
+            visible: root.barVertical !== true
             implicitWidth: 16
             width: 16
             height: 14
@@ -340,11 +340,12 @@ Item {
         id: fullRow
         visible: rootMod.active && rootMod.fullMode
         anchors.centerIn: parent
-        implicitWidth: fullMuseCore.width
-        implicitHeight: 28
+        implicitWidth: root.barVertical ? 28 : fullMuseCore.width
+        implicitHeight: root.barVertical ? fullMuseCore.width : 28
 
         Item {
             id: fullMuseCore
+            rotation: root.barVertical ? 90 : 0
             anchors.centerIn: parent
             width: 144
             height: 28
@@ -455,6 +456,7 @@ Item {
 
                 Item {
                     id: transportMark
+                    rotation: root.barVertical ? -90 : 0
                     anchors.verticalCenter: parent.verticalCenter
                     width: 16
                     height: 18

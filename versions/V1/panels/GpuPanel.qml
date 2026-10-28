@@ -269,4 +269,5 @@ PanelWindow {
         id: btopRunner
         command: ["bash", "-c", "omarchy-launch-floating-terminal-with-presentation 'btop'"]
     }
+    SidePanelPositioner { root: gpuPanel.root; target: card; anchorName: "gpu" }
 }

@@ -5,6 +5,7 @@ import Quickshell.Io
 Item {
     id: rootMod
     required property var root
+    readonly property bool verticalCompact: root.barVertical === true || root.compactMemory
 
     visible: implicitWidth > 0.5
     implicitWidth: root.modMemory ? row.implicitWidth + 18 : 0
@@ -33,12 +34,12 @@ Item {
     Row {
         id: row
         anchors.centerIn: parent
-        anchors.horizontalCenterOffset: root.compactMemory ? -1 : 0
-        spacing: root.compactMemory ? 4 : 5
+        anchors.horizontalCenterOffset: rootMod.verticalCompact ? -1 : 0
+        spacing: rootMod.verticalCompact ? 4 : 5
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactMemory
+            visible: !rootMod.verticalCompact
             text: "MEM"
             color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
             font.family: root.mono
@@ -48,7 +49,7 @@ Item {
 
         Canvas {
             id: ring
-            visible: !root.compactMemory
+            visible: !rootMod.verticalCompact
             width: 16
             height: 16
             anchors.verticalCenter: parent.verticalCenter
@@ -91,7 +92,7 @@ Item {
         }
 
         Row {
-            visible: !root.compactMemory
+            visible: !rootMod.verticalCompact
             spacing: 0
             anchors.verticalCenter: parent.verticalCenter
 
@@ -106,7 +107,7 @@ Item {
         Item {
             id: compactMemGlyph
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.compactMemory
+            visible: rootMod.verticalCompact
             width: 16
             height: 16
 
@@ -155,7 +156,7 @@ Item {
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.compactMemory
+            visible: root.barVertical !== true && rootMod.verticalCompact
             text: rootMod.usedLabel
             color: root.seal
             font.family: root.mono

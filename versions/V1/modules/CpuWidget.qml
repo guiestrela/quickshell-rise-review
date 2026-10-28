@@ -5,6 +5,7 @@ import Quickshell.Io
 Item {
     id: rootMod
     required property var root
+    readonly property bool verticalCompact: root.barVertical === true || root.compactCpu
 
     visible: implicitWidth > 0.5
     implicitWidth: root.modCpu ? row.implicitWidth + 18 : 0
@@ -32,11 +33,11 @@ Item {
     Row {
         id: row
         anchors.centerIn: parent
-        spacing: root.compactCpu ? 4 : 5
+        spacing: rootMod.verticalCompact ? 4 : 5
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactCpu
+            visible: !rootMod.verticalCompact
             text: "CPU"
             color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
             font.family: root.mono
@@ -46,7 +47,7 @@ Item {
 
         Canvas {
             id: wave
-            visible: !root.compactCpu
+            visible: !rootMod.verticalCompact
             width: 36
             height: 14
             anchors.verticalCenter: parent.verticalCenter
@@ -109,7 +110,7 @@ Item {
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactCpu
+            visible: root.barVertical !== true && (!rootMod.verticalCompact)
             text: String(Math.min(100, rootMod.percent)).padStart(2, '0') + "%"
             color: root.seal
             font.family: root.mono
@@ -119,7 +120,7 @@ Item {
         IconText {
             id: compactCpuGlyph
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.compactCpu
+            visible: rootMod.verticalCompact
             text: "planner_review"
             color: root.seal
             font.pixelSize: 15
@@ -129,7 +130,7 @@ Item {
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.compactCpu
+            visible: root.barVertical !== true && (rootMod.verticalCompact)
             text: String(Math.min(100, rootMod.percent)).padStart(2, '0') + "%"
             color: root.seal
             font.family: root.mono

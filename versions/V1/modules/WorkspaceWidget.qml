@@ -6,7 +6,7 @@ Item {
     required property var root
 
     implicitWidth: wsRow.implicitWidth
-    implicitHeight: 28
+    implicitHeight: root.barVertical ? wsRow.implicitHeight : 28
 
     // The focused workspace's id ONLY when it's a real (positive) workspace beyond
     // the persist range — else 0. An int signals on value change only, so switching
@@ -38,7 +38,7 @@ Item {
     Rectangle {
         x: -root.wsPillPad; anchors.verticalCenter: parent.verticalCenter
         width: Math.round(wsRow.width) + 2 * root.wsPillPad
-        height: root.pillH
+        height: root.barVertical ? wsRow.implicitHeight : root.pillH
         radius: root.pillRadius
         color: root.pill
         border.color: root.pillBorder
@@ -54,8 +54,9 @@ Item {
         onClicked: root.workspaceVisible = !root.workspaceVisible
     }
 
-    Row {
+    Grid {
         id: wsRow
+        columns: root.barVertical ? 1 : Math.max(1, wsWidget.workspaceList.length)
         anchors.centerIn: parent
         spacing: 5
 

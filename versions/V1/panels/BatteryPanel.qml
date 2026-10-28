@@ -213,4 +213,5 @@ PanelWindow {
     }
 
     Process { id: btopRunner; command: ["bash", "-c", "omarchy-launch-floating-terminal-with-presentation 'btop'"] }
+    SidePanelPositioner { root: batPanel.root; target: card; anchorName: "battery" }
 }

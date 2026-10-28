@@ -188,4 +188,5 @@ PanelWindow {
         id: btopRunner
         command: ["bash", "-c", "omarchy-launch-floating-terminal-with-presentation 'btop'"]
     }
+    SidePanelPositioner { root: memPanel.root; target: card; anchorName: "memory" }
 }

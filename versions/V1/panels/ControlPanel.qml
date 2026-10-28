@@ -708,6 +708,12 @@ PanelWindow {
                 Tile { width: root.evenW((wwCol.width - 4) / 2); label: "Bottom"; active: root.barPosition === "bottom"; onActivated: root.barPosition = "bottom" }
             }
 
+            Row {
+                width: parent.width; spacing: 4
+                Tile { width: root.evenW((wwCol.width - 4) / 2); label: "Left"; active: root.barPosition === "left"; onActivated: root.barPosition = "left" }
+                Tile { width: root.evenW((wwCol.width - 4) / 2); label: "Right"; active: root.barPosition === "right"; onActivated: root.barPosition = "right" }
+            }
+
             Rectangle { width: parent.width; height: 1; color: root.sep }
 
             // ── LOGO (launcher text/icon variant) ──
@@ -739,4 +745,5 @@ PanelWindow {
             }
         }
     }
+    SidePanelPositioner { root: ctrlPanel.root; target: card; anchorName: "launcher" }
 }

@@ -694,4 +694,5 @@ PanelWindow {
         target: root
         function onCalendarMonthOffsetChanged() { if (calPopup.visible) calPopup.refreshCalendarEvents() }
     }
+    SidePanelPositioner { root: calPopup.root; target: card; anchorName: "calendar" }
 }

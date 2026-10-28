@@ -325,4 +325,5 @@ PanelWindow {
             }
         }
     }
+    SidePanelPositioner { root: trayPanel.root; target: card; anchorName: "tray" }
 }

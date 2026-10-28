@@ -1665,4 +1665,5 @@ PanelWindow {
         }
 
     }
+    SidePanelPositioner { root: archPanel.root; target: card; anchorName: "arch" }
 }

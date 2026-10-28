@@ -6,6 +6,7 @@ import QtQuick
 Item {
     id: nordVpnWidget
     required property var root
+    readonly property bool verticalCompact: root.barVertical === true || root.compactNordVpn
 
     readonly property bool connected:    root.nordVpnStatus === "Connected"
     readonly property bool disconnected: root.nordVpnStatus === "Disconnected"
@@ -38,7 +39,7 @@ Item {
         : unavailable ? "NordVPN unavailable" : "NordVPN status checking"
 
     implicitWidth: root.modNordVpn
-        ? (root.compactNordVpn ? shield.implicitWidth : row.implicitWidth) + 18 : 0
+        ? (nordVpnWidget.verticalCompact ? shield.implicitWidth : row.implicitWidth) + 18 : 0
     visible: implicitWidth > 0.5
     implicitHeight: 28
     property alias testClickHandler: widgetClick
@@ -63,7 +64,7 @@ Item {
     Row {
         id: row
         anchors.centerIn: parent
-        spacing: nordVpnWidget.root.compactNordVpn ? 0 : 4
+        spacing: nordVpnWidget.verticalCompact ? 0 : 4
 
         UiText {
             id: shield
@@ -77,12 +78,12 @@ Item {
 
         Item {
             anchors.verticalCenter: parent.verticalCenter
-            implicitWidth: nordVpnWidget.root.compactNordVpn ? 0 : label.implicitWidth
+            implicitWidth: nordVpnWidget.verticalCompact ? 0 : label.implicitWidth
             implicitHeight: label.implicitHeight
             Text {
                 id: label
                 anchors.centerIn: parent
-                visible: !nordVpnWidget.root.compactNordVpn
+                visible: !nordVpnWidget.verticalCompact
                 text: nordVpnWidget.shortLabel
                 color: nordVpnWidget.shieldColor
                 font.family: nordVpnWidget.root.mono

@@ -19,25 +19,25 @@ PanelWindow {
     readonly property string screenName: barSlot.screen ? barSlot.screen.name : ""
 
     color: "transparent"
-    // ALWAYS screen-tall → window never resizes → NO compositor resize animation.
+    // Horizontal bars keep a screen-tall window; vertical bars reserve a side rail.
     // Reserve 35px via exclusiveZone; the mask limits the INPUT region: only the bar
     // strip when locked (clicks below pass through), full screen when unlocked (drag).
-    // anchored to left+right always; top OR bottom by barPosition (exclusiveZone
-    // reserves space on whichever edge is anchored → no extra logic needed)
+    // Anchor the full long axis and reserve space on the selected screen edge.
     anchors {
-        left: true; right: true
-        top:    barSlot.root.barPosition === "top"
-        bottom: barSlot.root.barPosition === "bottom"
+        left: !barSlot.root.barVertical || barSlot.root.barPosition === "left"; right: !barSlot.root.barVertical || barSlot.root.barPosition === "right"
+        top:    barSlot.root.barVertical || barSlot.root.barPosition === "top"
+        bottom: barSlot.root.barVertical || barSlot.root.barPosition === "bottom"
     }
+    implicitWidth: barSlot.root.barVertical ? barSlot.root.verticalBarWidth : 0
     implicitHeight: barSlot.screen ? barSlot.screen.height : 1440
     exclusionMode: ExclusionMode.Normal
-    exclusiveZone: 38        // 35 bar + 3px breathing room
+    exclusiveZone: barSlot.root.barVertical ? barSlot.root.verticalBarWidth + 3 : 38        // 35 bar + 3px breathing room
     mask: Region {
         x: 0
-        y: barSlot.root.barUnlocked ? 0
+        y: barSlot.root.barVertical || barSlot.root.barUnlocked ? 0
            : (barSlot.root.barPosition === "bottom" ? barSlot.height - 35 : 0)
         width: barSlot.width
-        height: barSlot.root.barUnlocked ? barSlot.height : 35
+        height: barSlot.root.barVertical || barSlot.root.barUnlocked ? barSlot.height : 35
     }
     // grab keyboard while unlocked so ESC can exit
     WlrLayershell.keyboardFocus: barSlot.root.barUnlocked ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
@@ -255,6 +255,27 @@ PanelWindow {
         Behavior on x { enabled: !barSlot.dragActive; NumberAnimation { duration: 230; easing.type: Easing.OutCubic } }
         Behavior on y { enabled: !barSlot.dragActive; NumberAnimation { duration: 230; easing.type: Easing.OutCubic } }
         Behavior on scale { NumberAnimation { duration: 120 } }
+    }
+
+    Loader {
+        id: verticalLoader
+        z: 2
+        anchors.fill: parent
+        active: barSlot.root.barVertical
+        sourceComponent: Component {
+            VerticalBarContent {
+                root: barSlot.root
+                barWindow: barSlot
+                models: [leftModel, centerModel, rightModel]
+                splitState: island
+                registry: barSlot.registry
+            }
+        }
+    }
+    function swapVerticalSlots(sourceRegion, sourceIndex, targetRegion, targetIndex) {
+        var models = [leftModel, centerModel, rightModel]
+        if (NordVpnLayout.swapModels(models[sourceRegion], models[targetRegion], sourceIndex, targetIndex)
+                && _orderLoaded) saveOrder()
     }
 
     // ─────────────────────────── group registry ───────────────────────────
@@ -542,7 +563,7 @@ PanelWindow {
                     id: ldr
                     x: slot.pad
                     anchors.verticalCenter: parent.verticalCenter
-                    sourceComponent: barSlot.registry[slot.gid]
+                    sourceComponent: !barSlot.root.barVertical ? barSlot.registry[slot.gid] : null
                     // dim the original while its ghost is being dragged
                     opacity: (barSlot.dragItem === ldr && barSlot.dragActive) ? 0.25 : 1.0
                 }
@@ -607,6 +628,7 @@ PanelWindow {
 
     Item {
         id: island
+        visible: !barSlot.root.barVertical
         // vertical placement via y (NOT conditional top/bottom anchors): toggling
         // anchors live left a stale edge set → island stretched top+bottom → widgets
         // spread to mid-screen. A plain y switches cleanly on a live position change.
@@ -933,8 +955,14 @@ PanelWindow {
                 launcher:     island.groupX("G1",  0.5)
             }
         }
-        onPanelAnchorsChanged: barSlot.root.publishBarAnchors(panelScreenName, panelAnchors)
-        Component.onCompleted: barSlot.root.publishBarAnchors(panelScreenName, panelAnchors)
+        Connections {
+            target: barSlot.root
+            function onBarPositionChanged() {
+                if (!barSlot.root.barVertical) barSlot.root.publishBarAnchors(island.panelScreenName, island.panelAnchors)
+            }
+        }
+        onPanelAnchorsChanged: if (!barSlot.root.barVertical) barSlot.root.publishBarAnchors(panelScreenName, panelAnchors)
+        Component.onCompleted: if (!barSlot.root.barVertical) barSlot.root.publishBarAnchors(panelScreenName, panelAnchors)
 
         // ── boundary split markers (left↔center, center↔right) ──
         // positioned via real Row geometries (no mapToItem → robust).

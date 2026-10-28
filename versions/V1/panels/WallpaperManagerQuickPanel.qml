@@ -608,4 +608,5 @@ PanelWindow {
         }
         onFailed: message => panel.selectedWallpaperError = message
     }
+    SidePanelPositioner { root: panel.root; target: card; anchorName: "wallpaperManager" }
 }

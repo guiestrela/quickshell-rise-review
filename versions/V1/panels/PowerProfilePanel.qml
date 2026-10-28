@@ -173,4 +173,5 @@ PanelWindow {
         command: ["bash", "-c", "powerprofilesctl set balanced"]
         running: false
     }
+    SidePanelPositioner { root: profilePanel.root; target: card; anchorName: "power" }
 }

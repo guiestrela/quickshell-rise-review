@@ -6,6 +6,7 @@ import "../IconMap.js" as IconMap
 Item {
     id: rootMod
     required property var root
+    readonly property bool verticalCompact: root.barVertical === true || root.compactBluetooth
 
     property bool btOn:       false
     property bool connected:  false
@@ -45,7 +46,7 @@ Item {
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactBluetooth
+            visible: !rootMod.verticalCompact
             text: "BT"
             color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
             font.family: root.mono
@@ -65,7 +66,7 @@ Item {
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: rootMod.connected
+            visible: root.barVertical !== true && rootMod.connected
             text: String(rootMod.numConnected)
             color: root.seal
             font.family: root.mono

@@ -10,7 +10,7 @@ Item {
     implicitHeight: 28
 
     readonly property string tooltipText: "Control center"
-    readonly property bool logoIconMode: root.launcherLogoMode === "icon"
+    readonly property bool logoIconMode: root.barVertical === true || root.launcherLogoMode === "icon"
     readonly property bool hyprlandLogo: !logoIconMode && root.launcherLogoText === "hyprland"
     readonly property bool archTextLogo: !logoIconMode && root.launcherLogoText === "arch"
     readonly property bool omacomTextLogo: !logoIconMode && root.launcherLogoText === "omacom"
@@ -79,15 +79,18 @@ Item {
             onPaint: {
                 var ctx = getContext("2d")
                 ctx.clearRect(0, 0, width, height)
-                var cy = height / 2
+                var vertical = root.barVertical === true
+                var length = vertical ? height : width
+                var cy = (vertical ? width : height) / 2
                 var amp = 3.0
-                var k = (2 * Math.PI) / width * 2   // two cycles across the width
+                var k = (2 * Math.PI) / Math.max(1, length) * 2   // two cycles across the width
 
                 function drawWave(phaseOff, alpha) {
                     ctx.beginPath()
-                    for (var x = 0; x <= width; x += 2) {
+                    for (var x = 0; x <= length; x += 2) {
                         var y = cy + Math.sin(x * k + rootMod.phase + phaseOff) * amp
-                        if (x === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y)
+                        var px = vertical ? y : x, py = vertical ? x : y
+                        if (x === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py)
                     }
                     ctx.strokeStyle = Qt.rgba(root.seal.r, root.seal.g, root.seal.b, alpha)
                     ctx.lineWidth = 1.5
@@ -106,6 +109,7 @@ Item {
             Connections {
                 target: root
                 function onSealChanged() { wave.requestPaint() }
+                function onBarPositionChanged() { wave.requestPaint() }
             }
             Component.onCompleted: requestPaint()
         }

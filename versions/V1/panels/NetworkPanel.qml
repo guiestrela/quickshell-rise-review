@@ -1540,4 +1540,5 @@ PanelWindow {
             resetNetworkSelection()
         }
     }
+    SidePanelPositioner { root: netPanel.root; target: card; anchorName: "network" }
 }

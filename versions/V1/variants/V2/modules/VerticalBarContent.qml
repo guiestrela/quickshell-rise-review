@@ -113,15 +113,15 @@ Item {
         topRightRadius: root.barShellStyle === "dock" && root.barPosition === "right" ? 0 : radius
         bottomRightRadius: topRightRadius
         color: rail.notchWing > 0 ? "transparent" : root.barBg
-        border.width: root.barBorderEnabled && rail.notchWing === 0 ? 1 : 0
+        border.width: 0 // Foreground border stays above widget fills.
         border.color: root.islandBorder
         Shape {
             id: notch
             visible: rail.notchWing > 0
             x: 0; y: -rail.notchWing
             width: parent.width; height: parent.height + 2 * rail.notchWing
-            readonly property real edgeX: rail.root.barPosition === "left" ? 0 : width
-            readonly property real innerX: rail.root.barPosition === "left" ? width : 0
+            readonly property real edgeX: rail.root.barPosition === "left" ? 0.5 : width - 0.5
+            readonly property real innerX: rail.root.barPosition === "left" ? width - 0.5 : 0.5
             readonly property real insetY: Math.max(rail.notchWing + 16,
                 Math.min(height - rail.notchWing - 16, rail.panelNotchY - surface.y + rail.notchWing))
             readonly property real insetX: innerX + (rail.root.barPosition === "left" ? -5 : 5) * rail.panelNotchProgress
@@ -131,9 +131,61 @@ Item {
             antialiasing: true
             preferredRendererType: Shape.CurveRenderer
             ShapePath {
-                strokeColor: rail.root.barBorderEnabled ? rail.root.islandBorder : "transparent"
-                strokeWidth: 1
+                strokeColor: "transparent"
+                strokeWidth: 0
                 fillColor: rail.root.barBg
+                startX: notch.edgeX; startY: 0
+                PathCubic {
+                    x: notch.innerX; y: rail.notchWing + 8
+                    control1X: notch.edgeX; control1Y: rail.notchWing
+                    control2X: notch.innerX; control2Y: rail.notchWing
+                }
+                PathLine { x: notch.innerX; y: notch.insetY - notch.halfWidth }
+                PathCubic {
+                    x: notch.insetX; y: notch.insetY
+                    control1X: notch.innerX; control1Y: notch.insetY - notch.tangent
+                    control2X: notch.insetX; control2Y: notch.insetY - notch.tip
+                }
+                PathCubic {
+                    x: notch.innerX; y: notch.insetY + notch.halfWidth
+                    control1X: notch.insetX; control1Y: notch.insetY + notch.tip
+                    control2X: notch.innerX; control2Y: notch.insetY + notch.tangent
+                }
+                PathLine { x: notch.innerX; y: notch.height - rail.notchWing - 8 }
+                PathCubic {
+                    x: notch.edgeX; y: notch.height
+                    control1X: notch.innerX; control1Y: notch.height - rail.notchWing
+                    control2X: notch.edgeX; control2Y: notch.height - rail.notchWing
+                }
+                PathLine { x: notch.edgeX; y: 0 }
+            }
+        }
+        Rectangle {
+            objectName: "vertical-bar-border"
+            anchors.fill: parent
+            z: 3
+            color: "transparent"
+            visible: rail.root.barBorderEnabled && rail.notchWing === 0
+            radius: surface.radius
+            topLeftRadius: surface.topLeftRadius
+            bottomLeftRadius: surface.bottomLeftRadius
+            topRightRadius: surface.topRightRadius
+            bottomRightRadius: surface.bottomRightRadius
+            border.width: 1
+            border.color: rail.root.v2BarBorder
+        }
+        Shape {
+            objectName: "vertical-notch-border"
+            z: 3
+            visible: rail.root.barBorderEnabled && rail.notchWing > 0
+            x: notch.x; y: notch.y
+            width: notch.width; height: notch.height
+            antialiasing: true
+            preferredRendererType: Shape.CurveRenderer
+            ShapePath {
+                strokeColor: rail.root.v2BarBorder
+                strokeWidth: 1
+                fillColor: "transparent"
                 startX: notch.edgeX; startY: 0
                 PathCubic {
                     x: notch.innerX; y: rail.notchWing + 8

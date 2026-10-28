@@ -552,4 +552,5 @@ PanelWindow {
 
     // Usage data + polling live in Theme.qml (shared with the bar pill); this panel
     // only renders from root.ai* and bumps the refresh cadence via root.aiUsageVisible.
+    SidePanelPositioner { root: aiPanel.root; target: card; anchorName: "ai" }
 }

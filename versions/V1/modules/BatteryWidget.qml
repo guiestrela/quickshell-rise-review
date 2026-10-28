@@ -5,6 +5,7 @@ import Quickshell.Services.UPower
 Item {
     id: rootMod
     required property var root
+    readonly property bool verticalCompact: root.barVertical === true || root.compactBattery
 
     // event-driven UPower data — updates instantly on plug / unplug
     readonly property var dev: UPower.displayDevice
@@ -67,7 +68,7 @@ Item {
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactBattery
+            visible: !rootMod.verticalCompact
             text: "BAT"
             color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
             font.family: root.mono

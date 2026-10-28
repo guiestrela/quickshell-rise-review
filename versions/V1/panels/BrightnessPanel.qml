@@ -242,4 +242,5 @@ PanelWindow {
     }
 
     onVisibleChanged: { if (visible) refresh() }
+    SidePanelPositioner { root: briPanel.root; target: card; anchorName: "brightness" }
 }

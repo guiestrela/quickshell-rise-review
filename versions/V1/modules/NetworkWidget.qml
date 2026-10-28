@@ -6,6 +6,7 @@ import "../IconMap.js" as IconMap
 Item {
     id: rootMod
     required property var root
+    readonly property bool verticalCompact: root.barVertical === true || root.compactNetwork
 
     property string mode:   "none"  // "wifi" | "ethernet" | "none"
     property string ssid:   ""
@@ -88,7 +89,7 @@ Item {
         // ── label ──
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactNetwork
+            visible: !rootMod.verticalCompact
             text: "NET"
             color: mode === "none"
                 ? Qt.rgba(root.seal.r, root.seal.g, root.seal.b, 0.7)
@@ -101,7 +102,7 @@ Item {
         // ── ethernet: dual sparkline ──
         Canvas {
             id: netGraph
-            visible: rootMod.mode === "ethernet" && !root.compactNetwork
+            visible: rootMod.mode === "ethernet" && !rootMod.verticalCompact
             width: 36; height: 14
             anchors.verticalCenter: parent.verticalCenter
 
@@ -171,7 +172,7 @@ Item {
         // ── ethernet: down/up speed, stacked to save width ──
         Column {
             anchors.verticalCenter: parent.verticalCenter
-            visible: rootMod.mode === "ethernet" && !root.compactNetwork
+            visible: rootMod.mode === "ethernet" && !rootMod.verticalCompact
             spacing: 0
             UiText {
                 width: 54; height: 11
@@ -198,14 +199,14 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.mode === "wifi"
             text: IconMap.icon(rootMod.wifiIconName)
-            color: root.compactNetwork ? root.seal : root.ink
-            font.pixelSize: root.compactNetwork ? 15 : 14
+            color: rootMod.verticalCompact ? root.seal : root.ink
+            font.pixelSize: rootMod.verticalCompact ? 15 : 14
             Behavior on color { ColorAnimation { duration: 160 } }
         }
 
         IconText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.compactNetwork && rootMod.mode !== "wifi"
+            visible: rootMod.verticalCompact && rootMod.mode !== "wifi"
             text: IconMap.icon(rootMod.mode === "ethernet" ? "lan" : "signal_wifi_off")
             color: rootMod.mode === "ethernet"
                 ? root.seal
@@ -217,7 +218,7 @@ Item {
         // ── wifi: ssid ──
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: rootMod.mode === "wifi" && !root.compactNetwork
+            visible: rootMod.mode === "wifi" && !rootMod.verticalCompact
             text: rootMod.ssid
             color: root.seal
             font.family: root.mono

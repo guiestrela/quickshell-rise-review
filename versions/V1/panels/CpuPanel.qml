@@ -356,4 +356,5 @@ PanelWindow {
         id: btopRunner
         command: ["bash", "-c", "omarchy-launch-floating-terminal-with-presentation 'btop'"]
     }
+    SidePanelPositioner { root: cpuPanel.root; target: card; anchorName: "cpu" }
 }

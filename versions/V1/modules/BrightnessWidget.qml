@@ -6,6 +6,7 @@ import "../OmarchyPower.js" as OmarchyPower
 Item {
     id: rootMod
     required property var root
+    readonly property bool verticalCompact: root.barVertical === true || root.compactBrightness
 
     property bool   hasBacklight: false
     property int    percent:      0
@@ -60,7 +61,7 @@ Item {
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactBrightness
+            visible: !rootMod.verticalCompact
             text: "BRI"
             color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
             font.family: root.mono

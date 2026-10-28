@@ -20,7 +20,7 @@ Item {
     required property var variantHost
     readonly property string fontFamily: theme.mono
     readonly property string position: theme.barPosition
-    readonly property int barSize: 35
+    readonly property int barSize: theme.barVertical ? theme.verticalBarWidth : 35
     readonly property string variantId: "v1"
     readonly property bool ready: lifecycleReady()
 

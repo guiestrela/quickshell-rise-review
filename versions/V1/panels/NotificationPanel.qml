@@ -625,4 +625,5 @@ PanelWindow {
             }
         }
     }
+    SidePanelPositioner { root: notifPanel.root; target: card; anchorName: "notif" }
 }

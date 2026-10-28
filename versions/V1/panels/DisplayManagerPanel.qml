@@ -506,4 +506,20 @@ PanelWindow {
             }
         }
     }
+    Binding {
+        target: frameCard
+        property: "x"
+        when: !panel.connectedStyle && panel.root.barVertical === true
+        value: !when ? 0 : panel.root.barPosition === "left" ? panel.root.verticalBarWidth + panel.gap
+            : Math.max(panel.gap, panel.width - panel.root.verticalBarWidth - frameCard.width - panel.gap)
+        restoreMode: Binding.RestoreBindingOrValue
+    }
+    Binding {
+        target: frameCard
+        property: "y"
+        when: !panel.connectedStyle && panel.root.barVertical === true
+        value: !when ? 0 : Math.max(panel.gap, Math.min(panel.height - frameCard.height - panel.gap,
+            panel.root.verticalAnchorY("displayManager") - frameCard.height / 2))
+        restoreMode: Binding.RestoreBindingOrValue
+    }
 }

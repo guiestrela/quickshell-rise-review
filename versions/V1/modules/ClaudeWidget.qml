@@ -10,6 +10,7 @@ import Quickshell.Io
 Item {
     id: rootMod
     required property var root
+    readonly property bool verticalCompact: root.barVertical === true || root.compactAi
 
     // ── which tool the bar pill displays ──
     readonly property bool isCodex: root.aiTool === "codex"
@@ -166,7 +167,7 @@ Item {
     // keep rendered until the collapse animation finishes
     visible: implicitWidth > 0.5
     implicitWidth: shown
-        ? (root.compactAi ? iconItem.implicitWidth : row.implicitWidth) + 18 : 0
+        ? (rootMod.verticalCompact ? iconItem.implicitWidth : row.implicitWidth) + 18 : 0
     implicitHeight: 28
     opacity: shown ? 1 : 0
 
@@ -221,7 +222,7 @@ Item {
     Row {
         id: row
         anchors.centerIn: parent
-        spacing: rootMod.root.compactAi ? 0 : 5
+        spacing: rootMod.verticalCompact ? 0 : 5
 
         // icon with bottom-to-top usage fill. Claude keeps its nerd-font glyph;
 // Codex/OpenCode/Copilot use vector marks themed via the shared logo tint shader.
@@ -324,12 +325,12 @@ Item {
 
         Item {
             anchors.verticalCenter: parent.verticalCenter
-            implicitWidth: rootMod.root.compactAi ? 0 : usageLabel.implicitWidth
+            implicitWidth: rootMod.verticalCompact ? 0 : usageLabel.implicitWidth
             implicitHeight: usageLabel.implicitHeight
             UiText {
                 id: usageLabel
                 anchors.centerIn: parent
-                visible: !rootMod.root.compactAi
+                visible: !rootMod.verticalCompact
                 text: rootMod.blocked
                     ? "BLK"
                     : (rootMod.selHas ? String(rootMod.pct5h).padStart(2, "0") + "%" : "··")

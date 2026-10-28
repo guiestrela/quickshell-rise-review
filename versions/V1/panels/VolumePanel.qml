@@ -872,4 +872,5 @@ PanelWindow {
     onVisibleChanged: {
         if (visible) volPanel.refreshAll()
     }
+    SidePanelPositioner { root: volPanel.root; target: card; anchorName: "volume" }
 }

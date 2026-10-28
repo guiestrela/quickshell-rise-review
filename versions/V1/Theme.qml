@@ -2093,7 +2093,19 @@ Item {
     property string workspaceStyle: "default"   // "default", "numbers", "magic"
 
     // ── bar screen position (persisted) ──
-    property string barPosition: "top"   // "top" or "bottom"
+    property string barPosition: "top"   // top, bottom, left, right
+    readonly property bool barVertical: barPosition === "left" || barPosition === "right"
+    readonly property int verticalBarWidth: 40
+    property var verticalAnchorsByScreen: ({})
+    function verticalAnchorY(name) {
+        var map = verticalAnchorsByScreen[activePopupScreenName] || {}
+        return map[name] !== undefined ? map[name] : (activePopupScreen ? activePopupScreen.height / 2 : 200)
+    }
+    function publishVerticalAnchors(screenName, values) {
+        var next = Object.assign({}, verticalAnchorsByScreen)
+        next[screenName] = values
+        verticalAnchorsByScreen = next
+    }
 
     // ── picker visual style (theme/wallpaper/screenshot/video pickers) ──
     property string pickerStyle: "tanzaku"   // "tanzaku", "hearthstone", "carousel"
@@ -2363,7 +2375,7 @@ Item {
                     }
                     if (parts.length > wsField + 9) {
                         var bp = parts[wsField + 9]
-                        if (bp === "top" || bp === "bottom") theme.barPosition = bp
+                        if (["top", "bottom", "left", "right"].indexOf(bp) >= 0) theme.barPosition = bp
                     }
                     // +10 styleBorder (independent border on/off). Old caches lack it →
                     // migrate from the old coupled meaning: border = NOT shadow.

@@ -633,4 +633,5 @@ PanelWindow {
     }
 
     onVisibleChanged: { if (visible && wxPanel.temp === "") wxPanel.refresh() }
+    SidePanelPositioner { root: wxPanel.root; target: card; anchorName: "weather" }
 }

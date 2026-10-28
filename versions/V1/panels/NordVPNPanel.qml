@@ -388,4 +388,5 @@ PanelWindow {
         }
         }
     }
+    SidePanelPositioner { root: vpnPanel.root; target: card; anchorName: "vpn" }
 }

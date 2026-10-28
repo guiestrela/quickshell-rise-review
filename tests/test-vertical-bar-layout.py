@@ -38,6 +38,7 @@ ShellRoot {
   property color panelOuterBorderColor: "#777777"
   property color barBg: "#222222"
   property color islandBorder: "#555555"
+  property color v2BarBorder: "#777777"
   property color ink: "#eeeeee"
   property color seal: "#ff8800"
   property color sep: "#777777"
@@ -147,6 +148,17 @@ ShellRoot {
    harness.state.barPosition = "left"
   } else if (harness.step === 7) {
    check(rail.width === 40 && card.x === 46, "NOTCH_WIDTH_AND_PANEL")
+   function findBorder(item) {
+    if (item.objectName === "vertical-notch-border") return item
+    for (var n=0; n<item.children.length; n++) { var found = findBorder(item.children[n]); if (found) return found }
+    return null
+   }
+   var border = findBorder(rail)
+   check(border && border.visible && border.z === 3, "NOTCH_BORDER_FOREGROUND")
+   harness.state.barBorderEnabled = false
+   check(!border.visible, "NOTCH_BORDER_OFF")
+   harness.state.barBorderEnabled = true
+   check(border.visible, "NOTCH_BORDER_ON")
    check(rail.surfaceY >= 0 && rail.surfaceY + rail.surfaceHeight <= rail.height, "NOTCH_INPUT_BOUNDS")
    harness.state.cpuVisible = true
    harness.state.panelInsetReveal = 1

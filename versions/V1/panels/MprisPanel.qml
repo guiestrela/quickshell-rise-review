@@ -392,4 +392,5 @@ PanelWindow {
             }
         }
     }
+    SidePanelPositioner { root: mprisPanel.root; target: card; anchorName: "mpris" }
 }

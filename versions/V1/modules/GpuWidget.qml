@@ -5,6 +5,7 @@ import Quickshell.Io
 Item {
     id: rootMod
     required property var root
+    readonly property bool verticalCompact: root.barVertical === true || root.compactGpu
 
     visible: implicitWidth > 0.5
     implicitWidth: (root.modGpu && root.gpuAvailable) ? row.implicitWidth + 18 : 0
@@ -33,11 +34,11 @@ Item {
     Row {
         id: row
         anchors.centerIn: parent
-        spacing: root.compactGpu ? 4 : 5
+        spacing: rootMod.verticalCompact ? 4 : 5
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactGpu
+            visible: !rootMod.verticalCompact
             text: "GPU"
             color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
             font.family: root.mono
@@ -47,7 +48,7 @@ Item {
 
         Canvas {
             id: wave
-            visible: !root.compactGpu
+            visible: !rootMod.verticalCompact
             width: 36
             height: 14
             anchors.verticalCenter: parent.verticalCenter
@@ -110,7 +111,7 @@ Item {
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactGpu
+            visible: root.barVertical !== true && (!rootMod.verticalCompact)
             text: String(Math.min(100, rootMod.percent)).padStart(2, '0') + "%"
             color: root.seal
             font.family: root.mono
@@ -118,7 +119,7 @@ Item {
         }
 
         Item {
-            visible: root.compactGpu
+            visible: rootMod.verticalCompact
             anchors.verticalCenter: parent.verticalCenter
             width: 18
             height: 13
@@ -142,7 +143,7 @@ Item {
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.compactGpu
+            visible: root.barVertical !== true && (rootMod.verticalCompact)
             text: String(Math.min(100, rootMod.percent)).padStart(2, '0') + "%"
             color: root.seal
             font.family: root.mono

@@ -5,6 +5,7 @@ import Quickshell.Io
 Item {
     id: rootMod
     required property var root
+    readonly property bool verticalCompact: root.barVertical === true || root.compactVolume
 
     AudioData { id: audio; poll: true }
     readonly property int    volume:   audio.volume
@@ -35,11 +36,11 @@ Item {
     Row {
         id: row
         anchors.centerIn: parent
-        spacing: root.compactVolume ? 4 : 5
+        spacing: rootMod.verticalCompact ? 4 : 5
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactVolume
+            visible: !rootMod.verticalCompact
             text: "VOL"
             color: rootMod.muted
                 ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.25)
@@ -52,7 +53,7 @@ Item {
         // ── workspace-capsule style slider ──
         Item {
             id: slider
-            visible: !root.compactVolume
+            visible: !rootMod.verticalCompact
             width: 34
             height: 14
             anchors.verticalCenter: parent.verticalCenter
@@ -82,7 +83,7 @@ Item {
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: !root.compactVolume
+            visible: root.barVertical !== true && (!rootMod.verticalCompact)
             text: String(rootMod.volume).padStart(2, '0') + "%"
             color: rootMod.muted
                 ? Qt.rgba(root.seal.r, root.seal.g, root.seal.b, 0.35)
@@ -94,7 +95,7 @@ Item {
         IconText {
             id: compactVolumeGlyph
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.compactVolume
+            visible: rootMod.verticalCompact
             text: rootMod.compactVolumeIcon
             color: rootMod.muted ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.35) : root.seal
             font.pixelSize: 15
@@ -105,7 +106,7 @@ Item {
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.compactVolume
+            visible: root.barVertical !== true && rootMod.verticalCompact
             text: String(rootMod.volume).padStart(2, '0') + "%"
             color: rootMod.muted
                 ? Qt.rgba(root.seal.r, root.seal.g, root.seal.b, 0.35)
