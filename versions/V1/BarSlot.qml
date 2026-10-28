@@ -206,13 +206,13 @@ PanelWindow {
                 && barSlot.backingWindowVisible
         },
         splitAll: function () {
-            island.leftSplits     = [true, true, true, true, true, true]
-            island.rightSplits    = [true, true, true, true, true, true, true, true]
+            island.leftSplits     = Array(leftModel.count - 1).fill(true)
+            island.rightSplits    = Array(rightModel.count - 1).fill(true)
             island.boundarySplits = [true, true]
         },
         mergeAll: function () {
-            island.leftSplits     = [false, false, false, false, false, false]
-            island.rightSplits    = [false, false, false, false, false, false, false]
+            island.leftSplits     = Array(leftModel.count - 1).fill(false)
+            island.rightSplits    = Array(rightModel.count - 1).fill(false)
             island.boundarySplits = [false, false]
             barSlot.root.barAnim  = 0
         },
@@ -610,12 +610,19 @@ PanelWindow {
         // vertical placement via y (NOT conditional top/bottom anchors): toggling
         // anchors live left a stale edge set → island stretched top+bottom → widgets
         // spread to mid-screen. A plain y switches cleanly on a live position change.
-        anchors {
-            left: parent.left; leftMargin: 5
-            right: parent.right; rightMargin: 5
-        }
+        // Fit the complete saved layout on narrow/portrait outputs. Keep logical
+        // coordinates at their natural size, then scale the whole strip together.
+        readonly property real availableWidth: Math.max(1, barSlot.width - 10)
+        readonly property real completeWidth: sideNaturalWidth(leftRowItem, 0)
+            + sideNaturalWidth(rightRowItem, 0) + centerRowItem.width
+            + 2 * centerGap + 2 * rowMargin + 48
+        readonly property real fitScale: Math.min(1, availableWidth / Math.max(1, completeWidth))
+        x: 5
+        width: availableWidth / fitScale
+        scale: fitScale
+        transformOrigin: Item.TopLeft
         height: 32
-        y: barSlot.root.barPosition === "bottom" ? (parent.height - height - 3) : 3
+        y: barSlot.root.barPosition === "bottom" ? (parent.height - height * fitScale - 3) : 3 + (32 - height * fitScale) / 2
         z: 2                                  // above the dim backdrop
         focus: barSlot.root.barUnlocked       // receive keys while unlocked
         Keys.onEscapePressed: barSlot.root.barUnlocked = false
@@ -671,20 +678,12 @@ PanelWindow {
             ? Math.max(4, Math.min(idealCenterX, width - centerRowItem.width - 4))
             : Math.max(minCenterX, Math.min(idealCenterX, maxCenterX))
 
-        // ── side-row auto-compact (portrait/narrow) ──
-        // Presentation-only stages that hide low-priority side groups when the bar
-        // would otherwise overflow. Never touches root.mod* toggles, models, order
-        // or split persistence. Budgets are summed from stage-independent budgetSlotWidth
-        // values — never from the collapsed row widths — so hiding a group cannot
-        // feed back into its own decision (same anti-flutter rule as the G8 stage).
+        // Natural widths stay independent of the output scale. Every enabled
+        // group remains visible; fitScale handles portrait outputs per monitor.
         property int narrowStage: 0            // 0 normal · 1 compact · 2 portrait · 3 emergency
         property real g8FloorWidth: 80         // published by G8: its clock-only minimal width
         function groupVisibleAtStage(gid, stage) {
-            if (gid === "G8") return true                                        // clock has its own stages
-            if (stage <= 0) return true
-            if (stage === 1) return ["G7", "G9", "G10"].indexOf(gid) < 0         // drop AI · MPRIS · Quick
-            if (stage === 2) return ["G4", "G5", "G7", "G9", "G10"].indexOf(gid) < 0   // also MEM · CPU
-            return ["G1", "G2", "G6", "G8", "G11", "G14"].indexOf(gid) >= 0      // emergency whitelist
+            return true
         }
         function sideNaturalWidth(row, stage) {
             var sum = 0, n = 0
@@ -702,18 +701,7 @@ PanelWindow {
                  + g8FloorWidth + 2 * centerGap + 2 * rowMargin
         }
         function updateNarrowStage() {
-            var s = narrowStage, W = island.width
-            if (W < 1) return                              // no layout yet
-            // downshift while the CURRENT stage no longer fits (24px slack)…
-            if (s === 0 && narrowCandidateWidth(0) + 24 > W) s = 1
-            if (s === 1 && narrowCandidateWidth(1) + 24 > W) s = 2
-            if (s === 2 && narrowCandidateWidth(2) + 24 > W) s = 3
-            // …upshift only when the NEXT-LARGER stage fits with 48px slack,
-            // measured against that stage's own candidate width.
-            if (s === 3 && narrowCandidateWidth(2) + 48 <= W) s = 2
-            if (s === 2 && narrowCandidateWidth(1) + 48 <= W) s = 1
-            if (s === 1 && narrowCandidateWidth(0) + 48 <= W) s = 0
-            if (s !== narrowStage) narrowStage = s
+            narrowStage = 0
         }
         function scheduleNarrowUpdate() { narrowTimer.restart() }
         Timer { id: narrowTimer; interval: 80; repeat: false; onTriggered: island.updateNarrowStage() }
@@ -910,7 +898,7 @@ PanelWindow {
                 for (var k = 0; k < rep.count; k++) {
                     var it = rep.itemAt(k)
                     if (it && it.gid === gid) {
-                        return island.x + row.x + it.x + it.width * frac
+                        return it.mapToItem(null, it.width * frac, 0).x
                     }
                 }
             }
@@ -921,6 +909,7 @@ PanelWindow {
         readonly property var panelAnchors: {
             void(island.width)
             void(island.x)
+            void(island.fitScale)
             void(leftRowItem.x); void(centerRowItem.x); void(rightRowItem.x)
             void(leftRowItem.width); void(centerRowItem.width); void(rightRowItem.width)
             return {
