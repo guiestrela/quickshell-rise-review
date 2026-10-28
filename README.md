@@ -21,10 +21,8 @@ folders. Its bar styling and interactions follow the Quickshell Rise design.
 ### V2
 
 ![Rise V2 — preview 1](docs/media/v2-preview01.png)
-![Rise V2 — preview 2](docs/media/v2-preview02.png)
 ![Rise V2 — preview 3](docs/media/v2-preview03.png)
 ![Rise V2 — preview 4](docs/media/v2-preview04.png)
-![Rise V2 — preview 5](docs/media/v2-preview05.png)
 
 ## Requirements
 
