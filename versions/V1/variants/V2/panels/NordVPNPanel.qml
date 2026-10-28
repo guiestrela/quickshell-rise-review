@@ -100,6 +100,7 @@ PanelWindow {
         border.width: 0
         PillShadow { theme: vpnPanel.root }
         ConnectedPanelSurface { root: vpnPanel.root; ownerActive: vpnPanel.root.vpnVisible; targetX: vpnPanel.root.vpnBarX; reveal: vpnPanel.reveal }
+        SidePanelPositioner { root: vpnPanel.root; target: parent; anchorName: "vpn" }
         x: Math.round(Math.max(6, Math.min(root.vpnBarX - width / 2, parent.width - width - 6)))
         y: vpnPanel.root.barPosition === "bottom" ? (parent.height - vpnPanel.barBottom - vpnPanel.gap - height) : (vpnPanel.barBottom + vpnPanel.gap)
         opacity: vpnPanel.reveal

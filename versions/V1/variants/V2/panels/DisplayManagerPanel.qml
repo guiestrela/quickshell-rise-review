@@ -37,6 +37,7 @@ Shared.DisplayManagerPanel {
             }
         }
     }
+    Native.SidePanelPositioner { root: panel.root; target: panel.surfaceHost; anchorName: "displayManager" }
     Native.ConnectedPanelSurface {
         parent: panel.surfaceHost
         z: -1

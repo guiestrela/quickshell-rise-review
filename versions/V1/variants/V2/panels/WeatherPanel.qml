@@ -215,6 +215,7 @@ PanelWindow {
             reveal: wxPanel.reveal
         }
 
+        SidePanelPositioner { root: wxPanel.root; target: parent; anchorName: "weather" }
         x: Math.round(Math.max(6, Math.min(root.weatherBarX - width / 2, parent.width - width - 6)))
         y: root.barPosition === "bottom"
             ? (parent.height - barBottom - gap - height) + 2 * (1 - wxPanel.reveal)

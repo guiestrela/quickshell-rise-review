@@ -439,6 +439,7 @@ PanelWindow {
             reveal: netPanel.reveal
         }
 
+        SidePanelPositioner { root: netPanel.root; target: parent; anchorName: "network" }
         x: Math.round(Math.max(6, Math.min(root.networkBarX - width / 2, parent.width - width - 6)))
         y: root.barPosition === "bottom"
             ? (parent.height - barBottom - gap - height) + 2 * (1 - netPanel.reveal)

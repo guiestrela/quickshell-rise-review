@@ -10,7 +10,7 @@ Item {
     implicitHeight: 28
 
     readonly property string tooltipText: "Control center"
-    readonly property bool logoIconMode: root.launcherLogoMode === "icon"
+    readonly property bool logoIconMode: root.barVertical || root.launcherLogoMode === "icon"
     readonly property bool hyprlandLogo: !logoIconMode && root.launcherLogoText === "hyprland"
     readonly property bool archTextLogo: !logoIconMode && root.launcherLogoText === "arch"
     readonly property bool omacomTextLogo: !logoIconMode && root.launcherLogoText === "omacom"

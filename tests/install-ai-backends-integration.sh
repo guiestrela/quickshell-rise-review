@@ -16,6 +16,12 @@ cat > "$mockbin/systemctl" <<'MOCK'
 printf '%s\n' "$*" >> "$SYSTEMCTL_LOG"
 [[ "${SYSTEMCTL_FAIL:-}" != "$*" ]]
 MOCK
+cat > "$mockbin/omarchy-shell" <<'MOCK'
+#!/usr/bin/env bash
+[[ "$*" == "shell rescanPlugins" ]]
+printf 'shell rescanPlugins\n' >> "$OMARCHY_LOG"
+MOCK
+chmod +x "$mockbin/omarchy-shell"
 cat > "$mockbin/omarchy" <<'MOCK'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$OMARCHY_LOG"
@@ -56,7 +62,9 @@ export RISE_PLUGIN_REPO_URL="https://example.invalid/quickshell-rise.git"
 # Exercise the documented one-command path with no flags, provider CLIs, auth,
 # caches, network, or real systemd/DBus. Omarchy and systemctl are record-only mocks.
 "$repo/scripts/install-rise" > "$tmp/first.log"
-[[ "$(cat "$OMARCHY_LOG")" == "plugin add https://example.invalid/quickshell-rise.git" ]]
+[[ "$(wc -l < "$OMARCHY_LOG")" -eq 2 ]]
+rg -Fx "plugin add https://example.invalid/quickshell-rise.git" "$OMARCHY_LOG" >/dev/null
+rg -Fx "shell rescanPlugins" "$OMARCHY_LOG" >/dev/null
 for provider in claude opencode codex copilot; do
   [[ -x "$home/.local/bin/$provider-usage" ]]
   [[ -f "$home/.config/systemd/user/$provider-usage.service" ]]

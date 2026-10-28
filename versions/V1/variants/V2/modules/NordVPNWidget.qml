@@ -37,7 +37,6 @@ Item {
     readonly property color iconColor: !connected
         ? Qt.rgba(contentColor.r, contentColor.g, contentColor.b, 0.3)
         : contentColor
-    readonly property bool customStyle: root.widgetHasFill("G19") || root.widgetHasBorder("G19")
     readonly property string tooltipText: connected ? "NordVPN connected"
         : disconnected ? "NordVPN disconnected"
         : unavailable ? "NordVPN unavailable" : "NordVPN status checking"
@@ -51,16 +50,6 @@ Item {
         var point = nordVpnWidget.mapToItem(null, nordVpnWidget.width / 2, 0)
         root.setPanelAnchor("vpn", point.x, root.activePopupScreenName)
         root.vpnVisible = true
-    }
-
-    Rectangle {
-        x: 0; anchors.verticalCenter: parent.verticalCenter
-        width: Math.round(row.width) + 18
-        height: 22
-        radius: nordVpnWidget.root.pillRadius
-        color: nordVpnWidget.customStyle ? "transparent" : nordVpnWidget.root.pill
-        border.color: "transparent"
-        border.width: 0
     }
 
     Row {

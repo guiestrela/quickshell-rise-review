@@ -83,6 +83,7 @@ PanelWindow {
             reveal: briPanel.reveal
         }
 
+        SidePanelPositioner { root: briPanel.root; target: parent; anchorName: "brightness" }
         x: Math.round(Math.max(6, Math.min(root.brightnessBarX - width / 2, parent.width - width - 6)))
         y: root.barPosition === "bottom"
             ? (parent.height - barBottom - gap - height) + 2 * (1 - briPanel.reveal)

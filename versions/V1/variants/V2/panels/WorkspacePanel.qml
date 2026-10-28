@@ -47,6 +47,7 @@ PanelWindow {
             reveal: wsPanel.reveal
         }
 
+        SidePanelPositioner { root: wsPanel.root; target: parent; anchorName: "workspace" }
         x: Math.round(Math.max(6, Math.min(root.workspaceBarX - width / 2, parent.width - width - 6)))
         y: root.barPosition === "bottom"
             ? (parent.height - barBottom - gap - height) + 2 * (1 - wsPanel.reveal)

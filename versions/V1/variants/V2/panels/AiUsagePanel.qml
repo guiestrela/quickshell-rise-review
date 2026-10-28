@@ -267,6 +267,7 @@ PanelWindow {
             reveal: aiPanel.reveal
         }
 
+        SidePanelPositioner { root: aiPanel.root; target: parent; anchorName: "ai" }
         x: Math.round(Math.max(6, Math.min(root.aiBarX - width / 2, parent.width - width - 6)))
         y: root.barPosition === "bottom"
             ? (parent.height - barBottom - gap - height) + 2 * (1 - aiPanel.reveal)

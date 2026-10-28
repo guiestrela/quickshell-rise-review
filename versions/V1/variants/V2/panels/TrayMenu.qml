@@ -73,6 +73,7 @@ PanelWindow {
         border.width: root.panelOuterBorderW
         PillShadow { theme: root }
 
+        SidePanelPositioner { root: trayMenu.root; target: parent; anchorName: "tray" }
         x: parent ? Math.max(6, Math.min(root.trayMenuX, parent.width - width - 6)) : 6
         y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
         opacity: trayMenu.reveal

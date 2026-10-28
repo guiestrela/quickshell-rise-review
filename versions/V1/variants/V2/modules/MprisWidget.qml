@@ -13,7 +13,7 @@ Item {
     readonly property var  player:  sel.player
     readonly property bool active:  sel.active
     readonly property bool playing: sel.playing
-    readonly property bool fullMode: root.mprisBarStyle === "full"
+    readonly property bool fullMode: !root.barVertical && root.mprisBarStyle === "full"
     readonly property color contentColor: root.widgetContentColor("G9", root.ink)
     readonly property color accentColor: root.widgetHasFill("G9")
         ? contentColor
@@ -116,7 +116,7 @@ Item {
 
     visible: implicitWidth > 0.5
     implicitWidth: root.modMpris
-        ? (active
+        ? (root.barVertical ? 34 : active
             ? ((fullMode ? fullRow.implicitWidth : defaultRow.implicitWidth) + 18)
             : (idleNote.implicitWidth + 16))
         : 0
@@ -133,7 +133,7 @@ Item {
     IconText {
         id: idleNote
         anchors.centerIn: parent
-        visible: !rootMod.active
+        visible: !rootMod.active || root.barVertical
         text: ""   // music_note
         font.pixelSize: 15
         color: Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.45)
@@ -147,7 +147,7 @@ Item {
 
     Row {
         id: defaultRow
-        visible: rootMod.active && !rootMod.fullMode
+        visible: !root.barVertical && rootMod.active && !rootMod.fullMode
         anchors.centerIn: parent
         spacing: 4
 
@@ -327,7 +327,7 @@ Item {
     // ── FULL: muse-style vinyl · centered waveform · transport state ──
     Item {
         id: fullRow
-        visible: rootMod.active && rootMod.fullMode
+        visible: !root.barVertical && rootMod.active && rootMod.fullMode
         anchors.centerIn: parent
         implicitWidth: fullMuseCore.width
         implicitHeight: 28

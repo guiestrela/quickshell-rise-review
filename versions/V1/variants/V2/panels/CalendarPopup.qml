@@ -168,6 +168,7 @@ PanelWindow {
             reveal: calPopup.reveal
         }
 
+        SidePanelPositioner { root: calPopup.root; target: parent; anchorName: "calendar" }
         x: Math.round((parent.width - width) / 2)
         y: root.barPosition === "bottom"
             ? (parent.height - barBottom - gap - height) + 2 * (1 - calPopup.reveal)

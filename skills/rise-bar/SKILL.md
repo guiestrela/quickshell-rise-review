@@ -41,11 +41,15 @@ Use `omarchy plugin update io.github.guiestrela.quickshell-rise` para atualizar 
 - Estado e preferências vivem fora do código: `~/.local/state/quickshell-rise/active-variant`, `~/.cache/quickshell_widgets` e `~/.cache/quickshell_widgets_v2`, além de caches específicos. Não apague esses arquivos para corrigir uma falha sem investigar sua função.
 - Preserve notificações, OSD, lock, idle, áudio, rede e os demais plugins habilitados. Não use `pkill quickshell`, não desabilite plugins em massa e não edite `/usr/share/omarchy/` para corrigir a Rise.
 
+Para geometria, estilos, widgets ou painéis laterais da V2, leia [references/vertical-bar.md](references/vertical-bar.md).
+
 Consulte `docs/integrations.md`, `docs/usage.md` e `docs/fan-control.md` do checkout conforme a integração afetada. Não invoque serviços com contas reais para um teste que pode usar fixtures.
 
 ## Diagnosticar crash ou travamento
 
 Distinga queda da barra, falha de um helper e queda do sistema. Colete o PID, a linha de comando e o horário com `pgrep -a quickshell`, `coredumpctl list` e `coredumpctl info <PID>`. Leia o journal pelo PID correto; o processo pode aparecer como `omarchy-shell` no journal mesmo sendo `quickshell` no executável.
+
+Consulte também o log próprio do processo: `quickshell log --pid <PID> --tail 200 --no-color`. Nem todo aviso QML chega ao journal. Se o sandbox não enxergar o processo ou socket da sessão, isso não prova que o shell esteja parado; confirme no contexto da sessão antes de reiniciar.
 
 Confira memória/OOM e mensagens de GPU no período relevante. Um SIGABRT em `QGuiApplicationPrivate::createPlatformIntegration` vindo de um probe em `/tmp` pode ser falha de acesso à sessão gráfica antes de carregar QML; não o atribua à barra instalada sem evidência. Avisos de lint também não comprovam crash.
 

@@ -87,6 +87,7 @@ PanelWindow {
             reveal: gpuPanel.reveal
         }
 
+        SidePanelPositioner { root: gpuPanel.root; target: parent; anchorName: "gpu" }
         x: Math.round(Math.max(6, Math.min(root.gpuBarX - width / 2, parent.width - width - 6)))
         y: root.barPosition === "bottom"
             ? (parent.height - barBottom - gap - height) + 2 * (1 - gpuPanel.reveal)

@@ -56,6 +56,7 @@ PanelWindow {
             reveal: profilePanel.reveal
         }
 
+        SidePanelPositioner { root: profilePanel.root; target: parent; anchorName: "power" }
         x: Math.round(Math.max(6, Math.min(root.powerBarX - width / 2, parent.width - width - 6)))
         y: root.barPosition === "bottom"
             ? (parent.height - barBottom - gap - height) + 2 * (1 - profilePanel.reveal)

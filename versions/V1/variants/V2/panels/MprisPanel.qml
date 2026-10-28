@@ -200,6 +200,7 @@ PanelWindow {
             reveal: mprisPanel.reveal
         }
 
+        SidePanelPositioner { root: mprisPanel.root; target: parent; anchorName: "mpris" }
         x: Math.round(Math.max(6, Math.min(root.mprisBarX - width / 2, parent.width - width - 6)))
         y: root.barPosition === "bottom"
             ? (parent.height - barBottom - gap - height) + 2 * (1 - mprisPanel.reveal)

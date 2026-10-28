@@ -30,12 +30,21 @@ Item {
     readonly property real bottomTipY: bottomBaseY + caretDepth
     readonly property int renderScale: 4
 
+    Rectangle {
+        anchors.fill: parent
+        visible: surface.root.barVertical
+        color: surface.root.bg
+        radius: surface.root.panelRadius
+        border.width: surface.root.panelOuterBorderW
+        border.color: surface.root.panelOuterBorderColor
+    }
+
     Shape {
         x: 0
         y: -surface.maxCaretDepth
         width: surface.width
         height: surface.height + surface.maxCaretDepth
-        visible: surface.pointsUp
+        visible: !surface.root.barVertical && surface.pointsUp
         antialiasing: true
         preferredRendererType: Shape.CurveRenderer
         layer.enabled: true
@@ -88,7 +97,7 @@ Item {
         y: 0
         width: surface.width
         height: surface.height + surface.maxCaretDepth
-        visible: !surface.pointsUp
+        visible: !surface.root.barVertical && !surface.pointsUp
         antialiasing: true
         preferredRendererType: Shape.CurveRenderer
         layer.enabled: true

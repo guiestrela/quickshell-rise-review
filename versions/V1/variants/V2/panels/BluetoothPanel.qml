@@ -228,6 +228,7 @@ PanelWindow {
             reveal: btPanel.reveal
         }
 
+        SidePanelPositioner { root: btPanel.root; target: parent; anchorName: "bluetooth" }
         x: Math.round(Math.max(6, Math.min(root.bluetoothBarX - width / 2, parent.width - width - 6)))
         y: root.barPosition === "bottom"
             ? (parent.height - barBottom - gap - height) + 2 * (1 - btPanel.reveal)

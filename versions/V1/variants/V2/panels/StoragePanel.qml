@@ -257,6 +257,7 @@ PanelWindow {
             reveal: storagePanel.reveal
         }
 
+        SidePanelPositioner { root: storagePanel.root; target: parent; anchorName: "storage" }
         x: Math.round(Math.max(6, Math.min(root.storageBarX - width / 2, parent.width - width - 6)))
         y: root.barPosition === "bottom"
             ? (parent.height - barBottom - gap - height) + 2 * (1 - storagePanel.reveal)

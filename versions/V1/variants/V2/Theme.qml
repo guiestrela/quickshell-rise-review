@@ -244,7 +244,7 @@ Item {
     property real pillOpacity: 0.18   // einzelne Widget-Pillen (workspace, mem, cpu, …)
 
     readonly property real surfaceOpacity: barOpacity
-    readonly property color bg:     Qt.rgba(paper.r, paper.g, paper.b, surfaceOpacity)
+    readonly property color bg:     Qt.rgba(paper.r, paper.g, paper.b, 0.98)
     readonly property color barBg:  Qt.rgba(paper.r, paper.g, paper.b,
         barFrost ? 0.68 : surfaceOpacity)
     readonly property color pill:   Qt.rgba(paper.r, paper.g, paper.b, pillOpacity)
@@ -2262,7 +2262,19 @@ Item {
     property string workspaceStyle: "default"   // default, numbers, magic, kanji, rings, aurora
 
     // ── bar screen position (persisted) ──
-    property string barPosition: "top"   // "top" or "bottom"
+    property string barPosition: "top"   // top, bottom, left, right
+    readonly property bool barVertical: barPosition === "left" || barPosition === "right"
+    readonly property int verticalBarWidth: barShellStyle === "fit" ? 44 : 40
+    property var verticalAnchorsByScreen: ({})
+    function verticalAnchorY(name) {
+        var map = verticalAnchorsByScreen[activePopupScreenName] || {}
+        return map[name] !== undefined ? map[name] : (activePopupScreen ? activePopupScreen.height / 2 : 200)
+    }
+    function publishVerticalAnchors(screenName, values) {
+        var next = Object.assign({}, verticalAnchorsByScreen)
+        next[screenName] = values
+        verticalAnchorsByScreen = next
+    }
     // ── outer bar shell (persisted) ──
     // full  = current edge-to-edge strip
     // fit   = centered content-width capsule
@@ -2288,7 +2300,7 @@ Item {
     property var barSeps: []
     property var iconOnlyGids: []
     function sepAfter(gid) { return barSeps.indexOf(gid) >= 0 }
-    function iconOnly(gid) { return iconOnlyGids.indexOf(gid) >= 0 }
+    function iconOnly(gid) { return barVertical || iconOnlyGids.indexOf(gid) >= 0 }
     function toggleSep(gid) {
         var a = barSeps.slice()
         var i = a.indexOf(gid)
@@ -2591,7 +2603,11 @@ Item {
     onArchBadgePackagesChanged: if (_widgetsLoaded) saveWidgets()
     onArchBadgeThemesChanged:   if (_widgetsLoaded) saveWidgets()
     onWorkspaceStyleChanged:   if (_widgetsLoaded) saveWidgets()
-    onBarPositionChanged:      if (_widgetsLoaded) saveWidgets()
+    onBarPositionChanged: {
+        barUnlocked = false
+        closePopups()
+        if (_widgetsLoaded) saveWidgets()
+    }
     onBarFrostChanged: if (_widgetsLoaded) saveWidgets()
     onLayoutProtectedChanged: if (_widgetsLoaded) saveWidgets()
     onBarShellStyleChanged:    if (_widgetsLoaded) saveWidgets()
@@ -2811,7 +2827,7 @@ Item {
                     }
                     if (parts.length > wsField + 9) {
                         var bp = parts[wsField + 9]
-                        if (bp === "top" || bp === "bottom") theme.barPosition = bp
+                        if (["top", "bottom", "left", "right"].indexOf(bp) >= 0) theme.barPosition = bp
                     }
                     // +10 is the retired V2 border toggle; structural borders stay on.
                     // +11..+15 widget-group toggles (default ON → only an explicit "0"

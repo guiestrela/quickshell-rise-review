@@ -67,6 +67,7 @@ PanelWindow {
             reveal: trayPanel.reveal
         }
 
+        SidePanelPositioner { root: trayPanel.root; target: parent; anchorName: "tray" }
         x: Math.round(Math.max(6, Math.min(root.trayBarX, parent.width - width - 6)))
         y: root.barPosition === "bottom"
             ? (parent.height - barBottom - gap - height) + 2 * (1 - trayPanel.reveal)

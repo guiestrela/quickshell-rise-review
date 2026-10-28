@@ -8,19 +8,21 @@ Item {
     readonly property color contentColor: root.widgetContentColor("G3", root.ink)
 
     implicitWidth: trayRow.implicitWidth
-    implicitHeight: 28
+    implicitHeight: root.barVertical ? trayRow.implicitHeight : 28
     visible: trayRow.implicitWidth > 0
 
     function toggleHide(item) {
         root.trayToggleHide(item)
     }
 
-    Row {
+    Grid {
         id: trayRow
+        columns: root.barVertical ? 1 : trayItems.count + 1
         anchors.centerIn: parent
         spacing: root.v2IconClusterSpacing
 
         Repeater {
+            id: trayItems
             model: SystemTray.items
 
             delegate: Item {

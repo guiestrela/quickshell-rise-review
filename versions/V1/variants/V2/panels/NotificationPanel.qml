@@ -429,6 +429,7 @@ PanelWindow {
             reveal: notifPanel.reveal
         }
 
+        SidePanelPositioner { root: notifPanel.root; target: parent; anchorName: "notif" }
         x: Math.round(Math.max(6, Math.min(root.notifBarX, parent.width - width - 6)))
         y: root.barPosition === "bottom"
             ? (parent.height - barBottom - gap - height) + 2 * (1 - notifPanel.reveal)

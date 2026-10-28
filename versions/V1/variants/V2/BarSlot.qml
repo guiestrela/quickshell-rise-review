@@ -43,22 +43,24 @@ PanelWindow {
     // anchored to left+right always; top OR bottom by barPosition (exclusiveZone
     // reserves space on whichever edge is anchored → no extra logic needed)
     anchors {
-        left: true; right: true
-        top:    barSlot.root.barPosition === "top"
-        bottom: barSlot.root.barPosition === "bottom"
+        left: !barSlot.root.barVertical || barSlot.root.barPosition === "left"
+        right: !barSlot.root.barVertical || barSlot.root.barPosition === "right"
+        top: barSlot.root.barVertical || barSlot.root.barPosition === "top"
+        bottom: barSlot.root.barVertical || barSlot.root.barPosition === "bottom"
     }
+    implicitWidth: barSlot.root.barVertical ? barSlot.root.verticalBarWidth : 0
     implicitHeight: barSlot.screen ? barSlot.screen.height : 1440
     exclusionMode: ExclusionMode.Normal
     // Keep the same compositor reservation for every shell style: clients must
     // never slide behind a content-width Fit/Dock/Notch bar.
-    exclusiveZone: barSlot.root.v2BarHeight + 3
+    exclusiveZone: barSlot.root.barVertical ? barSlot.root.verticalBarWidth : barSlot.root.v2BarHeight + 3
     mask: Region {
-        x: barSlot.root.barUnlocked ? 0 : Math.round(continuousBarSurface.x)
-        y: barSlot.root.barUnlocked ? 0
+        x: barSlot.root.barVertical ? 0 : barSlot.root.barUnlocked ? 0 : Math.round(continuousBarSurface.x)
+        y: barSlot.root.barVertical ? (barSlot.root.barUnlocked || !verticalLoader.item ? 0 : verticalLoader.item.surfaceY) : barSlot.root.barUnlocked ? 0
            : (barSlot.root.barPosition === "bottom"
                 ? barSlot.height - barSlot.shellVisibleHeight : 0)
-        width: barSlot.root.barUnlocked ? barSlot.width : Math.round(continuousBarSurface.width)
-        height: barSlot.root.barUnlocked ? barSlot.height : barSlot.shellVisibleHeight
+        width: barSlot.root.barVertical ? barSlot.width : barSlot.root.barUnlocked ? barSlot.width : Math.round(continuousBarSurface.width)
+        height: barSlot.root.barVertical ? (barSlot.root.barUnlocked || !verticalLoader.item ? barSlot.height : verticalLoader.item.surfaceHeight) : barSlot.root.barUnlocked ? barSlot.height : barSlot.shellVisibleHeight
     }
     // grab keyboard while unlocked so ESC can exit
     WlrLayershell.keyboardFocus: barSlot.root.barUnlocked ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
@@ -87,6 +89,7 @@ PanelWindow {
     // bottom placement mirrors it so the shadow still opens toward the desktop.
     Rectangle {
         id: continuousBarSurface
+        visible: !barSlot.root.barVertical
         x: barSlot.compactShell ? Math.round((barSlot.width - width) / 2) : 0
         y: barSlot.root.barPosition === "bottom"
             ? barSlot.height - height
@@ -693,6 +696,25 @@ PanelWindow {
         snapTimer.stop()
         dragActive = false; dragging = false; dragItem = null
         dropModel = null; dropIndex = -1
+    }
+
+    Loader {
+        id: verticalLoader
+        anchors.fill: parent
+        active: barSlot.root.barVertical
+        sourceComponent: Component {
+            VerticalBarContent {
+                root: barSlot.root
+                barWindow: barSlot
+                models: [leftModel, centerModel, rightModel]
+                registry: barSlot.registry
+            }
+        }
+    }
+    function swapVerticalSlots(sourceRegion, sourceIndex, targetRegion, targetIndex) {
+        var models = [leftModel, centerModel, rightModel]
+        if (NordVpnLayout.swapModels(models[sourceRegion], models[targetRegion], sourceIndex, targetIndex)
+                && _orderLoaded) saveOrder()
     }
 
     // ── order persistence (survives restart) ──
@@ -1658,7 +1680,7 @@ PanelWindow {
                     id: ldr
                     x: slot.pad
                     anchors.verticalCenter: parent.verticalCenter
-                    sourceComponent: slot.occupied ? barSlot.registry[slot.gid] : null
+                    sourceComponent: !barSlot.root.barVertical && slot.occupied ? barSlot.registry[slot.gid] : null
                     // dim the original while its ghost is being dragged
                     opacity: (barSlot.dragItem === ldr && barSlot.dragActive) ? 0.25 : 1.0
                 }
@@ -1806,6 +1828,7 @@ PanelWindow {
 
     Item {
         id: island
+        visible: !barSlot.root.barVertical
         // The backing layer-window remains full-screen, but the visible/content
         // island follows the selected shell surface. This preserves stable
         // layer-shell resources while Fit/Notch resize with their visible rows.
@@ -2091,8 +2114,8 @@ PanelWindow {
                 launcher:     island.groupX("G1",  0.5)
             }
         }
-        onPanelAnchorsChanged: barSlot.root.publishBarAnchors(panelScreenName, panelAnchors)
-        Component.onCompleted: barSlot.root.publishBarAnchors(panelScreenName, panelAnchors)
+        onPanelAnchorsChanged: if (!barSlot.root.barVertical) barSlot.root.publishBarAnchors(panelScreenName, panelAnchors)
+        Component.onCompleted: if (!barSlot.root.barVertical) barSlot.root.publishBarAnchors(panelScreenName, panelAnchors)
 
     }
 
@@ -2105,7 +2128,7 @@ PanelWindow {
         y: continuousBarSurface.y
         width: continuousBarSurface.width
         height: barSlot.root.v2BarHeight
-        visible: barSlot.root.barBorderEnabled
+        visible: !barSlot.root.barVertical && barSlot.root.barBorderEnabled
         z: 3
 
         Rectangle {

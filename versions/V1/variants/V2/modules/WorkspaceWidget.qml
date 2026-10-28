@@ -10,9 +10,9 @@ Item {
     // border needs its own breathing room, though: make that padding part of the
     // real implicit width so the border, drag geometry and split points all use
     // the same measurement instead of reconstructing an approximate visual edge.
-    readonly property int borderHorizontalPadding: root.widgetHasBorder("G2") ? 6 : 0
+    readonly property int borderHorizontalPadding: !root.barVertical && root.widgetHasBorder("G2") ? 6 : 0
     implicitWidth: wsRow.implicitWidth + 2 * borderHorizontalPadding
-    implicitHeight: 28
+    implicitHeight: root.barVertical ? wsRow.implicitHeight : 28
     readonly property color contentColor: root.widgetContentColor("G2", root.seal)
 
     // The focused workspace's id ONLY when it's a real (positive) workspace beyond
@@ -50,11 +50,12 @@ Item {
         onClicked: root.workspaceVisible = !root.workspaceVisible
     }
 
-    Row {
+    Grid {
         id: wsRow
+        columns: root.barVertical ? 1 : Math.max(1, wsWidget.workspaceList.length)
         anchors.centerIn: parent
         z: 1
-        spacing: root.workspaceStyle === "rings" ? 3
+        spacing: root.barVertical ? 2 : root.workspaceStyle === "rings" ? 3
                : root.workspaceStyle === "aurora" ? 4
                : 5
 
@@ -82,13 +83,13 @@ Item {
 
                 readonly property bool isEmpty: !isFocused && !isOccupied
 
-                implicitWidth: root.workspaceStyle === "numbers" ? 22
+                implicitWidth: root.barVertical ? 34 : root.workspaceStyle === "numbers" ? 22
                              : root.workspaceStyle === "kanji"   ? 22
                              : root.workspaceStyle === "magic"   ? (isFocused ? 20 : 18)
                              : root.workspaceStyle === "rings"   ? 20
                              : root.workspaceStyle === "aurora"  ? (isFocused ? 34 : 12)
                              : (isFocused ? 32 : 16)
-                implicitHeight: 28
+                implicitHeight: root.barVertical ? 24 : 28
 
                 Behavior on implicitWidth {
                     NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
@@ -261,12 +262,24 @@ Item {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
                     hoverEnabled: true
-                    onClicked: root.gotoWorkspace(wsId)
+                    acceptedButtons: Qt.LeftButton | Qt.RightButton
+                    onClicked: function(mouse) {
+                        if (mouse.button === Qt.RightButton) root.workspaceVisible = !root.workspaceVisible
+                        else root.gotoWorkspace(wsId)
+                    }
                     onEntered: wsCell.scale = root.workspaceStyle === "rings" ? 1.0
                         : root.workspaceStyle === "aurora" ? 1.04 : 1.15
                     onExited:  wsCell.scale = 1.0
                 }
             }
+        }
+    }
+
+    WheelHandler {
+        enabled: wsWidget.root.barVertical
+        onWheel: function(event) {
+            if (event.angleDelta.y !== 0)
+                Hyprland.dispatch(event.angleDelta.y > 0 ? "workspace e-1" : "workspace e+1")
         }
     }
 
@@ -285,7 +298,11 @@ Item {
             return wsWidget.workspaceList.indexOf(focused.id)
         }
         readonly property real targetLeft: targetIndex >= 0
-            ? wsRow.x + targetIndex * (20 + wsRow.spacing) + 1 : 0
+            ? root.barVertical ? wsRow.x + 8 : wsRow.x + targetIndex * (20 + wsRow.spacing) + 1 : 0
+        readonly property real targetTop: root.barVertical
+            ? wsRow.y + Math.max(0, targetIndex) * (24 + wsRow.spacing) + 3 : 5
+        property real animatedY: targetTop
+        Behavior on animatedY { NumberAnimation { duration: 190; easing.type: Easing.OutCubic } }
         property real animatedX: targetLeft
 
         Behavior on animatedX {
@@ -298,7 +315,7 @@ Item {
         Shape {
             id: frameShape
             x: frameMotion.animatedX
-            y: 5
+            y: frameMotion.animatedY
             width: 18
             height: 18
             antialiasing: true

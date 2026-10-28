@@ -163,7 +163,7 @@ Item {
         id: ico
         anchors.centerIn: parent
         text: rootMod.weatherLoaded ? rootMod.weatherIcon
-              : (rootMod.weatherUnavailable ? "?" : "·")
+              : (rootMod.weatherUnavailable ? "?" : root.barVertical ? "☁" : "·")
         color: rootMod.weatherUnavailable && !rootMod.weatherLoaded
                ? Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.4)
                : rootMod.contentColor

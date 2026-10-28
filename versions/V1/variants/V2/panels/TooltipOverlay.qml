@@ -39,6 +39,7 @@ PanelWindow {
         height: tipLabel.implicitHeight + padV * 2
 
         x: {
+            if (root.barVertical) return root.barPosition === "left" ? root.verticalBarWidth + gap : parent.width - root.verticalBarWidth - width - gap
             var cx = root.tooltipX;
             return Math.max(4, Math.min(parent.width - width - 4, cx - width / 2));
         }
@@ -46,6 +47,7 @@ PanelWindow {
         // row actions. Prefer the inward side of the bar, then flip when the
         // preferred side would leave the screen.
         y: {
+            if (root.barVertical) return Math.max(4, Math.min(parent.height - height - 4, root.tooltipY - height / 2))
             var above = root.tooltipTopY - gap - height
             var below = root.tooltipBottomY + gap
             var maxY = parent.height - height - 4
@@ -59,7 +61,7 @@ PanelWindow {
             return Math.max(4, Math.min(maxY, candidate))
         }
 
-        color: root.barBg
+        color: root.bg
         border.color: root.panelOuterBorderColor
         border.width: root.panelOuterBorderW
         radius: root.panelRadius

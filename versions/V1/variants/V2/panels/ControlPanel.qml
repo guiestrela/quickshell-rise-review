@@ -264,6 +264,7 @@ PanelWindow {
             reveal: ctrlPanel.reveal
         }
 
+        SidePanelPositioner { root: ctrlPanel.root; target: parent; anchorName: "launcher" }
         x: Math.round(Math.max(6, Math.min(root.launcherBarX - width / 2, parent.width - width - 6)))
         y: root.barPosition === "bottom"
             ? (parent.height - barBottom - gap - height) + 2 * (1 - ctrlPanel.reveal)
@@ -934,6 +935,11 @@ PanelWindow {
                     width: parent.width; spacing: 4
                     Tile { width: root.evenW((wwCol.width - 4) / 2); label: "Top";    active: root.barPosition === "top";    onActivated: root.barPosition = "top" }
                     Tile { width: root.evenW((wwCol.width - 4) / 2); label: "Bottom"; active: root.barPosition === "bottom"; onActivated: root.barPosition = "bottom" }
+                }
+                Row {
+                    width: parent.width; spacing: 4
+                    Tile { width: root.evenW((wwCol.width - 4) / 2); label: "Left"; active: root.barPosition === "left"; onActivated: root.barPosition = "left" }
+                    Tile { width: root.evenW((wwCol.width - 4) / 2); label: "Right"; active: root.barPosition === "right"; onActivated: root.barPosition = "right" }
                 }
 
                 Rectangle { width: parent.width; height: 1; color: root.sep }

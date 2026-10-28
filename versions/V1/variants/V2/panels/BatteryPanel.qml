@@ -68,6 +68,7 @@ PanelWindow {
             reveal: batPanel.reveal
         }
 
+        SidePanelPositioner { root: batPanel.root; target: parent; anchorName: "battery" }
         x: Math.round(Math.max(6, Math.min(root.batteryBarX - width / 2, parent.width - width - 6)))
         y: root.barPosition === "bottom"
             ? (parent.height - barBottom - gap - height) + 2 * (1 - batPanel.reveal)

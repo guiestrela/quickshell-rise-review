@@ -324,6 +324,7 @@ PanelWindow {
             targetX: panel.root.wallpaperManagerAnchorX
             reveal: panel.reveal
         }
+        SidePanelPositioner { root: panel.root; target: parent; anchorName: "wallpaperManager" }
         x: Math.round(Math.max(6, Math.min(panel.root.wallpaperManagerAnchorX - width / 2, parent.width - width - 6)))
         y: panel.root.barPosition === "bottom"
             ? (parent.height - panel.barBottom - panel.gap - height) + 2 * (1 - panel.reveal)

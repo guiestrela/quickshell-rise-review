@@ -72,6 +72,9 @@ check_qml
 
 check "bar style settings" node --test tests/bar-style-settings.test.mjs
 check "bar style previews" python3 tests/test-bar-style-preview.py
+check "vertical bar layout" python3 tests/test-vertical-bar-layout.py
+check "vertical workspaces" python3 tests/test-vertical-workspaces.py
+check "AI collector installation" bash tests/install-ai-backends-integration.sh
 
 regressions=(
   tests/qs-arch-update-regression.sh

@@ -15,7 +15,7 @@ command -v omarchy >/dev/null 2>&1 || fail "Omarchy is required; install Rise wi
 # from stdin. Omarchy's add command is interactive, so give it the controlling
 # terminal instead of the exhausted script pipe. Keep Omarchy's confirmation
 # prompt; users can decline activation and review the cloned plugin first.
-if [[ ! -t 0 && -r /dev/tty ]]; then
+if [[ ! -t 0 ]] && (: </dev/tty) 2>/dev/null; then
   omarchy plugin add "$PLUGIN_REPO_URL" </dev/tty
 else
   omarchy plugin add "$PLUGIN_REPO_URL"
