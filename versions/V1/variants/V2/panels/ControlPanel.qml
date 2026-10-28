@@ -898,7 +898,7 @@ PanelWindow {
                             mode: modelData.mode
                             label: modelData.label
                             selected: root.barShellStyle === modelData.mode
-                            frost: modelData.mode === "notch" && root.notchFrost
+                            frost: root.barFrost
                             outline: root.barBorderEnabled
                             onChosen: root.barShellStyle = modelData.mode
                         }
@@ -906,10 +906,9 @@ PanelWindow {
                 }
                 Tile {
                     width: parent.width
-                    visible: root.barShellStyle === "notch"
-                    label: "Notch Frost"
-                    active: root.notchFrost
-                    onActivated: root.notchFrost = !root.notchFrost
+                    label: "Frost"
+                    active: root.barFrost
+                    onActivated: root.barFrost = !root.barFrost
                 }
                 Tile {
                     width: parent.width

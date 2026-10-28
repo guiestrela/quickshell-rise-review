@@ -239,14 +239,14 @@ Item {
     readonly property string mono:  "JetBrainsMono Nerd Font"
 
     // ── transparency knobs (0.0 = fully transparent, 1.0 = opaque) ──
-    property bool notchFrost: false
+    property bool barFrost: false
     property real barOpacity:  0.94   // durchgehende V2-Leiste
     property real pillOpacity: 0.18   // einzelne Widget-Pillen (workspace, mem, cpu, …)
 
     readonly property real surfaceOpacity: barOpacity
     readonly property color bg:     Qt.rgba(paper.r, paper.g, paper.b, surfaceOpacity)
     readonly property color barBg:  Qt.rgba(paper.r, paper.g, paper.b,
-        barShellStyle === "notch" && notchFrost ? 0.68 : surfaceOpacity)
+        barFrost ? 0.68 : surfaceOpacity)
     readonly property color pill:   Qt.rgba(paper.r, paper.g, paper.b, pillOpacity)
     readonly property color fg:     ink
     readonly property color muted:  sumi
@@ -2592,7 +2592,7 @@ Item {
     onArchBadgeThemesChanged:   if (_widgetsLoaded) saveWidgets()
     onWorkspaceStyleChanged:   if (_widgetsLoaded) saveWidgets()
     onBarPositionChanged:      if (_widgetsLoaded) saveWidgets()
-    onNotchFrostChanged: if (_widgetsLoaded) saveWidgets()
+    onBarFrostChanged: if (_widgetsLoaded) saveWidgets()
     onLayoutProtectedChanged: if (_widgetsLoaded) saveWidgets()
     onBarShellStyleChanged:    if (_widgetsLoaded) saveWidgets()
     onBarBorderEnabledChanged: if (_widgetsLoaded) saveWidgets()
@@ -2648,7 +2648,7 @@ Item {
                  + (modWallpapers ? "1" : "0") + " "                    // +46 Wallpapers; append-only schema
                  + (modDisplayManager ? "1" : "0") + " "                  // +47 Display Manager; append-only schema
                  + (displayManagerAutoWorkspaces ? "1" : "0") + " " // +48 Display Manager workspace preference
-                 + (notchFrost ? "1" : "0") + " " // +49 Notch Frost
+                 + (barFrost ? "1" : "0") + " " // +49 V2 Frost (same field as legacy Notch Frost)
                  + (layoutProtected ? "1" : "0") + " " // +50 layout protection
                  + serializeWidgetSurfaceStyles() // +51 widget surface geometry
         widgetSaveProc.command = ["bash", "-c",
@@ -2875,7 +2875,7 @@ Item {
                 if (parts.length > wsField + 46) theme.modWallpapers = parts[wsField + 46] === "1"
                 if (parts.length > wsField + 47) theme.modDisplayManager = parts[wsField + 47] === "1"
                     if (parts.length > wsField + 48) theme.displayManagerAutoWorkspaces = parts[wsField + 48] === "1"
-                if (parts.length > wsField + 49) theme.notchFrost = parts[wsField + 49] === "1"
+                if (parts.length > wsField + 49) theme.barFrost = parts[wsField + 49] === "1"
                 if (parts.length > wsField + 50) theme.layoutProtected = parts[wsField + 50] === "1"
                 if (parts.length > wsField + 51) theme.widgetSurfaceStyles = theme.parseWidgetSurfaceStyles(parts[wsField + 51])
                 theme._widgetsLoaded = true

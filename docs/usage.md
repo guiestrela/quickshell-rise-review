@@ -64,7 +64,7 @@ V2 adds four outer-shell layouts:
 - **Dock**: attach a content-width surface to the screen edge
 - **Notch**: attach the compact surface with continuous side transitions
 
-V2 can place every shell at the top or bottom edge. The style cards preview each shell. The Bar Border and Panel & Tooltip Border controls are independent. Notch also offers Frost, which lowers its background opacity; compositor blur depends on the active desktop theme.
+V2 can place every shell at the top or bottom edge. The style cards preview each shell. The Bar Border and Panel & Tooltip Border controls are independent. Full, Fit, Dock, and Notch offer Frost, which lowers the bar background opacity; compositor blur depends on the active desktop theme. The preference is shared across all four V2 shells and preserves the previously saved Notch Frost setting.
 
 ## Apply colors and widget styles
 
