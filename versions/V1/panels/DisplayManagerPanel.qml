@@ -7,6 +7,8 @@ PanelWindow {
     id: panel
     required property var root
     property bool connectedStyle: false
+    readonly property int barBottom: 35
+    readonly property int gap: 8
     property Component headerComponent: null
     readonly property Item surfaceHost: frameCard
     readonly property var controller: root.displayManagerControllerApi
@@ -216,7 +218,7 @@ PanelWindow {
     Rectangle {
         id: frameCard
         x: panel.connectedStyle ? Math.round(Math.max(6, Math.min(panel.root.displayManagerBarX - width / 2, panel.width - width - 6))) : Math.round(Math.max(0, Math.min(panel.width - width - 16, panel.root.displayManagerBarX - (width + 16) / 2))) + 8
-        y: panel.connectedStyle ? (panel.root.barPosition === "bottom" ? panel.height - panel.root.v2BarHeight - 6 - height : panel.root.v2BarHeight + 6) : (panel.root.barPosition === "bottom" ? panel.height - panel.root.displayManagerBarY - 16 - height : panel.root.displayManagerBarY + 16)
+        y: panel.connectedStyle ? (panel.root.barPosition === "bottom" ? panel.height - panel.root.v2BarHeight - 6 - height : panel.root.v2BarHeight + 6) : (panel.root.barPosition === "bottom" ? panel.height - panel.barBottom - panel.gap - height : panel.barBottom + panel.gap)
         width: Math.min(456, panel.width - 16)
         height: panelContent.implicitHeight + (panel.connectedStyle ? 32 : 24)
         radius: panel.connectedStyle ? panel.root.panelRadius : panel.root.pillRadius
