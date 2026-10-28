@@ -19,6 +19,25 @@ Item {
     readonly property bool fit: root.barShellStyle !== "full"
     readonly property int outerGap: root.barShellStyle === "fit" ? 2 : 0
     readonly property int notchWing: root.barShellStyle === "notch" ? 12 : 0
+    // Retain the last anchor while the shared panel reveal animates closed.
+    property real panelNotchY: height / 2
+    readonly property string panelAnchor: {
+        var names = {control: "launcher", workspace: "workspace", calendar: "calendar",
+            weather: "weather", cpu: "cpu", gpu: "gpu", thermal: "thermal",
+            aiUsage: "ai", mem: "memory", vol: "volume", network: "network",
+            vpn: "vpn", bluetooth: "bluetooth", battery: "battery",
+            brightness: "brightness", mpris: "mpris", notif: "notif",
+            powerProfile: "power", storage: "storage", arch: "arch", tray: "tray",
+            displayManager: "displayManager", wallpaperManager: "wallpaperManager"}
+        for (var name in names)
+            if (root[name + "Visible"] === true) return names[name]
+        return ""
+    }
+    readonly property real activePanelY: panelAnchor ? root.verticalAnchorY(panelAnchor) : panelNotchY
+    onActivePanelYChanged: if (panelAnchor) panelNotchY = activePanelY
+    readonly property real panelNotchProgress: notchWing > 0 &&
+        root.activePopupScreenName === barWindow.screenName
+        ? Math.max(0, Math.min(1, root.panelInsetReveal || 0)) : 0
     readonly property var anchorNames: ({
         G1: ["launcher"], G2: ["workspace"], G3: ["arch", "tray", "notif"],
         G4: ["memory"], G5: ["cpu"], G6: ["volume"], G7: ["ai"],
@@ -103,6 +122,12 @@ Item {
             width: parent.width; height: parent.height + 2 * rail.notchWing
             readonly property real edgeX: rail.root.barPosition === "left" ? 0 : width
             readonly property real innerX: rail.root.barPosition === "left" ? width : 0
+            readonly property real insetY: Math.max(rail.notchWing + 16,
+                Math.min(height - rail.notchWing - 16, rail.panelNotchY - surface.y + rail.notchWing))
+            readonly property real insetX: innerX + (rail.root.barPosition === "left" ? -5 : 5) * rail.panelNotchProgress
+            readonly property real halfWidth: 7 * rail.panelNotchProgress
+            readonly property real tangent: 4.25 * rail.panelNotchProgress
+            readonly property real tip: 2 * rail.panelNotchProgress
             antialiasing: true
             preferredRendererType: Shape.CurveRenderer
             ShapePath {
@@ -114,6 +139,17 @@ Item {
                     x: notch.innerX; y: rail.notchWing + 8
                     control1X: notch.edgeX; control1Y: rail.notchWing
                     control2X: notch.innerX; control2Y: rail.notchWing
+                }
+                PathLine { x: notch.innerX; y: notch.insetY - notch.halfWidth }
+                PathCubic {
+                    x: notch.insetX; y: notch.insetY
+                    control1X: notch.innerX; control1Y: notch.insetY - notch.tangent
+                    control2X: notch.insetX; control2Y: notch.insetY - notch.tip
+                }
+                PathCubic {
+                    x: notch.innerX; y: notch.insetY + notch.halfWidth
+                    control1X: notch.insetX; control1Y: notch.insetY + notch.tip
+                    control2X: notch.innerX; control2Y: notch.insetY + notch.tangent
                 }
                 PathLine { x: notch.innerX; y: notch.height - rail.notchWing - 8 }
                 PathCubic {

@@ -50,6 +50,9 @@ ShellRoot {
   property bool barBorderEnabled: true
   property var anchorsByName: ({})
   property var verticalAnchorsByScreen: ({})
+  property string activePopupScreenName: "fixture"
+  property real panelInsetReveal: 0
+  property bool cpuVisible: false
   property bool controlVisible: false
   property bool workspaceVisible: false
   property bool calendarVisible: false
@@ -145,6 +148,20 @@ ShellRoot {
   } else if (harness.step === 7) {
    check(rail.width === 40 && card.x === 46, "NOTCH_WIDTH_AND_PANEL")
    check(rail.surfaceY >= 0 && rail.surfaceY + rail.surfaceHeight <= rail.height, "NOTCH_INPUT_BOUNDS")
+   harness.state.cpuVisible = true
+   harness.state.panelInsetReveal = 1
+  } else if (harness.step === 8) {
+   check(rail.panelNotchProgress === 1, "NOTCH_REVEAL_LEFT")
+   check(rail.panelNotchY === harness.state.anchorsByName.cpu, "NOTCH_PANEL_ANCHOR")
+   harness.state.barPosition = "right"
+  } else if (harness.step === 9) {
+   check(rail.panelNotchProgress === 1, "NOTCH_REVEAL_RIGHT")
+   harness.state.activePopupScreenName = "other"
+  } else if (harness.step === 10) {
+   check(rail.panelNotchProgress === 0, "NOTCH_WRONG_MONITOR")
+   harness.state.activePopupScreenName = "fixture"
+   harness.state.cpuVisible = false
+   harness.state.panelInsetReveal = 0
    harness.state.barVertical = false
   } else {
    check(card.x === 200 && card.y === 100, "HORIZONTAL_BINDING_RESTORE")
