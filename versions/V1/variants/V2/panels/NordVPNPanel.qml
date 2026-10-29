@@ -205,7 +205,8 @@ PanelWindow {
                 width: parent.width; spacing: 6
                 Rectangle {
                     width: (parent.width - 6) / 2; height: 28; radius: vpnPanel.root.panelButtonRadius
-                    readonly property bool selected: String(controller.vpnSettings.protocol || "").toUpperCase() === "UDP"
+                    readonly property bool selected: String(controller.vpnSettings.technology || "").toUpperCase() === "NORDLYNX"
+                        || (String(controller.vpnSettings.technology || "").toUpperCase() === "OPENVPN" && String(controller.vpnSettings.protocol || "").toUpperCase() === "UDP")
                     color: selected ? vpnPanel.root.fillActive : protocolMouse.containsMouse && protocolMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle
                     border.width: 1
                         border.color: selected || (protocolMouse.containsMouse && protocolMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep
@@ -214,7 +215,8 @@ PanelWindow {
                 }
                 Rectangle {
                     width: (parent.width - 6) / 2; height: 28; radius: vpnPanel.root.panelButtonRadius
-                    readonly property bool selected: String(controller.vpnSettings.protocol || "").toUpperCase() === "TCP"
+                    readonly property bool selected: String(controller.vpnSettings.technology || "").toUpperCase() === "OPENVPN"
+                        && String(controller.vpnSettings.protocol || "").toUpperCase() === "TCP"
                     color: selected ? vpnPanel.root.fillActive : tcpProtocolMouse.containsMouse && tcpProtocolMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle
                     border.width: 1
                         border.color: selected || (tcpProtocolMouse.containsMouse && tcpProtocolMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep

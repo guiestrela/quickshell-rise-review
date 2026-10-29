@@ -73,8 +73,9 @@ Item {
     var button=vpnPanel.testTargets["vpn-technology-"+name.toLowerCase()].parent
     compare(button.selected,false);compare(button.color,root.fillIdle);compare(label(button).color,root.ink)
    }
-   for(var protocol of ["UDP","TCP",""]){
-    controller.vpnSettings={technology:"OPENVPN",protocol:protocol};wait(1)
+   for(var sample of [["OPENVPN","UDP","UDP"],["OPENVPN","TCP","TCP"],["OPENVPN","",""],["NORDLYNX","","UDP"],["NordLynx","TCP","UDP"],["NORDWHISPER","TCP",""],["","",""]]){
+    var protocol=sample[2]
+    controller.vpnSettings={technology:sample[0],protocol:sample[1]};wait(1)
     var udp=vpnPanel.testTargets["vpn-protocol"]||findChild(vpnPanel,"vpn-protocol")
     var tcp=vpnPanel.testTargets["vpn-protocol-tcp"]||findChild(vpnPanel,"vpn-protocol-tcp")
     compare(udp.parent.selected,protocol==="UDP");compare(tcp.parent.selected,protocol==="TCP")
