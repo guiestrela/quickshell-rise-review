@@ -16,8 +16,8 @@ PanelWindow {
 
     readonly property int barBottom: root.v2BarHeight
     readonly property int gap: 6
-    property string countryTarget: ""
-    property string autoCountryTarget: ""
+    readonly property string countryTarget: controller.preferredCountry || ""
+    readonly property string autoCountryTarget: controller.preferredAutoCountry || ""
     property bool dnsEditorExpanded: false
     property alias testDnsInput: dnsInput
     property alias testDnsSetHandler: dnsSetMouse
@@ -53,13 +53,13 @@ PanelWindow {
     function closePanel() { dnsEditorExpanded = false; pauseSelectorExpanded = false; countryChooserExpanded = false; autoCountryChooserExpanded = false; vpnPanel.root.vpnVisible = false }
     function selectCountry(country) {
         if (countryOptions.indexOf(String(country)) < 0) return false
-        countryTarget = String(country)
+        if (!controller.selectPreferredCountry(country, false)) return false
         countryChooserExpanded = false
         return true
     }
     function selectAutoCountry(country) {
         if (countryOptions.indexOf(String(country)) < 0) return false
-        autoCountryTarget = String(country)
+        if (!controller.selectPreferredCountry(country, true)) return false
         autoCountryChooserExpanded = false
         return true
     }
@@ -68,7 +68,10 @@ PanelWindow {
     }
     property bool autoConnectEnabled: /^(enabled|on|yes|true)$/i.test(String(controller.vpnSettings["auto-connect"] || ""))
     function toggleConnection() { if (controller.vpnConnected) disconnect(); else connect() }
-    function connect() { controller.connectVpn() }
+    function connect() {
+        if (countryTarget) controller.connectVpnCountry(countryTarget)
+        else controller.connectVpn()
+    }
     function disconnect() { controller.disconnectVpn() }
     function connectCountry() { controller.connectVpnCountry(countryTarget) }
     function pause(duration) { controller.pauseVpn(duration) }
@@ -234,14 +237,14 @@ PanelWindow {
                     width: 48; height: 28; radius: vpnPanel.root.panelButtonRadius; color: vpnPanel.autoConnectEnabled ? vpnPanel.root.fillActive : autoConnectMouse.containsMouse && autoConnectMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle; border.color: vpnPanel.autoConnectEnabled || (autoConnectMouse.containsMouse && autoConnectMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep
                     Behavior on color { ColorAnimation { duration: 120 } }
                     UiText { anchors.centerIn: parent; text: vpnPanel.autoConnectEnabled ? "ON" : "OFF"; color: vpnPanel.autoConnectEnabled ? vpnPanel.root.seal : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
-                    MouseArea { id: autoConnectMouse; objectName: "vpn-autoconnect-toggle"; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate; onClicked: vpnPanel.autoConnectEnabled = !vpnPanel.autoConnectEnabled }
+                    MouseArea { id: autoConnectMouse; objectName: "vpn-autoconnect-toggle"; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate; onClicked: controller.setAutoConnect(!vpnPanel.autoConnectEnabled, vpnPanel.autoCountryTarget) }
                 }
                 Rectangle {
                     width: 54; height: 28; radius: vpnPanel.root.panelButtonRadius; color: autoConnectApplyMouse.containsMouse && autoConnectApplyMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle; border.color: autoConnectApplyMouse.containsMouse && autoConnectApplyMouse.enabled ? vpnPanel.root.seal : vpnPanel.root.sep
                     opacity: autoConnectApplyMouse.enabled ? 1 : 0.5
                     Behavior on color { ColorAnimation { duration: 120 } }
                     UiText { anchors.centerIn: parent; text: "Apply"; color: vpnPanel.root.seal; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
-                    MouseArea { id: autoConnectApplyMouse; objectName: "vpn-autoconnect-apply"; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate && (!vpnPanel.autoConnectEnabled || vpnPanel.autoCountryTarget !== ""); onClicked: vpnPanel.applyAutoConnect() }
+                    MouseArea { id: autoConnectApplyMouse; objectName: "vpn-autoconnect-apply"; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate; onClicked: vpnPanel.applyAutoConnect() }
                 }
             }
             ListView {
@@ -261,7 +264,7 @@ PanelWindow {
                     model: [{key:"notify",label:"Notify"},{key:"tray",label:"Tray"},
                         {key:"meshnet",label:"Meshnet"},{key:"dns",label:"DNS"},
                         {key:"lan-discovery",label:"LAN Discovery"},{key:"routing",label:"Routing"},
-                        {key:"virtual-location",label:"Virtual Location"},{key:"arp-ignore",label:"ARP Ignore"},
+                        {key:"arp-ignore",label:"ARP Ignore"},
                         {key:"post-quantum-vpn",label:"Post-quantum VPN"}]
                     delegate: Rectangle {
                         required property var modelData

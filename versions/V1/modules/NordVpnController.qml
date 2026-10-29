@@ -1,4 +1,5 @@
 import QtQuick
+import Quickshell
 import Quickshell.Io
 import "NordVpnProtocol.js" as VpnProtocol
 
@@ -32,6 +33,17 @@ Item {
     property bool _selectionPending: false
     property string selectionReader: decodeURIComponent(String(Qt.resolvedUrl("../../../scripts/rise-nordvpn-selection")).replace(/^(file|qs):\/\//, ""))
 
+    // Shared by panels, global shortcuts and both variants, including reloads.
+    property string preferredCountry: ""
+    property string preferredAutoCountry: ""
+    function selectPreferredCountry(country, autoConnect) {
+        var selected = String(country || "").trim()
+        if (countriesState !== "Ready" || countryOptions.indexOf(selected) < 0) return false
+        if (autoConnect) preferredAutoCountry = selected
+        else preferredCountry = selected
+        countryPreferences.setText(JSON.stringify({country: preferredCountry, autoCountry: preferredAutoCountry}))
+        return true
+    }
     function refreshSelectionReadback() {
         if (!enabled || !vpnSettings["selection-notice"]
                 || vpnSettings["protocol-api"] !== "unified") {
@@ -106,11 +118,11 @@ Item {
         return true
     }
     function setAutoConnect(isEnabled, country) {
-        if (!canMutate || countriesState !== "Ready") return false
+        if (!canMutate) return false
         var selected = String(country || "").trim()
-        if (isEnabled && countryOptions.indexOf(selected) < 0) return false
+        if (isEnabled && selected && (countriesState !== "Ready" || countryOptions.indexOf(selected) < 0)) return false
         var argv = isEnabled
-            ? [cli, "set", "autoconnect", "enabled", selected]
+            ? [cli, "set", "autoconnect", "enabled"].concat(selected ? [selected] : [])
             : [cli, "set", "autoconnect", "disabled"]
         vpnActionMessage = "Updating auto-connect…"
         return _runAction(argv)
@@ -118,6 +130,8 @@ Item {
 
     function connectVpn() {
         if (!canMutate) return false
+        var target = preferredCountry || (/^(enabled|on|yes|true)$/i.test(String(vpnSettings["auto-connect"] || "")) ? preferredAutoCountry : "")
+        if (target) return connectVpnCountry(target)
         vpnMessage = ""
         vpnState = "Connecting"
         return _runAction([cli, "connect"])
@@ -193,7 +207,6 @@ Item {
             meshnet: ["meshnet", "meshnet"],
             "lan-discovery": ["lan-discovery", "lan-discovery"],
             routing: ["routing", "routing"],
-            "virtual-location": ["virtual-location", "virtual-location"],
             "arp-ignore": ["arp-ignore", "arp-ignore"],
             "post-quantum-vpn": ["post-quantum", "post-quantum-vpn"]
         }
@@ -277,6 +290,28 @@ Item {
             } else {
                 refreshCountries()
             }
+    }
+
+    Process {
+        command: ["mkdir", "-p", Quickshell.env("HOME") + "/.cache/quickshell-rise"]
+        running: true
+        onExited: function(code) { if (code === 0) countryPreferences.reload() }
+    }
+    FileView {
+        id: countryPreferences
+        path: Quickshell.env("HOME") + "/.cache/quickshell-rise/nordvpn-countries.json"
+        blockWrites: true
+        atomicWrites: true
+        printErrors: false
+        onLoaded: {
+            try {
+                var data = JSON.parse(text())
+                if (/^[A-Za-z][A-Za-z_ -]{0,63}$/.test(String(data.country || "")))
+                    controller.preferredCountry = String(data.country)
+                if (/^[A-Za-z][A-Za-z_ -]{0,63}$/.test(String(data.autoCountry || "")))
+                    controller.preferredAutoCountry = String(data.autoCountry)
+            } catch (error) { /* Missing/invalid preferences leave country unselected. */ }
+        }
     }
 
     Process {
