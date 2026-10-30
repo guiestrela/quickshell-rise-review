@@ -29,7 +29,13 @@ check() {
 }
 
 shell_files=(install.sh uninstall.sh scripts/qs-barctl scripts/qs-proj scripts/*.sh tests/*.sh)
-check "shell syntax" bash -n "${shell_files[@]}"
+check_shell_syntax() {
+  local file
+  for file in "${shell_files[@]}"; do
+    bash -n "$file" || return "$?"
+  done
+}
+check "shell syntax" check_shell_syntax
 
 if command -v shellcheck >/dev/null 2>&1; then
   check "ShellCheck" shellcheck --severity=warning "${shell_files[@]}"

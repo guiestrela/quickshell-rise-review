@@ -243,6 +243,7 @@ SCRIPT
 set -euo pipefail
 [[ -d ${1:?} ]]
 printf 'install-ai-backends\n' >> "${QSR_TEST_LOG:?}"
+[[ ${QSR_TEST_AI_FAIL:-false} != true ]]
 SCRIPT
   chmod 0755 "$repo/scripts/install-ai-backends"
 
@@ -645,6 +646,39 @@ run_uninstaller() {
   QSR_COMMAND_TIMEOUT=1 \
   PATH="$root/bin:$HOST_BIN" \
     bash "$UNINSTALLER"
+}
+
+case_installer_failure_safety() {
+  local root="$WORK/installer-locked" dest
+  make_installer_case "$root"
+  mkdir -p "$root/state/quickshell-rise" "$root/home/.config/quickshell/.qs-install-stage.active"
+  printf 'keep\n' > "$root/home/.config/quickshell/.qs-install-stage.active/sentinel"
+  (
+    exec 8>"$root/state/quickshell-rise/install.lock"
+    flock -n 8 || fail "fixture lock acquisition"
+    if run_installer_without_tty "$root" --no-autostart; then
+      fail "concurrent installation was accepted"
+    fi
+  )
+  assert_contains "Another Rise installation" "$root/installer.out" "lock rejection"
+  assert_file "$root/home/.config/quickshell/.qs-install-stage.active/sentinel" "active stage preserved"
+  [[ ! -s "$root/actions.log" ]] || fail "locked installer changed runtime"
+
+  root="$WORK/installer-ai-failure"
+  make_installer_case "$root"
+  dest="$root/home/.config/quickshell/bar"
+  mkdir -p "$dest" "$root/state/quickshell-rise"
+  printf 'original payload\n' > "$dest/shell.qml"
+  printf 'V1\n' > "$dest/.qsrise"
+  printf 'v2\n' > "$root/state/quickshell-rise/active-variant"
+  if QSR_TEST_AI_FAIL=true run_installer_without_tty "$root" --no-autostart; then
+    fail "collector failure was ignored"
+  fi
+  assert_contains "original payload" "$dest/shell.qml" "payload preserved on collector failure"
+  assert_contains "v2" "$root/state/quickshell-rise/active-variant" "variant preserved on collector failure"
+  assert_contains "install-ai-backends" "$root/actions.log" "collector attempted"
+  assert_not_contains "stop" "$root/actions.log" "bar not stopped on collector failure"
+  assert_not_contains "hide" "$root/actions.log" "stock bar not hidden on collector failure"
 }
 
 case_runtime_toggle_ownership() (
@@ -1349,6 +1383,7 @@ case_static_contracts() {
 }
 
 case_installer_interactive_prompt_matrix
+case_installer_failure_safety
 case_runtime_toggle_ownership
 case_runtime_postboot_order_and_fail_open
 case_runtime_postboot_uses_controller_selection

@@ -87,6 +87,12 @@ if ((${#miss[@]})); then
   warn "On Arch:  sudo pacman -S quickshell git jq curl pacman-contrib coreutils util-linux procps-ng"
   exit 1
 fi
+# Serialize installers before changing fonts, state, or staged payloads. Keep the
+# lock file in place: unlinking it would allow a second lock on a new inode.
+mkdir -p "$QSR_STATE_ROOT"
+exec 9>"$QSR_STATE_ROOT/install.lock"
+flock -n 9 || { err "Another Rise installation is running; try again when it finishes."; exit 1; }
+
 optmiss=()
 for b in "${opt[@]}"; do command -v "$b" >/dev/null 2>&1 || optmiss+=("$b"); done
 ((${#optmiss[@]})) && warn "Optional tools missing (some widgets disabled): ${optmiss[*]}"
@@ -149,7 +155,7 @@ cleanup_install() {
     fi
     if [[ -f "$DEST/shell.qml" && "${stock_provider_restored:-false}" != true ]] \
         && declare -F qsr_start_bar >/dev/null 2>&1; then
-      qsr_start_bar >/dev/null 2>&1 || true
+      qsr_start_bar 9>&- >/dev/null 2>&1 || true
     fi
   fi
   if [[ -n "${restore_src:-}" && -d "$restore_src" && ! -e "$DEST" ]]; then
@@ -282,6 +288,11 @@ fi
 choice="${choice^^}"
 printf '%s\n' "${versions[@]}" | grep -qx "$choice" || { err "Unknown UI variant: $choice"; exit 1; }
 
+# Install required collectors before stopping or replacing the existing bar.
+# A failure can be repaired by rerunning the collector installer; the current
+# bar payload and active variant remain untouched.
+install_ai_backends "$tmp/repo" 9>&-
+
 # ── 4. install ──────────────────────────────────────────────────
 # back up only a FOREIGN config (no .qsrise marker). Re-installing our own bar
 # uses a same-parent stage/rename so custom quotes are never held only in /tmp.
@@ -395,7 +406,7 @@ fi
 # start-wait contract validates lifecycle.ready(), a stable instance identity and
 # exactly one integrated bar. The explicit status check also rejects a healthy V1
 # fallback when V2 was requested (and vice versa).
-if ! verify_selected_variant; then
+if ! verify_selected_variant 9>&-; then
   # This only restores a bar-off state previously owned by Rise. A state set by
   # the user or another tool is never claimed or changed automatically.
   if [[ "$quattro_mode" == true ]] && ! qsr_release_owned_stock_bar; then
@@ -491,8 +502,5 @@ if [[ "$quattro_mode" == true ]]; then
     fi
   fi
 fi
-
-# ── 8. Required AI usage collectors ─────────────────────────────
-install_ai_backends "$tmp/repo"
 
 info "${c_b}Done — enjoy!${c_0}"
