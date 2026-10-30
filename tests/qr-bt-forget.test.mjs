@@ -36,6 +36,9 @@ for (const [variant, relativePath] of variants) {
       forgetReadbackPending: false, forgetCommandAdapter: '', forgetCommandDevice: '',
       forgetProc: { running: false }, connProc: { running: false },
     };
+    ctx.btPanel = ctx;
+    ctx.trustPending = false;
+    Object.defineProperty(ctx, 'connectionBusy', { get: () => ctx.connProc.running });
     for (const fn of ['validBluetoothIdentity', 'requestForgetDevice', 'cancelForgetDevice', 'confirmForgetDevice']) {
       ctx[fn] = vm.runInNewContext(`(${extractFunction(qml, fn)})`, ctx);
     }

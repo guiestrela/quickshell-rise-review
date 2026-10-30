@@ -4,25 +4,35 @@ This guide covers repository startup, duplicate-bar prevention, regression tests
 
 ## Start the repository copy
 
-Stop the installed bar before you launch the checkout. Two bars can overlap and reserve the screen edge twice.
+The installed plugin runs inside `omarchy-shell`. The legacy `qs-barctl`
+controller does not stop that plugin. Disable Rise and restart the shell before
+launching a standalone development copy:
 
 ```bash
-$HOME/.config/quickshell/bin/qs-barctl stop-wait
+omarchy plugin disable io.github.guiestrela.quickshell-rise
+omarchy restart shell
 ```
 
-From the repository root, start the integrated shell entry point:
+From the repository root, run:
 
 ```bash
 qs -p "$PWD/versions/V1/shell.qml"
 ```
 
-The entry point can load either isolated variant through the shared `VariantHost`. It reads the same external active-variant state as the installed generation.
+This entry point loads either variant through `VariantHost` and reads the same
+external active-variant state as the installed plugin. A variant change in this
+copy can therefore persist for the installed plugin too.
 
-Press `Ctrl+C` in the launching terminal to stop the development process. Restore the installed bar afterward:
+Press `Ctrl+C` to stop the development copy before restoring the installed bar:
 
 ```bash
-$HOME/.config/quickshell/bin/qs-barctl start-wait
+omarchy plugin enable io.github.guiestrela.quickshell-rise
+omarchy restart shell
 ```
+
+For a legacy standalone installation only, use `qs-barctl stop-wait` before
+launching the checkout and `qs-barctl start-wait` after stopping it. Never start
+that standalone controller beside an enabled Rise plugin.
 
 Use the same literal configuration path for startup, logs, IPC, and process selection. Do not replace it with a symlink or a different canonical path during one test run.
 

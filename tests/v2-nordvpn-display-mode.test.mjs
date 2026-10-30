@@ -29,7 +29,7 @@ test('V2 NordVPN exposes the native Full/Icon control on G19', () => {
 
 test('existing V2 mode functions toggle and persist only G19 without altering other groups', () => {
   let saves = 0;
-  const ctx = { iconOnlyGids: ['G7'], _widgetsLoaded: true, saveWidgets() { saves++; }, gid: 'G19' };
+  const ctx = { barVertical: false, iconOnlyGids: ['G7'], _widgetsLoaded: true, saveWidgets() { saves++; }, gid: 'G19' };
   vm.createContext(ctx);
   vm.runInContext(`(function(){${body('function toggleIconOnly(gid)')}})()`, ctx);
   assert.equal(vm.runInContext(`(function(){${body('function iconOnly(gid)')}})()`, ctx), true);
@@ -39,4 +39,7 @@ test('existing V2 mode functions toggle and persist only G19 without altering ot
   vm.runInContext(`(function(){${body('function toggleIconOnly(gid)')}})()`, ctx);
   assert.deepEqual(Array.from(ctx.iconOnlyGids), ['G7']);
   assert.equal(saves, 2);
+  ctx.barVertical = true;
+  assert.equal(vm.runInContext(`(function(){${body('function iconOnly(gid)')}})()`, ctx), true);
+  assert.deepEqual(Array.from(ctx.iconOnlyGids), ['G7'], 'vertical layout does not change saved modes');
 });

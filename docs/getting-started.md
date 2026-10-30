@@ -1,10 +1,14 @@
 # Install Quickshell Rise
 
-This guide covers requirements, installation, removal, autostart, and the initial V1 or V2 choice. The installer verifies the selected interface before it changes the active stock-bar state.
+Rise runs inside Omarchy's existing shell as a full-bar plugin. Use the plugin
+manager for installation, activation, and updates. The standalone instructions
+later in this guide apply only to legacy installations.
 
 ## Check the requirements
 
-Quickshell Rise targets Omarchy and Hyprland on Arch Linux. The installer checks each required command and stops before changing your configuration when one is missing.
+The supported plugin requires Omarchy with its Quickshell plugin system.
+Install fonts before enabling Rise. The dependency checks in the legacy
+standalone installer do not run when the plugin manager adds Rise.
 
 Install the required packages:
 
@@ -44,7 +48,45 @@ their local sessions/credentials and supported data sources are available;
 OpenCode needs its local usage database; Copilot needs existing `gh` auth.
 Without provider data, the widget has no usage to show; the bar remains usable.
 
-## Install an interface
+## Install the Omarchy plugin
+
+Follow the complete [README installation command](../README.md#install) to install
+fonts, CAVA, the plugin, AI collectors, and the optional recovery hook.
+For a minimal plugin installation after its dependencies are available:
+
+```bash
+omarchy plugin add https://github.com/guiestrela/quickshell-rise-review.git --enable
+omarchy restart shell
+```
+
+The plugin lives at `~/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise`.
+The plugin manager does not execute `install.sh` or install AI collectors; use
+the separate collector command in the README. Enabling the plugin loads Rise
+at shell startup; no standalone post-boot hook is needed.
+
+Both variants are included. Switch through Rise's controls or its scoped IPC:
+
+```bash
+quickshell ipc -p "$OMARCHY_PATH/shell" call quickshell-rise.variant activate v2
+```
+
+To return to the built-in bar:
+
+```bash
+omarchy plugin disable io.github.guiestrela.quickshell-rise
+omarchy restart shell
+```
+
+Disabling preserves the installed plugin and settings. Do not use the legacy
+uninstaller below to remove a plugin-managed installation.
+
+## Legacy standalone installation
+
+The remaining installation, autostart, and removal commands in this guide are
+for the standalone `~/.config/quickshell/bar` layout only. Do not run them beside
+an enabled Rise plugin.
+
+### Install an interface
 
 The V1 and V2 arguments select the interface that opens after installation. Both interfaces are installed inside the same shell generation.
 
@@ -64,7 +106,7 @@ The installer writes the shell to `~/.config/quickshell/bar`. A foreign configur
 
 Reinstalling Rise keeps the previously active interface unless you pass `V1` or `V2`. It also preserves a custom `quotes.txt` from the installed Rise directory.
 
-## Legacy standalone installer flags
+### Legacy standalone installer flags
 
 The standalone `install.sh` also installs AI usage collectors on every run.
 `--ai-backend` is accepted as a compatibility no-op; `--no-ai-backend` is
@@ -91,13 +133,13 @@ Omarchy installs print the manual hook commands. A non-interactive install witho
 either flag starts Rise for the current session and leaves persistent startup
 unchanged.
 
-## Understand autostart behavior
+### Understand autostart behavior
 
 On Omarchy Quattro, `--autostart` hides the stock bar only after Rise reports the requested variant and `ready=true`. Rise records ownership of that hidden state so the uninstaller can restore it without overriding a choice made by another tool.
 
 On Omarchy installations without Quattro, Rise starts after login through the same post-boot hook. Other Hyprland environments need their own session startup entry because they do not expose the Omarchy hook system.
 
-## Install the post-boot hook manually
+### Install the post-boot hook manually
 
 Install the published Omarchy hook when Rise is already installed without `--autostart`:
 
@@ -111,7 +153,7 @@ chmod +x "$HOME/.config/omarchy/hooks/post-boot.d/quickshell-rise"
 
 The hook starts Rise, waits for lifecycle readiness, and then hides an owned Quattro stock bar. It leaves the stock bar visible when Rise does not become healthy.
 
-## Remove Quickshell Rise
+### Remove Quickshell Rise
 
 The uninstaller stops the registered Rise instance, removes installed helpers and hooks, and restores the previous configuration when a backup exists.
 

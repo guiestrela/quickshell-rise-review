@@ -20,7 +20,7 @@ for (const variant of ['versions/V1', 'versions/V1/variants/V2']) {
     const target = {mac: '12:34:56:78:9A:BC', adapterId: 'hci1', dbusPath: '/org/bluez/hci1/dev_12_34_56_78_9A_BC'};
     function run(rows, live) {
       const panel = {forgetReadbackPending: true, forgetTarget: {...target}, forgetError: '', forgetNotice: ''};
-      vm.runInNewContext(block, {btPanel: panel, devs: rows, Bluetooth: {devices: {values: live}}});
+      vm.runInNewContext(block, {btPanel: panel, devs: rows, nativeDevices: live});
       return panel;
     }
     const native = {...target, paired: true, adapter: {adapterId: 'hci1'}};

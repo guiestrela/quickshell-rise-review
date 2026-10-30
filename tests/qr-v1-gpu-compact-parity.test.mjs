@@ -4,7 +4,7 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 const read=p=>fs.readFileSync('versions/V1/'+p,'utf8');
 test('GPU full and compact display follow CPU, with percent in both modes',()=>{
- const q=read('modules/GpuWidget.qml');assert.match(q,/Canvas/);assert.match(q,/readonly property var history: root.gpuHistory/);assert.match(q,/text: "GPU"/);assert.match(q,/visible: root.compactGpu/);assert.match(q,/gpu-card.svg/);
+ const q=read('modules/GpuWidget.qml');assert.match(q,/Canvas/);assert.match(q,/readonly property var history: root.gpuHistory/);assert.match(q,/text: "GPU"/);assert.match(q,/visible: rootMod.verticalCompact/);assert.match(q,/gpu-card.svg/);
  assert.equal((q.match(/text: String\(Math.min\(100, rootMod.percent\)\)/g)||[]).length,2);
 });
 test('GPU history comes from existing telemetry, bounded and cleared on unavailable',()=>{
