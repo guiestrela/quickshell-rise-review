@@ -3,7 +3,7 @@ import Quickshell.Io
 
 Item {
     id: controller
-    property bool enabled: false
+    property bool pollingEnabled: false
     property int refreshInterval: 15000
     property var command: ["nordvpn", "status"]
     property string status: "Unknown"
@@ -11,13 +11,13 @@ Item {
     readonly property bool busy: statusProcess.running
 
     function refresh() {
-        if (!enabled || statusProcess.running) return false
+        if (!pollingEnabled || statusProcess.running) return false
         statusProcess.running = true
         return true
     }
 
-    onEnabledChanged: {
-        if (!enabled) {
+    onPollingEnabledChanged: {
+        if (!pollingEnabled) {
             if (statusProcess.running) statusProcess.running = false
             status = "Unknown"
         }
@@ -44,7 +44,7 @@ Item {
 
     Timer {
         interval: Math.max(2000, controller.refreshInterval)
-        running: controller.enabled
+        running: controller.pollingEnabled
         repeat: true
         triggeredOnStart: true
         onTriggered: controller.refresh()

@@ -16,13 +16,13 @@ ShellRoot {
     }
 
     VariantHost {
-        id: variantHost
+        id: variantController
         stateService: variantState
         v1Source: Qt.resolvedUrl("VariantRoot.qml")
         v2Source: Qt.resolvedUrl("variants/V2/VariantRoot.qml")
     }
 
     IpcRouter {
-        variantHost: variantHost
+        variantHost: variantController
     }
 }

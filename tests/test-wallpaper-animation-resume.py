@@ -14,8 +14,8 @@ with tempfile.TemporaryDirectory(prefix='resume-render-',dir=os.environ['TMPDIR'
   renderer=renderer.replace('                id: wallpaperWindow','                id: wallpaperWindow\n                required property var manager\n                property int frameCount:0\n                width:320; height:180',1)
   renderer=re.sub(r'^\s*(?:screen:|anchors \{ top: true; bottom: true; left: true; right: true \}|exclusionMode:|WlrLayershell\.).*\n','',renderer,flags=re.M)
   renderer=renderer.replace('                AnimatedImage {','                AnimatedImage {\n                    objectName: "qa-gif"',1)
-  renderer=renderer.replace('                    id: videoOutput','                    id: videoOutput\n                    objectName: "qa-output"',1)
-  renderer=renderer.replace('                MediaPlayer {','                Connections { target:videoOutput.videoSink; function onVideoFrameChanged(){wallpaperWindow.frameCount++} }\n                MediaPlayer {\n                    objectName: "qa-player"',1)
+  renderer=renderer.replace('                    id: wallpaperVideoOutput','                    id: wallpaperVideoOutput\n                    objectName: "qa-output"',1)
+  renderer=renderer.replace('                MediaPlayer {','                Connections { target:wallpaperVideoOutput.videoSink; function onVideoFrameChanged(){wallpaperWindow.frameCount++} }\n                MediaPlayer {\n                    objectName: "qa-player"',1)
   (t/f'RenderV{i}.qml').write_text('import QtQuick\nimport QtMultimedia\n'+renderer)
  qml='''import QtQuick
 import QtMultimedia

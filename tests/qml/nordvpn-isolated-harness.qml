@@ -27,13 +27,13 @@ Window {
 
     NordVpnStatus {
         id: vpnStatus
-        enabled: true
+        pollingEnabled: true
         refreshInterval: 5000
         command: ["node", "tests/fixtures/nordvpn-cli-stub.mjs", "status"]
     }
     NordVpnStatus {
         id: disabledStatus
-        enabled: false
+        pollingEnabled: false
         refreshInterval: 5000
         command: ["node", "tests/fixtures/nordvpn-cli-stub.mjs", "status"]
     }

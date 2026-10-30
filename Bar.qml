@@ -22,13 +22,13 @@ Item {
     property var barWidgetRegistry: null
 
     // Shared services read these from shell.bar, including during variant swaps.
-    readonly property string fontFamily: variantHost.activeItem
-        ? variantHost.activeItem.fontFamily : "JetBrainsMono Nerd Font"
-    readonly property string position: variantHost.activeItem
-        ? variantHost.activeItem.position : "top"
-    readonly property int barSize: variantHost.activeItem
-        ? variantHost.activeItem.barSize : 35
-    readonly property bool barHidden: !variantHost.ready
+    readonly property string fontFamily: variantController.activeItem
+        ? variantController.activeItem.fontFamily : "JetBrainsMono Nerd Font"
+    readonly property string position: variantController.activeItem
+        ? variantController.activeItem.position : "top"
+    readonly property int barSize: variantController.activeItem
+        ? variantController.activeItem.barSize : 35
+    readonly property bool barHidden: !variantController.ready
 
     width: 0
     height: 0
@@ -37,7 +37,7 @@ Item {
     WallpaperWakeBridge { id: wakeBridge }
 
     VariantHost {
-        id: variantHost
+        id: variantController
         stateService: variantState
         wallpaperWakeAvailable: wakeBridge.available
         wallpaperSessionLocked: wakeBridge.locked
@@ -46,5 +46,5 @@ Item {
         v2Source: Qt.resolvedUrl("versions/V1/variants/V2/VariantRoot.qml")
     }
 
-    IpcRouter { variantHost: variantHost }
+    IpcRouter { variantHost: variantController }
 }

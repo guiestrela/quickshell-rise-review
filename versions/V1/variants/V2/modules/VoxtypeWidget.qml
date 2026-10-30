@@ -7,13 +7,13 @@ Item {
     required property var root
     readonly property color contentColor: root.widgetContentColor("G8", root.ink)
 
-    readonly property string state: root.voxState   // idle | recording | transcribing
+    readonly property string voiceState: root.voxState   // idle | recording | transcribing
     readonly property string hint:  root.voxHint
     readonly property bool   hasVoxtype: root.voxAvailable
 
     readonly property string displayIcon: {
-        if (state === "recording")    return "\uE029"   // mic
-        if (state === "transcribing") return "\uE65F"   // auto_awesome
+        if (voiceState === "recording")    return "\uE029"   // mic
+        if (voiceState === "transcribing") return "\uE65F"   // auto_awesome
         return ""
     }
 
@@ -22,7 +22,7 @@ Item {
     implicitHeight: 28
 
 
-    readonly property string tooltipText: hint !== "" ? hint : (state === "recording" ? "Voxtype recording" : "Voxtype transcribing")
+    readonly property string tooltipText: hint !== "" ? hint : (voiceState === "recording" ? "Voxtype recording" : "Voxtype transcribing")
 
     IconText {
         id: ico
@@ -30,17 +30,17 @@ Item {
         text: rootMod.displayIcon
         color: root.widgetHasFill("G8")
             ? rootMod.contentColor
-            : (rootMod.state === "recording" ? root.seal : root.ink)
+            : (rootMod.voiceState === "recording" ? root.seal : root.ink)
         font.pixelSize: 14
 
         // pulse while recording
         SequentialAnimation on opacity {
-            running: rootMod.state === "recording"
+            running: rootMod.voiceState === "recording"
             loops: Animation.Infinite
             NumberAnimation { to: 0.35; duration: 600; easing.type: Easing.InOutSine }
             NumberAnimation { to: 1.0;  duration: 600; easing.type: Easing.InOutSine }
         }
-        onTextChanged: if (rootMod.state !== "recording") opacity = 1.0
+        onTextChanged: if (rootMod.voiceState !== "recording") opacity = 1.0
     }
 
     Process { id: modelProc;  command: ["bash", "-c", "omarchy-voxtype-model"] }

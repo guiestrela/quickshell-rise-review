@@ -370,7 +370,7 @@ Item {
                 }
 
                 VideoOutput {
-                    id: videoOutput
+                    id: wallpaperVideoOutput
                     anchors.centerIn: parent
                     width: wallpaperWindow.scaling === "actual" ? implicitWidth : parent.width
                     height: wallpaperWindow.scaling === "actual" ? implicitHeight : parent.height
@@ -384,7 +384,7 @@ Item {
                         ? manager.fileUrl(wallpaperWindow.imagePath) : ""
                     autoPlay: wallpaperWindow.visible && wallpaperWindow.video && !wallpaperWindow.animationBlocked
                     loops: MediaPlayer.Infinite
-                    videoOutput: videoOutput
+                    videoOutput: wallpaperVideoOutput
                     audioOutput: AudioOutput { muted: true }
                     onErrorOccurred: function(error, errorString) {
                         if (error !== MediaPlayer.NoError) manager.markBad(wallpaperWindow.imagePath)
