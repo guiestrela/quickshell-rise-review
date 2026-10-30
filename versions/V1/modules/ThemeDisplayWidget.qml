@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell
 
 Item {
     id: rootMod
@@ -14,9 +13,9 @@ Item {
         text: "palette"
         font.pixelSize: 14
         font.weight: Font.Normal
-        color: root.imagePickerVisible
-            ? root.seal
-            : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.65)
+        color: rootMod.root.imagePickerVisible
+            ? rootMod.root.seal
+            : Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.65)
         Behavior on color { ColorAnimation { duration: 150 } }
     }
 

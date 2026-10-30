@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell
 import Quickshell.Io
 
 Item {
@@ -40,13 +39,13 @@ Item {
         }
 
         UiText {
-            visible: !root.iconOnly("G6")
+            visible: !rootMod.root.iconOnly("G6")
             anchors.verticalCenter: parent.verticalCenter
             text: String(rootMod.volume).padStart(2, '0') + "%"
             color: rootMod.muted
                 ? Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.35)
                 : rootMod.contentColor
-            font.family: root.mono
+            font.family: rootMod.root.mono
             font.pixelSize: 12
             Behavior on color { ColorAnimation { duration: 160 } }
         }
@@ -125,7 +124,7 @@ Item {
         onClicked: (e) => {
             tip.hide()
             if (e.button === Qt.RightButton) { if (!muteRunner.running) muteRunner.running = true }
-            else                             { root.volVisible = !root.volVisible }
+            else                             { rootMod.root.volVisible = !rootMod.root.volVisible }
         }
     }
 }

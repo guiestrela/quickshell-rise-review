@@ -1,13 +1,12 @@
 import QtQuick
-import Quickshell
 import Quickshell.Io
 
 Item {
     id: rootMod
     required property var root
-    readonly property bool verticalCompact: root.barVertical === true || root.compactPower
+    readonly property bool verticalCompact: rootMod.root.barVertical === true || rootMod.root.compactPower
 
-    property string profile: root.powerProfileCurrent
+    property string profile: rootMod.root.powerProfileCurrent
 
     readonly property bool isPowerSaver:  profile === "power-saver"
     readonly property bool isBalanced:    profile === "balanced"
@@ -26,9 +25,9 @@ Item {
     }
 
     readonly property color profileColor: {
-        if (isPowerSaver)  return root.indigo
-        if (isPerformance) return root.seal
-        return root.seal
+        if (isPowerSaver)  return rootMod.root.indigo
+        if (isPerformance) return rootMod.root.seal
+        return rootMod.root.seal
     }
 
     readonly property string tooltipText: {
@@ -38,21 +37,21 @@ Item {
     }
 
     visible: implicitWidth > 0.5
-    implicitWidth: root.modPower ? row.implicitWidth + 18 : 0
+    implicitWidth: rootMod.root.modPower ? row.implicitWidth + 18 : 0
     implicitHeight: 28
-    opacity: root.modPower ? 1 : 0
+    opacity: rootMod.root.modPower ? 1 : 0
 
     Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
 
     Rectangle {
         x: 0; anchors.verticalCenter: parent.verticalCenter
         width: Math.round(row.width) + 18
-        height: root.pillH
-        radius: root.pillRadius
-        color: root.pill
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
+        height: rootMod.root.pillH
+        radius: rootMod.root.pillRadius
+        color: rootMod.root.pill
+        border.color: rootMod.root.pillBorder
+        border.width: rootMod.root.pillBorderW
+        PillShadow { theme: rootMod.root }
     }
 
     Row {
@@ -64,8 +63,8 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: !rootMod.verticalCompact
             text: "PWR"
-            color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
-            font.family: root.mono
+            color: Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.6)
+            font.family: rootMod.root.mono
             font.pixelSize: 12
             font.letterSpacing: 0.5
         }
@@ -76,7 +75,7 @@ Item {
             text: rootMod.profileIcon
             renderType: Text.QtRendering
             color: rootMod.profileColor
-            font.family: root.mono
+            font.family: rootMod.root.mono
             font.pixelSize: rootMod.isBalanced ? 13 : 14
             Behavior on color { ColorAnimation { duration: 200 } }
         }
@@ -86,7 +85,7 @@ Item {
             visible: !rootMod.verticalCompact
             text: rootMod.shortName
             color: rootMod.profileColor
-            font.family: root.mono
+            font.family: rootMod.root.mono
             font.pixelSize: 12
             Behavior on color { ColorAnimation { duration: 200 } }
         }
@@ -99,13 +98,13 @@ Item {
         stdout: StdioCollector {
             onStreamFinished: {
                 var p = this.text.trim()
-                if (p) { rootMod.profile = p; root.powerProfileCurrent = p }
+                if (p) { rootMod.profile = p; rootMod.root.powerProfileCurrent = p }
             }
         }
     }
 
     Timer {
-        interval: 5000; running: root.modPower || root.powerProfileVisible; repeat: true; triggeredOnStart: true
+        interval: 5000; running: rootMod.root.modPower || rootMod.root.powerProfileVisible; repeat: true; triggeredOnStart: true
         onTriggered: { profileProc.running = false; profileProc.running = true }
     }
 
@@ -126,14 +125,14 @@ Item {
         onClicked: (e) => {
             tip.hide()
             if (e.button === Qt.RightButton) {
-                var profiles = ["power-saver", "balanced", "performance"]
-                var idx = profiles.indexOf(root.powerProfileCurrent)
-                var next = profiles[(Math.max(0, idx) + 1) % profiles.length]
+                const profiles = ["power-saver", "balanced", "performance"]
+                const idx = profiles.indexOf(rootMod.root.powerProfileCurrent)
+                const next = profiles[(Math.max(0, idx) + 1) % profiles.length]
                 setProfileProc.command = ["bash", "-c", "powerprofilesctl set " + next]
                 setProfileProc.running = false; setProfileProc.running = true
-                root.powerProfileCurrent = next
+                rootMod.root.powerProfileCurrent = next
             } else {
-                root.powerProfileVisible = !root.powerProfileVisible
+                rootMod.root.powerProfileVisible = !rootMod.root.powerProfileVisible
             }
         }
     }

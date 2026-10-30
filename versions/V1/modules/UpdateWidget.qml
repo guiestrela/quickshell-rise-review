@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell
 import Quickshell.Io
 
 Item {
@@ -7,7 +6,7 @@ Item {
     required property var root
 
     property bool updateAvailable: false
-    onUpdateAvailableChanged: root.omarchyUpdateAvail = updateAvailable   // mirror for the swarm reactor
+    onUpdateAvailableChanged: rootMod.root.omarchyUpdateAvail = updateAvailable   // mirror for the swarm reactor
 
     visible: updateAvailable
     implicitWidth: updateAvailable ? 20 : 0
@@ -19,7 +18,7 @@ Item {
     IconText {
         anchors.centerIn: parent
         text: "\uE627"   // sync
-        color: root.seal
+        color: rootMod.root.seal
         font.pixelSize: 15
     }
 

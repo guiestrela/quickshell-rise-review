@@ -51,23 +51,23 @@ Item {
     }
     Process {
         id: statusProc
-        stdout: StdioCollector { waitForEnd: true }
-        stderr: StdioCollector { waitForEnd: true }
+        stdout: StdioCollector { id: rollbackStatusOutput; waitForEnd: true }
+        stderr: StdioCollector { id: rollbackStatusErrorOutput; waitForEnd: true }
         onExited: (code) => {
             if (!controller.rollbackPending || controller.confirmationBusy) return
-            if (code !== 0) { controller.error = String(stderr.text || "Could not verify rollback state.").trim(); return }
-            try { controller.updateRollback(String(stdout.text)) }
+            if (code !== 0) { controller.error = String(rollbackStatusErrorOutput.text || "Could not verify rollback state.").trim(); return }
+            try { controller.updateRollback(String(rollbackStatusOutput.text)) }
             catch (e) { controller.error = String(e) }
         }
     }
     Process {
         id: confirmationProc
-        stdout: StdioCollector { waitForEnd: true }
-        stderr: StdioCollector { waitForEnd: true }
+        stdout: StdioCollector { id: confirmationOutput; waitForEnd: true }
+        stderr: StdioCollector { id: confirmationErrorOutput; waitForEnd: true }
         onExited: (code) => {
             controller.confirmationBusy = false
-            if (code !== 0) { controller.error = String(stderr.text || "Confirmation failed; automatic rollback remains armed.").trim(); return }
-            try { controller.updateRollback(String(stdout.text)) }
+            if (code !== 0) { controller.error = String(confirmationErrorOutput.text || "Confirmation failed; automatic rollback remains armed.").trim(); return }
+            try { controller.updateRollback(String(confirmationOutput.text)) }
             catch (e) { controller.error = String(e) }
         }
     }
@@ -156,8 +156,8 @@ Item {
     }
     Process {
         id: workspaceStateProc
-        stdout: StdioCollector { waitForEnd: true }
-        stderr: StdioCollector { waitForEnd: true }
+        stdout: StdioCollector { id: workspaceStateOutput; waitForEnd: true }
+        stderr: StdioCollector { id: workspaceStateErrorOutput; waitForEnd: true }
         onExited: (code) => {
             if (!controller.workspaceLoading) return
             controller.workspaceLoading = false
@@ -166,7 +166,7 @@ Item {
             }
             if (code !== 0) { controller.workspaceStateReady = false; controller.workspaceError = "Could not read workspace assignments."; return }
             try {
-                var state = JSON.parse(String(stdout.text))
+                var state = JSON.parse(String(workspaceStateOutput.text))
                 for (var values of [state.bindings, state.overrides]) {
                     if (!values || typeof values !== "object" || Array.isArray(values) || Object.keys(values).length > 10) throw new Error("Invalid workspace state")
                     for (var key of Object.keys(values)) if (!/^(10|[1-9])$/.test(key) || !controller.safeMonitor(values[key])) throw new Error("Invalid workspace assignment")
@@ -505,7 +505,10 @@ Item {
         if (primary && entries.length > 1) entries.sort(function(a, b) { return a.output === primary ? -1 : b.output === primary ? 1 : 0 })
         var workspaces = []
         if (theme.displayManagerAutoWorkspaces && extended.length) {
-            if (primary) extended.splice(extended.indexOf(primary), 1), extended.unshift(primary)
+            if (primary) {
+                extended.splice(extended.indexOf(primary), 1)
+                extended.unshift(primary)
+            }
             for (var ws = 1; ws <= 10; ws++) {
                 var target = extended.length === 1 ? extended[0] : extended.length === 2 ? extended[(ws % 2 === 1) ? 0 : 1] : extended[(ws - 1) % extended.length]
                 workspaces.push({ workspace: ws, monitor: target })
@@ -541,14 +544,14 @@ Item {
 
     Process {
         id: monitorProc
-        stdout: StdioCollector { waitForEnd: true }
-        stderr: StdioCollector { waitForEnd: true }
+        stdout: StdioCollector { id: monitorOutput; waitForEnd: true }
+        stderr: StdioCollector { id: monitorErrorOutput; waitForEnd: true }
         onExited: (code) => {
             if (controller.queryTimedOut) return
-            if (code !== 0) { controller.error = String(stderr.text || "Could not query Hyprland monitors.").trim() }
+            if (code !== 0) { controller.error = String(monitorErrorOutput.text || "Could not query Hyprland monitors.").trim() }
             else {
                 try {
-                    var parsed = JSON.parse(String(stdout.text || ""))
+                    var parsed = JSON.parse(String(monitorOutput.text || ""))
                     if (!Array.isArray(parsed) || parsed.length > 32) throw new Error("Invalid monitor response")
                     for (var i = 0; i < parsed.length; i++) if (!controller.safeMonitor(parsed[i].name)) throw new Error("Invalid monitor name")
                     controller.monitors = parsed
@@ -573,7 +576,7 @@ Item {
     }
     Process {
         id: stateProc
-        stdout: StdioCollector { waitForEnd: true }
+        stdout: StdioCollector { id: brightnessOutput; waitForEnd: true }
         onExited: (code) => {
             if (controller.queryTimedOut) return
             if (code !== 0) {
@@ -581,7 +584,7 @@ Item {
                 controller.displays = []
             } else {
                 try {
-                    var data = JSON.parse(String(stdout.text || ""))
+                    var data = JSON.parse(String(brightnessOutput.text || ""))
                     if (data.monitor !== controller.selectedMonitor) {
                         controller.brightnessAvailable = false
                         controller.refreshPending = true
@@ -599,16 +602,16 @@ Item {
     }
     Process {
         id: actionProc
-        stdout: StdioCollector { waitForEnd: true }
-        stderr: StdioCollector { waitForEnd: true }
+        stdout: StdioCollector { id: actionOutput; waitForEnd: true }
+        stderr: StdioCollector { id: actionErrorOutput; waitForEnd: true }
         onExited: (code) => {
             if (controller.actionTimedOut) return
             controller.busy = false
-            if (code !== 0) { controller.extraQueue = []; controller.error = String(stderr.text || "Display operation failed.").trim() }
+            if (code !== 0) { controller.extraQueue = []; controller.error = String(actionErrorOutput.text || "Display operation failed.").trim() }
             else {
                 controller.error = ""
                 if (controller.guardedAction) {
-                    try { controller.updateRollback(String(stdout.text)) }
+                    try { controller.updateRollback(String(actionOutput.text)) }
                     catch (e) { controller.extraQueue = []; controller.error = "Change was not confirmed; safety rollback remains armed. " + String(e) }
                 }
                 if (controller.pendingTextSizeIndex >= 0) controller.textSizeIndex = controller.pendingTextSizeIndex

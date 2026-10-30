@@ -1,12 +1,11 @@
 import QtQuick
-import Quickshell
 import Quickshell.Io
 
 Item {
     id: rootMod
     required property var root
 
-    property string profile: root.powerProfileCurrent
+    property string profile: rootMod.root.powerProfileCurrent
 
     readonly property bool isPowerSaver:  profile === "power-saver"
     readonly property bool isBalanced:    profile === "balanced"
@@ -19,10 +18,10 @@ Item {
     }
 
     readonly property color profileColor: {
-        if (root.widgetHasFill("G14")) return root.widgetContrastColor("G14")
-        if (isPowerSaver)  return root.indigo
-        if (isPerformance) return root.seal
-        return root.seal
+        if (rootMod.root.widgetHasFill("G14")) return rootMod.root.widgetContrastColor("G14")
+        if (isPowerSaver)  return rootMod.root.indigo
+        if (isPerformance) return rootMod.root.seal
+        return rootMod.root.seal
     }
 
     readonly property string tooltipText: {
@@ -32,9 +31,9 @@ Item {
     }
 
     visible: implicitWidth > 0.5
-    implicitWidth: root.modPower ? row.implicitWidth + 18 : 0
+    implicitWidth: rootMod.root.modPower ? row.implicitWidth + 18 : 0
     implicitHeight: 28
-    opacity: root.modPower ? 1 : 0
+    opacity: rootMod.root.modPower ? 1 : 0
 
     Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
 
@@ -48,7 +47,7 @@ Item {
             text: rootMod.profileIcon
             renderType: Text.QtRendering
             color: rootMod.profileColor
-            font.family: root.mono
+            font.family: rootMod.root.mono
             font.pixelSize: rootMod.isBalanced ? 13 : 14
             Behavior on color { ColorAnimation { duration: 200 } }
         }
@@ -62,13 +61,13 @@ Item {
         stdout: StdioCollector {
             onStreamFinished: {
                 var p = this.text.trim()
-                if (p) { rootMod.profile = p; root.powerProfileCurrent = p }
+                if (p) { rootMod.profile = p; rootMod.root.powerProfileCurrent = p }
             }
         }
     }
 
     Timer {
-        interval: 5000; running: root.modPower || root.powerProfileVisible; repeat: true; triggeredOnStart: true
+        interval: 5000; running: rootMod.root.modPower || rootMod.root.powerProfileVisible; repeat: true; triggeredOnStart: true
         onTriggered: { profileProc.running = false; profileProc.running = true }
     }
 
@@ -89,14 +88,14 @@ Item {
         onClicked: (e) => {
             tip.hide()
             if (e.button === Qt.RightButton) {
-                var profiles = ["power-saver", "balanced", "performance"]
-                var idx = profiles.indexOf(root.powerProfileCurrent)
-                var next = profiles[(Math.max(0, idx) + 1) % profiles.length]
+                const profiles = ["power-saver", "balanced", "performance"]
+                const idx = profiles.indexOf(rootMod.root.powerProfileCurrent)
+                const next = profiles[(Math.max(0, idx) + 1) % profiles.length]
                 setProfileProc.command = ["bash", "-c", "powerprofilesctl set " + next]
                 setProfileProc.running = false; setProfileProc.running = true
-                root.powerProfileCurrent = next
+                rootMod.root.powerProfileCurrent = next
             } else {
-                root.powerProfileVisible = !root.powerProfileVisible
+                rootMod.root.powerProfileVisible = !rootMod.root.powerProfileVisible
             }
         }
     }

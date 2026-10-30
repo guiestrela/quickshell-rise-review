@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Effects
 import Quickshell
@@ -13,11 +14,11 @@ Item {
     readonly property var  player:  sel.player
     readonly property bool active:  sel.active
     readonly property bool playing: sel.playing
-    readonly property bool fullMode: root.mprisBarStyle === "full"
-    readonly property color contentColor: root.widgetContentColor("G9", root.ink)
-    readonly property color accentColor: root.widgetHasFill("G9")
+    readonly property bool fullMode: rootMod.root.mprisBarStyle === "full"
+    readonly property color contentColor: rootMod.root.widgetContentColor("G9", rootMod.root.ink)
+    readonly property color accentColor: rootMod.root.widgetHasFill("G9")
         ? contentColor
-        : root.seal
+        : rootMod.root.seal
 
     readonly property string trackLabel: {
         if (!player) return ""
@@ -115,13 +116,13 @@ Item {
     }
 
     visible: implicitWidth > 0.5
-    implicitWidth: root.modMpris
-        ? (root.barVertical ? 34 : active
+    implicitWidth: rootMod.root.modMpris
+        ? (rootMod.root.barVertical ? 34 : active
             ? ((fullMode ? fullRow.implicitWidth : defaultRow.implicitWidth) + 18)
             : (idleNote.implicitWidth + 16))
         : 0
-    implicitHeight: root.barVertical && active && fullMode ? 144 : 28
-    opacity: root.modMpris ? 1 : 0
+    implicitHeight: rootMod.root.barVertical && active && fullMode ? 144 : 28
+    opacity: rootMod.root.modMpris ? 1 : 0
 
     Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
 
@@ -133,7 +134,7 @@ Item {
     IconText {
         id: idleNote
         anchors.centerIn: parent
-        visible: !rootMod.active || (root.barVertical && !rootMod.fullMode)
+        visible: !rootMod.active || (rootMod.root.barVertical && !rootMod.fullMode)
         text: ""   // music_note
         font.pixelSize: 15
         color: Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.45)
@@ -141,13 +142,13 @@ Item {
             anchors.fill: parent
             acceptedButtons: Qt.LeftButton
             cursorShape: Qt.PointingHandCursor
-            onClicked: root.mprisVisible = !root.mprisVisible
+            onClicked: rootMod.root.mprisVisible = !rootMod.root.mprisVisible
         }
     }
 
     Row {
         id: defaultRow
-        visible: !root.barVertical && rootMod.active && !rootMod.fullMode
+        visible: !rootMod.root.barVertical && rootMod.active && !rootMod.fullMode
         anchors.centerIn: parent
         spacing: 4
 
@@ -234,7 +235,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: rootMod.trackLabel
                 color: rootMod.contentColor
-                font.family: root.mono
+                font.family: rootMod.root.mono
                 font.pixelSize: 12
                 x: 0
                 Behavior on color { ColorAnimation { duration: 200 } }
@@ -329,12 +330,12 @@ Item {
         id: fullRow
         visible: rootMod.active && rootMod.fullMode
         anchors.centerIn: parent
-        implicitWidth: root.barVertical ? 28 : fullMuseCore.width
-        implicitHeight: root.barVertical ? fullMuseCore.width : 28
+        implicitWidth: rootMod.root.barVertical ? 28 : fullMuseCore.width
+        implicitHeight: rootMod.root.barVertical ? fullMuseCore.width : 28
 
         Item {
             id: fullMuseCore
-            rotation: root.barVertical ? 90 : 0
+            rotation: rootMod.root.barVertical ? 90 : 0
             anchors.centerIn: parent
             width: 144
             height: 28
@@ -445,7 +446,7 @@ Item {
 
                 Item {
                     id: transportMark
-                    rotation: root.barVertical ? -90 : 0
+                    rotation: rootMod.root.barVertical ? -90 : 0
                     anchors.verticalCenter: parent.verticalCenter
                     width: 16
                     height: 18
@@ -522,6 +523,6 @@ Item {
         acceptedButtons: Qt.RightButton
         onEntered: { if (rootMod.tooltipText) tip.show() }
         onExited:  { tip.hide() }
-        onClicked: { tip.hide(); root.mprisVisible = !root.mprisVisible }
+        onClicked: { tip.hide(); rootMod.root.mprisVisible = !rootMod.root.mprisVisible }
     }
 }

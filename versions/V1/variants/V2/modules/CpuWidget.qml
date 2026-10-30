@@ -1,6 +1,4 @@
 import QtQuick
-import Quickshell
-import Quickshell.Io
 
 Item {
     id: rootMod
@@ -32,11 +30,11 @@ Item {
         }
 
         UiText {
-            visible: !root.iconOnly("G5")
+            visible: !rootMod.root.iconOnly("G5")
             anchors.verticalCenter: parent.verticalCenter
             text: String(Math.min(100, rootMod.percent)).padStart(2, '0') + "%"
             color: rootMod.contentColor
-            font.family: root.mono
+            font.family: rootMod.root.mono
             font.pixelSize: 12
         }
     }
@@ -49,6 +47,6 @@ Item {
         cursorShape: Qt.PointingHandCursor
         onEntered: tip.show()
         onExited: { tip.hide() }
-        onClicked: { tip.hide(); root.cpuVisible = !root.cpuVisible }
+        onClicked: { tip.hide(); rootMod.root.cpuVisible = !rootMod.root.cpuVisible }
     }
 }

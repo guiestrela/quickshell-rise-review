@@ -1,14 +1,13 @@
 import QtQuick
-import Quickshell
 import Quickshell.Io
 
 Item {
     id: rootMod
     required property var root
-    readonly property color contentColor: root.widgetContentColor("G8", root.seal)
+    readonly property color contentColor: rootMod.root.widgetContentColor("G8", rootMod.root.seal)
 
-    readonly property bool recording: root.screenRecording
-    readonly property int  elapsed:   root.screenRecordingElapsed   // seconds
+    readonly property bool recording: rootMod.root.screenRecording
+    readonly property int  elapsed:   rootMod.root.screenRecordingElapsed   // seconds
 
     visible: implicitWidth > 0.5
     implicitWidth: recording ? row.implicitWidth + 6 : 0
@@ -53,7 +52,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.elapsedStr
             color: rootMod.contentColor
-            font.family: root.mono
+            font.family: rootMod.root.mono
             font.pixelSize: 11
         }
     }
@@ -61,7 +60,7 @@ Item {
     Process {
         id: toggleProc
         command: ["bash", "-c", "omarchy-capture-screenrecording --stop-recording"]
-        onExited: root.refreshRecordingStatus()
+        onExited: rootMod.root.refreshRecordingStatus()
     }
 
     TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }

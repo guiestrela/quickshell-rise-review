@@ -282,10 +282,10 @@ Item {
         id: scanner
         command: ["true"]
         running: false
-        stdout: StdioCollector { waitForEnd: true }
+        stdout: StdioCollector { id: scanOutput; waitForEnd: true }
         onExited: function(exitCode) {
             // Defer until the collector has drained; keep scanInFlight true.
-            Qt.callLater(function() { manager.finishScan(exitCode, String(scanner.stdout.text || "")) })
+            Qt.callLater(function() { manager.finishScan(exitCode, String(scanOutput.text || "")) })
         }
     }
 

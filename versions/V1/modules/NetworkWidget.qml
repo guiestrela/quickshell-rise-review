@@ -73,12 +73,12 @@ Item {
     Rectangle {
         x: 0; anchors.verticalCenter: parent.verticalCenter
         width: Math.round(row.implicitWidth) + 18
-        height: root.pillH
-        radius: root.pillRadius
-        color: root.pill
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
+        height: rootMod.root.pillH
+        radius: rootMod.root.pillRadius
+        color: rootMod.root.pill
+        border.color: rootMod.root.pillBorder
+        border.width: rootMod.root.pillBorderW
+        PillShadow { theme: rootMod.root }
     }
 
     Row {
@@ -91,10 +91,10 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: !rootMod.verticalCompact
             text: "NET"
-            color: mode === "none"
-                ? Qt.rgba(root.seal.r, root.seal.g, root.seal.b, 0.7)
-                : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
-            font.family: root.mono
+            color: rootMod.mode === "none"
+                ? Qt.rgba(rootMod.root.seal.r, rootMod.root.seal.g, rootMod.root.seal.b, 0.7)
+                : Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.6)
+            font.family: rootMod.root.mono
             font.pixelSize: 12
             font.letterSpacing: 0.5
         }
@@ -106,7 +106,7 @@ Item {
             width: 36; height: 14
             anchors.verticalCenter: parent.verticalCenter
 
-            property color tint: root.seal
+            property color tint: rootMod.root.seal
             onTintChanged: requestPaint()
 
             onPaint: {
@@ -157,8 +157,8 @@ Item {
                     ctx.stroke()
                 }
 
-                drawLine(dl, root.seal,   0.12, 1.5)   // download — seal
-                drawLine(ul, root.indigo, 0.10, 1.0)   // upload   — indigo
+                drawLine(dl, rootMod.root.seal,   0.12, 1.5)   // download — seal
+                drawLine(ul, rootMod.root.indigo, 0.10, 1.0)   // upload   — indigo
             }
 
             Connections {
@@ -179,8 +179,8 @@ Item {
                 verticalAlignment: Text.AlignVCenter
                 horizontalAlignment: Text.AlignRight
                 text: "↓" + rootMod.formatSpeed(rootMod.dlRate)
-                color: root.seal
-                font.family: root.mono
+                color: rootMod.root.seal
+                font.family: rootMod.root.mono
                 font.pixelSize: 10
             }
             UiText {
@@ -188,8 +188,8 @@ Item {
                 verticalAlignment: Text.AlignVCenter
                 horizontalAlignment: Text.AlignRight
                 text: "↑" + rootMod.formatSpeed(rootMod.ulRate)
-                color: root.indigo
-                font.family: root.mono
+                color: rootMod.root.indigo
+                font.family: rootMod.root.mono
                 font.pixelSize: 10
             }
         }
@@ -199,7 +199,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.mode === "wifi"
             text: IconMap.icon(rootMod.wifiIconName)
-            color: rootMod.verticalCompact ? root.seal : root.ink
+            color: rootMod.verticalCompact ? rootMod.root.seal : rootMod.root.ink
             font.pixelSize: rootMod.verticalCompact ? 15 : 14
             Behavior on color { ColorAnimation { duration: 160 } }
         }
@@ -209,8 +209,8 @@ Item {
             visible: rootMod.verticalCompact && rootMod.mode !== "wifi"
             text: IconMap.icon(rootMod.mode === "ethernet" ? "lan" : "signal_wifi_off")
             color: rootMod.mode === "ethernet"
-                ? root.seal
-                : Qt.rgba(root.seal.r, root.seal.g, root.seal.b, 0.65)
+                ? rootMod.root.seal
+                : Qt.rgba(rootMod.root.seal.r, rootMod.root.seal.g, rootMod.root.seal.b, 0.65)
             font.pixelSize: rootMod.mode === "ethernet" ? 14 : 15
             Behavior on color { ColorAnimation { duration: 160 } }
         }
@@ -220,8 +220,8 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.mode === "wifi" && !rootMod.verticalCompact
             text: rootMod.ssid
-            color: root.seal
-            font.family: root.mono
+            color: rootMod.root.seal
+            font.family: rootMod.root.mono
             font.pixelSize: 12
             font.letterSpacing: 1
         }
@@ -290,7 +290,7 @@ Item {
 
     TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
-    Process { id: clickRunner; command: ["bash", "-c", root.launchWifiCmd] }
+    Process { id: clickRunner; command: ["bash", "-c", rootMod.root.launchWifiCmd] }
 
     MouseArea {
         anchors.fill: parent
@@ -301,7 +301,7 @@ Item {
         onClicked: (e) => {
             tip.hide()
             if (e.button === Qt.RightButton) { clickRunner.running = false; clickRunner.running = true }
-            else root.networkVisible = !root.networkVisible
+            else rootMod.root.networkVisible = !rootMod.root.networkVisible
         }
     }
 }

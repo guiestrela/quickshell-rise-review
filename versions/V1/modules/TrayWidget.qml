@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import Quickshell
 import Quickshell.Services.SystemTray
 import QtQuick
@@ -11,7 +12,7 @@ Item {
     visible: trayRow.implicitWidth > 0
 
     function toggleHide(item) {
-        root.trayToggleHide(item)
+        rootMod.root.trayToggleHide(item)
     }
 
     Row {
@@ -31,7 +32,7 @@ Item {
                 // apparent gap inside the shared status pill.
                 implicitWidth: 18
                 implicitHeight: 28
-                visible: root.trayPinned.indexOf(modelData.id) >= 0
+                visible: rootMod.root.trayPinned.indexOf(modelData.id) >= 0
 
                 Image {
                     anchors.centerIn: parent
@@ -71,7 +72,7 @@ Item {
             // button), iterating SystemTray.items so stale pinned IDs can't inflate the count
             readonly property int hiddenCount: {
                 var n = 0, vals = SystemTray.items.values
-                for (var i = 0; i < vals.length; i++) if (root.trayPinned.indexOf(vals[i].id) < 0) n++
+                for (var i = 0; i < vals.length; i++) if (rootMod.root.trayPinned.indexOf(vals[i].id) < 0) n++
                 return n
             }
             readonly property int totalCount:  SystemTray.items.values.length
@@ -86,8 +87,8 @@ Item {
                 text: "\uE5D3"   // more_horiz
                 font.pixelSize: 16
                 color: toggleMa.containsMouse
-                    ? root.ink
-                    : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.7)
+                    ? rootMod.root.ink
+                    : Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.7)
                 Behavior on color { ColorAnimation { duration: 150 } }
             }
 
@@ -98,7 +99,7 @@ Item {
                 width: Math.max(12, toggleBadgeTxt.implicitWidth + 6)
                 height: 12
                 radius: 6
-                color: root.seal
+                color: rootMod.root.seal
                 anchors.verticalCenter: moreIcon.verticalCenter
                 anchors.verticalCenterOffset: -6
                 anchors.horizontalCenter: moreIcon.horizontalCenter
@@ -107,8 +108,8 @@ Item {
                     id: toggleBadgeTxt
                     anchors.centerIn: parent
                     text: toggleBtn.hiddenCount
-                    color: root.paper
-                    font.family: root.mono
+                    color: rootMod.root.paper
+                    font.family: rootMod.root.mono
                     font.pixelSize: 7
                     font.weight: Font.Bold
                 }
@@ -121,7 +122,7 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onEntered: tip.show()
                 onExited: { tip.hide() }
-                onClicked: { tip.hide(); root.trayVisible = !root.trayVisible }
+                onClicked: { tip.hide(); rootMod.root.trayVisible = !rootMod.root.trayVisible }
             }
         }
     }

@@ -117,7 +117,7 @@ Item {
 
     Timer {
         interval: 60000
-        running: rootMod.locationReady && (root.modWeather || root.weatherVisible)
+        running: rootMod.locationReady && (rootMod.root.modWeather || rootMod.root.weatherVisible)
         repeat: true
         triggeredOnStart: true
         onTriggered: rootMod.refresh(false)
@@ -164,9 +164,9 @@ Item {
         text: rootMod.weatherLoaded ? rootMod.weatherIcon
               : (rootMod.weatherUnavailable ? "?" : "·")
         color: rootMod.weatherUnavailable && !rootMod.weatherLoaded
-               ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.4)
-               : root.ink
-        font.family: root.mono
+               ? Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.4)
+               : rootMod.root.ink
+        font.family: rootMod.root.mono
         font.pixelSize: 14
     }
 
@@ -190,7 +190,7 @@ Item {
             if (e.button === Qt.RightButton) {
                 rootMod.refresh(true);
             } else {
-                root.weatherVisible = !root.weatherVisible;
+                rootMod.root.weatherVisible = !rootMod.root.weatherVisible;
             }
         }
     }

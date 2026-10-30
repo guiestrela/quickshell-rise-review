@@ -8,7 +8,7 @@ import "NordVpnProtocol.js" as VpnProtocol
 Item {
     id: controller
 
-    property bool enabled: false
+    enabled: false
     property int refreshInterval: 15000
     property string cli: "nordvpn"
     property string vpnState: "Unknown"

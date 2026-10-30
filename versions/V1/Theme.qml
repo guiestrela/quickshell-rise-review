@@ -731,7 +731,7 @@ Item {
     property int selectedDay: 0
 
     readonly property var calendarCells: {
-        calendarTick;
+        void calendarTick;
         const now = new Date();
         const first = new Date(now.getFullYear(), now.getMonth() + calendarMonthOffset, 1);
         const year = first.getFullYear();
@@ -999,7 +999,7 @@ Item {
     }
 
     function aiFmtReset(ts) {
-        aiClockTick
+        void aiClockTick
         var now = Date.now() / 1000
         if (!(ts > now)) return ""
         var mins = Math.round((ts - now) / 60)
@@ -1012,7 +1012,7 @@ Item {
     function aiPad2(n) { return n < 10 ? "0" + n : "" + n }
 
     function aiFmtResetClock(ts) {
-        aiClockTick
+        void aiClockTick
         if (!(ts > Date.now() / 1000)) return ""
         var d = new Date(ts * 1000)
         var now = new Date()

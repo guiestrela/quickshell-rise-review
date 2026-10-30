@@ -61,6 +61,8 @@ ShellRoot {
   property color pillBorder: "#333333"
   property int pillBorderW: 1
   property color ink: "#ffffff"
+  property bool styleShadow: false
+  property color pillShadow: "#000000"
   property bool modClaude: true
   property bool aiUsageVisible: false
   property string aiTool: "claude"
@@ -85,8 +87,8 @@ ShellRoot {
   property bool aiCxHas: true
   property var aiCxBuckets: []
   property var aiCxWindows: []
-  property string aiCodexStatus: "ok"
-  property string aiCodexLimitReachedType: ""
+  property string aiCxLimitStatus: "ok"
+  property string aiCxLimitReachedType: ""
   property int aiCxPrimaryPct: 44
   property string aiCxPrimaryLabel: "5h"
   property bool aiOcFresh: true
@@ -162,3 +164,6 @@ ShellRoot {
     print(output, end='')
     if result.returncode or 'V1_COMPACT_WIDGET_RUNTIME_PASS' not in output:
         raise SystemExit(result.returncode or 1)
+
+    if any(marker in output for marker in ('ReferenceError', 'TypeError', 'Binding loop', 'Unable to assign')):
+        raise SystemExit('Unexpected QML diagnostic in compact-widget fixture')

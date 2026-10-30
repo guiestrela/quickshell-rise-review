@@ -22,12 +22,12 @@ Item {
     Rectangle {
         x: 0; anchors.verticalCenter: parent.verticalCenter
         width: Math.round(row.width) + 18
-        height: root.pillH
-        radius: root.pillRadius
-        color: root.pill
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
+        height: rootMod.root.pillH
+        radius: rootMod.root.pillRadius
+        color: rootMod.root.pill
+        border.color: rootMod.root.pillBorder
+        border.width: rootMod.root.pillBorderW
+        PillShadow { theme: rootMod.root }
     }
 
     Row {
@@ -39,8 +39,8 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: !rootMod.verticalCompact
             text: "CPU"
-            color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
-            font.family: root.mono
+            color: Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.6)
+            font.family: rootMod.root.mono
             font.pixelSize: 12
             font.letterSpacing: 0.5
         }
@@ -52,7 +52,7 @@ Item {
             height: 14
             anchors.verticalCenter: parent.verticalCenter
 
-            property color tint: root.seal
+            property color tint: rootMod.root.seal
             onTintChanged: requestPaint()
 
             onPaint: {
@@ -69,7 +69,7 @@ Item {
 
                 var pts = []
                 for (var i = 0; i < h.length; i++) {
-                    var x = (i / (maxSamples - 1)) * width
+                    var x = (i / (rootMod.maxSamples - 1)) * width
                     var y = height - (h[i] / maxV) * height
                     pts.push({ x: x, y: y })
                 }
@@ -110,10 +110,10 @@ Item {
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.barVertical !== true && (!rootMod.verticalCompact)
+            visible: rootMod.root.barVertical !== true && (!rootMod.verticalCompact)
             text: String(Math.min(100, rootMod.percent)).padStart(2, '0') + "%"
-            color: root.seal
-            font.family: root.mono
+            color: rootMod.root.seal
+            font.family: rootMod.root.mono
             font.pixelSize: 12
         }
 
@@ -122,7 +122,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.verticalCompact
             text: "planner_review"
-            color: root.seal
+            color: rootMod.root.seal
             font.pixelSize: 15
             font.weight: Font.DemiBold
             fill: 1
@@ -130,10 +130,10 @@ Item {
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.barVertical !== true && (rootMod.verticalCompact)
+            visible: rootMod.root.barVertical !== true && (rootMod.verticalCompact)
             text: String(Math.min(100, rootMod.percent)).padStart(2, '0') + "%"
-            color: root.seal
-            font.family: root.mono
+            color: rootMod.root.seal
+            font.family: rootMod.root.mono
             font.pixelSize: 12
         }
     }
@@ -146,6 +146,6 @@ Item {
         cursorShape: Qt.PointingHandCursor
         onEntered: tip.show()
         onExited: { tip.hide() }
-        onClicked: { tip.hide(); root.cpuVisible = !root.cpuVisible }
+        onClicked: { tip.hide(); rootMod.root.cpuVisible = !rootMod.root.cpuVisible }
     }
 }

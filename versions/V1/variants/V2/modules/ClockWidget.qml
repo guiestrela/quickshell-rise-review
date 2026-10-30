@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell
 import Quickshell.Io
 
 Item {
@@ -7,13 +6,13 @@ Item {
     required property var root
 
     property date now: new Date()
-    readonly property color contentColor: root.widgetContentColor("G8", root.ink)
+    readonly property color contentColor: rootMod.root.widgetContentColor("G8", rootMod.root.ink)
 
     function pad(n) { return n < 10 ? "0" + n : String(n) }
 
     readonly property string timeStr: {
-        if (root.clock12h) {
-            var h = now.getHours() % 12; if (h === 0) h = 12
+        if (rootMod.root.clock12h) {
+            let h = now.getHours() % 12; if (h === 0) h = 12
             return h + ":" + pad(now.getMinutes()) + " " + (now.getHours() < 12 ? "AM" : "PM")
         }
         return pad(now.getHours()) + ":" + pad(now.getMinutes())
@@ -40,7 +39,7 @@ Item {
         anchors.centerIn: parent
         text: rootMod.timeStr
         color: rootMod.contentColor
-        font.family: root.mono
+        font.family: rootMod.root.mono
         font.pixelSize: 12
         font.letterSpacing: 1
     }
@@ -61,7 +60,7 @@ Item {
         onExited: { tip.hide(); }
         onClicked: (e) => {
             if (e.button === Qt.LeftButton) {
-                root.clock12h = !root.clock12h;          // toggle 24h / 12h
+                rootMod.root.clock12h = !rootMod.root.clock12h;          // toggle 24h / 12h
             } else if (e.button === Qt.RightButton) {
                 tip.hide();
                 tzRunner.running = false;                // timezone picker (unchanged)

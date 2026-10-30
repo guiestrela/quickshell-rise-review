@@ -1,11 +1,10 @@
 import QtQuick
-import Quickshell
 import Quickshell.Services.UPower
 
 Item {
     id: rootMod
     required property var root
-    readonly property bool verticalCompact: root.barVertical === true || root.compactBattery
+    readonly property bool verticalCompact: rootMod.root.barVertical === true || rootMod.root.compactBattery
 
     // event-driven UPower data — updates instantly on plug / unplug
     readonly property var dev: UPower.displayDevice
@@ -42,8 +41,8 @@ Item {
 
     // colour shared by the drawn battery body, fill and nub
     readonly property color battColor:
-        (charging || full) ? root.indigo
-        : root.seal
+        (charging || full) ? rootMod.root.indigo
+        : rootMod.root.seal
 
     implicitWidth:  hasBattery ? (row.implicitWidth + 18) : 0
     implicitHeight: 28
@@ -53,12 +52,12 @@ Item {
     Rectangle {
         x: 0; anchors.verticalCenter: parent.verticalCenter
         width: Math.round(row.width) + 18
-        height: root.pillH
-        radius: root.pillRadius
-        color: root.pill
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
+        height: rootMod.root.pillH
+        radius: rootMod.root.pillRadius
+        color: rootMod.root.pill
+        border.color: rootMod.root.pillBorder
+        border.width: rootMod.root.pillBorderW
+        PillShadow { theme: rootMod.root }
     }
 
     Row {
@@ -70,8 +69,8 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: !rootMod.verticalCompact
             text: "BAT"
-            color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
-            font.family: root.mono
+            color: Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.6)
+            font.family: rootMod.root.mono
             font.pixelSize: 12
             font.letterSpacing: 0.5
         }
@@ -113,7 +112,7 @@ Item {
                     anchors.fill: parent
                     anchors.margins: 1.8
                     radius: 1.2
-                    color: Qt.rgba(root.indigo.r, root.indigo.g, root.indigo.b, 0.28)
+                    color: Qt.rgba(rootMod.root.indigo.r, rootMod.root.indigo.g, rootMod.root.indigo.b, 0.28)
                 }
 
                 Rectangle {
@@ -166,12 +165,12 @@ Item {
                         ctx.lineTo(width * 0.88, height * 0.45)
                         ctx.lineTo(width * 0.55, height * 0.45)
                         ctx.closePath()
-                        ctx.fillStyle = root.paper
+                        ctx.fillStyle = rootMod.root.paper
                         ctx.fill()
                     }
                     Component.onCompleted: requestPaint()
                     Connections {
-                        target: root
+                        target: rootMod.root
                         function onPaperChanged() { bolt.requestPaint() }
                     }
                 }
@@ -194,7 +193,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.percent + "%"
             color: rootMod.battColor
-            font.family: root.mono
+            font.family: rootMod.root.mono
             font.pixelSize: 12
             Behavior on color { ColorAnimation { duration: 200 } }
         }
@@ -207,6 +206,6 @@ Item {
         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
         onEntered: { if (rootMod.hasBattery) tip.show() }
         onExited:  { tip.hide() }
-        onClicked: { tip.hide(); root.batteryVisible = !root.batteryVisible }
+        onClicked: { tip.hide(); rootMod.root.batteryVisible = !rootMod.root.batteryVisible }
     }
 }

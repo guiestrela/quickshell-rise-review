@@ -1,12 +1,12 @@
+pragma ComponentBehavior: Bound
 import QtQuick
-import Quickshell
 import Quickshell.Io
 import "../OmarchyPower.js" as OmarchyPower
 
 Item {
     id: rootMod
     required property var root
-    readonly property color contentColor: root.widgetContentColor("G13", root.ink)
+    readonly property color contentColor: rootMod.root.widgetContentColor("G13", rootMod.root.ink)
 
     property bool   hasBacklight: false
     property int    percent:      0
@@ -15,7 +15,7 @@ Item {
 
     readonly property string tooltipText: "Brightness · " + percent + "%"
 
-    readonly property bool shown: hasBacklight && root.modBrightness
+    readonly property bool shown: hasBacklight && rootMod.root.modBrightness
     implicitWidth:  shown ? (row.implicitWidth + 18) : 0
     implicitHeight: 28
     visible: implicitWidth > 0.5
@@ -58,7 +58,7 @@ Item {
             readonly property real ratio: Math.max(0, Math.min(1, rootMod.percent / 100))
             // turns theme-red at full brightness, like the battery's full state
             readonly property color sunColor: rootMod.percent >= 100
-                ? (root.widgetHasFill("G13") ? rootMod.contentColor : root.seal)
+                ? (rootMod.root.widgetHasFill("G13") ? rootMod.contentColor : rootMod.root.seal)
                 : rootMod.contentColor
 
             Rectangle {
@@ -94,13 +94,13 @@ Item {
         }
 
         UiText {
-            visible: !root.iconOnly("G13")
+            visible: !rootMod.root.iconOnly("G13")
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.percent + "%"
             color: rootMod.percent >= 100
-                ? (root.widgetHasFill("G13") ? rootMod.contentColor : root.seal)
+                ? (rootMod.root.widgetHasFill("G13") ? rootMod.contentColor : rootMod.root.seal)
                 : rootMod.contentColor
-            font.family: root.mono
+            font.family: rootMod.root.mono
             font.pixelSize: 12
             Behavior on color { ColorAnimation { duration: 200 } }
         }
@@ -117,7 +117,7 @@ Item {
                 if (bl !== "") {
                     rootMod.blDevice = bl
                     rootMod.hasBacklight = true
-                    root.hasBacklight = true
+                    rootMod.root.hasBacklight = true
                 }
             }
         }
@@ -165,7 +165,7 @@ Item {
         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
         onEntered: { if (rootMod.hasBacklight) tip.show() }
         onExited:  { tip.hide() }
-        onClicked: { tip.hide(); root.brightnessVisible = !root.brightnessVisible }
+        onClicked: { tip.hide(); rootMod.root.brightnessVisible = !rootMod.root.brightnessVisible }
         onWheel: (e) => {
             rootMod.runBrightnessStep(e.angleDelta.y > 0)
         }

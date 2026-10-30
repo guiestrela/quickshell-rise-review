@@ -408,7 +408,7 @@ PanelWindow {
                         id: dateLabel
                         anchors.verticalCenter: parent.verticalCenter
                         text: {
-                            clock.now;
+                            void clock.now;
                             var days = ["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
                             var d = new Date();
                             return days[d.getDay()] + " " + d.getDate();

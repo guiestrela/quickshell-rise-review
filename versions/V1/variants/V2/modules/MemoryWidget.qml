@@ -1,24 +1,22 @@
 import QtQuick
-import Quickshell
-import Quickshell.Io
 
 Item {
     id: rootMod
     required property var root
 
     visible: implicitWidth > 0.5
-    implicitWidth: root.modMemory ? row.implicitWidth + 18 : 0
+    implicitWidth: rootMod.root.modMemory ? row.implicitWidth + 18 : 0
     implicitHeight: 28
-    opacity: root.modMemory ? 1 : 0
+    opacity: rootMod.root.modMemory ? 1 : 0
 
     Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
 
-    readonly property int percent: root.systemMemPercent
-    readonly property real usedGiB: root.systemMemUsedGiB
-    readonly property real totalGiB: root.systemMemTotalGiB
+    readonly property int percent: rootMod.root.systemMemPercent
+    readonly property real usedGiB: rootMod.root.systemMemUsedGiB
+    readonly property real totalGiB: rootMod.root.systemMemTotalGiB
     readonly property string usedLabel: usedGiB.toFixed(1) + "G"
     readonly property string tooltipText: usedGiB.toFixed(1) + "/" + totalGiB.toFixed(0) + "G"
-    readonly property color contentColor: root.widgetContentColor("G4", root.widgetIconColor)
+    readonly property color contentColor: rootMod.root.widgetContentColor("G4", rootMod.root.widgetIconColor)
 
     Row {
         id: row
@@ -75,11 +73,11 @@ Item {
         }
 
         UiText {
-            visible: !root.iconOnly("G4")
+            visible: !rootMod.root.iconOnly("G4")
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.usedLabel
             color: rootMod.contentColor
-            font.family: root.mono
+            font.family: rootMod.root.mono
             font.pixelSize: 12
         }
     }
@@ -92,6 +90,6 @@ Item {
         cursorShape: Qt.PointingHandCursor
         onEntered: tip.show()
         onExited: { tip.hide() }
-        onClicked: { tip.hide(); root.memVisible = !root.memVisible }
+        onClicked: { tip.hide(); rootMod.root.memVisible = !rootMod.root.memVisible }
     }
 }

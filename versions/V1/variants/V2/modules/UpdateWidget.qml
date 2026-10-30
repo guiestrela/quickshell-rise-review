@@ -1,11 +1,10 @@
 import QtQuick
-import Quickshell
 import Quickshell.Io
 
 Item {
     id: rootMod
     required property var root
-    readonly property color contentColor: root.widgetContentColor("G8", root.seal)
+    readonly property color contentColor: rootMod.root.widgetContentColor("G8", rootMod.root.seal)
 
     property bool updateAvailable: false
 

@@ -1,12 +1,12 @@
+pragma ComponentBehavior: Bound
 import QtQuick
-import Quickshell
 import Quickshell.Io
 import "../OmarchyPower.js" as OmarchyPower
 
 Item {
     id: rootMod
     required property var root
-    readonly property bool verticalCompact: root.barVertical === true || root.compactBrightness
+    readonly property bool verticalCompact: rootMod.root.barVertical === true || rootMod.root.compactBrightness
 
     property bool   hasBacklight: false
     property int    percent:      0
@@ -15,7 +15,7 @@ Item {
 
     readonly property string tooltipText: "Brightness · " + percent + "%"
 
-    readonly property bool shown: hasBacklight && root.modBrightness
+    readonly property bool shown: hasBacklight && rootMod.root.modBrightness
     implicitWidth:  shown ? (row.implicitWidth + 18) : 0
     implicitHeight: 28
     visible: implicitWidth > 0.5
@@ -46,12 +46,12 @@ Item {
     Rectangle {
         x: 0; anchors.verticalCenter: parent.verticalCenter
         width: Math.round(row.width) + 18
-        height: root.pillH
-        radius: root.pillRadius
-        color: root.pill
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
+        height: rootMod.root.pillH
+        radius: rootMod.root.pillRadius
+        color: rootMod.root.pill
+        border.color: rootMod.root.pillBorder
+        border.width: rootMod.root.pillBorderW
+        PillShadow { theme: rootMod.root }
     }
 
     Row {
@@ -63,8 +63,8 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: !rootMod.verticalCompact
             text: "BRI"
-            color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
-            font.family: root.mono
+            color: Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.6)
+            font.family: rootMod.root.mono
             font.pixelSize: 12
             font.letterSpacing: 0.5
         }
@@ -79,8 +79,8 @@ Item {
             readonly property real ratio: Math.max(0, Math.min(1, rootMod.percent / 100))
             // turns theme-red at full brightness, like the battery's full state
             readonly property color sunColor: rootMod.percent >= 100
-                ? root.seal
-                : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.85)
+                ? rootMod.root.seal
+                : Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.85)
 
             Rectangle {
                 anchors.centerIn: parent
@@ -118,9 +118,9 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.percent + "%"
             color: rootMod.percent >= 100
-                ? root.seal
-                : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.85)
-            font.family: root.mono
+                ? rootMod.root.seal
+                : Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.85)
+            font.family: rootMod.root.mono
             font.pixelSize: 12
             Behavior on color { ColorAnimation { duration: 200 } }
         }
@@ -137,7 +137,7 @@ Item {
                 if (bl !== "") {
                     rootMod.blDevice = bl
                     rootMod.hasBacklight = true
-                    root.hasBacklight = true
+                    rootMod.root.hasBacklight = true
                 }
             }
         }
@@ -185,7 +185,7 @@ Item {
         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
         onEntered: { if (rootMod.hasBacklight) tip.show() }
         onExited:  { tip.hide() }
-        onClicked: { tip.hide(); root.brightnessVisible = !root.brightnessVisible }
+        onClicked: { tip.hide(); rootMod.root.brightnessVisible = !rootMod.root.brightnessVisible }
         onWheel: (e) => {
             rootMod.runBrightnessStep(e.angleDelta.y > 0)
         }

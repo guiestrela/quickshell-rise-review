@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell
 import Quickshell.Io
 
 Item {
@@ -25,12 +24,12 @@ Item {
     Rectangle {
         x: 0; anchors.verticalCenter: parent.verticalCenter
         width: Math.round(row.width) + 18
-        height: root.pillH
-        radius: root.pillRadius
-        color: root.pill
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
+        height: rootMod.root.pillH
+        radius: rootMod.root.pillRadius
+        color: rootMod.root.pill
+        border.color: rootMod.root.pillBorder
+        border.width: rootMod.root.pillBorderW
+        PillShadow { theme: rootMod.root }
     }
 
     Row {
@@ -43,9 +42,9 @@ Item {
             visible: !rootMod.verticalCompact
             text: "VOL"
             color: rootMod.muted
-                ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.25)
-                : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
-            font.family: root.mono
+                ? Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.25)
+                : Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.6)
+            font.family: rootMod.root.mono
             font.pixelSize: 12
             font.letterSpacing: 0.5
         }
@@ -66,7 +65,7 @@ Item {
                 width: parent.width
                 height: 8
                 radius: 4
-                color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.18)
+                color: Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.18)
             }
 
             // fill capsule — seal pill like the active workspace
@@ -76,19 +75,19 @@ Item {
                 width: Math.max(slider.ratio > 0 ? 8 : 0, parent.width * slider.ratio)
                 height: 8
                 radius: 4
-                color: root.seal
+                color: rootMod.root.seal
                 Behavior on width { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
             }
         }
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.barVertical !== true && (!rootMod.verticalCompact)
+            visible: rootMod.root.barVertical !== true && (!rootMod.verticalCompact)
             text: String(rootMod.volume).padStart(2, '0') + "%"
             color: rootMod.muted
-                ? Qt.rgba(root.seal.r, root.seal.g, root.seal.b, 0.35)
-                : root.seal
-            font.family: root.mono
+                ? Qt.rgba(rootMod.root.seal.r, rootMod.root.seal.g, rootMod.root.seal.b, 0.35)
+                : rootMod.root.seal
+            font.family: rootMod.root.mono
             font.pixelSize: 12
         }
 
@@ -97,7 +96,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.verticalCompact
             text: rootMod.compactVolumeIcon
-            color: rootMod.muted ? Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.35) : root.seal
+            color: rootMod.muted ? Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.35) : rootMod.root.seal
             font.pixelSize: 15
             font.weight: Font.Medium
             fill: 1
@@ -106,12 +105,12 @@ Item {
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.barVertical !== true && rootMod.verticalCompact
+            visible: rootMod.root.barVertical !== true && rootMod.verticalCompact
             text: String(rootMod.volume).padStart(2, '0') + "%"
             color: rootMod.muted
-                ? Qt.rgba(root.seal.r, root.seal.g, root.seal.b, 0.35)
-                : root.seal
-            font.family: root.mono
+                ? Qt.rgba(rootMod.root.seal.r, rootMod.root.seal.g, rootMod.root.seal.b, 0.35)
+                : rootMod.root.seal
+            font.family: rootMod.root.mono
             font.pixelSize: 12
             Behavior on color { ColorAnimation { duration: 160 } }
         }
@@ -190,7 +189,7 @@ Item {
         onClicked: (e) => {
             tip.hide()
             if (e.button === Qt.RightButton) { if (!muteRunner.running) muteRunner.running = true }
-            else                             { root.volVisible = !root.volVisible }
+            else                             { rootMod.root.volVisible = !rootMod.root.volVisible }
         }
     }
 }

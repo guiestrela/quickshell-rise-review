@@ -54,7 +54,7 @@ fi
 
 check_qml() {
   local file count=0 warnings=0 file_warnings status
-  printf '==> QML lint (all files under versions/)\n'
+  printf '==> QML lint (Bar.qml and all files under versions/)\n'
   while IFS= read -r -d '' file; do
     count=$((count + 1))
     if "$qmllint" -I /usr/lib/qt6/qml "$file" >"$tmp/qmllint.log" 2>&1; then
@@ -67,26 +67,34 @@ check_qml() {
       printf 'FAIL: QML lint %s (exit %s; %s warnings)\n' "$file" "$status" "$file_warnings" >&2
       return "$status"
     fi
-  done < <(find versions -type f -name '*.qml' -print0)
+  done < <(find Bar.qml versions -type f -name '*.qml' -print0)
   if [[ "$count" -eq 0 ]]; then
-    printf 'FAIL: no QML files found under versions/.\n' >&2
+    printf 'FAIL: no QML files found.\n' >&2
     return 1
   fi
   printf 'PASS: QML lint (%s files; %s warnings)\n' "$count" "$warnings"
 }
 check_qml
 
-check "bar style settings" node --test tests/bar-style-settings.test.mjs
+check "variant failure and retry" python3 tests/test-variant-failure-runtime.py
+check "network SSID width" python3 tests/test-network-ssid-width.py
+check "AI widget mouse actions" python3 tests/test-ai-widget-click.py
+
+check "JavaScript regressions" node --test tests/*.test.mjs tests/*.test.cjs tests/test-display-*.cjs
 check "bar style previews" python3 tests/test-bar-style-preview.py
 check "vertical bar layout" python3 tests/test-vertical-bar-layout.py
 check "V1 vertical bar layout" python3 tests/test-v1-vertical-bar.py
 check "vertical workspaces" python3 tests/test-vertical-workspaces.py
 check "AI collector installation" bash tests/install-ai-backends-integration.sh
+check "Codex cache fallback" env TMPDIR="$tmp" python3 tests/codex-cache-fallback-regression.py
+check "Codex pipe framing" python3 tests/codex-rpc-buffer-regression.py
+check "wallpaper scanner" env TMPDIR="$tmp" python3 tests/test_qr04w_scan.py
 
 regressions=(
   tests/qs-arch-update-regression.sh
   tests/qs-barctl-regression.sh
   tests/qs-codex-usage-regression.sh
+  tests/qs-copilot-usage-regression.sh
   tests/qs-quattro-runtime-regression.sh
   tests/qs-theme-update-regression.sh
 )

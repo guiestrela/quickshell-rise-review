@@ -257,7 +257,7 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.verticalCenterOffset: -(cell.height - cell.contentHeight) / 2
                             sourceComponent: cell.gid === "G2" ? workspace
-                                : cell.gid === "G3" ? status : cell.gid === "G8" ? clock
+                                : cell.gid === "G3" ? statusGroupComponent : cell.gid === "G8" ? clock
                                 : cell.gid === "G10" ? quick : rail.registry[cell.gid] || null
                         }
                         MouseArea {
@@ -270,9 +270,10 @@ Item {
                                 var sourceRegion = rail.sourceRegion, sourceIndex = rail.sourceIndex
                                 var targetRegion = -1, targetIndex = -1
                                 for (var i = 0; i < items.count; i++) {
-                                    var candidate = items.objectAt(i)
-                                    if (candidate && candidate.visible && point.y >= candidate.mapToItem(stack, 0, 0).y && point.y <= candidate.mapToItem(stack, 0, candidate.height).y) {
-                                        targetRegion = candidate.modelData.region; targetIndex = candidate.modelData.index; break
+                                    var candidate = items.objectAt(i) as Item
+                                    var candidateData = items.model[i]
+                                    if (candidate && candidateData && candidate.visible && point.y >= candidate.mapToItem(stack, 0, 0).y && point.y <= candidate.mapToItem(stack, 0, candidate.height).y) {
+                                        targetRegion = candidateData.region; targetIndex = candidateData.index; break
                                     }
                                 }
                                 rail.sourceRegion = -1; rail.sourceIndex = -1
@@ -348,7 +349,7 @@ Item {
     }
 
     Component {
-        id: status
+        id: statusGroupComponent
         Item {
             implicitWidth: root.modStatus ? 32 : 0
             visible: root.modStatus

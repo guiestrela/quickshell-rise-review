@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 
 Item {
@@ -49,11 +50,11 @@ Item {
         }
 
         UiText {
-            visible: !root.iconOnly("G17")
+            visible: !rootMod.root.iconOnly("G17")
             anchors.verticalCenter: parent.verticalCenter
             text: String(Math.min(100, rootMod.percent)).padStart(2, "0") + "%"
             color: rootMod.contentColor
-            font.family: root.mono
+            font.family: rootMod.root.mono
             font.pixelSize: 12
         }
     }
@@ -66,6 +67,6 @@ Item {
         cursorShape: Qt.PointingHandCursor
         onEntered: tip.show()
         onExited: tip.hide()
-        onClicked: { tip.hide(); root.gpuVisible = !root.gpuVisible }
+        onClicked: { tip.hide(); rootMod.root.gpuVisible = !rootMod.root.gpuVisible }
     }
 }

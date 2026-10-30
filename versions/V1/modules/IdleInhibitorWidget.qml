@@ -11,7 +11,7 @@ Item {
     implicitWidth: 22
     implicitHeight: 28
 
-    readonly property bool on: root.idleInhibited
+    readonly property bool on: rootMod.root.idleInhibited
     readonly property string tooltipText: on ? "Idle inhibited: ON" : "Idle inhibited: OFF"
 
     UiText {
@@ -19,11 +19,11 @@ Item {
         // 󰛨 U+F06E8 = activated / 󰛩 U+F06E9 = deactivated
         text: rootMod.on ? String.fromCodePoint(0xF06E8) : String.fromCodePoint(0xF06E9)
         renderType: Text.QtRendering
-        font.family: root.mono
+        font.family: rootMod.root.mono
         font.pixelSize: 14
         color: rootMod.on
-            ? root.seal
-            : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.45)
+            ? rootMod.root.seal
+            : Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.45)
         Behavior on color { ColorAnimation { duration: 150 } }
     }
 
@@ -34,6 +34,6 @@ Item {
         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
         onEntered: tip.show()
         onExited:  tip.hide()
-        onClicked: { tip.hide(); root.idleInhibited = !root.idleInhibited }
+        onClicked: { tip.hide(); rootMod.root.idleInhibited = !rootMod.root.idleInhibited }
     }
 }

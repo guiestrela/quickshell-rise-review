@@ -11,7 +11,7 @@ test('V1 GPU is registered, controllable and persisted without renumbering',()=>
  assert.match(c,/label: "GPU";.*root.modGpu/);assert.match(v,/GpuPanel \{ root: theme \}/);
  assert.match(t,/onGpuVisibleChanged: popupOpened\("gpuVisible"\)/);assert.match(t,/except !== "gpuVisible"/);
  assert.match(t,/wsField \+ 39/);assert.match(t,/\(modGpu\s+\? "1" : "0"\)/);
- assert.match(t,/gpuTelemetryProc/);assert.match(read('modules/GpuWidget.qml'),/root.gpuVisible = !root.gpuVisible/);
+ assert.match(t,/gpuTelemetryProc/);assert.match(read('modules/GpuWidget.qml'),/rootMod\.root\.gpuVisible = !rootMod\.root\.gpuVisible/);
  assert.match(read('panels/GpuPanel.qml'),/root.gpuFanRpm/);
 });
 

@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import Quickshell
 import Quickshell.Services.SystemTray
 import QtQuick
@@ -5,21 +6,21 @@ import QtQuick
 Item {
     id: rootMod
     required property var root
-    readonly property color contentColor: root.widgetContentColor("G3", root.ink)
+    readonly property color contentColor: rootMod.root.widgetContentColor("G3", rootMod.root.ink)
 
     implicitWidth: trayRow.implicitWidth
-    implicitHeight: root.barVertical ? trayRow.implicitHeight : 28
+    implicitHeight: rootMod.root.barVertical ? trayRow.implicitHeight : 28
     visible: trayRow.implicitWidth > 0
 
     function toggleHide(item) {
-        root.trayToggleHide(item)
+        rootMod.root.trayToggleHide(item)
     }
 
     Grid {
         id: trayRow
-        columns: root.barVertical ? 1 : trayItems.count + 1
+        columns: rootMod.root.barVertical ? 1 : trayItems.count + 1
         anchors.centerIn: parent
-        spacing: root.v2IconClusterSpacing
+        spacing: rootMod.root.v2IconClusterSpacing
 
         Repeater {
             id: trayItems
@@ -31,9 +32,9 @@ Item {
 
                 // System-tray actions share the bar's compact 24px centre pitch:
                 // 22px action cell plus the surrounding Row's 2px cluster gap.
-                implicitWidth: root.v2ActionIconCellWidth
+                implicitWidth: rootMod.root.v2ActionIconCellWidth
                 implicitHeight: 28
-                visible: root.trayPinned.indexOf(modelData.id) >= 0
+                visible: rootMod.root.trayPinned.indexOf(modelData.id) >= 0
 
                 Image {
                     anchors.centerIn: parent
@@ -65,7 +66,7 @@ Item {
         // ── toggle: more_horiz icon + seal count badge ──
         Item {
             id: toggleBtn
-            implicitWidth: root.v2ActionIconCellWidth
+            implicitWidth: rootMod.root.v2ActionIconCellWidth
             implicitHeight: 28
             visible: hiddenCount > 0
 
@@ -73,7 +74,7 @@ Item {
             // button), iterating SystemTray.items so stale pinned IDs can't inflate the count
             readonly property int hiddenCount: {
                 var n = 0, vals = SystemTray.items.values
-                for (var i = 0; i < vals.length; i++) if (root.trayPinned.indexOf(vals[i].id) < 0) n++
+                for (var i = 0; i < vals.length; i++) if (rootMod.root.trayPinned.indexOf(vals[i].id) < 0) n++
                 return n
             }
             readonly property int totalCount:  SystemTray.items.values.length
@@ -100,7 +101,7 @@ Item {
                 width: Math.max(12, toggleBadgeTxt.implicitWidth + 6)
                 height: 12
                 radius: 6
-                color: root.widgetHasFill("G3") ? rootMod.contentColor : root.seal
+                color: rootMod.root.widgetHasFill("G3") ? rootMod.contentColor : rootMod.root.seal
                 anchors.verticalCenter: moreIcon.verticalCenter
                 anchors.verticalCenterOffset: -6
                 anchors.horizontalCenter: moreIcon.horizontalCenter
@@ -109,8 +110,8 @@ Item {
                     id: toggleBadgeTxt
                     anchors.centerIn: parent
                     text: toggleBtn.hiddenCount
-                    color: root.widgetHasFill("G3") ? root.widgetAssignedColor("G3") : root.paper
-                    font.family: root.mono
+                    color: rootMod.root.widgetHasFill("G3") ? rootMod.root.widgetAssignedColor("G3") : rootMod.root.paper
+                    font.family: rootMod.root.mono
                     font.pixelSize: 7
                     font.weight: Font.Bold
                 }
@@ -123,7 +124,7 @@ Item {
                 cursorShape: Qt.PointingHandCursor
                 onEntered: tip.show()
                 onExited: { tip.hide() }
-                onClicked: { tip.hide(); root.trayVisible = !root.trayVisible }
+                onClicked: { tip.hide(); rootMod.root.trayVisible = !rootMod.root.trayVisible }
             }
         }
     }

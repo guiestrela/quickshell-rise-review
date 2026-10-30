@@ -95,6 +95,10 @@ Item {
     }
 
     function targetLoadFailed(reason) {
+        // A failed rollback is terminal until an explicit retry. Stop polling
+        // before either the fallback or the terminal failure path.
+        readyTimer.stop()
+
         var broken = targetVariant
         var fallback = previousVariant !== ""
             ? previousVariant

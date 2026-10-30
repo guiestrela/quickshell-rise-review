@@ -1,12 +1,11 @@
 import QtQuick
-import Quickshell
 import Quickshell.Io
 import "../IconMap.js" as IconMap
 
 Item {
     id: rootMod
     required property var root
-    readonly property color contentColor: root.widgetContentColor("G15", root.ink)
+    readonly property color contentColor: rootMod.root.widgetContentColor("G15", rootMod.root.ink)
 
     property bool btOn:       false
     property bool connected:  false
@@ -20,7 +19,7 @@ Item {
         ? "Bluetooth · " + numConnected + " connected"
         : (btOn ? "Bluetooth on" : "Bluetooth off")
 
-    readonly property bool shown: root.modBluetooth
+    readonly property bool shown: rootMod.root.modBluetooth
     visible: implicitWidth > 0.5
     implicitWidth: shown ? row.implicitWidth + 18 : 0
     implicitHeight: 28
@@ -37,7 +36,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: IconMap.icon(rootMod.iconN)
             color: rootMod.connected
-                ? (root.widgetHasFill("G15") ? rootMod.contentColor : root.seal)
+                ? (rootMod.root.widgetHasFill("G15") ? rootMod.contentColor : rootMod.root.seal)
                 : Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, rootMod.btOn ? 0.7 : 0.3)
             font.pixelSize: 14
             Behavior on color { ColorAnimation { duration: 200 } }
@@ -45,10 +44,10 @@ Item {
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: rootMod.connected && !root.iconOnly("G15")
+            visible: rootMod.connected && !rootMod.root.iconOnly("G15")
             text: String(rootMod.numConnected)
-            color: root.widgetHasFill("G15") ? rootMod.contentColor : root.seal
-            font.family: root.mono
+            color: rootMod.root.widgetHasFill("G15") ? rootMod.contentColor : rootMod.root.seal
+            font.family: rootMod.root.mono
             font.pixelSize: 12
         }
     }
@@ -71,7 +70,7 @@ Item {
                 rootMod.btOn = false; rootMod.connected = false; rootMod.numConnected = 0
             } else if (r.startsWith("ON\t")) {
                 rootMod.btOn = true
-                var count = parseInt(r.split("\t")[1]) || 0
+                const count = parseInt(r.split("\t")[1]) || 0
                 rootMod.numConnected = count
                 rootMod.connected = count > 0
             }
@@ -87,7 +86,7 @@ Item {
 
     TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
-    Process { id: clickRunner; command: ["bash", "-c", root.launchBtCmd] }
+    Process { id: clickRunner; command: ["bash", "-c", rootMod.root.launchBtCmd] }
 
     MouseArea {
         anchors.fill: parent
@@ -98,7 +97,7 @@ Item {
         onClicked: (e) => {
             tip.hide()
             if (e.button === Qt.RightButton) { clickRunner.running = false; clickRunner.running = true }
-            else root.bluetoothVisible = !root.bluetoothVisible
+            else rootMod.root.bluetoothVisible = !rootMod.root.bluetoothVisible
         }
     }
 }

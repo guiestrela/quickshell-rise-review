@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Effects
 import Quickshell
@@ -10,10 +11,10 @@ Item {
     implicitHeight: 28
 
     readonly property string tooltipText: "Control center"
-    readonly property bool logoIconMode: root.barVertical === true || root.launcherLogoMode === "icon"
-    readonly property bool hyprlandLogo: !logoIconMode && root.launcherLogoText === "hyprland"
-    readonly property bool archTextLogo: !logoIconMode && root.launcherLogoText === "arch"
-    readonly property bool omacomTextLogo: !logoIconMode && root.launcherLogoText === "omacom"
+    readonly property bool logoIconMode: rootMod.root.barVertical === true || rootMod.root.launcherLogoMode === "icon"
+    readonly property bool hyprlandLogo: !logoIconMode && rootMod.root.launcherLogoText === "hyprland"
+    readonly property bool archTextLogo: !logoIconMode && rootMod.root.launcherLogoText === "arch"
+    readonly property bool omacomTextLogo: !logoIconMode && rootMod.root.launcherLogoText === "omacom"
     readonly property url logoSource: omacomTextLogo ? Qt.resolvedUrl("../assets/omacom-text.png") : hyprlandLogo ? Qt.resolvedUrl("../assets/bob3.png") : Qt.resolvedUrl("../assets/bob2.png")
     readonly property real logoAspect: omacomTextLogo ? (550 / 112) : archTextLogo ? (86 / 17) : hyprlandLogo ? (948 / 154) : (656 / 192)
     readonly property real logoHeight: logoIconMode ? 18 : hyprlandLogo ? 16 : omacomTextLogo ? 14 : archTextLogo ? 17 : 20
@@ -30,7 +31,7 @@ Item {
     readonly property real logoImageWidth: archTextLogo ? archWordmarkWidth : Math.round(logoHeight * logoAspect)
     readonly property real logoIconSlotWidth: 16
     readonly property real logoContentWidth: logoIconMode ? logoIconSlotWidth : logoImageWidth
-    readonly property color archBrandTextColor: root.barColorIsAccent ? root.sealRaw : root.accentHint
+    readonly property color archBrandTextColor: rootMod.root.barColorIsAccent ? rootMod.root.sealRaw : rootMod.root.accentHint
 
     // animated wave phase
     property real phase: 0
@@ -39,7 +40,7 @@ Item {
         duration: 2600; loops: Animation.Infinite
         // gate: only animate while hovered or control panel open — otherwise the
         // Canvas repainted 24/7 via onPhaseChanged even when nobody looks
-        running: ma.containsMouse || root.controlVisible
+        running: ma.containsMouse || rootMod.root.controlVisible
     }
 
     // shadow as a SIBLING of the pill (the pill itself clips, for the wave —
@@ -47,11 +48,11 @@ Item {
     RectangularShadow {
         anchors.fill: pill
         radius: pill.radius
-        visible: root.styleShadow
+        visible: rootMod.root.styleShadow
         blur: 8
         spread: 0
-        offset: Qt.vector2d(0, root.barPosition === "bottom" ? -1 : 1)
-        color: root.pillShadow
+        offset: Qt.vector2d(0, rootMod.root.barPosition === "bottom" ? -1 : 1)
+        color: rootMod.root.pillShadow
         z: -1
     }
 
@@ -60,11 +61,11 @@ Item {
         id: pill
         anchors.centerIn: parent
         width: rootMod.logoContentWidth + rootMod.logoPadding
-        height: root.pillH
-        radius: root.pillRadius
-        color: root.pill
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
+        height: rootMod.root.pillH
+        radius: rootMod.root.pillRadius
+        color: rootMod.root.pill
+        border.color: rootMod.root.pillBorder
+        border.width: rootMod.root.pillBorderW
         clip: true
 
         Canvas {
@@ -72,14 +73,14 @@ Item {
             anchors.fill: parent
             // only present while active (hovered or control panel open); fully
             // gone when idle. Fades so it appears/disappears smoothly.
-            opacity: (ma.containsMouse || root.controlVisible) ? 0.55 : 0
+            opacity: (ma.containsMouse || rootMod.root.controlVisible) ? 0.55 : 0
             visible: opacity > 0.001
             Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
 
             onPaint: {
                 var ctx = getContext("2d")
                 ctx.clearRect(0, 0, width, height)
-                var vertical = root.barVertical === true
+                var vertical = rootMod.root.barVertical === true
                 var length = vertical ? height : width
                 var cy = (vertical ? width : height) / 2
                 var amp = 3.0
@@ -92,7 +93,7 @@ Item {
                         var px = vertical ? y : x, py = vertical ? x : y
                         if (x === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py)
                     }
-                    ctx.strokeStyle = Qt.rgba(root.seal.r, root.seal.g, root.seal.b, alpha)
+                    ctx.strokeStyle = Qt.rgba(rootMod.root.seal.r, rootMod.root.seal.g, rootMod.root.seal.b, alpha)
                     ctx.lineWidth = 1.5
                     ctx.lineCap = "round"
                     ctx.stroke()
@@ -107,7 +108,7 @@ Item {
                 function onPhaseChanged() { wave.requestPaint() }
             }
             Connections {
-                target: root
+                target: rootMod.root
                 function onSealChanged() { wave.requestPaint() }
                 function onBarPositionChanged() { wave.requestPaint() }
             }
@@ -139,9 +140,9 @@ Item {
                 width: rootMod.archWordLogoWidth
                 horizontalAlignment: Text.AlignHCenter
                 text: ""
-                color: root.seal
+                color: rootMod.root.seal
                 renderType: Text.QtRendering
-                font.family: root.mono
+                font.family: rootMod.root.mono
                 font.pixelSize: 15
             }
 
@@ -181,7 +182,7 @@ Item {
                 layer.smooth: true
                 layer.textureSize: Qt.size(Math.max(1, Math.round(width * 3)), Math.max(1, Math.round(height * 3)))
                 layer.effect: ShaderEffect {
-                    property color tintColor: root.seal
+                    property color tintColor: rootMod.root.seal
                     fragmentShader: Qt.resolvedUrl("../shaders/logo-tint.frag.qsb")
                 }
             }
@@ -202,7 +203,7 @@ Item {
             layer.smooth: true
             layer.textureSize: Qt.size(Math.max(1, Math.round(width * 3)), Math.max(1, Math.round(height * 3)))   // supersample → crisp
             layer.effect: ShaderEffect {
-                property color tintColor: root.seal
+                property color tintColor: rootMod.root.seal
                 fragmentShader: Qt.resolvedUrl("../shaders/logo-tint.frag.qsb")
             }
         }
@@ -213,18 +214,18 @@ Item {
         visible: rootMod.logoIconMode
         anchors.centerIn: parent
         width: rootMod.logoIconSlotWidth
-        height: root.pillH
+        height: rootMod.root.pillH
 
         UiText {
             id: logoIcon
             anchors.centerIn: parent
-            anchors.horizontalCenterOffset: root.launcherLogoIconXOffset(root.launcherLogoIcon)
-            anchors.verticalCenterOffset: root.launcherLogoIconYOffset(root.launcherLogoIcon)
-            text: root.launcherLogoIconGlyph(root.launcherLogoIcon)
-            color: root.seal
+            anchors.horizontalCenterOffset: rootMod.root.launcherLogoIconXOffset(rootMod.root.launcherLogoIcon)
+            anchors.verticalCenterOffset: rootMod.root.launcherLogoIconYOffset(rootMod.root.launcherLogoIcon)
+            text: rootMod.root.launcherLogoIconGlyph(rootMod.root.launcherLogoIcon)
+            color: rootMod.root.seal
             renderType: Text.QtRendering
-            font.family: root.launcherLogoIconFont(root.launcherLogoIcon)
-            font.pixelSize: root.launcherLogoIconSize(root.launcherLogoIcon)
+            font.family: rootMod.root.launcherLogoIconFont(rootMod.root.launcherLogoIcon)
+            font.pixelSize: rootMod.root.launcherLogoIconSize(rootMod.root.launcherLogoIcon)
             Behavior on color { ColorAnimation { duration: 200 } }
         }
     }
@@ -240,7 +241,7 @@ Item {
         onExited:  { tip.hide() }
         onClicked: {
             tip.hide()
-            root.controlVisible = !root.controlVisible
+            rootMod.root.controlVisible = !rootMod.root.controlVisible
         }
     }
 }

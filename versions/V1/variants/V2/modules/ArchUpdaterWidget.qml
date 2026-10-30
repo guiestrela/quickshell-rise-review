@@ -82,15 +82,15 @@ Item {
         objectName: "package-refresh-watchdog"
         onTriggered: {
             rootMod.checkTimedOut = true
-            root.archScanError = "Update check timed out. Previous results retained."
+            rootMod.root.archScanError = "Update check timed out. Previous results retained."
             rootMod.refreshing = false
             checkProc.running = false
         }
     }
 
     Timer {
-        interval: 1800000; running: root.modStatus || root.archVisible; repeat: true; triggeredOnStart: true
-        onTriggered: root.archRefreshTick++
+        interval: 1800000; running: rootMod.root.modStatus || rootMod.root.archVisible; repeat: true; triggeredOnStart: true
+        onTriggered: rootMod.root.archRefreshTick++
     }
 
     property int extTrigger: root.archRefreshTick
@@ -163,8 +163,8 @@ Item {
             text: rootMod.refreshing ? "\uE5D5" : IconMap.icon("package_2")
             color: rootMod.refreshing
                 ? rootMod.contentColor
-                : (rootMod.hasNotice && !root.widgetHasFill(rootMod.colorGid)
-                    ? root.seal
+                : (rootMod.hasNotice && !rootMod.root.widgetHasFill(rootMod.colorGid)
+                    ? rootMod.root.seal
                     : Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b,
                         rootMod.hasNotice ? 1.0 : 0.4))
             font.pixelSize: 14
@@ -179,16 +179,16 @@ Item {
             width: Math.max(12, badgeText.implicitWidth + 6)
             height: 12
             radius: 6
-            color: root.widgetHasFill(rootMod.colorGid) ? rootMod.contentColor : root.seal
+            color: rootMod.root.widgetHasFill(rootMod.colorGid) ? rootMod.contentColor : rootMod.root.seal
 
             Text {
                 id: badgeText
                 anchors.centerIn: parent
                 text: rootMod.badgeCount > 99 ? "99+" : String(rootMod.badgeCount)
-                color: root.widgetHasFill(rootMod.colorGid)
-                    ? root.widgetAssignedColor(rootMod.colorGid)
-                    : root.paper
-                font.family: root.mono
+                color: rootMod.root.widgetHasFill(rootMod.colorGid)
+                    ? rootMod.root.widgetAssignedColor(rootMod.colorGid)
+                    : rootMod.root.paper
+                font.family: rootMod.root.mono
                 font.pixelSize: 7
                 font.weight: Font.Bold
             }
@@ -219,9 +219,9 @@ Item {
         onClicked: (e) => {
             tip.hide();
             if (e.button === Qt.RightButton) {
-                root.archRefreshTick++;
+                rootMod.root.archRefreshTick++;
             } else {
-                root.archVisible = true;
+                rootMod.root.archVisible = true;
             }
         }
     }

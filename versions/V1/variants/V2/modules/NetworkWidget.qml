@@ -1,5 +1,5 @@
+pragma ComponentBehavior: Bound
 import QtQuick
-import Quickshell
 import Quickshell.Io
 import "../IconMap.js" as IconMap
 
@@ -35,15 +35,15 @@ Item {
     function formatBarRate(bps) {
         var value = Math.max(0, Number(bps) || 0)
         if (value >= 1073741824) {
-            var gib = value / 1073741824
+            const gib = value / 1073741824
             return (gib < 10 ? gib.toFixed(1) : gib.toFixed(0)) + "G"
         }
         if (value >= 1048576) {
-            var mib = value / 1048576
+            const mib = value / 1048576
             return (mib < 10 ? mib.toFixed(1) : mib.toFixed(0)) + "M"
         }
         if (value >= 1024) {
-            var kib = value / 1024
+            const kib = value / 1024
             return (kib < 10 ? kib.toFixed(1) : kib.toFixed(0)) + "K"
         }
         return "0K"
@@ -59,7 +59,7 @@ Item {
 
     function updateSpeeds(rx, tx, now) {
         if (prevRx >= 0 && prevMs > 0) {
-            var dt = (now - prevMs) / 1000
+            const dt = (now - prevMs) / 1000
             if (dt > 0) {
                 dlRate = Math.max(0, (rx - prevRx) / dt)
                 ulRate = Math.max(0, (tx - prevTx) / dt)
@@ -90,6 +90,13 @@ Item {
     Binding { target: rootMod.root; property: "networkMode"; value: rootMod.mode }
     implicitHeight: 28
 
+    // Keep measurement independent of the elided label's assigned width.
+    TextMetrics {
+        id: wifiSsidMetrics
+        text: wifiSsidLabel.text
+        font: wifiSsidLabel.font
+    }
+
     Row {
         id: row
         anchors.centerIn: parent
@@ -117,12 +124,13 @@ Item {
         }
 
         UiText {
+            id: wifiSsidLabel
             anchors.verticalCenter: parent.verticalCenter
-            visible: rootMod.mode === "wifi" && !root.iconOnly("G11")
-            width: visible ? Math.min(88, implicitWidth) : 0
+            visible: rootMod.mode === "wifi" && !rootMod.root.iconOnly("G11")
+            width: visible ? Math.min(88, Math.ceil(wifiSsidMetrics.advanceWidth)) : 0
             text: rootMod.ssid !== "" ? rootMod.ssid : "Wi-Fi"
             color: rootMod.contentColor
-            font.family: root.mono
+            font.family: rootMod.root.mono
             font.pixelSize: 11
             elide: Text.ElideRight
         }
@@ -130,7 +138,7 @@ Item {
         Item {
             id: trafficMeter
             anchors.verticalCenter: parent.verticalCenter
-            visible: rootMod.mode === "ethernet" && !root.iconOnly("G11")
+            visible: rootMod.mode === "ethernet" && !rootMod.root.iconOnly("G11")
             width: visible ? 16 : 0
             height: 20
 
@@ -142,7 +150,7 @@ Item {
                 width: 8; height: 8
                 text: "RX"
                 color: Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.72)
-                font.family: root.mono
+                font.family: rootMod.root.mono
                 font.pixelSize: 7
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
@@ -183,7 +191,7 @@ Item {
                 width: 8; height: 8
                 text: "TX"
                 color: Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.72)
-                font.family: root.mono
+                font.family: rootMod.root.mono
                 font.pixelSize: 7
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
@@ -255,7 +263,7 @@ Item {
 
     TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
-    Process { id: clickRunner; command: ["bash", "-c", root.launchWifiCmd] }
+    Process { id: clickRunner; command: ["bash", "-c", rootMod.root.launchWifiCmd] }
 
     MouseArea {
         anchors.fill: parent
@@ -266,7 +274,7 @@ Item {
         onClicked: (e) => {
             tip.hide()
             if (e.button === Qt.RightButton) { clickRunner.running = false; clickRunner.running = true }
-            else root.networkVisible = !root.networkVisible
+            else rootMod.root.networkVisible = !rootMod.root.networkVisible
         }
     }
 }

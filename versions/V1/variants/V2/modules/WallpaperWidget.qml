@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell
 
 // Rise-only control: uses the existing wallpaper owner and picker.
 Item {
@@ -23,12 +22,12 @@ Item {
     Rectangle {
         anchors.verticalCenter: parent.verticalCenter
         width: buttons.implicitWidth + 16
-        height: root.pillH
-        radius: root.pillRadius
-        color: root.pill
+        height: rootMod.root.pillH
+        radius: rootMod.root.pillRadius
+        color: rootMod.root.pill
         border.color: "transparent"
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
+        border.width: rootMod.root.pillBorderW
+        PillShadow { theme: rootMod.root }
     }
     Row {
         id: buttons
@@ -38,7 +37,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.configured ? "WALL" : "WALL +"
             color: rootMod.contentColor
-            font.family: root.mono
+            font.family: rootMod.root.mono
             font.pixelSize: 10
             MouseArea {
                 anchors.fill: parent

@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Effects
 import Quickshell
@@ -198,7 +199,7 @@ Item {
         stdout: StdioCollector { onStreamFinished: { rootMod.ocActive = (this.text.trim() === "1") } }
     }
     Timer {
-        interval: 5000; running: root.modClaude || root.aiUsageVisible; repeat: true; triggeredOnStart: true
+        interval: 5000; running: rootMod.root.modClaude || rootMod.root.aiUsageVisible; repeat: true; triggeredOnStart: true
         onTriggered: {
             detectClaude.running = false; detectClaude.running = true
             detectCodex.running = false;  detectCodex.running = true
@@ -238,7 +239,7 @@ Item {
                     text: String.fromCodePoint(0xF167A)
                     renderType: Text.QtRendering
                     color: Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.25)
-                    font.family: root.mono
+                    font.family: rootMod.root.mono
                     font.pixelSize: 14
                 }
                 Item {
@@ -254,7 +255,7 @@ Item {
                         text: String.fromCodePoint(0xF167A)
                         renderType: Text.QtRendering
                         color: rootMod.contentColor
-                        font.family: root.mono
+                        font.family: rootMod.root.mono
                         font.pixelSize: 14
                         Behavior on color { ColorAnimation { duration: 200 } }
                     }
@@ -312,13 +313,13 @@ Item {
         }
 
         UiText {
-            visible: !root.iconOnly("G7")
+            visible: !rootMod.root.iconOnly("G7")
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.blocked
                 ? "BLK"
                 : (rootMod.selHas ? String(rootMod.pct5h).padStart(2, "0") + "%" : "··")
             color: rootMod.contentColor
-            font.family: root.mono
+            font.family: rootMod.root.mono
             font.pixelSize: 12
             Behavior on color { ColorAnimation { duration: 200 } }
         }
@@ -341,15 +342,15 @@ Item {
         anchors.fill: parent
         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
         acceptedButtons: Qt.LeftButton | Qt.RightButton
-        onEntered: if (shown) { root.refreshAiUsage(); tip.show() }
+        onEntered: if (rootMod.shown) { rootMod.root.refreshAiUsage(); tip.show() }
         onExited: { tip.hide() }
-        onClicked: {
+        onClicked: function(mouse) {
             tip.hide()
             if (mouse.button === Qt.RightButton) {
                 rootMod.openSelectedAgent()
-                root.aiUsageVisible = false
+                rootMod.root.aiUsageVisible = false
             } else {
-                root.aiUsageVisible = !root.aiUsageVisible
+                rootMod.root.aiUsageVisible = !rootMod.root.aiUsageVisible
             }
         }
     }

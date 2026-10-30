@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell
 
 Item {
     id: rootMod
@@ -15,8 +14,8 @@ Item {
         text: "palette"
         font.pixelSize: 14
         font.weight: Font.Normal
-        color: root.imagePickerVisible
-            ? (root.widgetHasFill("G10") ? rootMod.contentColor : root.seal)
+        color: rootMod.root.imagePickerVisible
+            ? (rootMod.root.widgetHasFill("G10") ? rootMod.contentColor : rootMod.root.seal)
             : rootMod.contentColor
         Behavior on color { ColorAnimation { duration: 150 } }
     }

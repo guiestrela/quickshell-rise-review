@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Effects
 import Quickshell
@@ -10,10 +11,10 @@ Item {
     implicitHeight: 28
 
     readonly property string tooltipText: "Control center"
-    readonly property bool logoIconMode: root.barVertical || root.launcherLogoMode === "icon"
-    readonly property bool hyprlandLogo: !logoIconMode && root.launcherLogoText === "hyprland"
-    readonly property bool archTextLogo: !logoIconMode && root.launcherLogoText === "arch"
-    readonly property bool omacomTextLogo: !logoIconMode && root.launcherLogoText === "omacom"
+    readonly property bool logoIconMode: rootMod.root.barVertical || rootMod.root.launcherLogoMode === "icon"
+    readonly property bool hyprlandLogo: !logoIconMode && rootMod.root.launcherLogoText === "hyprland"
+    readonly property bool archTextLogo: !logoIconMode && rootMod.root.launcherLogoText === "arch"
+    readonly property bool omacomTextLogo: !logoIconMode && rootMod.root.launcherLogoText === "omacom"
     readonly property url logoSource: omacomTextLogo ? Qt.resolvedUrl("../assets/omacom-text.png") : hyprlandLogo ? Qt.resolvedUrl("../assets/bob3.png") : Qt.resolvedUrl("../assets/bob2.png")
     readonly property real logoAspect: omacomTextLogo ? (550 / 112) : archTextLogo ? (86 / 17) : hyprlandLogo ? (948 / 154) : (656 / 192)
     readonly property real logoHeight: logoIconMode ? 18 : hyprlandLogo ? 16 : omacomTextLogo ? 14 : archTextLogo ? 17 : 20
@@ -30,10 +31,10 @@ Item {
     readonly property real logoImageWidth: archTextLogo ? archWordmarkWidth : Math.round(logoHeight * logoAspect)
     readonly property real logoIconSlotWidth: 16
     readonly property real logoContentWidth: logoIconMode ? logoIconSlotWidth : logoImageWidth
-    readonly property color contentColor: root.widgetContentColor("G1", root.seal)
-    readonly property color archBrandTextColor: root.widgetHasFill("G1")
+    readonly property color contentColor: rootMod.root.widgetContentColor("G1", rootMod.root.seal)
+    readonly property color archBrandTextColor: rootMod.root.widgetHasFill("G1")
         ? contentColor
-        : root.barColorIsAccent ? root.sealRaw : root.accentHint
+        : rootMod.root.barColorIsAccent ? rootMod.root.sealRaw : rootMod.root.accentHint
 
     // animated wave phase
     property real phase: 0
@@ -42,7 +43,7 @@ Item {
         duration: 2600; loops: Animation.Infinite
         // gate: only animate while hovered or control panel open — otherwise the
         // Canvas repainted 24/7 via onPhaseChanged even when nobody looks
-        running: ma.containsMouse || root.controlVisible
+        running: ma.containsMouse || rootMod.root.controlVisible
     }
 
     // ── hover-wave container (invisible surface, clips the wave to the logo area) ──
@@ -50,7 +51,7 @@ Item {
         id: pill
         anchors.centerIn: parent
         width: rootMod.logoContentWidth + rootMod.logoPadding
-        height: root.pillH
+        height: rootMod.root.pillH
         color: "transparent"
         border.width: 0
         clip: true
@@ -60,14 +61,14 @@ Item {
             anchors.fill: parent
             // only present while active (hovered or control panel open); fully
             // gone when idle. Fades so it appears/disappears smoothly.
-            opacity: (ma.containsMouse || root.controlVisible) ? 0.55 : 0
+            opacity: (ma.containsMouse || rootMod.root.controlVisible) ? 0.55 : 0
             visible: opacity > 0.001
             Behavior on opacity { NumberAnimation { duration: 220; easing.type: Easing.OutCubic } }
 
             onPaint: {
                 var ctx = getContext("2d")
                 ctx.clearRect(0, 0, width, height)
-                var vertical = root.barVertical === true
+                var vertical = rootMod.root.barVertical === true
                 var length = vertical ? height : width
                 var cy = (vertical ? width : height) / 2
                 var amp = 3.0
@@ -95,7 +96,7 @@ Item {
                 function onPhaseChanged() { wave.requestPaint() }
             }
             Connections {
-                target: root
+                target: rootMod.root
                 function onSealChanged() { wave.requestPaint() }
                 function onBarPositionChanged() { wave.requestPaint() }
                 function onWidgetColorStylesChanged() { wave.requestPaint() }
@@ -130,7 +131,7 @@ Item {
                 text: ""
                 color: rootMod.contentColor
                 renderType: Text.QtRendering
-                font.family: root.mono
+                font.family: rootMod.root.mono
                 font.pixelSize: 15
             }
 
@@ -202,18 +203,18 @@ Item {
         visible: rootMod.logoIconMode
         anchors.centerIn: parent
         width: rootMod.logoIconSlotWidth
-        height: root.pillH
+        height: rootMod.root.pillH
 
         UiText {
             id: logoIcon
             anchors.centerIn: parent
-            anchors.horizontalCenterOffset: root.launcherLogoIconXOffset(root.launcherLogoIcon)
-            anchors.verticalCenterOffset: root.launcherLogoIconYOffset(root.launcherLogoIcon)
-            text: root.launcherLogoIconGlyph(root.launcherLogoIcon)
+            anchors.horizontalCenterOffset: rootMod.root.launcherLogoIconXOffset(rootMod.root.launcherLogoIcon)
+            anchors.verticalCenterOffset: rootMod.root.launcherLogoIconYOffset(rootMod.root.launcherLogoIcon)
+            text: rootMod.root.launcherLogoIconGlyph(rootMod.root.launcherLogoIcon)
             color: rootMod.contentColor
             renderType: Text.QtRendering
-            font.family: root.launcherLogoIconFont(root.launcherLogoIcon)
-            font.pixelSize: root.launcherLogoIconSize(root.launcherLogoIcon)
+            font.family: rootMod.root.launcherLogoIconFont(rootMod.root.launcherLogoIcon)
+            font.pixelSize: rootMod.root.launcherLogoIconSize(rootMod.root.launcherLogoIcon)
             Behavior on color { ColorAnimation { duration: 200 } }
         }
     }
@@ -229,7 +230,7 @@ Item {
         onExited:  { tip.hide() }
         onClicked: {
             tip.hide()
-            root.controlVisible = !root.controlVisible
+            rootMod.root.controlVisible = !rootMod.root.controlVisible
         }
     }
 }

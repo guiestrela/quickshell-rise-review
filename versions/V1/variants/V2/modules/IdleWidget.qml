@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell
 import Quickshell.Io
 
 Item {
@@ -21,14 +20,14 @@ Item {
         anchors.centerIn: parent
         text: "\uDB86\uDED6"   // coffee (Nerd Font / JetBrainsMono)
         color: rootMod.contentColor
-        font.family: root.mono
+        font.family: rootMod.root.mono
         font.pixelSize: 13
     }
 
     Process {
         id: toggleProc
         command: ["bash", "-c", "if command -v omarchy-toggle-idle >/dev/null 2>&1; then exec omarchy-toggle-idle; fi; exec omarchy toggle idle"]
-        onExited: root.refreshStatusIndicators()
+        onExited: rootMod.root.refreshStatusIndicators()
     }
 
     TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }

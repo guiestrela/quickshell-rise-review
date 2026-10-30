@@ -31,6 +31,7 @@ mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
 
 snapshot = json.loads(Path(snapshot_path).read_text())
+mod.gh_token = lambda: "fixture-token"
 mod.fetch = lambda _token: snapshot
 mod.CACHE_FILE = Path(out_path)
 mod.main()
@@ -122,6 +123,7 @@ spec = importlib.util.spec_from_loader("copilot_usage",
     importlib.machinery.SourceFileLoader("copilot_usage", spec_path))
 mod = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(mod)
+mod.gh_token = lambda: "fixture-token"
 mod.fetch = lambda _t: None
 mod.CACHE_FILE = Path(cache_path)
 mod.main()

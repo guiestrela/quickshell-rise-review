@@ -80,15 +80,15 @@ Item {
         objectName: "package-refresh-watchdog"
         onTriggered: {
             rootMod.checkTimedOut = true
-            root.archScanError = "Update check timed out. Previous results retained."
+            rootMod.root.archScanError = "Update check timed out. Previous results retained."
             rootMod.refreshing = false
             checkProc.running = false
         }
     }
 
     Timer {
-        interval: 1800000; running: root.modStatus || root.archVisible; repeat: true; triggeredOnStart: true
-        onTriggered: root.archRefreshTick++
+        interval: 1800000; running: rootMod.root.modStatus || rootMod.root.archVisible; repeat: true; triggeredOnStart: true
+        onTriggered: rootMod.root.archRefreshTick++
     }
 
     property int extTrigger: root.archRefreshTick
@@ -160,8 +160,8 @@ Item {
             anchors.centerIn: parent
             text: rootMod.refreshing ? "\uE5D5" : IconMap.icon("package_2")
             color: rootMod.refreshing
-                ? Qt.rgba(root.sumi.r, root.sumi.g, root.sumi.b, 1)
-                : (rootMod.hasNotice ? root.seal : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.4))
+                ? Qt.rgba(rootMod.root.sumi.r, rootMod.root.sumi.g, rootMod.root.sumi.b, 1)
+                : (rootMod.hasNotice ? rootMod.root.seal : Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.4))
             font.pixelSize: 14
         }
 
@@ -174,14 +174,14 @@ Item {
             width: Math.max(12, badgeText.implicitWidth + 6)
             height: 12
             radius: 6
-            color: root.seal
+            color: rootMod.root.seal
 
             Text {
                 id: badgeText
                 anchors.centerIn: parent
                 text: rootMod.badgeCount > 99 ? "99+" : String(rootMod.badgeCount)
-                color: root.paper
-                font.family: root.mono
+                color: rootMod.root.paper
+                font.family: rootMod.root.mono
                 font.pixelSize: 7
                 font.weight: Font.Bold
             }
@@ -212,9 +212,9 @@ Item {
         onClicked: (e) => {
             tip.hide();
             if (e.button === Qt.RightButton) {
-                root.archRefreshTick++;
+                rootMod.root.archRefreshTick++;
             } else {
-                root.archVisible = true;
+                rootMod.root.archVisible = true;
             }
         }
     }

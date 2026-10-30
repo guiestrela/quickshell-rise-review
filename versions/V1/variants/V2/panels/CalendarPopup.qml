@@ -486,6 +486,7 @@ PanelWindow {
                 wrapMode: Text.Wrap
             }
             Row {
+                id: calendarSetupModeRow
                 visible: !calPopup.calendarConnected
                 width: parent.width
                 height: 24
@@ -494,7 +495,7 @@ PanelWindow {
                     model: [{ v: "direct", t: "GOOGLE DIRECT" }, { v: "hosted", t: "GOOGLE HOSTED" }]
                     delegate: Rectangle {
                         required property var modelData
-                        width: (parent.width - parent.spacing) / 2
+                        width: (calendarSetupModeRow.width - calendarSetupModeRow.spacing) / 2
                         height: 24
                         radius: root.tileRadius
                         color: setupModeMouse.containsMouse ? root.fillHover : root.fillIdle
@@ -512,6 +513,7 @@ PanelWindow {
                 }
             }
             Row {
+                id: calendarSyncActionsRow
                 width: parent.width
                 height: 24
                 spacing: 6
@@ -520,7 +522,7 @@ PanelWindow {
                     delegate: Rectangle {
                         required property string modelData
                         required property int index
-                        width: (parent.width - parent.spacing) / 2
+                        width: (calendarSyncActionsRow.width - calendarSyncActionsRow.spacing) / 2
                         height: 24
                         radius: root.tileRadius
                         color: actionMouse.containsMouse ? root.fillHover : root.fillIdle

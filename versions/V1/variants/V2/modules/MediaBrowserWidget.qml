@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell
 
 // Combined screenshots/videos browser launcher.
 // Left-click = screenshots, right-click = videos. Sits left of the theme icon.
@@ -17,8 +16,8 @@ Item {
         text: "collections"
         font.pixelSize: 14
         font.weight: Font.Normal
-        color: root.mediaBrowserVisible
-            ? (root.widgetHasFill("G10") ? rootMod.contentColor : root.seal)
+        color: rootMod.root.mediaBrowserVisible
+            ? (rootMod.root.widgetHasFill("G10") ? rootMod.contentColor : rootMod.root.seal)
             : rootMod.contentColor
         Behavior on color { ColorAnimation { duration: 150 } }
     }
@@ -37,13 +36,13 @@ Item {
         onExited:  tip.hide()
         onClicked: function(mouse) {
             tip.hide()
-            if (root.mediaBrowserVisible) {
-                root.mediaBrowserVisible = false
+            if (rootMod.root.mediaBrowserVisible) {
+                rootMod.root.mediaBrowserVisible = false
                 return
             }
-            root.activatePopupScreen(rootMod.screen)
-            root.mediaBrowserMode    = (mouse.button === Qt.RightButton) ? "videos" : "screenshots"
-            root.mediaBrowserVisible = true
+            rootMod.root.activatePopupScreen(rootMod.screen)
+            rootMod.root.mediaBrowserMode    = (mouse.button === Qt.RightButton) ? "videos" : "screenshots"
+            rootMod.root.mediaBrowserVisible = true
         }
     }
 }

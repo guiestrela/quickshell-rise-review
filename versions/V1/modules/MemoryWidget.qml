@@ -1,34 +1,32 @@
 import QtQuick
-import Quickshell
-import Quickshell.Io
 
 Item {
     id: rootMod
     required property var root
-    readonly property bool verticalCompact: root.barVertical === true || root.compactMemory
+    readonly property bool verticalCompact: rootMod.root.barVertical === true || rootMod.root.compactMemory
 
     visible: implicitWidth > 0.5
-    implicitWidth: root.modMemory ? row.implicitWidth + 18 : 0
+    implicitWidth: rootMod.root.modMemory ? row.implicitWidth + 18 : 0
     implicitHeight: 28
-    opacity: root.modMemory ? 1 : 0
+    opacity: rootMod.root.modMemory ? 1 : 0
 
     Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
 
-    readonly property int percent: root.systemMemPercent
-    readonly property real usedGiB: root.systemMemUsedGiB
-    readonly property real totalGiB: root.systemMemTotalGiB
+    readonly property int percent: rootMod.root.systemMemPercent
+    readonly property real usedGiB: rootMod.root.systemMemUsedGiB
+    readonly property real totalGiB: rootMod.root.systemMemTotalGiB
     readonly property string usedLabel: usedGiB.toFixed(1) + "G"
     readonly property string tooltipText: usedGiB.toFixed(1) + "/" + totalGiB.toFixed(0) + "G"
 
     Rectangle {
         x: 0; anchors.verticalCenter: parent.verticalCenter
         width: Math.round(row.width) + 18
-        height: root.pillH
-        radius: root.pillRadius
-        color: root.pill
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
+        height: rootMod.root.pillH
+        radius: rootMod.root.pillRadius
+        color: rootMod.root.pill
+        border.color: rootMod.root.pillBorder
+        border.width: rootMod.root.pillBorderW
+        PillShadow { theme: rootMod.root }
     }
 
     Row {
@@ -41,8 +39,8 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: !rootMod.verticalCompact
             text: "MEM"
-            color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
-            font.family: root.mono
+            color: Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.6)
+            font.family: rootMod.root.mono
             font.pixelSize: 12
             font.letterSpacing: 0.5
         }
@@ -54,7 +52,7 @@ Item {
             height: 16
             anchors.verticalCenter: parent.verticalCenter
 
-            property color tint: root.seal
+            property color tint: rootMod.root.seal
             onTintChanged: requestPaint()
 
             onPaint: {
@@ -69,7 +67,7 @@ Item {
 
                 ctx.beginPath()
                 ctx.arc(cx, cy, r, 0, 2 * Math.PI)
-                ctx.strokeStyle = Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.18)
+                ctx.strokeStyle = Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.18)
                 ctx.lineWidth = 2
                 ctx.lineCap = "round"
                 ctx.stroke()
@@ -98,8 +96,8 @@ Item {
 
             UiText {
                 text: rootMod.usedLabel
-                color: root.seal
-                font.family: root.mono
+                color: rootMod.root.seal
+                font.family: rootMod.root.mono
                 font.pixelSize: 12
             }
         }
@@ -115,8 +113,8 @@ Item {
                 id: compactMemRing
                 anchors.fill: parent
 
-                property color tint: root.seal
-                property color base: root.ink
+                property color tint: rootMod.root.seal
+                property color base: rootMod.root.ink
                 onTintChanged: requestPaint()
                 onBaseChanged: requestPaint()
 
@@ -156,10 +154,10 @@ Item {
 
         UiText {
             anchors.verticalCenter: parent.verticalCenter
-            visible: root.barVertical !== true && rootMod.verticalCompact
+            visible: rootMod.root.barVertical !== true && rootMod.verticalCompact
             text: rootMod.usedLabel
-            color: root.seal
-            font.family: root.mono
+            color: rootMod.root.seal
+            font.family: rootMod.root.mono
             font.pixelSize: 12
         }
     }
@@ -172,6 +170,6 @@ Item {
         cursorShape: Qt.PointingHandCursor
         onEntered: tip.show()
         onExited: { tip.hide() }
-        onClicked: { tip.hide(); root.memVisible = !root.memVisible }
+        onClicked: { tip.hide(); rootMod.root.memVisible = !rootMod.root.memVisible }
     }
 }

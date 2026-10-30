@@ -6,9 +6,9 @@ Item {
     id: rootMod
     required property var root
 
-    readonly property string voiceState: root.voxState   // idle | recording | transcribing
-    readonly property string hint:  root.voxHint
-    readonly property bool   hasVoxtype: root.voxAvailable
+    readonly property string voiceState: rootMod.root.voxState   // idle | recording | transcribing
+    readonly property string hint:  rootMod.root.voxHint
+    readonly property bool   hasVoxtype: rootMod.root.voxAvailable
 
     readonly property string displayIcon: {
         if (voiceState === "recording")    return "\uE029"   // mic
@@ -27,7 +27,7 @@ Item {
         id: ico
         anchors.centerIn: parent
         text: rootMod.displayIcon
-        color: rootMod.voiceState === "recording" ? root.seal : root.ink
+        color: rootMod.voiceState === "recording" ? rootMod.root.seal : rootMod.root.ink
         font.pixelSize: 14
 
         // pulse while recording

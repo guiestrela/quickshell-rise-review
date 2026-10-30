@@ -267,14 +267,15 @@ PanelWindow {
                         {key:"arp-ignore",label:"ARP Ignore"},
                         {key:"post-quantum-vpn",label:"Post-quantum VPN"}]
                     delegate: Rectangle {
+                        id: settingDelegate
                         required property var modelData
                         width: (parent.width - 10) / 2; height: 42; radius: 0
                         readonly property bool enabledSetting: /^(enabled|on|yes|true)$/i.test(String(controller.vpnSettings[modelData.key] || ""))
                         color: "transparent"
-                        UiText { anchors.left: parent.left; anchors.right: switchTrack.left; anchors.rightMargin: 5; anchors.verticalCenter: parent.verticalCenter; text: modelData.label; color: parent.enabledSetting ? vpnPanel.root.ink : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10; wrapMode: Text.WordWrap; maximumLineCount: 2 }
-                        Rectangle { id: switchTrack; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; width: 50; height: 22; radius: height / 2; color: parent.enabledSetting ? vpnPanel.root.fillActive : settingMouse.containsMouse && settingMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle; border.color: parent.enabledSetting || (settingMouse.containsMouse && settingMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep; border.width: 1
+                        UiText { anchors.left: parent.left; anchors.right: switchTrack.left; anchors.rightMargin: 5; anchors.verticalCenter: parent.verticalCenter; text: modelData.label; color: settingDelegate.enabledSetting ? vpnPanel.root.ink : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10; wrapMode: Text.WordWrap; maximumLineCount: 2 }
+                        Rectangle { id: switchTrack; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; width: 50; height: 22; radius: height / 2; color: settingDelegate.enabledSetting ? vpnPanel.root.fillActive : settingMouse.containsMouse && settingMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle; border.color: settingDelegate.enabledSetting || (settingMouse.containsMouse && settingMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep; border.width: 1
                             Behavior on color { ColorAnimation { duration: 120 } }
-                            UiText { anchors.centerIn: parent; text: modelData.key === "dns" ? "EDIT" : parent.parent.enabledSetting ? "ON" : "OFF"; color: parent.parent.enabledSetting ? vpnPanel.root.seal : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
+                            UiText { anchors.centerIn: parent; text: modelData.key === "dns" ? "EDIT" : settingDelegate.enabledSetting ? "ON" : "OFF"; color: settingDelegate.enabledSetting ? vpnPanel.root.seal : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
                         }
                         MouseArea { objectName: "vpn-setting-" + modelData.key; id: settingMouse; Component.onCompleted: vpnPanel.testTargets[objectName] = settingMouse; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: vpnPanel.changeSetting(modelData.key) }
                     }
@@ -322,13 +323,14 @@ PanelWindow {
                 Repeater {
                     model: [{key:"firewall",label:"Firewall"},{key:"kill-switch",label:"Kill Switch"},{key:"threat-protection-lite",label:"Real-time Protection"}]
                     delegate: Rectangle {
+                        id: securitySettingDelegate
                         required property var modelData
                         width: (parent.width - 10) / 2; height: 42; color: "transparent"
                         readonly property bool enabledSetting: /^(enabled|on|yes|true)$/i.test(String(controller.vpnSettings[modelData.key] || ""))
-                        UiText { anchors.left: parent.left; anchors.right: securitySwitchTrack.left; anchors.rightMargin: 5; anchors.verticalCenter: parent.verticalCenter; text: modelData.label; color: parent.enabledSetting ? vpnPanel.root.ink : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10; wrapMode: Text.WordWrap; maximumLineCount: 2 }
-                        Rectangle { id: securitySwitchTrack; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; width: 50; height: 22; radius: height / 2; color: parent.enabledSetting ? vpnPanel.root.fillActive : securitySettingMouse.containsMouse && securitySettingMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle; border.color: parent.enabledSetting || (securitySettingMouse.containsMouse && securitySettingMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep; border.width: 1
+                        UiText { anchors.left: parent.left; anchors.right: securitySwitchTrack.left; anchors.rightMargin: 5; anchors.verticalCenter: parent.verticalCenter; text: modelData.label; color: securitySettingDelegate.enabledSetting ? vpnPanel.root.ink : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10; wrapMode: Text.WordWrap; maximumLineCount: 2 }
+                        Rectangle { id: securitySwitchTrack; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; width: 50; height: 22; radius: height / 2; color: securitySettingDelegate.enabledSetting ? vpnPanel.root.fillActive : securitySettingMouse.containsMouse && securitySettingMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle; border.color: securitySettingDelegate.enabledSetting || (securitySettingMouse.containsMouse && securitySettingMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep; border.width: 1
                             Behavior on color { ColorAnimation { duration: 120 } }
-                            UiText { anchors.centerIn: parent; text: parent.parent.enabledSetting ? "ON" : "OFF"; color: parent.parent.enabledSetting ? vpnPanel.root.seal : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
+                            UiText { anchors.centerIn: parent; text: securitySettingDelegate.enabledSetting ? "ON" : "OFF"; color: securitySettingDelegate.enabledSetting ? vpnPanel.root.seal : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
                         }
                         MouseArea { objectName: "vpn-setting-" + modelData.key; id: securitySettingMouse; Component.onCompleted: vpnPanel.testTargets[objectName] = securitySettingMouse; anchors.fill: parent; hoverEnabled: true; enabled: controller.canMutate; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: vpnPanel.changeSetting(modelData.key) }
                     }

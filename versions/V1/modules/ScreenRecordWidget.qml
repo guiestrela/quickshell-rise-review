@@ -1,13 +1,12 @@
 import QtQuick
-import Quickshell
 import Quickshell.Io
 
 Item {
     id: rootMod
     required property var root
 
-    readonly property bool recording: root.screenRecording
-    readonly property int  elapsed:   root.screenRecordingElapsed   // seconds
+    readonly property bool recording: rootMod.root.screenRecording
+    readonly property int  elapsed:   rootMod.root.screenRecordingElapsed   // seconds
 
     visible: implicitWidth > 0.5
     implicitWidth: recording ? row.implicitWidth + 6 : 0
@@ -34,7 +33,7 @@ Item {
             id: dot
             anchors.verticalCenter: parent.verticalCenter
             text: "\uE061"   // fiber_manual_record
-            color: root.seal
+            color: rootMod.root.seal
             font.pixelSize: 13
 
             SequentialAnimation on opacity {
@@ -51,8 +50,8 @@ Item {
         UiText {
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.elapsedStr
-            color: root.seal
-            font.family: root.mono
+            color: rootMod.root.seal
+            font.family: rootMod.root.mono
             font.pixelSize: 11
         }
     }
@@ -60,7 +59,7 @@ Item {
     Process {
         id: toggleProc
         command: ["bash", "-c", "omarchy-capture-screenrecording --stop-recording"]
-        onExited: root.refreshRecordingStatus()
+        onExited: rootMod.root.refreshRecordingStatus()
     }
 
     TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }

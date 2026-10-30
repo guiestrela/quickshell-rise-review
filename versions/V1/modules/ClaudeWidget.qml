@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Effects
 import Quickshell
@@ -199,7 +200,7 @@ Item {
         stdout: StdioCollector { onStreamFinished: { rootMod.cpActive = (this.text.trim() === "1") } }
     }
     Timer {
-        interval: 5000; running: root.modClaude || root.aiUsageVisible; repeat: true; triggeredOnStart: true
+        interval: 5000; running: rootMod.root.modClaude || rootMod.root.aiUsageVisible; repeat: true; triggeredOnStart: true
         onTriggered: {
             detectClaude.running = false; detectClaude.running = true
             detectCodex.running = false;  detectCodex.running = true
@@ -212,11 +213,11 @@ Item {
     Rectangle {
         x: 0; anchors.verticalCenter: parent.verticalCenter
         width: Math.round(row.width) + 18
-        height: root.pillH; radius: root.pillRadius
-        color: root.pill
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
+        height: rootMod.root.pillH; radius: rootMod.root.pillRadius
+        color: rootMod.root.pill
+        border.color: rootMod.root.pillBorder
+        border.width: rootMod.root.pillBorderW
+        PillShadow { theme: rootMod.root }
     }
 
     Row {
@@ -249,8 +250,8 @@ Item {
                     id: glyphBase
                     text: String.fromCodePoint(0xF167A)
                     renderType: Text.QtRendering
-                    color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.25)
-                    font.family: root.mono
+                    color: Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.25)
+                    font.family: rootMod.root.mono
                     font.pixelSize: 14
                 }
                 Item {
@@ -265,8 +266,8 @@ Item {
                         anchors.bottom: parent.bottom
                         text: String.fromCodePoint(0xF167A)
                         renderType: Text.QtRendering
-                        color: root.seal
-                        font.family: root.mono
+                        color: rootMod.root.seal
+                        font.family: rootMod.root.mono
                         font.pixelSize: 14
                         Behavior on color { ColorAnimation { duration: 200 } }
                     }
@@ -292,7 +293,7 @@ Item {
                     layer.enabled: true
                     layer.smooth: !rootMod.isCodex
                     layer.effect: ShaderEffect {
-                        property color tintColor: root.ink
+                        property color tintColor: rootMod.root.ink
                         fragmentShader: Qt.resolvedUrl("../shaders/logo-tint.frag.qsb")
                     }
                 }
@@ -315,7 +316,7 @@ Item {
                         layer.enabled: true
                         layer.smooth: !rootMod.isCodex
                         layer.effect: ShaderEffect {
-                            property color tintColor: root.seal
+                            property color tintColor: rootMod.root.seal
                             fragmentShader: Qt.resolvedUrl("../shaders/logo-tint.frag.qsb")
                         }
                     }
@@ -335,9 +336,9 @@ Item {
                     ? "BLK"
                     : (rootMod.selHas ? String(rootMod.pct5h).padStart(2, "0") + "%" : "··")
                 color: rootMod.blocked
-                    ? root.seal
-                    : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.85)
-                font.family: root.mono
+                    ? rootMod.root.seal
+                    : Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.85)
+                font.family: rootMod.root.mono
                 font.pixelSize: 12
                 Behavior on color { ColorAnimation { duration: 200 } }
             }
@@ -361,15 +362,15 @@ Item {
         anchors.fill: parent
         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
         acceptedButtons: Qt.LeftButton | Qt.RightButton
-        onEntered: if (shown) { root.refreshAiUsage(); tip.show() }
+        onEntered: if (rootMod.shown) { rootMod.root.refreshAiUsage(); tip.show() }
         onExited: { tip.hide() }
-        onClicked: {
+        onClicked: function(mouse) {
             tip.hide()
             if (mouse.button === Qt.RightButton) {
                 rootMod.openSelectedAgent()
-                root.aiUsageVisible = false
+                rootMod.root.aiUsageVisible = false
             } else {
-                root.aiUsageVisible = !root.aiUsageVisible
+                rootMod.root.aiUsageVisible = !rootMod.root.aiUsageVisible
             }
         }
     }

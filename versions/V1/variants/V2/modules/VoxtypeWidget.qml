@@ -5,11 +5,11 @@ import Quickshell.Io
 Item {
     id: rootMod
     required property var root
-    readonly property color contentColor: root.widgetContentColor("G8", root.ink)
+    readonly property color contentColor: rootMod.root.widgetContentColor("G8", rootMod.root.ink)
 
-    readonly property string voiceState: root.voxState   // idle | recording | transcribing
-    readonly property string hint:  root.voxHint
-    readonly property bool   hasVoxtype: root.voxAvailable
+    readonly property string voiceState: rootMod.root.voxState   // idle | recording | transcribing
+    readonly property string hint:  rootMod.root.voxHint
+    readonly property bool   hasVoxtype: rootMod.root.voxAvailable
 
     readonly property string displayIcon: {
         if (voiceState === "recording")    return "\uE029"   // mic
@@ -28,9 +28,9 @@ Item {
         id: ico
         anchors.centerIn: parent
         text: rootMod.displayIcon
-        color: root.widgetHasFill("G8")
+        color: rootMod.root.widgetHasFill("G8")
             ? rootMod.contentColor
-            : (rootMod.voiceState === "recording" ? root.seal : root.ink)
+            : (rootMod.voiceState === "recording" ? rootMod.root.seal : rootMod.root.ink)
         font.pixelSize: 14
 
         // pulse while recording

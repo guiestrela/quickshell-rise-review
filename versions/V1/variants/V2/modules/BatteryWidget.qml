@@ -1,5 +1,4 @@
 import QtQuick
-import Quickshell
 import Quickshell.Services.UPower
 
 Item {
@@ -38,12 +37,12 @@ Item {
         : "On battery"
     readonly property string tooltipText: statusText + " · " + percent + "%"
                                           + (timeText ? " · " + timeText : "")
-    readonly property color contentColor: root.widgetContentColor("G12", root.ink)
+    readonly property color contentColor: rootMod.root.widgetContentColor("G12", rootMod.root.ink)
 
     // colour shared by the drawn battery body, fill and nub
     readonly property color battColor:
-        root.widgetHasFill("G12") ? contentColor
-        : ((charging || full) ? root.indigo : root.seal)
+        rootMod.root.widgetHasFill("G12") ? contentColor
+        : ((charging || full) ? rootMod.root.indigo : rootMod.root.seal)
 
     implicitWidth:  hasBattery ? (row.implicitWidth + 18) : 0
     implicitHeight: 28
@@ -134,9 +133,9 @@ Item {
                     anchors.centerIn: parent
                     width: 6
                     height: 8
-                    property color boltColor: root.widgetHasFill("G12")
-                        ? root.widgetAssignedColor("G12")
-                        : root.paper
+                    property color boltColor: rootMod.root.widgetHasFill("G12")
+                        ? rootMod.root.widgetAssignedColor("G12")
+                        : rootMod.root.paper
                     onBoltColorChanged: requestPaint()
                     onPaint: {
                         var ctx = getContext("2d")
@@ -170,11 +169,11 @@ Item {
         }
 
         UiText {
-            visible: !root.iconOnly("G12")
+            visible: !rootMod.root.iconOnly("G12")
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.percent + "%"
             color: rootMod.battColor
-            font.family: root.mono
+            font.family: rootMod.root.mono
             font.pixelSize: 12
             Behavior on color { ColorAnimation { duration: 200 } }
         }
@@ -187,6 +186,6 @@ Item {
         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
         onEntered: { if (rootMod.hasBattery) tip.show() }
         onExited:  { tip.hide() }
-        onClicked: { tip.hide(); root.batteryVisible = !root.batteryVisible }
+        onClicked: { tip.hide(); rootMod.root.batteryVisible = !rootMod.root.batteryVisible }
     }
 }

@@ -45,13 +45,13 @@ Run the repository-wide automated checks from any directory:
 ```
 
 The runner checks shell syntax, runs ShellCheck when installed, lints every QML
-file under `versions/`, runs the six isolated shell regression suites, and checks
+file under `versions/` plus `Bar.qml`, runs the seven isolated shell regression suites, and checks
 patch whitespace. It stops at the first failure. QML lint can report existing
 warnings from Quickshell-specific types; warnings are counted, while lint errors
 fail the run. This command does not replace live V1/V2 checks in a Wayland
 session.
 
-The six shell suites use isolated fixtures for lifecycle, installer, updater, theme, package, and AI usage behavior.
+The seven shell suites use isolated fixtures for lifecycle, installer, updater, theme, package, and AI usage behavior.
 
 Run them from the repository root:
 
@@ -59,10 +59,16 @@ Run them from the repository root:
 ./tests/qs-arch-update-regression.sh
 ./tests/qs-barctl-regression.sh
 ./tests/qs-codex-usage-regression.sh
+./tests/qs-copilot-usage-regression.sh
+./tests/install-ai-backends-integration.sh
 ./tests/qs-quattro-runtime-regression.sh
 python3 tests/test_update_panel.py
 ./tests/qs-theme-update-regression.sh
 ```
+
+The runner also covers the standalone JavaScript display-controller tests,
+Codex cache fallback and pipe framing, wallpaper scanning, and variant failure
+and retry with inert components.
 
 The update panel tests exercise both UI variants with isolated helper fixtures; no package, theme or shell updates are applied. The Shell updater has been removed. Packages and Themes remain available.
 

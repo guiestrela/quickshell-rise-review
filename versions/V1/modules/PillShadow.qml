@@ -8,8 +8,9 @@ import QtQuick.Effects
 // which is why it's safe at 144 Hz on this NVIDIA/Wayland setup (see P0).
 RectangularShadow {
     required property var theme
+    readonly property Rectangle pillSurface: parent as Rectangle
     anchors.fill: parent
-    radius: parent.radius
+    radius: pillSurface ? pillSurface.radius : 0
     visible: theme.styleShadow
     blur: 8
     spread: 0
