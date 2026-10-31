@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import "../modules"
 import Quickshell
@@ -9,7 +10,7 @@ PanelWindow {
     id: trayMenu
     required property var root
 
-    screen: root.activePopupScreen
+    screen: trayMenu.root.activePopupScreen
 
     color: "transparent"
     anchors { top: true; bottom: true; left: true; right: true }
@@ -43,9 +44,9 @@ PanelWindow {
     }
 
     Connections {
-        target: root
+        target: trayMenu.root
         function onTrayMenuVisibleChanged() {
-            trayMenu.menuStack = root.trayMenuVisible && root.trayMenuHandle ? [root.trayMenuHandle] : []
+            trayMenu.menuStack = trayMenu.root.trayMenuVisible && trayMenu.root.trayMenuHandle ? [trayMenu.root.trayMenuHandle] : []
         }
     }
 
@@ -54,32 +55,32 @@ PanelWindow {
         menu: trayMenu.currentHandle
     }
 
-    property real reveal: root.trayMenuVisible ? 1 : 0
+    property real reveal: trayMenu.root.trayMenuVisible ? 1 : 0
     Behavior on reveal {
-        NumberAnimation { duration: root.trayMenuVisible ? 140 : 100; easing.type: Easing.OutCubic }
+        NumberAnimation { duration: trayMenu.root.trayMenuVisible ? 140 : 100; easing.type: Easing.OutCubic }
     }
     visible: reveal > 0.001
-    WlrLayershell.keyboardFocus: root.trayMenuVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: trayMenu.root.trayMenuVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    MouseArea { anchors.fill: parent; onClicked: root.trayMenuVisible = false }
+    MouseArea { anchors.fill: parent; onClicked: trayMenu.root.trayMenuVisible = false }
 
     Rectangle {
         id: card
         width: 220
         height: col.implicitHeight + 16
-        radius: reveal > 0.001 ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
+        radius: trayMenu.reveal > 0.001 ? trayMenu.root.pillRadius : 0
+        color: trayMenu.root.bg
+        border.color: trayMenu.root.pillBorder
+        border.width: trayMenu.root.pillBorderW
+        PillShadow { theme: trayMenu.root }
 
-        x: parent ? Math.max(6, Math.min(root.trayMenuX, parent.width - width - 6)) : 6
-        y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
+        x: parent ? Math.max(6, Math.min(trayMenu.root.trayMenuX, parent.width - width - 6)) : 6
+        y: trayMenu.root.barPosition === "bottom" ? (parent.height - trayMenu.barBottom - trayMenu.gap - height) : (trayMenu.barBottom + trayMenu.gap)
         opacity: trayMenu.reveal
-        focus: root.trayMenuVisible
+        focus: trayMenu.root.trayMenuVisible
 
         Keys.onPressed: function(event) {
-            if (event.key === Qt.Key_Escape) { root.trayMenuVisible = false; event.accepted = true }
+            if (event.key === Qt.Key_Escape) { trayMenu.root.trayMenuVisible = false; event.accepted = true }
         }
 
         MouseArea { anchors.fill: parent; onClicked: {} }
@@ -100,8 +101,8 @@ PanelWindow {
                     anchors.left: parent.left
                     anchors.leftMargin: 6
                     anchors.verticalCenter: parent.verticalCenter
-                    visible: root.trayMenuIcon !== ""
-                    source: root.trayMenuIcon
+                    visible: trayMenu.root.trayMenuIcon !== ""
+                    source: trayMenu.root.trayMenuIcon
                     sourceSize.width: 16
                     sourceSize.height: 16
                     width: visible ? 16 : 0
@@ -116,9 +117,9 @@ PanelWindow {
                     anchors.right: closeX.left
                     anchors.rightMargin: 8
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.trayMenuTitle !== "" ? root.trayMenuTitle : "App Menu"
-                    color: root.ink
-                    font.family: root.mono
+                    text: trayMenu.root.trayMenuTitle !== "" ? trayMenu.root.trayMenuTitle : "App Menu"
+                    color: trayMenu.root.ink
+                    font.family: trayMenu.root.mono
                     font.pixelSize: 12
                     font.weight: Font.Medium
                     elide: Text.ElideRight
@@ -130,7 +131,7 @@ PanelWindow {
                     anchors.rightMargin: 6
                     anchors.verticalCenter: parent.verticalCenter
                     text: "\u2715"
-                    color: closeMa.containsMouse ? root.seal : root.sumi
+                    color: closeMa.containsMouse ? trayMenu.root.seal : trayMenu.root.sumi
                     font.pixelSize: 12
                     Behavior on color { ColorAnimation { duration: 120 } }
 
@@ -140,23 +141,23 @@ PanelWindow {
                         anchors.margins: -6
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.trayMenuVisible = false
+                        onClicked: trayMenu.root.trayMenuVisible = false
                     }
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: trayMenu.root.sep }
 
             // back row (only when inside a submenu)
             Rectangle {
-                width: parent.width; height: 24; radius: root.tileRadius
+                width: parent.width; height: 24; radius: trayMenu.root.tileRadius
                 visible: trayMenu.menuStack.length > 1
-                color: backMa.containsMouse ? root.fillHover : "transparent"
+                color: backMa.containsMouse ? trayMenu.root.fillHover : "transparent"
                 UiText {
                     anchors.left: parent.left; anchors.leftMargin: 8
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "‹  back"; color: root.sumiHi
-                    font.family: root.mono; font.pixelSize: 11
+                    text: "‹  back"; color: trayMenu.root.sumiHi
+                    font.family: trayMenu.root.mono; font.pixelSize: 11
                 }
                 MouseArea {
                     id: backMa
@@ -166,7 +167,7 @@ PanelWindow {
                 }
             }
             Rectangle {
-                width: parent.width; height: 1; color: root.sep
+                width: parent.width; height: 1; color: trayMenu.root.sep
                 visible: trayMenu.menuStack.length > 1
             }
 
@@ -184,16 +185,16 @@ PanelWindow {
                         visible: entry.modelData.isSeparator
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width; height: 1
-                        color: root.sep
+                        color: trayMenu.root.sep
                     }
 
                     // entry row
                     Rectangle {
                         visible: !entry.modelData.isSeparator
                         anchors.fill: parent
-                        radius: root.tileRadius
+                        radius: trayMenu.root.tileRadius
                         color: (entryMa.containsMouse && entry.modelData.enabled)
-                            ? root.fillActive : "transparent"
+                            ? trayMenu.root.fillActive : "transparent"
                         Behavior on color { ColorAnimation { duration: 100 } }
 
                         // check / radio indicator
@@ -203,8 +204,8 @@ PanelWindow {
                             anchors.verticalCenter: parent.verticalCenter
                             width: 12
                             text: entry.modelData.checkState === Qt.Checked ? "✓" : ""
-                            color: root.seal
-                            font.family: root.mono; font.pixelSize: 11
+                            color: trayMenu.root.seal
+                            font.family: trayMenu.root.mono; font.pixelSize: 11
                         }
 
                         Image {
@@ -223,9 +224,9 @@ PanelWindow {
                             anchors.right: arrow.left; anchors.rightMargin: 4
                             anchors.verticalCenter: parent.verticalCenter
                             text: trayMenu.strip(entry.modelData.text)
-                            color: entry.modelData.enabled ? root.ink
-                                 : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.35)
-                            font.family: root.mono; font.pixelSize: 11
+                            color: entry.modelData.enabled ? trayMenu.root.ink
+                                 : Qt.rgba(trayMenu.root.ink.r, trayMenu.root.ink.g, trayMenu.root.ink.b, 0.35)
+                            font.family: trayMenu.root.mono; font.pixelSize: 11
                             elide: Text.ElideRight
                         }
 
@@ -235,8 +236,8 @@ PanelWindow {
                             anchors.right: parent.right; anchors.rightMargin: 8
                             anchors.verticalCenter: parent.verticalCenter
                             visible: entry.modelData.hasChildren
-                            text: "›"; color: root.sumiHi
-                            font.family: root.mono; font.pixelSize: 13
+                            text: "›"; color: trayMenu.root.sumiHi
+                            font.family: trayMenu.root.mono; font.pixelSize: 13
                         }
 
                         MouseArea {
@@ -250,7 +251,7 @@ PanelWindow {
                                     trayMenu.openSubmenu(entry.modelData)
                                 } else {
                                     entry.modelData.triggered()
-                                    root.trayMenuVisible = false
+                                    trayMenu.root.trayMenuVisible = false
                                 }
                             }
                         }

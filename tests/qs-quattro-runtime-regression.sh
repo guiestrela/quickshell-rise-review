@@ -1356,7 +1356,7 @@ case_static_contracts() {
   assert_contains 'parts.length > wsField + 32' "$V1_THEME" "V1 MPRIS presentation restore"
   assert_contains 'compactMpris = defaults.compactMpris' "$V1_THEME" "V1 MPRIS default-layout reset"
   assert_contains 'compactMpris: false' "$REPO_ROOT/versions/V1/modules/V1Defaults.js" "V1 MPRIS shared default"
-  assert_contains 'model: root.barColorOptions' "$V1_CONTROL_PANEL" "V1 bar palette control"
+  assert_contains 'model: ctrlPanel.root.barColorOptions' "$V1_CONTROL_PANEL" "V1 bar palette control"
   assert_contains 'label: "Now playing"' "$V1_CONTROL_PANEL" "V1 MPRIS presentation control"
   assert_contains 'readonly property bool fullMode: rootMod.root.compactMpris' "$V1_MPRIS_WIDGET" "V1 FULL presentation binding"
 

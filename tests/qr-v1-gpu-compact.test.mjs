@@ -7,7 +7,7 @@ test('GPU compact mode is wired to UI, persistence and reset',()=>{
  const q=read('Theme.qml'),w=read('modules/GpuWidget.qml'),c=read('panels/ControlPanel.qml');
  assert.match(w,/readonly property bool verticalCompact: root.barVertical === true \|\| root.compactGpu/);
  assert.match(w,/visible: !rootMod.verticalCompact/);
- assert.match(c,/label: "GPU";\s+active: root.compactGpu;.*root.compactGpu = !root.compactGpu/);
+ assert.match(c,/label: "GPU";\s+active: ctrlPanel\.root.compactGpu;.*ctrlPanel\.root.compactGpu = !ctrlPanel\.root.compactGpu/);
  assert.match(q,/wsField \+ 40/);assert.match(q,/onCompactGpuChanged:/);assert.match(q,/compactGpu = defaults.compactGpu/);
  const defaults=vm.runInNewContext(read('modules/V1Defaults.js').replace(/^\.pragma library\s*/m,'')+'\ndefaultCompact()');assert.equal(defaults.compactGpu,false);
 });

@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import "../modules"
 import Quickshell
@@ -8,7 +9,7 @@ PanelWindow {
     id: archPanel
     required property var root
 
-    screen: root.activePopupScreen
+    screen: archPanel.root.activePopupScreen
 
     color: "transparent"
     anchors { top: true; bottom: true; left: true; right: true }
@@ -161,14 +162,14 @@ PanelWindow {
     function publishThemeState() {
         try {
             var j = JSON.parse(themeState.text())
-            root.themeUpdTotal        = j.total      || 0
-            root.themeUpdReachable    = j.reachable  || 0
-            root.themeUpdOutdated     = j.outdated   || 0
-            root.themeUpdLocalEdits   = j.localEdits || 0
-            root.themeUpdDegraded     = !!j.degraded
-            root.themeUpdCurrentStale = !!j.currentStale
-            root.themeUpdChecked      = j.checked   || ""
-            root.themeUpdList         = j.themes    || []
+            archPanel.root.themeUpdTotal        = j.total      || 0
+            archPanel.root.themeUpdReachable    = j.reachable  || 0
+            archPanel.root.themeUpdOutdated     = j.outdated   || 0
+            archPanel.root.themeUpdLocalEdits   = j.localEdits || 0
+            archPanel.root.themeUpdDegraded     = !!j.degraded
+            archPanel.root.themeUpdCurrentStale = !!j.currentStale
+            archPanel.root.themeUpdChecked      = j.checked   || ""
+            archPanel.root.themeUpdList         = j.themes    || []
         } catch (e) {
             // keep the last good values on a malformed read
         }
@@ -188,7 +189,7 @@ PanelWindow {
         command: ["bash", decodeURIComponent(String(Qt.resolvedUrl("../../../scripts/qs-theme-update-check.sh")).replace(/^(file|qs):\/\//, ""))]
         running: false
         onExited: {
-            root.themeUpdChecking = false
+            archPanel.root.themeUpdChecking = false
             themeCheckWatchdog.stop()
             themeState.reload()   // pick up the freshly written cache immediately
         }
@@ -198,27 +199,27 @@ PanelWindow {
     Timer {
         id: themeCheckWatchdog
         interval: 190000
-        onTriggered: { root.themeUpdChecking = false; themeCheckProc.running = false }
+        onTriggered: { archPanel.root.themeUpdChecking = false; themeCheckProc.running = false }
     }
 
-    property int themeCheckTrigger: root.themeCheckTick
+    property int themeCheckTrigger: archPanel.root.themeCheckTick
     onThemeCheckTriggerChanged: {
-        if (root.themeUpdChecking) return
-        root.themeUpdChecking = true
+        if (archPanel.root.themeUpdChecking) return
+        archPanel.root.themeUpdChecking = true
         themeCheckWatchdog.restart()
         themeCheckProc.running = false
         themeCheckProc.running = true
     }
 
-    property real reveal: root.archVisible ? 1 : 0
+    property real reveal: archPanel.root.archVisible ? 1 : 0
     Behavior on reveal {
         NumberAnimation {
-            duration: root.archVisible ? 160 : 120
-            easing.type: root.archVisible ? Easing.OutCubic : Easing.InCubic
+            duration: archPanel.root.archVisible ? 160 : 120
+            easing.type: archPanel.root.archVisible ? Easing.OutCubic : Easing.InCubic
         }
     }
     visible: reveal > 0.001
-    WlrLayershell.keyboardFocus: root.archVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: archPanel.root.archVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     MouseArea {
         anchors.fill: parent
@@ -228,8 +229,8 @@ PanelWindow {
     function refreshPackagesTabState() {
         archPanel.nowEpoch = Math.floor(Date.now() / 1000)
         archPanel.retryPackageBackendProbe()
-        root.archGateRescan()
-        if (root.archUpdates.length === 0) root.archRefreshTick++
+        archPanel.root.archGateRescan()
+        if (archPanel.root.archUpdates.length === 0) archPanel.root.archRefreshTick++
     }
 
     // Packages tab only: show the blacklist/protection status instantly (the gate
@@ -237,16 +238,16 @@ PanelWindow {
     // kick a package check if there is no data yet. Opening Themes must not
     // start package work as a side effect.
     Connections {
-        target: root
+        target: archPanel.root
         function onArchVisibleChanged() {
-            if (!root.archVisible) {
+            if (!archPanel.root.archVisible) {
                 if (!archPanel.removeBusy) archPanel.cancelRemoveTheme()
                 return
             }
-            if (root.activeUpdateTab === "packages") archPanel.refreshPackagesTabState()
+            if (archPanel.root.activeUpdateTab === "packages") archPanel.refreshPackagesTabState()
         }
         function onActiveUpdateTabChanged() {
-            if (root.archVisible && root.activeUpdateTab === "packages") archPanel.refreshPackagesTabState()
+            if (archPanel.root.archVisible && archPanel.root.activeUpdateTab === "packages") archPanel.refreshPackagesTabState()
         }
         function onArchScanCheckedEpochChanged() {
             archPanel.nowEpoch = Math.floor(Date.now() / 1000)
@@ -256,7 +257,7 @@ PanelWindow {
     // pkg -> gate verdict, rebuilt once per gate run (avoids O(n²) per-row scans)
     readonly property var gateMap: {
         var m = ({})
-        var r = root.archGateResults || []
+        var r = archPanel.root.archGateResults || []
         for (var i = 0; i < r.length; i++) m[r[i].pkg] = r[i]
         return m
     }
@@ -268,19 +269,19 @@ PanelWindow {
     // of pacman's transaction from this UI, because that can create an unsupported
     // partial upgrade.
     readonly property int repoUpdatePackages: {
-        var n = 0, u = root.archUpdates || []
+        var n = 0, u = archPanel.root.archUpdates || []
         for (var i = 0; i < u.length; i++)
             if (u[i].source !== "aur") n++
         return n
     }
     readonly property int repoOkPackages: {
-        var n = 0, r = root.archGateResults || []
+        var n = 0, r = archPanel.root.archGateResults || []
         for (var i = 0; i < r.length; i++)
             if (r[i].repo !== "aur" && r[i].verdict === "OK") n++
         return n
     }
     readonly property int aurReviewPackages: {
-        var n = 0, r = root.archGateResults || []
+        var n = 0, r = archPanel.root.archGateResults || []
         for (var i = 0; i < r.length; i++)
             if (r[i].repo === "aur" && r[i].verdict === "WARN") n++
         return n
@@ -289,23 +290,23 @@ PanelWindow {
     property int nowEpoch: Math.floor(Date.now() / 1000)
     Timer {
         interval: 30000
-        running: root.archVisible
+        running: archPanel.root.archVisible
         repeat: true
         triggeredOnStart: true
         onTriggered: archPanel.nowEpoch = Math.floor(Date.now() / 1000)
     }
-    readonly property bool repoScanFresh: root.archScanCheckedEpoch > 0
-        && (nowEpoch - root.archScanCheckedEpoch) >= 0
-        && (nowEpoch - root.archScanCheckedEpoch) <= root.archScanMaxAge
-    readonly property bool repoScanMatchesUpdates: root.archScanSystemCount === repoUpdatePackages
-    readonly property bool repoGateComplete: (root.archGateResults || []).length === (root.archUpdates || []).length
+    readonly property bool repoScanFresh: archPanel.root.archScanCheckedEpoch > 0
+        && (nowEpoch - archPanel.root.archScanCheckedEpoch) >= 0
+        && (nowEpoch - archPanel.root.archScanCheckedEpoch) <= archPanel.root.archScanMaxAge
+    readonly property bool repoScanMatchesUpdates: archPanel.root.archScanSystemCount === repoUpdatePackages
+    readonly property bool repoGateComplete: (archPanel.root.archGateResults || []).length === (archPanel.root.archUpdates || []).length
     readonly property bool repoGateAllowsFullUpgrade: repoUpdatePackages > 0
         && repoScanFresh
         && repoScanMatchesUpdates
         && repoGateComplete
         && repoOkPackages === repoUpdatePackages
-        && (root.archGateState === "clean" || root.archGateState === "warn")
-        && !root.archGateDegraded
+        && (archPanel.root.archGateState === "clean" || archPanel.root.archGateState === "warn")
+        && !archPanel.root.archGateDegraded
     // Omarchy owns a broader transaction (system, migrations, AUR, tooling).
     // Its launcher is intentionally independent from this advisory package gate.
     readonly property bool canUpdate: packageUpdateBackendAvailable
@@ -314,10 +315,10 @@ PanelWindow {
         if (repoUpdatePackages === 0) return "No pacman updates"
         if (!repoScanFresh) return "Repo upgrade blocked: refresh scan"
         if (!repoScanMatchesUpdates) return "Repo upgrade blocked: scan drift"
-        if (root.archGateState === "scanning") return "Scanning packages"
+        if (archPanel.root.archGateState === "scanning") return "Scanning packages"
         if (!repoGateComplete) return "Repo upgrade blocked: scan incomplete"
-        if (root.archGateDegraded) return "Repo upgrade blocked: protection limited"
-        if (root.archGateFail > 0 || root.archGateState === "blocked") return "Repo upgrade blocked: package blocked"
+        if (archPanel.root.archGateDegraded) return "Repo upgrade blocked: protection limited"
+        if (archPanel.root.archGateFail > 0 || archPanel.root.archGateState === "blocked") return "Repo upgrade blocked: package blocked"
         if (repoOkPackages !== repoUpdatePackages) return "Repo upgrade blocked: unverified package"
         return ""
     }
@@ -331,10 +332,10 @@ PanelWindow {
         if (repoUpdatePackages === 0) return "No updates"
         if (!repoScanFresh) return "Refresh required"
         if (!repoScanMatchesUpdates) return "Scan drift"
-        if (root.archGateState === "scanning") return "Scanning"
+        if (archPanel.root.archGateState === "scanning") return "Scanning"
         if (!repoGateComplete) return "Scan incomplete"
-        if (root.archGateDegraded) return "Protection limited"
-        if (root.archGateFail > 0 || root.archGateState === "blocked") return "Package blocked"
+        if (archPanel.root.archGateDegraded) return "Protection limited"
+        if (archPanel.root.archGateFail > 0 || archPanel.root.archGateState === "blocked") return "Package blocked"
         if (repoOkPackages !== repoUpdatePackages) return "Unverified package"
         return archPanel.repoBlockReason
     }
@@ -353,21 +354,21 @@ PanelWindow {
     }
     function themedGumConfirmEnv() {
         return "env -u NO_COLOR"
-            + " GUM_CONFIRM_PROMPT_FOREGROUND=" + shellQuote(hexColor(root.ink))
-            + " GUM_CONFIRM_PROMPT_BACKGROUND=" + shellQuote(hexColor(root.bg))
-            + " GUM_CONFIRM_SELECTED_FOREGROUND=" + shellQuote(hexColor(root.paper))
-            + " GUM_CONFIRM_SELECTED_BACKGROUND=" + shellQuote(hexColor(root.seal))
-            + " GUM_CONFIRM_UNSELECTED_FOREGROUND=" + shellQuote(hexColor(root.ink))
-            + " GUM_CONFIRM_UNSELECTED_BACKGROUND=" + shellQuote(hexColor(root.bg))
+            + " GUM_CONFIRM_PROMPT_FOREGROUND=" + shellQuote(hexColor(archPanel.root.ink))
+            + " GUM_CONFIRM_PROMPT_BACKGROUND=" + shellQuote(hexColor(archPanel.root.bg))
+            + " GUM_CONFIRM_SELECTED_FOREGROUND=" + shellQuote(hexColor(archPanel.root.paper))
+            + " GUM_CONFIRM_SELECTED_BACKGROUND=" + shellQuote(hexColor(archPanel.root.seal))
+            + " GUM_CONFIRM_UNSELECTED_FOREGROUND=" + shellQuote(hexColor(archPanel.root.ink))
+            + " GUM_CONFIRM_UNSELECTED_BACKGROUND=" + shellQuote(hexColor(archPanel.root.bg))
     }
     function themedGumEnvironment() {
         return [
-            "GUM_CONFIRM_PROMPT_FOREGROUND=" + hexColor(root.ink),
-            "GUM_CONFIRM_PROMPT_BACKGROUND=" + hexColor(root.bg),
-            "GUM_CONFIRM_SELECTED_FOREGROUND=" + hexColor(root.paper),
-            "GUM_CONFIRM_SELECTED_BACKGROUND=" + hexColor(root.seal),
-            "GUM_CONFIRM_UNSELECTED_FOREGROUND=" + hexColor(root.ink),
-            "GUM_CONFIRM_UNSELECTED_BACKGROUND=" + hexColor(root.bg)
+            "GUM_CONFIRM_PROMPT_FOREGROUND=" + hexColor(archPanel.root.ink),
+            "GUM_CONFIRM_PROMPT_BACKGROUND=" + hexColor(archPanel.root.bg),
+            "GUM_CONFIRM_SELECTED_FOREGROUND=" + hexColor(archPanel.root.paper),
+            "GUM_CONFIRM_SELECTED_BACKGROUND=" + hexColor(archPanel.root.seal),
+            "GUM_CONFIRM_UNSELECTED_FOREGROUND=" + hexColor(archPanel.root.ink),
+            "GUM_CONFIRM_UNSELECTED_BACKGROUND=" + hexColor(archPanel.root.bg)
         ]
     }
     function launchPackageUpdate(command) {
@@ -375,7 +376,7 @@ PanelWindow {
             .concat(themedGumEnvironment())
             .concat([packageFrontendScript, "--launch"])
             .concat(command)
-        root.archVisible = false
+        archPanel.root.archVisible = false
         panelUpdateRunner.running = false
         panelUpdateRunner.running = true
     }
@@ -390,14 +391,14 @@ PanelWindow {
     function launchThemeTerminal(inner) {
         panelUpdateRunner.command = ["bash", "-c",
             "omarchy-launch-floating-terminal-with-presentation " + shellQuote(inner)]
-        root.archVisible = false
+        archPanel.root.archVisible = false
         panelUpdateRunner.running = false
         panelUpdateRunner.running = true
     }
 
     function isPinnedThemeUpdate(t) {
         t = t || {}
-        return !root.themeUpdChecking
+        return !archPanel.root.themeUpdChecking
             && t.state === "clean"
             && t.behind > 0
             && /^[A-Za-z0-9._-]+$/.test(t.name || "")
@@ -406,7 +407,7 @@ PanelWindow {
     }
 
     function cleanThemeNames() {
-        var out = [], list = root.themeUpdList || []
+        var out = [], list = archPanel.root.themeUpdList || []
         for (var i = 0; i < list.length; i++) {
             var t = list[i] || {}
             if (isPinnedThemeUpdate(t))
@@ -418,7 +419,7 @@ PanelWindow {
         return cleanThemeNames().length
     }
     function updateAllThemes() {
-        if (root.themeUpdChecking) return
+        if (archPanel.root.themeUpdChecking) return
         var names = cleanThemeNames()
         if (names.length <= 0) return
         launchThemeTerminal("set +e; "
@@ -427,7 +428,7 @@ PanelWindow {
     }
 
     function updateOneTheme(name) {
-        if (root.themeUpdChecking) return
+        if (archPanel.root.themeUpdChecking) return
         if (!/^[A-Za-z0-9._-]+$/.test(name)) return   // never build a command from a bad name
         launchThemeTerminal("set +e; "
             + shellQuote(themeApplyScript) + " " + shellQuote(name) + "; rc=$?; "
@@ -459,7 +460,7 @@ PanelWindow {
         t = t || {}
         var name = String(t.name || "")
         var repoUrl = String(t.remoteUrl || "")
-        return !root.themeUpdChecking
+        return !archPanel.root.themeUpdChecking
             && /^[A-Za-z0-9._-]+$/.test(name)
             && isSupportedThemeRepoUrl(repoUrl)
             && themeNameFromRepoUrl(repoUrl) === name.toLowerCase()
@@ -468,7 +469,7 @@ PanelWindow {
     // Reinstall the selected row from the exact origin URL recorded by the last
     // theme scan. shellQuote keeps the git URL an argument, never shell syntax.
     function reinstallTheme(name, repoUrl) {
-        if (root.themeUpdChecking) return
+        if (archPanel.root.themeUpdChecking) return
         if (!/^[A-Za-z0-9._-]+$/.test(name || "")) return
         if (!isSupportedThemeRepoUrl(repoUrl)) return
         if (themeNameFromRepoUrl(repoUrl) !== String(name).toLowerCase()) return
@@ -481,7 +482,7 @@ PanelWindow {
     // published model/cache directly instead of blocking on 79+ network probes;
     // the explicit "Check themes" action remains the full remote refresh.
     function publishRemovedTheme(name) {
-        var list = root.themeUpdList || []
+        var list = archPanel.root.themeUpdList || []
         var next = []
         var removed = null
         for (var i = 0; i < list.length; i++) {
@@ -490,23 +491,23 @@ PanelWindow {
             else next.push(item)
         }
 
-        root.themeUpdList = next
-        root.themeUpdTotal = Math.max(0, root.themeUpdTotal - 1)
+        archPanel.root.themeUpdList = next
+        archPanel.root.themeUpdTotal = Math.max(0, archPanel.root.themeUpdTotal - 1)
         if (removed && removed.state !== "unreachable")
-            root.themeUpdReachable = Math.max(0, root.themeUpdReachable - 1)
+            archPanel.root.themeUpdReachable = Math.max(0, archPanel.root.themeUpdReachable - 1)
         if (removed && Number(removed.behind || 0) > 0)
-            root.themeUpdOutdated = Math.max(0, root.themeUpdOutdated - 1)
+            archPanel.root.themeUpdOutdated = Math.max(0, archPanel.root.themeUpdOutdated - 1)
         if (removed && removed.state === "local-edits" && Number(removed.behind || 0) > 0)
-            root.themeUpdLocalEdits = Math.max(0, root.themeUpdLocalEdits - 1)
-        if (removed && removed.current) root.themeUpdCurrentStale = false
+            archPanel.root.themeUpdLocalEdits = Math.max(0, archPanel.root.themeUpdLocalEdits - 1)
+        if (removed && removed.current) archPanel.root.themeUpdCurrentStale = false
 
         try {
             var state = JSON.parse(themeState.text())
-            state.total = root.themeUpdTotal
-            state.reachable = root.themeUpdReachable
-            state.outdated = root.themeUpdOutdated
-            state.localEdits = root.themeUpdLocalEdits
-            state.currentStale = root.themeUpdCurrentStale
+            state.total = archPanel.root.themeUpdTotal
+            state.reachable = archPanel.root.themeUpdReachable
+            state.outdated = archPanel.root.themeUpdOutdated
+            state.localEdits = archPanel.root.themeUpdLocalEdits
+            state.currentStale = archPanel.root.themeUpdCurrentStale
             state.themes = next
             themeState.setText(JSON.stringify(state))
         } catch (e) {
@@ -518,7 +519,7 @@ PanelWindow {
     // Removal is row-specific and gated by inline Remove/Cancel actions before
     // Omarchy receives the validated theme name.
     function removeTheme(name) {
-        if (root.themeUpdChecking || removeBusy) return
+        if (archPanel.root.themeUpdChecking || removeBusy) return
         if (!/^[A-Za-z0-9._-]+$/.test(name || "")) return
         pendingRemoveName = String(name)
         removeError = ""
@@ -531,7 +532,7 @@ PanelWindow {
     }
 
     function confirmRemoveTheme() {
-        if (removeBusy || root.themeUpdChecking) return
+        if (removeBusy || archPanel.root.themeUpdChecking) return
         var name = String(pendingRemoveName || "")
         if (!/^[A-Za-z0-9._-]+$/.test(name)) {
             removeError = "Invalid theme name"
@@ -570,7 +571,7 @@ PanelWindow {
             cancelRemoveTheme()
             return
         }
-        root.closeArchUpdatesPanel()
+        archPanel.root.closeArchUpdatesPanel()
     }
 
     function viewThemeChanges(name) {
@@ -595,15 +596,15 @@ PanelWindow {
     // generated copy, so it stays stale until re-applied. Reads the name from
     // disk — no user-controlled string reaches the shell.
     function reapplyCurrentTheme() {
-        var nameFile = root.themeNamePath
-        var omarchyPath = root.omarchyInstallRoot || (Quickshell.env("HOME") + "/.local/share/omarchy")
+        var nameFile = archPanel.root.themeNamePath
+        var omarchyPath = archPanel.root.omarchyInstallRoot || (Quickshell.env("HOME") + "/.local/share/omarchy")
         var inner = "n=$(tr -d '[:space:]' < " + shellQuote(nameFile) + "); "
                   + "[ -n \"$n\" ] || { echo 'no current theme'; exit 1; }; "
                   + themedGumConfirmEnv() + " gum confirm " + shellQuote("Re-apply the current theme to pick up its update?")
                   + " && OMARCHY_PATH=" + shellQuote(omarchyPath) + " omarchy-theme-set \"$n\""
         panelUpdateRunner.command = ["bash", "-c",
             "omarchy-launch-floating-terminal-with-presentation " + shellQuote(inner)]
-        root.archVisible = false
+        archPanel.root.archVisible = false
         panelUpdateRunner.running = false
         panelUpdateRunner.running = true
     }
@@ -668,16 +669,16 @@ PanelWindow {
         id: card
         width: 520
         height: Math.min(col.implicitHeight + 24, 460)
-        radius: reveal > 0.001 ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
+        radius: archPanel.reveal > 0.001 ? archPanel.root.pillRadius : 0
+        color: archPanel.root.bg
+        border.color: archPanel.root.pillBorder
+        border.width: archPanel.root.pillBorderW
+        PillShadow { theme: archPanel.root }
 
-        x: Math.round(Math.max(6, Math.min(root.archBarX - width / 2, parent.width - width - 6)))
-        y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
+        x: Math.round(Math.max(6, Math.min(archPanel.root.archBarX - width / 2, parent.width - width - 6)))
+        y: archPanel.root.barPosition === "bottom" ? (parent.height - archPanel.barBottom - archPanel.gap - height) : (archPanel.barBottom + archPanel.gap)
         opacity: archPanel.reveal
-        focus: root.archVisible
+        focus: archPanel.root.archVisible
 
         Keys.onPressed: function(event) {
             if (event.key === Qt.Key_Escape) {
@@ -702,8 +703,8 @@ PanelWindow {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Updates"
-                    color: root.ink
-                    font.family: root.mono
+                    color: archPanel.root.ink
+                    font.family: archPanel.root.mono
                     font.pixelSize: 13
                     font.letterSpacing: 2
                     font.weight: Font.Medium
@@ -713,7 +714,7 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     id: closeX
                     text: "\u2715"
-                    color: closeMa.containsMouse ? root.seal : root.sumi
+                    color: closeMa.containsMouse ? archPanel.root.seal : archPanel.root.sumi
                     font.pixelSize: 12
                     Behavior on color { ColorAnimation { duration: 120 } }
                     MouseArea {
@@ -734,8 +735,8 @@ PanelWindow {
                         id: badgeToggleLabel
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Badge Toggle:"
-                        color: root.ink
-                        font.family: root.mono
+                        color: archPanel.root.ink
+                        font.family: archPanel.root.mono
                         font.pixelSize: 11
                     }
                     Repeater {
@@ -746,8 +747,8 @@ PanelWindow {
                         Item {
                             id: badgeToggleItem
                             required property var modelData
-                            readonly property bool active: modelData.id === "packages" ? root.archBadgePackages
-                                : root.archBadgeThemes
+                            readonly property bool active: modelData.id === "packages" ? archPanel.root.archBadgePackages
+                                : archPanel.root.archBadgeThemes
                             width: badgeToggleText.implicitWidth + 36
                             height: 18
                             UiText {
@@ -755,8 +756,8 @@ PanelWindow {
                                 anchors.left: parent.left
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: badgeToggleItem.modelData.label
-                                color: root.ink
-                                font.family: root.mono
+                                color: archPanel.root.ink
+                                font.family: archPanel.root.mono
                                 font.pixelSize: 11
                             }
                             Rectangle {
@@ -766,9 +767,9 @@ PanelWindow {
                                 height: 16
                                 radius: 8
                                 color: badgeToggleItem.active
-                                    ? root.fillActive
-                                    : badgeToggleMa.containsMouse ? root.fillHover : root.fillIdle
-                                border.color: (badgeToggleItem.active || badgeToggleMa.containsMouse) ? root.seal : root.sep
+                                    ? archPanel.root.fillActive
+                                    : badgeToggleMa.containsMouse ? archPanel.root.fillHover : archPanel.root.fillIdle
+                                border.color: (badgeToggleItem.active || badgeToggleMa.containsMouse) ? archPanel.root.seal : archPanel.root.sep
                                 border.width: 1
                                 Behavior on color { ColorAnimation { duration: 120 } }
                                 Rectangle {
@@ -777,7 +778,7 @@ PanelWindow {
                                     radius: 5
                                     anchors.verticalCenter: parent.verticalCenter
                                     x: badgeToggleItem.active ? parent.width - width - 3 : 3
-                                    color: badgeToggleItem.active ? root.seal : root.sumi
+                                    color: badgeToggleItem.active ? archPanel.root.seal : archPanel.root.sumi
                                     Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
                                 }
                             }
@@ -788,9 +789,9 @@ PanelWindow {
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: {
                                     if (badgeToggleItem.modelData.id === "packages")
-                                        root.archBadgePackages = !root.archBadgePackages
+                                        archPanel.root.archBadgePackages = !archPanel.root.archBadgePackages
                                     else if (badgeToggleItem.modelData.id === "themes")
-                                        root.archBadgeThemes = !root.archBadgeThemes
+                                        archPanel.root.archBadgeThemes = !archPanel.root.archBadgeThemes
                                 }
                             }
                         }
@@ -798,7 +799,7 @@ PanelWindow {
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: archPanel.root.sep }
 
             // ── Packages ⟷ Themes tab switch (segmented, AiUsagePanel style) ──
             Row {
@@ -811,19 +812,20 @@ PanelWindow {
                         { id: "themes", label: "Themes" }
                     ]
                     Rectangle {
+                        id: updateTab
                         required property var modelData
                         width: (parent.width - 6) / 2
-                        height: 26; radius: root.tileRadius
-                        readonly property bool active: root.activeUpdateTab === modelData.id
-                        color: active ? root.fillActive : tabMa.containsMouse ? root.fillHover : root.fillIdle
-                        border.color: (active || tabMa.containsMouse) ? root.seal : root.sep
+                        height: 26; radius: archPanel.root.tileRadius
+                        readonly property bool active: archPanel.root.activeUpdateTab === modelData.id
+                        color: active ? archPanel.root.fillActive : tabMa.containsMouse ? archPanel.root.fillHover : archPanel.root.fillIdle
+                        border.color: (active || tabMa.containsMouse) ? archPanel.root.seal : archPanel.root.sep
                         border.width: 1
                         Behavior on color { ColorAnimation { duration: 120 } }
                         UiText {
                             anchors.centerIn: parent
-                            text: modelData.label
-                            color: (parent.active || tabMa.containsMouse) ? root.seal : root.ink
-                            font.family: root.mono; font.pixelSize: 11
+                            text: updateTab.modelData.label
+                            color: (parent.active || tabMa.containsMouse) ? archPanel.root.seal : archPanel.root.ink
+                            font.family: archPanel.root.mono; font.pixelSize: 11
                             font.weight: parent.active ? Font.Medium : Font.Normal
                         }
                         MouseArea {
@@ -831,7 +833,7 @@ PanelWindow {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: root.activeUpdateTab = parent.modelData.id
+                            onClicked: archPanel.root.activeUpdateTab = parent.modelData.id
                         }
                     }
                 }
@@ -842,7 +844,7 @@ PanelWindow {
                 id: packagesTab
                 width: parent.width
                 spacing: 8
-                visible: root.activeUpdateTab === "packages"
+                visible: archPanel.root.activeUpdateTab === "packages"
 
             // ── one status line: counts + protection, "·"-separated, colored.
             //    A single RichText Text (NOT a Repeater) so it re-renders reliably
@@ -857,8 +859,8 @@ PanelWindow {
                 renderType: Text.NativeRendering
                 wrapMode: Text.NoWrap
                 elide: Text.ElideRight
-                font.family: root.mono; font.pixelSize: 10
-                linkColor: root.ink
+                font.family: archPanel.root.mono; font.pixelSize: 10
+                linkColor: archPanel.root.ink
                 text: {
                     function hx(c) {
                         function h(v) { var x = Math.round(v * 255).toString(16); return x.length < 2 ? "0" + x : x }
@@ -866,23 +868,23 @@ PanelWindow {
                     }
                     function seg(t, c) { return '<font color="' + hx(c) + '">' + t + '</font>' }
                     var p = []
-                    if (root.archUpdates.length > 0) {
-                        p.push(seg("✓ " + root.archGateOk + " OK", root.green))
-                        if (root.archGateWarn > 0) p.push(seg("⚠ " + root.archGateWarn + " review", root.inkDeep))
-                        if (root.archGateFail > 0) p.push(seg("✗ " + root.archGateFail + " blocked", root.seal))
+                    if (archPanel.root.archUpdates.length > 0) {
+                        p.push(seg("✓ " + archPanel.root.archGateOk + " OK", archPanel.root.green))
+                        if (archPanel.root.archGateWarn > 0) p.push(seg("⚠ " + archPanel.root.archGateWarn + " review", archPanel.root.inkDeep))
+                        if (archPanel.root.archGateFail > 0) p.push(seg("✗ " + archPanel.root.archGateFail + " blocked", archPanel.root.seal))
                     }
-                    if (root.archGateDegraded) p.push(seg("⚠ protection limited", root.seal))
-                    if (root.archGateStale) p.push(seg("⚠ source stale", root.seal))
-                    if (root.archGateMirrorsAgree && !root.archGateDegraded) p.push(seg("mirrors ✓", root.green))
-                    if (root.archGateMirrorMismatch) p.push(seg("⚠ mirror mismatch", root.seal))
-                    if (root.archGateBlacklist > 0) {
-                        var b = "blacklist " + root.archGateBlacklist
-                        if (root.archGateListDate !== "") b += " · " + root.archGateListDate
-                        p.push('<a href="bl">' + seg(b, root.ink) + '</a>')   // only this part is clickable
+                    if (archPanel.root.archGateDegraded) p.push(seg("⚠ protection limited", archPanel.root.seal))
+                    if (archPanel.root.archGateStale) p.push(seg("⚠ source stale", archPanel.root.seal))
+                    if (archPanel.root.archGateMirrorsAgree && !archPanel.root.archGateDegraded) p.push(seg("mirrors ✓", archPanel.root.green))
+                    if (archPanel.root.archGateMirrorMismatch) p.push(seg("⚠ mirror mismatch", archPanel.root.seal))
+                    if (archPanel.root.archGateBlacklist > 0) {
+                        var b = "blacklist " + archPanel.root.archGateBlacklist
+                        if (archPanel.root.archGateListDate !== "") b += " · " + archPanel.root.archGateListDate
+                        p.push('<a href="bl">' + seg(b, archPanel.root.ink) + '</a>')   // only this part is clickable
                     }
-                    if (root.archScanCheckedEpoch > 0)
-                        p.push(seg("last check " + Qt.formatDateTime(new Date(root.archScanCheckedEpoch * 1000), "yyyy-MM-dd HH:mm"), root.ink))
-                    return p.join(' <font color="' + hx(root.sumi) + '">·</font> ')
+                    if (archPanel.root.archScanCheckedEpoch > 0)
+                        p.push(seg("last check " + Qt.formatDateTime(new Date(archPanel.root.archScanCheckedEpoch * 1000), "yyyy-MM-dd HH:mm"), archPanel.root.ink))
+                    return p.join(' <font color="' + hx(archPanel.root.sumi) + '">·</font> ')
                 }
                 onLinkActivated: Quickshell.execDetached(["bash", "-c",
                     "omarchy-launch-floating-terminal-with-presentation 'less ~/.local/share/qs-aur-blacklist.txt'"])
@@ -897,11 +899,11 @@ PanelWindow {
             // ── escalation: a FAIL means the INSTALLED copy is on the list, i.e.
             // possibly already compromised; the full repo upgrade stays blocked ──
             UiText {
-                visible: root.archGateFail > 0
+                visible: archPanel.root.archGateFail > 0
                 width: parent.width
                 text: "⚠ installed copy may be compromised — run the infection checker"
-                color: root.seal
-                font.family: root.mono; font.pixelSize: 10
+                color: archPanel.root.seal
+                font.family: archPanel.root.mono; font.pixelSize: 10
                 wrapMode: Text.WordWrap
             }
 
@@ -912,20 +914,20 @@ PanelWindow {
                 UiText {
                     width: parent.width * 0.4
                     text: "Package"
-                    color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
-                    font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+                    color: Qt.rgba(archPanel.root.ink.r, archPanel.root.ink.g, archPanel.root.ink.b, 0.6)
+                    font.family: archPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
                 }
                 UiText {
                     width: parent.width * 0.3
                     text: "Installed"
-                    color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
-                    font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+                    color: Qt.rgba(archPanel.root.ink.r, archPanel.root.ink.g, archPanel.root.ink.b, 0.6)
+                    font.family: archPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
                 }
                 UiText {
                     width: parent.width * 0.3
                     text: "Available"
-                    color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
-                    font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+                    color: Qt.rgba(archPanel.root.ink.r, archPanel.root.ink.g, archPanel.root.ink.b, 0.6)
+                    font.family: archPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
                 }
             }
 
@@ -946,16 +948,17 @@ PanelWindow {
                     spacing: 2
 
                     Repeater {
-                        model: root.archUpdates
+                        model: archPanel.root.archUpdates
 
                         delegate: Item {
+                            id: entryDelegate1
                             required property var modelData
                             required property int index
 
                             readonly property color srcColor: {
-                                if (modelData.source === "system") return root.seal;
-                                if (modelData.source === "aur") return root.indigo;
-                                return root.sumi;
+                                if (modelData.source === "system") return archPanel.root.seal;
+                                if (modelData.source === "aur") return archPanel.root.indigo;
+                                return archPanel.root.sumi;
                             }
 
                             readonly property var gv: archPanel.gateMap[modelData.name]
@@ -978,61 +981,61 @@ PanelWindow {
                                     width: 14
                                     // neutral · until the gate has actually vouched —
                                     // unknown/scanning must NOT look like a green pass
-                                    text: vBlocked ? "✗" : vReview ? "⚠" : vOk ? "✓" : "·"
-                                    color: vBlocked ? root.seal : vReview ? root.inkDeep : vOk ? root.green : root.sumi
-                                    font.family: root.mono; font.pixelSize: 11
+                                    text: entryDelegate1.vBlocked ? "✗" : entryDelegate1.vReview ? "⚠" : entryDelegate1.vOk ? "✓" : "·"
+                                    color: entryDelegate1.vBlocked ? archPanel.root.seal : entryDelegate1.vReview ? archPanel.root.inkDeep : entryDelegate1.vOk ? archPanel.root.green : archPanel.root.sumi
+                                    font.family: archPanel.root.mono; font.pixelSize: 11
                                     horizontalAlignment: Text.AlignHCenter
                                 }
                                 UiText {
                                     width: parent.width * 0.4 - 18
-                                    text: modelData.name
-                                    color: vBlocked ? root.seal : srcColor
-                                    font.family: root.mono; font.pixelSize: 11
+                                    text: entryDelegate1.modelData.name
+                                    color: entryDelegate1.vBlocked ? archPanel.root.seal : entryDelegate1.srcColor
+                                    font.family: archPanel.root.mono; font.pixelSize: 11
                                     elide: Text.ElideRight
                                 }
                                 UiText {
                                     width: parent.width * 0.3
-                                    text: modelData.oldVer
-                                    color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.7)
-                                    font.family: root.mono; font.pixelSize: 11
+                                    text: entryDelegate1.modelData.oldVer
+                                    color: Qt.rgba(archPanel.root.ink.r, archPanel.root.ink.g, archPanel.root.ink.b, 0.7)
+                                    font.family: archPanel.root.mono; font.pixelSize: 11
                                     elide: Text.ElideRight
                                 }
                                 UiText {
                                     width: parent.width * 0.3
-                                    text: modelData.newVer
-                                    color: srcColor
-                                    font.family: root.mono; font.pixelSize: 11
+                                    text: entryDelegate1.modelData.newVer
+                                    color: entryDelegate1.srcColor
+                                    font.family: archPanel.root.mono; font.pixelSize: 11
                                     font.weight: Font.Medium
                                     elide: Text.ElideRight
                                 }
                             }
 
                             UiText {
-                                visible: showReason
+                                visible: entryDelegate1.showReason
                                 anchors.top: rowTop.bottom
                                 x: 18
                                 width: parent.width - 18
-                                text: vReason
-                                color: vBlocked ? root.seal : root.ink
-                                font.family: root.mono; font.pixelSize: 9
+                                text: entryDelegate1.vReason
+                                color: entryDelegate1.vBlocked ? archPanel.root.seal : archPanel.root.ink
+                                font.family: archPanel.root.mono; font.pixelSize: 9
                                 elide: Text.ElideRight
                             }
 
                             Rectangle {
                                 anchors.bottom: parent.bottom
                                 width: parent.width - 16; height: 1
-                                color: root.sep
-                                visible: index < root.archUpdates.length - 1
+                                color: archPanel.root.sep
+                                visible: entryDelegate1.index < archPanel.root.archUpdates.length - 1
                             }
                         }
                     }
 
                     UiText {
                         width: parent.width
-                        visible: root.archUpdates.length === 0 && !root.archScanError && !root.archRefreshing
+                        visible: archPanel.root.archUpdates.length === 0 && !archPanel.root.archScanError && !archPanel.root.archRefreshing
                         text: "No updates available"
-                        color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.5)
-                        font.family: root.mono; font.pixelSize: 11
+                        color: Qt.rgba(archPanel.root.ink.r, archPanel.root.ink.g, archPanel.root.ink.b, 0.5)
+                        font.family: archPanel.root.mono; font.pixelSize: 11
                         horizontalAlignment: Text.AlignHCenter
                         topPadding: 20
                     }
@@ -1041,16 +1044,16 @@ PanelWindow {
                 ScrollThumb { flick: packagesFlick }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: archPanel.root.sep }
 
             UiText {
                 width: parent.width
-                visible: root.archScanError !== ""
-                text: root.archScanError
+                visible: archPanel.root.archScanError !== ""
+                text: archPanel.root.archScanError
                 textFormat: Text.PlainText
                 wrapMode: Text.WordWrap
-                color: root.seal
-                font.family: root.mono
+                color: archPanel.root.seal
+                font.family: archPanel.root.mono
                 font.pixelSize: 11
             }
 
@@ -1062,23 +1065,23 @@ PanelWindow {
                 // Refresh
                 Rectangle {
                     width: (parent.width - 8 * (archPanel.btnCount - 1)) / archPanel.btnCount
-                    height: 28; radius: root.tileRadius
-                    color: refreshMa.containsMouse ? root.fillHover : root.fillIdle
-                    border.color: refreshMa.containsMouse ? root.seal : root.sep
+                    height: 28; radius: archPanel.root.tileRadius
+                    color: refreshMa.containsMouse ? archPanel.root.fillHover : archPanel.root.fillIdle
+                    border.color: refreshMa.containsMouse ? archPanel.root.seal : archPanel.root.sep
                     border.width: 1
                     Behavior on color { ColorAnimation { duration: 120 } }
                     UiText {
                         anchors.centerIn: parent
                         text: "Refresh"
-                        color: refreshMa.containsMouse ? root.seal : root.ink
-                        font.family: root.mono; font.pixelSize: 11
+                        color: refreshMa.containsMouse ? archPanel.root.seal : archPanel.root.ink
+                        font.family: archPanel.root.mono; font.pixelSize: 11
                     }
                     MouseArea {
                         id: refreshMa
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.archRefreshTick++
+                        onClicked: archPanel.root.archRefreshTick++
                     }
                 }
 
@@ -1086,9 +1089,9 @@ PanelWindow {
                 // keeps the checked all-or-nothing repository transaction.
                 Rectangle {
                     width: (parent.width - 8 * (archPanel.btnCount - 1)) / archPanel.btnCount
-                    height: 28; radius: root.tileRadius
+                    height: 28; radius: archPanel.root.tileRadius
                     opacity: archPanel.canUpdate ? 1.0 : 0.45
-                    color: (updateMa.containsMouse && archPanel.canUpdate) ? root.fillPrimaryHover : root.seal
+                    color: (updateMa.containsMouse && archPanel.canUpdate) ? archPanel.root.fillPrimaryHover : archPanel.root.seal
                     border.color: "transparent"
                     Behavior on color { ColorAnimation { duration: 120 } }
                     UiText {
@@ -1098,8 +1101,8 @@ PanelWindow {
                             : archPanel.repoBlockButtonText
                         width: parent.width - 16
                         horizontalAlignment: Text.AlignHCenter
-                        color: root.paper
-                        font.family: root.mono; font.pixelSize: 11
+                        color: archPanel.root.paper
+                        font.family: archPanel.root.mono; font.pixelSize: 11
                         elide: Text.ElideRight
                     }
                     MouseArea {
@@ -1115,10 +1118,10 @@ PanelWindow {
                             } else {
                                 command.push(
                                     "--run",
-                                    root.archScanId,
-                                    root.archScanHash,
-                                    String(root.archScanSystemCount),
-                                    String(root.archScanCheckedEpoch),
+                                    archPanel.root.archScanId,
+                                    archPanel.root.archScanHash,
+                                    String(archPanel.root.archScanSystemCount),
+                                    String(archPanel.root.archScanCheckedEpoch),
                                     String(archPanel.aurReviewPackages)
                                 )
                             }
@@ -1131,16 +1134,16 @@ PanelWindow {
                 Rectangle {
                     visible: archPanel.aurReviewPackages > 0
                     width: (parent.width - 8 * (archPanel.btnCount - 1)) / archPanel.btnCount
-                    height: 28; radius: root.tileRadius
-                    color: reviewMa.containsMouse ? root.fillHover : root.fillIdle
-                    border.color: reviewMa.containsMouse ? root.seal : root.sep
+                    height: 28; radius: archPanel.root.tileRadius
+                    color: reviewMa.containsMouse ? archPanel.root.fillHover : archPanel.root.fillIdle
+                    border.color: reviewMa.containsMouse ? archPanel.root.seal : archPanel.root.sep
                     border.width: 1
                     Behavior on color { ColorAnimation { duration: 120 } }
                     UiText {
                         anchors.centerIn: parent
                         text: "Review " + archPanel.aurReviewPackages + " AUR"
-                        color: reviewMa.containsMouse ? root.seal : root.ink
-                        font.family: root.mono; font.pixelSize: 11
+                        color: reviewMa.containsMouse ? archPanel.root.seal : archPanel.root.ink
+                        font.family: archPanel.root.mono; font.pixelSize: 11
                     }
                     MouseArea {
                         id: reviewMa
@@ -1151,7 +1154,7 @@ PanelWindow {
                             // Display-only: list AUR updates, install nothing.
                             panelUpdateRunner.command = ["bash", "-c",
                                 "omarchy-launch-floating-terminal-with-presentation 'echo \"AUR review — no packages are installed by this view.\"; echo; AUR=$(command -v paru || command -v yay || echo yay); \"$AUR\" -Qum; echo; echo \"Review each PKGBUILD before building these manually.\"'"];
-                            root.archVisible = false;
+                            archPanel.root.archVisible = false;
                             panelUpdateRunner.running = false;
                             panelUpdateRunner.running = true;
                         }
@@ -1166,7 +1169,7 @@ PanelWindow {
                 id: themesTab
                 width: parent.width
                 spacing: 8
-                visible: root.activeUpdateTab === "themes"
+                visible: archPanel.root.activeUpdateTab === "themes"
 
                 // ── status line: counts + freshness (RichText, native) ──
                 Text {
@@ -1175,19 +1178,19 @@ PanelWindow {
                     renderType: Text.NativeRendering
                     wrapMode: Text.NoWrap
                     elide: Text.ElideRight
-                    font.family: root.mono; font.pixelSize: 10
+                    font.family: archPanel.root.mono; font.pixelSize: 10
                     text: {
                         function hx(c) { function h(v){var x=Math.round(v*255).toString(16); return x.length<2?"0"+x:x} return "#"+h(c.r)+h(c.g)+h(c.b) }
                         function seg(t,c){ return '<font color="'+hx(c)+'">'+t+'</font>' }
-                        if (root.themeUpdChecked === "") return seg("never checked — run a scan", root.sumi)
+                        if (archPanel.root.themeUpdChecked === "") return seg("never checked — run a scan", archPanel.root.sumi)
                         var p = []
-                        p.push(seg(root.themeUpdOutdated + (root.themeUpdOutdated === 1 ? " update found" : " updates found"),
-                                   root.themeUpdOutdated>0?root.ink:root.sumi))
-                        if (root.themeUpdLocalEdits>0) p.push(seg(root.themeUpdLocalEdits + " with local edits", root.inkDeep))
-                        if (root.themeUpdDegraded) p.push(seg("⚠ check incomplete", root.seal))
-                        var d = new Date(root.themeUpdChecked)
-                        if (!isNaN(d.getTime())) p.push(seg("checked " + Qt.formatDateTime(d, "HH:mm"), root.sumi))
-                        return p.join(' <font color="'+hx(root.sumi)+'">·</font> ')
+                        p.push(seg(archPanel.root.themeUpdOutdated + (archPanel.root.themeUpdOutdated === 1 ? " update found" : " updates found"),
+                                   archPanel.root.themeUpdOutdated>0?archPanel.root.ink:archPanel.root.sumi))
+                        if (archPanel.root.themeUpdLocalEdits>0) p.push(seg(archPanel.root.themeUpdLocalEdits + " with local edits", archPanel.root.inkDeep))
+                        if (archPanel.root.themeUpdDegraded) p.push(seg("⚠ check incomplete", archPanel.root.seal))
+                        var d = new Date(archPanel.root.themeUpdChecked)
+                        if (!isNaN(d.getTime())) p.push(seg("checked " + Qt.formatDateTime(d, "HH:mm"), archPanel.root.sumi))
+                        return p.join(' <font color="'+hx(archPanel.root.sumi)+'">·</font> ')
                     }
                 }
 
@@ -1195,15 +1198,15 @@ PanelWindow {
                     visible: archPanel.removeError !== ""
                     width: parent.width
                     text: "Remove failed · " + archPanel.removeError
-                    color: root.seal
-                    font.family: root.mono
+                    color: archPanel.root.seal
+                    font.family: archPanel.root.mono
                     font.pixelSize: 10
                     elide: Text.ElideRight
                 }
 
                 // ── current theme became stale after its repo advanced ──
                 Item {
-                    visible: root.themeUpdCurrentStale
+                    visible: archPanel.root.themeUpdCurrentStale
                     width: parent.width
                     height: 18
                     UiText {
@@ -1211,24 +1214,24 @@ PanelWindow {
                         anchors.verticalCenter: parent.verticalCenter
                         width: parent.width - 84
                         text: "⟳ current theme updated — live copy is stale"
-                        color: root.inkDeep
-                        font.family: root.mono; font.pixelSize: 10
+                        color: archPanel.root.inkDeep
+                        font.family: archPanel.root.mono; font.pixelSize: 10
                         elide: Text.ElideRight
                     }
                     Rectangle {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         anchors.verticalCenterOffset: -2   // match the update chip: onto the text's optical centre
-                        width: 78; height: 18; radius: root.tileRadius
-                        color: reapplyMa.containsMouse ? root.fillHover : root.fillIdle
-                        border.color: reapplyMa.containsMouse ? root.seal : root.sep
+                        width: 78; height: 18; radius: archPanel.root.tileRadius
+                        color: reapplyMa.containsMouse ? archPanel.root.fillHover : archPanel.root.fillIdle
+                        border.color: reapplyMa.containsMouse ? archPanel.root.seal : archPanel.root.sep
                         border.width: 1
                         Behavior on color { ColorAnimation { duration: 120 } }
                         UiText {
                             anchors.centerIn: parent
                             text: "Re-apply"
-                            color: reapplyMa.containsMouse ? root.seal : root.ink
-                            font.family: root.mono; font.pixelSize: 9
+                            color: reapplyMa.containsMouse ? archPanel.root.seal : archPanel.root.ink
+                            font.family: archPanel.root.mono; font.pixelSize: 9
                         }
                         MouseArea {
                             id: reapplyMa
@@ -1244,11 +1247,11 @@ PanelWindow {
                 Row {
                     width: parent.width
                     spacing: archPanel.themeGridGap
-                    UiText { width: parent.width - archPanel.themeRightBlockWidth - archPanel.themeGridGap; text: "Theme";  color: Qt.rgba(root.ink.r,root.ink.g,root.ink.b,0.6); font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
+                    UiText { width: parent.width - archPanel.themeRightBlockWidth - archPanel.themeGridGap; text: "Theme";  color: Qt.rgba(archPanel.root.ink.r,archPanel.root.ink.g,archPanel.root.ink.b,0.6); font.family: archPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
                     // Intentionally blank: row actions (update, reinstall, remove).
                     Item { width: archPanel.themeActionsWidth; height: 1 }
-                    UiText { width: archPanel.themeBehindWidth; text: "Behind"; color: Qt.rgba(root.ink.r,root.ink.g,root.ink.b,0.6); font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
-                    UiText { width: archPanel.themeStateWidth; text: "State"; color: Qt.rgba(root.ink.r,root.ink.g,root.ink.b,0.6); font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
+                    UiText { width: archPanel.themeBehindWidth; text: "Behind"; color: Qt.rgba(archPanel.root.ink.r,archPanel.root.ink.g,archPanel.root.ink.b,0.6); font.family: archPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
+                    UiText { width: archPanel.themeStateWidth; text: "State"; color: Qt.rgba(archPanel.root.ink.r,archPanel.root.ink.g,archPanel.root.ink.b,0.6); font.family: archPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
                 }
 
                 // ── theme list (only outdated + unreachable themes are in the model) ──
@@ -1268,7 +1271,7 @@ PanelWindow {
                         spacing: 2
 
                         Repeater {
-                            model: root.themeUpdList
+                            model: archPanel.root.themeUpdList
 
                             delegate: Item {
                                 id: themeRow
@@ -1310,7 +1313,7 @@ PanelWindow {
                                 // scan. Local-edits/unreachable/old-schema rows stay review-only.
                                 readonly property bool canPull: archPanel.isPinnedThemeUpdate(modelData)
                                 readonly property bool canReinstall: archPanel.canReinstallTheme(modelData)
-                                readonly property bool canRemove: !root.themeUpdChecking
+                                readonly property bool canRemove: !archPanel.root.themeUpdChecking
                                     && /^[A-Za-z0-9._-]+$/.test(modelData.name || "")
                                 readonly property bool confirmingRemove:
                                     archPanel.pendingRemoveName === String(modelData.name || "")
@@ -1327,9 +1330,9 @@ PanelWindow {
                                     UiText {
                                         width: parent.width - archPanel.themeRightBlockWidth - archPanel.themeGridGap
                                         anchors.verticalCenter: parent.verticalCenter
-                                        text: modelData.name
-                                        color: modelData.current ? root.seal : root.ink
-                                        font.family: root.mono; font.pixelSize: 11
+                                        text: themeRow.modelData.name
+                                        color: themeRow.modelData.current ? archPanel.root.seal : archPanel.root.ink
+                                        font.family: archPanel.root.mono; font.pixelSize: 11
                                         elide: Text.ElideRight
                                     }
                                     Item {
@@ -1354,15 +1357,15 @@ PanelWindow {
                                                 Rectangle {
                                                     id: primaryAction
                                                     readonly property bool actionEnabled: themeRow.confirmingRemove
-                                                        ? !archPanel.removeBusy && !root.themeUpdChecking
+                                                        ? !archPanel.removeBusy && !archPanel.root.themeUpdChecking
                                                         : themeRow.removeFlowIdle && themeRow.canPull
                                                     visible: themeRow.confirmingRemove
                                                         || (themeRow.removeFlowIdle && themeRow.canPull)
                                                     anchors.verticalCenter: parent.verticalCenter
                                                     anchors.verticalCenterOffset: -2
-                                                    width: parent.width; height: 18; radius: root.tileRadius
+                                                    width: parent.width; height: 18; radius: archPanel.root.tileRadius
                                                     color: (primaryMa.containsMouse && actionEnabled)
-                                                        ? root.fillPrimaryHover : root.seal
+                                                        ? archPanel.root.fillPrimaryHover : archPanel.root.seal
                                                     opacity: archPanel.removeBusy && themeRow.confirmingRemove ? 0.65 : 1.0
                                                     Behavior on color { ColorAnimation { duration: 100 } }
                                                     TooltipMixin {
@@ -1371,11 +1374,11 @@ PanelWindow {
                                                         owner: primaryAction
                                                         text: themeRow.confirmingRemove
                                                             ? archPanel.removeBusy
-                                                                ? "Removing theme · " + modelData.name
+                                                                ? "Removing theme · " + themeRow.modelData.name
                                                                 : archPanel.removeError !== ""
                                                                     ? "Retry removal · " + archPanel.removeError
-                                                                    : "Confirm removal · " + modelData.name
-                                                            : "Update theme · " + modelData.name
+                                                                    : "Confirm removal · " + themeRow.modelData.name
+                                                            : "Update theme · " + themeRow.modelData.name
                                                     }
                                                     UiText {
                                                         anchors.centerIn: parent
@@ -1383,8 +1386,8 @@ PanelWindow {
                                                             ? archPanel.removeBusy ? "removing…"
                                                                 : archPanel.removeError !== "" ? "retry" : "remove"
                                                             : "update"
-                                                        color: root.paper
-                                                        font.family: root.mono
+                                                        color: archPanel.root.paper
+                                                        font.family: archPanel.root.mono
                                                         font.pixelSize: 9
                                                     }
                                                     MouseArea {
@@ -1400,7 +1403,7 @@ PanelWindow {
                                                             if (themeRow.confirmingRemove)
                                                                 archPanel.confirmRemoveTheme()
                                                             else
-                                                                archPanel.updateOneTheme(modelData.name)
+                                                                archPanel.updateOneTheme(themeRow.modelData.name)
                                                         }
                                                     }
                                                 }
@@ -1416,12 +1419,12 @@ PanelWindow {
                                                     : themeRow.removeFlowIdle && themeRow.canReinstall
                                                 visible: !themeRow.confirmingRemove || !archPanel.removeBusy
                                                 width: themeRow.confirmingRemove ? 52 : 20
-                                                height: 18; radius: root.tileRadius
+                                                height: 18; radius: archPanel.root.tileRadius
                                                 color: themeRow.confirmingRemove
                                                     ? (secondaryMa.containsMouse && actionEnabled)
-                                                        ? root.fillPrimaryHover : root.seal
+                                                        ? archPanel.root.fillPrimaryHover : archPanel.root.seal
                                                     : (secondaryMa.containsMouse && actionEnabled)
-                                                        ? root.fillHover : "transparent"
+                                                        ? archPanel.root.fillHover : "transparent"
                                                 opacity: actionEnabled ? 1.0 : 0.28
                                                 Behavior on color { ColorAnimation { duration: 100 } }
                                                 TooltipMixin {
@@ -1429,15 +1432,15 @@ PanelWindow {
                                                     root: archPanel.root
                                                     owner: secondaryAction
                                                     text: themeRow.confirmingRemove
-                                                        ? "Cancel removal · " + modelData.name
-                                                        : "Reinstall theme · " + modelData.name
+                                                        ? "Cancel removal · " + themeRow.modelData.name
+                                                        : "Reinstall theme · " + themeRow.modelData.name
                                                 }
                                                 UiText {
                                                     anchors.centerIn: parent
                                                     visible: themeRow.confirmingRemove
                                                     text: "cancel"
-                                                    color: root.paper
-                                                    font.family: root.mono
+                                                    color: archPanel.root.paper
+                                                    font.family: archPanel.root.mono
                                                     font.pixelSize: 9
                                                 }
                                                 IconText {
@@ -1445,7 +1448,7 @@ PanelWindow {
                                                     visible: !themeRow.confirmingRemove
                                                     text: "\uE5D5"
                                                     color: secondaryMa.containsMouse && secondaryAction.actionEnabled
-                                                        ? root.seal : root.sumi
+                                                        ? archPanel.root.seal : archPanel.root.sumi
                                                     font.pixelSize: 14
                                                 }
                                                 MouseArea {
@@ -1461,7 +1464,7 @@ PanelWindow {
                                                         if (themeRow.confirmingRemove)
                                                             archPanel.cancelRemoveTheme()
                                                         else
-                                                            archPanel.reinstallTheme(modelData.name, modelData.remoteUrl)
+                                                            archPanel.reinstallTheme(themeRow.modelData.name, themeRow.modelData.remoteUrl)
                                                     }
                                                 }
                                             }
@@ -1473,11 +1476,11 @@ PanelWindow {
                                                 readonly property bool actionEnabled: themeRow.confirmingRemove
                                                     ? !archPanel.removeBusy && themeRow.canReinstall
                                                     : themeRow.removeFlowIdle && themeRow.canRemove
-                                                width: 20; height: 18; radius: root.tileRadius
+                                                width: 20; height: 18; radius: archPanel.root.tileRadius
                                                 color: {
                                                     if (!tertiaryMa.containsMouse || !actionEnabled) return "transparent"
-                                                    if (themeRow.confirmingRemove) return root.fillHover
-                                                    return Qt.rgba(root.sealRaw.r, root.sealRaw.g, root.sealRaw.b, root.fillHoverAlpha)
+                                                    if (themeRow.confirmingRemove) return archPanel.root.fillHover
+                                                    return Qt.rgba(archPanel.root.sealRaw.r, archPanel.root.sealRaw.g, archPanel.root.sealRaw.b, archPanel.root.fillHoverAlpha)
                                                 }
                                                 opacity: actionEnabled ? 1.0 : 0.28
                                                 Behavior on color { ColorAnimation { duration: 100 } }
@@ -1486,15 +1489,15 @@ PanelWindow {
                                                     root: archPanel.root
                                                     owner: tertiaryAction
                                                     text: themeRow.confirmingRemove
-                                                        ? "Reinstall theme · " + modelData.name
-                                                        : "Remove theme · " + modelData.name
+                                                        ? "Reinstall theme · " + themeRow.modelData.name
+                                                        : "Remove theme · " + themeRow.modelData.name
                                                 }
                                                 IconText {
                                                     anchors.centerIn: parent
                                                     text: themeRow.confirmingRemove ? "\uE5D5" : "\uE872"
                                                     color: tertiaryMa.containsMouse && tertiaryAction.actionEnabled
-                                                        ? themeRow.confirmingRemove ? root.seal : root.sealRaw
-                                                        : root.sumi
+                                                        ? themeRow.confirmingRemove ? archPanel.root.seal : archPanel.root.sealRaw
+                                                        : archPanel.root.sumi
                                                     font.pixelSize: themeRow.confirmingRemove ? 14 : 13
                                                 }
                                                 MouseArea {
@@ -1509,9 +1512,9 @@ PanelWindow {
                                                         tertiaryTip.hide()
                                                         if (themeRow.confirmingRemove) {
                                                             archPanel.cancelRemoveTheme()
-                                                            archPanel.reinstallTheme(modelData.name, modelData.remoteUrl)
+                                                            archPanel.reinstallTheme(themeRow.modelData.name, themeRow.modelData.remoteUrl)
                                                         } else {
-                                                            archPanel.removeTheme(modelData.name)
+                                                            archPanel.removeTheme(themeRow.modelData.name)
                                                         }
                                                     }
                                                 }
@@ -1524,9 +1527,9 @@ PanelWindow {
                                         UiText {
                                             anchors.verticalCenter: parent.verticalCenter
                                             width: parent.width
-                                            text: isUnreach ? "—" : (modelData.behind + (modelData.behind === 1 ? " commit" : " commits"))
-                                            color: behindMa.containsMouse && themeRow.canViewChanges ? root.seal : Qt.rgba(root.ink.r,root.ink.g,root.ink.b,0.7)
-                                            font.family: root.mono; font.pixelSize: 10
+                                            text: themeRow.isUnreach ? "—" : (themeRow.modelData.behind + (themeRow.modelData.behind === 1 ? " commit" : " commits"))
+                                            color: behindMa.containsMouse && themeRow.canViewChanges ? archPanel.root.seal : Qt.rgba(archPanel.root.ink.r,archPanel.root.ink.g,archPanel.root.ink.b,0.7)
+                                            font.family: archPanel.root.mono; font.pixelSize: 10
                                             elide: Text.ElideRight
                                         }
                                         MouseArea {
@@ -1535,7 +1538,7 @@ PanelWindow {
                                             hoverEnabled: themeRow.canViewChanges
                                             enabled: themeRow.canViewChanges
                                             cursorShape: themeRow.canViewChanges ? Qt.PointingHandCursor : Qt.ArrowCursor
-                                            onClicked: archPanel.viewThemeChanges(modelData.name)
+                                            onClicked: archPanel.viewThemeChanges(themeRow.modelData.name)
                                         }
                                     }
                                     // right slot: status only; all per-theme actions live in the
@@ -1557,9 +1560,9 @@ PanelWindow {
                                             anchors.verticalCenter: parent.verticalCenter
                                             text: themeRow.stateLabel
                                             color: stateMa.containsMouse && themeRow.stateTooltip !== ""
-                                                ? root.seal
-                                                : isLocalEdits ? root.inkDeep : root.sumi
-                                            font.family: root.mono; font.pixelSize: 10
+                                                ? archPanel.root.seal
+                                                : themeRow.isLocalEdits ? archPanel.root.inkDeep : archPanel.root.sumi
+                                            font.family: archPanel.root.mono; font.pixelSize: 10
                                             elide: Text.ElideRight
                                         }
                                         MouseArea {
@@ -1577,18 +1580,18 @@ PanelWindow {
                                 Rectangle {
                                     anchors.bottom: parent.bottom
                                     width: parent.width - 16; height: 1
-                                    color: root.sep
-                                    visible: index < root.themeUpdList.length - 1
+                                    color: archPanel.root.sep
+                                    visible: themeRow.index < archPanel.root.themeUpdList.length - 1
                                 }
                             }
                         }
 
                         UiText {
                             width: parent.width
-                            visible: root.themeUpdList.length === 0
-                            text: root.themeUpdChecked === "" ? "Not checked yet" : "All themes up to date"
-                            color: Qt.rgba(root.ink.r,root.ink.g,root.ink.b,0.5)
-                            font.family: root.mono; font.pixelSize: 11
+                            visible: archPanel.root.themeUpdList.length === 0
+                            text: archPanel.root.themeUpdChecked === "" ? "Not checked yet" : "All themes up to date"
+                            color: Qt.rgba(archPanel.root.ink.r,archPanel.root.ink.g,archPanel.root.ink.b,0.5)
+                            font.family: archPanel.root.mono; font.pixelSize: 11
                             horizontalAlignment: Text.AlignHCenter
                             topPadding: 20
                         }
@@ -1597,7 +1600,7 @@ PanelWindow {
                     ScrollThumb { flick: themesFlick }
                 }
 
-                Rectangle { width: parent.width; height: 1; color: root.sep }
+                Rectangle { width: parent.width; height: 1; color: archPanel.root.sep }
 
                 // ── buttons ──
                 Row {
@@ -1607,25 +1610,25 @@ PanelWindow {
                     // Check themes — runs the read-only check script; disabled while scanning
                     Rectangle {
                         width: (parent.width - 8) / 2
-                        height: 28; radius: root.tileRadius
-                        color: (checkMa.containsMouse && !root.themeUpdChecking) ? root.fillHover : root.fillIdle
-                        border.color: (checkMa.containsMouse && !root.themeUpdChecking) ? root.seal : root.sep
+                        height: 28; radius: archPanel.root.tileRadius
+                        color: (checkMa.containsMouse && !archPanel.root.themeUpdChecking) ? archPanel.root.fillHover : archPanel.root.fillIdle
+                        border.color: (checkMa.containsMouse && !archPanel.root.themeUpdChecking) ? archPanel.root.seal : archPanel.root.sep
                         border.width: 1
-                        opacity: root.themeUpdChecking ? 0.5 : 1.0
+                        opacity: archPanel.root.themeUpdChecking ? 0.5 : 1.0
                         Behavior on color { ColorAnimation { duration: 120 } }
                         UiText {
                             anchors.centerIn: parent
-                            text: root.themeUpdChecking ? "Checking…" : "Check themes"
-                            color: (checkMa.containsMouse && !root.themeUpdChecking) ? root.seal : root.ink
-                            font.family: root.mono; font.pixelSize: 11
+                            text: archPanel.root.themeUpdChecking ? "Checking…" : "Check themes"
+                            color: (checkMa.containsMouse && !archPanel.root.themeUpdChecking) ? archPanel.root.seal : archPanel.root.ink
+                            font.family: archPanel.root.mono; font.pixelSize: 11
                         }
                         MouseArea {
                             id: checkMa
                             anchors.fill: parent
                             hoverEnabled: true
-                            enabled: !root.themeUpdChecking
-                            cursorShape: root.themeUpdChecking ? Qt.ArrowCursor : Qt.PointingHandCursor
-                            onClicked: root.themeCheckTick++
+                            enabled: !archPanel.root.themeUpdChecking
+                            cursorShape: archPanel.root.themeUpdChecking ? Qt.ArrowCursor : Qt.PointingHandCursor
+                            onClicked: archPanel.root.themeCheckTick++
                         }
                     }
 
@@ -1633,20 +1636,20 @@ PanelWindow {
                     // commit; blocked/local-edits stay untouched for review.
                     Rectangle {
                         readonly property int cleanCount: archPanel.cleanThemeUpdateCount()
-                        readonly property bool canApply: cleanCount > 0 && !root.themeUpdChecking
+                        readonly property bool canApply: cleanCount > 0 && !archPanel.root.themeUpdChecking
                         width: (parent.width - 8) / 2
-                        height: 28; radius: root.tileRadius
+                        height: 28; radius: archPanel.root.tileRadius
                         opacity: canApply ? 1.0 : 0.45
-                        color: (allMa.containsMouse && canApply) ? root.fillPrimaryHover : root.seal
+                        color: (allMa.containsMouse && canApply) ? archPanel.root.fillPrimaryHover : archPanel.root.seal
                         border.color: "transparent"
                         Behavior on color { ColorAnimation { duration: 120 } }
                         UiText {
                             anchors.centerIn: parent
-                            text: root.themeUpdChecking ? "Checking…"
-                                                  : parent.canApply ? (root.themeUpdLocalEdits > 0 ? "Update clean" : "Update all")
-                                                  : root.themeUpdOutdated > 0 ? "Review first" : "No updates"
-                            color: root.paper
-                            font.family: root.mono; font.pixelSize: 11
+                            text: archPanel.root.themeUpdChecking ? "Checking…"
+                                                  : parent.canApply ? (archPanel.root.themeUpdLocalEdits > 0 ? "Update clean" : "Update all")
+                                                  : archPanel.root.themeUpdOutdated > 0 ? "Review first" : "No updates"
+                            color: archPanel.root.paper
+                            font.family: archPanel.root.mono; font.pixelSize: 11
                         }
                         MouseArea {
                             id: allMa

@@ -32,7 +32,7 @@ test('Invalid country and busy controller cannot change auto-connect', () => {
 test('Both panels apply the toggle directly and omit the unsupported virtual-location setting', () => {
   for (const path of ['versions/V1/panels/NordVPNPanel.qml', 'versions/V1/variants/V2/panels/NordVPNPanel.qml']) {
     const panel = readFileSync(path, 'utf8');
-    assert.match(panel, /onClicked: controller.setAutoConnect\(!vpnPanel.autoConnectEnabled, vpnPanel.autoCountryTarget\)/);
+    assert.match(panel, /onClicked: vpnPanel\.controller.setAutoConnect\(!vpnPanel.autoConnectEnabled, vpnPanel.autoCountryTarget\)/);
     assert.doesNotMatch(panel, /autoConnectEnabled = !/);
     assert.doesNotMatch(panel, /virtual-location/);
   }

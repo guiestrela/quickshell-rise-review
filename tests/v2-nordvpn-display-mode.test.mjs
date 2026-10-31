@@ -23,8 +23,8 @@ test('V2 NordVPN exposes the native Full/Icon control on G19', () => {
   const tile = panel.split('\n').find(line => line.includes('WidgetStateTile') && line.includes('gid: "G19"'));
   assert.ok(tile, 'NordVPN tile exists');
   assert.match(tile, /supportsCompact:\s*true/, 'Full/Icon selector must be enabled');
-  assert.match(tile, /compact:\s*root\.iconOnly\("G19"\)/);
-  assert.match(tile, /onModeToggled:\s*root\.toggleIconOnly\("G19"\)/);
+  assert.match(tile, /compact:\s*ctrlPanel\.root\.iconOnly\("G19"\)/);
+  assert.match(tile, /onModeToggled:\s*ctrlPanel\.root\.toggleIconOnly\("G19"\)/);
 });
 
 test('existing V2 mode functions toggle and persist only G19 without altering other groups', () => {

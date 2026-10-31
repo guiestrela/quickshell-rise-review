@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
@@ -7,7 +8,7 @@ PanelWindow {
     id: ctrlPanel
     required property var root
 
-    screen: root.activePopupScreen
+    screen: ctrlPanel.root.activePopupScreen
 
     color: "transparent"
     anchors { top: true; bottom: true; left: true; right: true }
@@ -27,15 +28,15 @@ PanelWindow {
 
     function switchBar(version) {
         if (version !== "v1" && version !== "v2") return
-        root.controlVisible = false
-        if (root.variantHost)
-            root.variantHost.requestSwitch(version)
+        ctrlPanel.root.controlVisible = false
+        if (ctrlPanel.root.variantHost)
+            ctrlPanel.root.variantHost.requestSwitch(version)
         else
             Quickshell.execDetached([barctlPath, "switch", version])
     }
 
     function reloadBar() {
-        root.controlVisible = false
+        ctrlPanel.root.controlVisible = false
         Quickshell.reload(false)
     }
 
@@ -48,38 +49,39 @@ PanelWindow {
         }
         if (!commands[action]) return
         Quickshell.execDetached(commands[action])
-        root.controlVisible = false
+        ctrlPanel.root.controlVisible = false
     }
 
-    property real reveal: root.controlVisible ? 1 : 0
+    property real reveal: ctrlPanel.root.controlVisible ? 1 : 0
     Behavior on reveal {
         NumberAnimation {
-            duration: root.controlVisible ? 160 : 120
-            easing.type: root.controlVisible ? Easing.OutCubic : Easing.InCubic
+            duration: ctrlPanel.root.controlVisible ? 160 : 120
+            easing.type: ctrlPanel.root.controlVisible ? Easing.OutCubic : Easing.InCubic
         }
     }
     visible: reveal > 0.001
-    onRevealChanged: if (reveal < 0.01) { powerOpen = false; wsOpen = false; compactOpen = false; root.splitsSubVisible = false; root.wwSubVisible = false }  // reset when closed
-    WlrLayershell.keyboardFocus: root.controlVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    onRevealChanged: if (reveal < 0.01) { powerOpen = false; wsOpen = false; compactOpen = false; ctrlPanel.root.splitsSubVisible = false; ctrlPanel.root.wwSubVisible = false }  // reset when closed
+    WlrLayershell.keyboardFocus: ctrlPanel.root.controlVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     // ── reusable tile: neutral by default, highlights only on hover ──
     component Tile: Rectangle {
+        id: tile
         property string label
-        property color accent: root.seal
+        property color accent: ctrlPanel.root.seal
         property bool active: false
         signal activated()
         height: 25
-        radius: root.tileRadius
+        radius: ctrlPanel.root.tileRadius
         opacity: enabled ? 1.0 : 0.4          // built-in `enabled` also blocks input
-        color: active ? Qt.rgba(accent.r, accent.g, accent.b, root.fillActiveAlpha) : _ma.containsMouse ? Qt.rgba(accent.r, accent.g, accent.b, root.fillHoverAlpha) : root.fillIdle
-        border.color: (active || _ma.containsMouse) ? accent : root.sep
+        color: active ? Qt.rgba(accent.r, accent.g, accent.b, ctrlPanel.root.fillActiveAlpha) : _ma.containsMouse ? Qt.rgba(accent.r, accent.g, accent.b, ctrlPanel.root.fillHoverAlpha) : ctrlPanel.root.fillIdle
+        border.color: (active || _ma.containsMouse) ? accent : ctrlPanel.root.sep
         border.width: 1
         Behavior on color { ColorAnimation { duration: 120 } }
         Text {
             anchors.centerIn: parent
             text: parent.label
-            color: (parent.active || _ma.containsMouse) ? parent.accent : root.ink
-            font.family: root.mono; font.pixelSize: 11
+            color: (parent.active || _ma.containsMouse) ? parent.accent : ctrlPanel.root.ink
+            font.family: ctrlPanel.root.mono; font.pixelSize: 11
         }
         MouseArea {
             id: _ma
@@ -91,6 +93,7 @@ PanelWindow {
     }
 
     component CompactToggle: Item {
+        id: compactToggle
         property string label
         property bool active: false
         signal toggled()
@@ -101,8 +104,8 @@ PanelWindow {
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
             text: parent.label
-            color: parent.active || toggleMa.containsMouse ? root.seal : root.ink
-            font.family: root.mono
+            color: parent.active || toggleMa.containsMouse ? ctrlPanel.root.seal : ctrlPanel.root.ink
+            font.family: ctrlPanel.root.mono
             font.pixelSize: 11
             font.weight: parent.active ? Font.Medium : Font.Normal
             Behavior on color { ColorAnimation { duration: 120 } }
@@ -113,8 +116,8 @@ PanelWindow {
             width: 30
             height: 16
             radius: 8
-            color: parent.active ? root.fillActive : toggleMa.containsMouse ? root.fillHover : root.fillIdle
-            border.color: (parent.active || toggleMa.containsMouse) ? root.seal : root.sep
+            color: parent.active ? ctrlPanel.root.fillActive : toggleMa.containsMouse ? ctrlPanel.root.fillHover : ctrlPanel.root.fillIdle
+            border.color: (parent.active || toggleMa.containsMouse) ? ctrlPanel.root.seal : ctrlPanel.root.sep
             border.width: 1
             Behavior on color { ColorAnimation { duration: 120 } }
             Rectangle {
@@ -123,7 +126,7 @@ PanelWindow {
                 radius: 5
                 anchors.verticalCenter: parent.verticalCenter
                 x: parent.parent.active ? parent.width - width - 3 : 3
-                color: parent.parent.active ? root.seal : root.sumi
+                color: parent.parent.active ? ctrlPanel.root.seal : ctrlPanel.root.sumi
                 Behavior on x { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
                 Behavior on color { ColorAnimation { duration: 120 } }
             }
@@ -137,25 +140,25 @@ PanelWindow {
         }
     }
 
-    MouseArea { anchors.fill: parent; onClicked: root.controlVisible = false }
+    MouseArea { anchors.fill: parent; onClicked: ctrlPanel.root.controlVisible = false }
 
     Rectangle {
         id: card
         width: 240
         height: col.implicitHeight + 24
-        radius: ctrlPanel.reveal > 0.001 ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
+        radius: ctrlPanel.reveal > 0.001 ? ctrlPanel.root.pillRadius : 0
+        color: ctrlPanel.root.bg
+        border.color: ctrlPanel.root.pillBorder
+        border.width: ctrlPanel.root.pillBorderW
+        PillShadow { theme: ctrlPanel.root }
 
-        x: Math.round(Math.max(6, Math.min(root.launcherBarX - width / 2, parent.width - width - 6)))
-        y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
+        x: Math.round(Math.max(6, Math.min(ctrlPanel.root.launcherBarX - width / 2, parent.width - width - 6)))
+        y: ctrlPanel.root.barPosition === "bottom" ? (parent.height - ctrlPanel.barBottom - ctrlPanel.gap - height) : (ctrlPanel.barBottom + ctrlPanel.gap)
         opacity: ctrlPanel.reveal
-        focus: root.controlVisible
+        focus: ctrlPanel.root.controlVisible
 
         Keys.onPressed: function(event) {
-            if (event.key === Qt.Key_Escape) { root.controlVisible = false; event.accepted = true }
+            if (event.key === Qt.Key_Escape) { ctrlPanel.root.controlVisible = false; event.accepted = true }
         }
 
         MouseArea { anchors.fill: parent; onClicked: {} }
@@ -173,46 +176,46 @@ PanelWindow {
                 UiText {
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                     text: "Control"
-                    color: root.ink; font.family: root.mono; font.pixelSize: 13
+                    color: ctrlPanel.root.ink; font.family: ctrlPanel.root.mono; font.pixelSize: 13
                     font.letterSpacing: 2; font.weight: Font.Medium
                 }
                 UiText {
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                    text: "✕"; color: closeMa.containsMouse ? root.seal : root.sumi; font.pixelSize: 12
+                    text: "✕"; color: closeMa.containsMouse ? ctrlPanel.root.seal : ctrlPanel.root.sumi; font.pixelSize: 12
                     Behavior on color { ColorAnimation { duration: 120 } }
-                    MouseArea { id: closeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.controlVisible = false }
+                    MouseArea { id: closeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: ctrlPanel.root.controlVisible = false }
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             // ── ACTIONS ──
             UiText {
                 text: "ACTIONS"
-                color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+                color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
             Grid {
                 width: parent.width
                 columns: 3
                 columnSpacing: 6
                 Tile {
-                    width: root.evenW((col.width - 12) / 3)
+                    width: ctrlPanel.root.evenW((col.width - 12) / 3)
                     label: "Reload"
                     onActivated: ctrlPanel.reloadBar()
                 }
                 Tile {
-                    width: root.evenW((col.width - 12) / 3)
+                    width: ctrlPanel.root.evenW((col.width - 12) / 3)
                     label: "V1"
-                    active: root.variantHost ? root.variantHost.runningVariant === "v1" : true
-                    enabled: root.variantHost ? !root.variantHost.switching && root.variantHost.runningVariant !== "v1" : false
+                    active: ctrlPanel.root.variantHost ? ctrlPanel.root.variantHost.runningVariant === "v1" : true
+                    enabled: ctrlPanel.root.variantHost ? !ctrlPanel.root.variantHost.switching && ctrlPanel.root.variantHost.runningVariant !== "v1" : false
                     opacity: active ? 1.0 : (enabled ? 1.0 : 0.4)
                     onActivated: ctrlPanel.switchBar("v1")
                 }
                 Tile {
-                    width: root.evenW((col.width - 12) / 3)
+                    width: ctrlPanel.root.evenW((col.width - 12) / 3)
                     label: "V2"
-                    active: root.variantHost ? root.variantHost.runningVariant === "v2" : false
-                    enabled: root.variantHost ? !root.variantHost.switching && root.variantHost.runningVariant !== "v2" : true
+                    active: ctrlPanel.root.variantHost ? ctrlPanel.root.variantHost.runningVariant === "v2" : false
+                    enabled: ctrlPanel.root.variantHost ? !ctrlPanel.root.variantHost.switching && ctrlPanel.root.variantHost.runningVariant !== "v2" : true
                     opacity: active ? 1.0 : (enabled ? 1.0 : 0.4)
                     onActivated: ctrlPanel.switchBar("v2")
                 }
@@ -222,7 +225,7 @@ PanelWindow {
             Tile {
                 width: parent.width
                 label: ctrlPanel.powerOpen ? "Power  ▾" : "Power  ▸"
-                accent: root.seal
+                accent: ctrlPanel.root.seal
                 onActivated: ctrlPanel.powerOpen = !ctrlPanel.powerOpen
             }
             Grid {
@@ -232,35 +235,35 @@ PanelWindow {
                 rowSpacing: 8
                 visible: ctrlPanel.powerOpen
                 Tile {
-                    width: root.evenW((col.width - 8) / 2)
+                    width: ctrlPanel.root.evenW((col.width - 8) / 2)
                     label: "Lock"
                     onActivated: ctrlPanel.runPowerAction("lock")
                 }
                 Tile {
-                    width: root.evenW((col.width - 8) / 2)
+                    width: ctrlPanel.root.evenW((col.width - 8) / 2)
                     label: "Suspend"
                     onActivated: ctrlPanel.runPowerAction("suspend")
                 }
                 Tile {
-                    width: root.evenW((col.width - 8) / 2)
+                    width: ctrlPanel.root.evenW((col.width - 8) / 2)
                     label: "Reboot"
-                    accent: root.seal
+                    accent: ctrlPanel.root.seal
                     onActivated: ctrlPanel.runPowerAction("reboot")
                 }
                 Tile {
-                    width: root.evenW((col.width - 8) / 2)
+                    width: ctrlPanel.root.evenW((col.width - 8) / 2)
                     label: "Shutdown"
-                    accent: root.seal
+                    accent: ctrlPanel.root.seal
                     onActivated: ctrlPanel.runPowerAction("shutdown")
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             // ── BAR COLOR: compact colors.toml palette ──
             UiText {
                 text: "BAR COLOR"
-                color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+                color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
             Grid {
                 width: parent.width
@@ -268,16 +271,17 @@ PanelWindow {
                 columnSpacing: 6
                 rowSpacing: 6
                 Repeater {
-                    model: root.barColorOptions
+                    model: ctrlPanel.root.barColorOptions
                     delegate: Rectangle {
+                        id: entryDelegate3
                         required property string modelData
-                        readonly property bool on: root.barColor === modelData
+                        readonly property bool on: ctrlPanel.root.barColor === modelData
                         readonly property bool hovered: _cma.containsMouse
-                        width: root.evenW((col.width - 18) / 4)
+                        width: ctrlPanel.root.evenW((col.width - 18) / 4)
                         height: 24
-                        radius: root.tileRadius
-                        color: root.paletteColor(modelData)
-                        border.color: root.sep
+                        radius: ctrlPanel.root.tileRadius
+                        color: ctrlPanel.root.paletteColor(modelData)
+                        border.color: ctrlPanel.root.sep
                         border.width: 1
                         scale: hovered ? 1.04 : 1.0
                         z: hovered ? 1 : 0
@@ -287,9 +291,9 @@ PanelWindow {
                         }
                         UiText {
                             anchors.centerIn: parent
-                            text: modelData === "foreground" ? "FG" : modelData.slice(-2)
-                            color: root.paletteContrastColor(modelData)
-                            font.family: root.mono
+                            text: entryDelegate3.modelData === "foreground" ? "FG" : entryDelegate3.modelData.slice(-2)
+                            color: ctrlPanel.root.paletteContrastColor(entryDelegate3.modelData)
+                            font.family: ctrlPanel.root.mono
                             font.pixelSize: 9
                             font.weight: Font.Medium
                         }
@@ -301,53 +305,53 @@ PanelWindow {
                             height: 2
                             radius: 1
                             visible: parent.on
-                            color: root.paletteContrastColor(modelData)
+                            color: ctrlPanel.root.paletteContrastColor(entryDelegate3.modelData)
                         }
                         MouseArea {
                             id: _cma
                             anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: root.barColor = modelData
+                            onClicked: ctrlPanel.root.barColor = entryDelegate3.modelData
                         }
                     }
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             // ── SPLITS (opens the fly-out sub-panel) ──
             UiText {
                 text: "SPLITS"
-                color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+                color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
             Tile {
                 width: parent.width
-                label: root.splitsSubVisible ? "Splits  ◂" : "Splits  ▸"
-                active: root.splitsSubVisible
-                accent: root.seal
-                onActivated: root.splitsSubVisible = !root.splitsSubVisible
+                label: ctrlPanel.root.splitsSubVisible ? "Splits  ◂" : "Splits  ▸"
+                active: ctrlPanel.root.splitsSubVisible
+                accent: ctrlPanel.root.seal
+                onActivated: ctrlPanel.root.splitsSubVisible = !ctrlPanel.root.splitsSubVisible
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             // ── BAR FUNCTIONS (opens the fly-out sub-panel) ──
             UiText {
                 text: "BAR FUNCTIONS"
-                color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+                color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
             Tile {
                 width: parent.width
-                label: root.wwSubVisible ? "Bar Functions  ◂" : "Bar Functions  ▸"
-                active: root.wwSubVisible
-                onActivated: root.wwSubVisible = !root.wwSubVisible
+                label: ctrlPanel.root.wwSubVisible ? "Bar Functions  ◂" : "Bar Functions  ▸"
+                active: ctrlPanel.root.wwSubVisible
+                onActivated: ctrlPanel.root.wwSubVisible = !ctrlPanel.root.wwSubVisible
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             // ── PICKER style (theme/wallpaper/screenshot/video picker visual) ──
             UiText {
                 text: "PICKER-STIL"
-                color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+                color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
             Row {
                 id: pickerRow
@@ -362,7 +366,7 @@ PanelWindow {
                 // plus an equal share of the leftover space, so every tile gets
                 // the same side padding. Fixed 1/3-each made the long "Hearthstone"
                 // label touch its borders while the short labels had slack.
-                TextMetrics { id: pickMetrics; font.family: root.mono; font.pixelSize: 10; text: "0" }
+                TextMetrics { id: pickMetrics; font.family: ctrlPanel.root.mono; font.pixelSize: 10; text: "0" }
                 readonly property real charW: pickMetrics.advanceWidth
                 readonly property real sumTextW: {
                     var n = 0;
@@ -375,26 +379,26 @@ PanelWindow {
                     delegate: Rectangle {
                         id: pickTile
                         required property var modelData
-                        readonly property bool on:      root.pickerStyle === modelData.mode
+                        readonly property bool on:      ctrlPanel.root.pickerStyle === modelData.mode
                         readonly property bool hovered: pickMa.containsMouse
-                        width: root.evenW(modelData.label.length * pickerRow.charW + pickerRow.padEach * 2)
-                        height: 25; radius: root.tileRadius
-                        color: on ? root.fillActive : hovered ? root.fillHover : root.fillIdle
-                        border.color: (on || hovered) ? root.seal : root.sep
+                        width: ctrlPanel.root.evenW(modelData.label.length * pickerRow.charW + pickerRow.padEach * 2)
+                        height: 25; radius: ctrlPanel.root.tileRadius
+                        color: on ? ctrlPanel.root.fillActive : hovered ? ctrlPanel.root.fillHover : ctrlPanel.root.fillIdle
+                        border.color: (on || hovered) ? ctrlPanel.root.seal : ctrlPanel.root.sep
                         border.width: 1
                         Behavior on color { ColorAnimation { duration: 120 } }
                         UiText {
                             anchors.centerIn: parent
                             text: pickTile.modelData.label
-                            color: (pickTile.on || pickTile.hovered) ? root.seal : root.ink
-                            font.family: root.mono; font.pixelSize: 10
+                            color: (pickTile.on || pickTile.hovered) ? ctrlPanel.root.seal : ctrlPanel.root.ink
+                            font.family: ctrlPanel.root.mono; font.pixelSize: 10
                             font.weight: pickTile.on ? Font.Medium : Font.Normal
                         }
                         MouseArea {
                             id: pickMa
                             anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: root.pickerStyle = pickTile.modelData.mode
+                            onClicked: ctrlPanel.root.pickerStyle = pickTile.modelData.mode
                         }
                     }
                 }
@@ -406,20 +410,20 @@ PanelWindow {
     // ── SPLITS sub-panel (fly-out right of the ControlPanel) ──
     Rectangle {
         id: splitCard
-        visible: root.controlVisible && root.splitsSubVisible
+        visible: ctrlPanel.root.controlVisible && ctrlPanel.root.splitsSubVisible
         width: 248
         height: splitCol.implicitHeight + 24
-        radius: (root.controlVisible && root.splitsSubVisible) ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
+        radius: (ctrlPanel.root.controlVisible && ctrlPanel.root.splitsSubVisible) ? ctrlPanel.root.pillRadius : 0
+        color: ctrlPanel.root.bg
+        border.color: ctrlPanel.root.pillBorder
+        border.width: ctrlPanel.root.pillBorderW
+        PillShadow { theme: ctrlPanel.root }
         // open to the right of the card, or to the left if there's no room
         x: (card.x + card.width + ctrlPanel.gap + width <= parent.width - 6)
            ? card.x + card.width + ctrlPanel.gap
            : card.x - ctrlPanel.gap - width
         // bottom mode → bottom-align so a tall flyout grows UP, not into the bar
-        y: root.barPosition === "bottom" ? (card.y + card.height - height) : card.y
+        y: ctrlPanel.root.barPosition === "bottom" ? (card.y + card.height - height) : card.y
         opacity: ctrlPanel.reveal
 
         MouseArea { anchors.fill: parent; onClicked: {} }
@@ -431,18 +435,18 @@ PanelWindow {
             spacing: 8
             UiText {
                 text: "SPLITS"
-                color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+                color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
-            Tile { width: parent.width; label: "Split all";      accent: root.seal;   onActivated: { if (root.fnSplitAll) root.fnSplitAll() } }
-            Tile { width: parent.width; label: "Merge all";                            onActivated: { if (root.fnMergeAll) root.fnMergeAll() } }
-            Tile { width: parent.width; label: "Protect layout"; active: root.layoutProtected; onActivated: { root.layoutProtected = !root.layoutProtected; root.barUnlocked = false } }
-            Tile { width: parent.width; label: "Edit slots"; onActivated: { root.controlVisible = false; root.barUnlocked = true } }
-            Tile { width: parent.width; label: "Default layout"; accent: root.seal;   onActivated: { if (root.fnDefaultLayout) root.fnDefaultLayout() } }
+            Tile { width: parent.width; label: "Split all";      accent: ctrlPanel.root.seal;   onActivated: { if (ctrlPanel.root.fnSplitAll) ctrlPanel.root.fnSplitAll() } }
+            Tile { width: parent.width; label: "Merge all";                            onActivated: { if (ctrlPanel.root.fnMergeAll) ctrlPanel.root.fnMergeAll() } }
+            Tile { width: parent.width; label: "Protect layout"; active: ctrlPanel.root.layoutProtected; onActivated: { ctrlPanel.root.layoutProtected = !ctrlPanel.root.layoutProtected; ctrlPanel.root.barUnlocked = false } }
+            Tile { width: parent.width; label: "Edit slots"; onActivated: { ctrlPanel.root.controlVisible = false; ctrlPanel.root.barUnlocked = true } }
+            Tile { width: parent.width; label: "Default layout"; accent: ctrlPanel.root.seal;   onActivated: { if (ctrlPanel.root.fnDefaultLayout) ctrlPanel.root.fnDefaultLayout() } }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
             UiText {
                 text: "GAP ANIM"
-                color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+                color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
             Row {
                 id: animRow
@@ -459,20 +463,20 @@ PanelWindow {
                     delegate: Rectangle {
                         id: animTile
                         required property var modelData
-                        readonly property bool on:      root.barAnim === modelData.mode || root.barAnim === modelData.alt
+                        readonly property bool on:      ctrlPanel.root.barAnim === modelData.mode || ctrlPanel.root.barAnim === modelData.alt
                         readonly property bool hovered: animMa.containsMouse
-                        width: root.evenW((animRow.width - animRow.spacing * (animRow.opts.length - 1)) / animRow.opts.length)
-                        height: 25; radius: root.tileRadius
-                        color: on ? root.fillActive : hovered ? root.fillHover : root.fillIdle
-                        border.color: (on || hovered) ? root.seal : root.sep
+                        width: ctrlPanel.root.evenW((animRow.width - animRow.spacing * (animRow.opts.length - 1)) / animRow.opts.length)
+                        height: 25; radius: ctrlPanel.root.tileRadius
+                        color: on ? ctrlPanel.root.fillActive : hovered ? ctrlPanel.root.fillHover : ctrlPanel.root.fillIdle
+                        border.color: (on || hovered) ? ctrlPanel.root.seal : ctrlPanel.root.sep
                         border.width: 1
                         Behavior on color { ColorAnimation { duration: 120 } }
                         UiText {
                             anchors.centerIn: parent
-                            text: root.barAnim === animTile.modelData.alt ? animTile.modelData.label + " 2"
+                            text: ctrlPanel.root.barAnim === animTile.modelData.alt ? animTile.modelData.label + " 2"
                                                                           : animTile.modelData.label
-                            color: (animTile.on || animTile.hovered) ? root.seal : root.ink
-                            font.family: root.mono; font.pixelSize: 11
+                            color: (animTile.on || animTile.hovered) ? ctrlPanel.root.seal : ctrlPanel.root.ink
+                            font.family: ctrlPanel.root.mono; font.pixelSize: 11
                             font.weight: animTile.on ? Font.Medium : Font.Normal
                         }
                         MouseArea {
@@ -481,8 +485,8 @@ PanelWindow {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                var n = root.barAnim                           // base → alt → off
-                                root.barAnim = (n === animTile.modelData.mode ? animTile.modelData.alt
+                                var n = ctrlPanel.root.barAnim                           // base → alt → off
+                                ctrlPanel.root.barAnim = (n === animTile.modelData.mode ? animTile.modelData.alt
                                               : n === animTile.modelData.alt  ? 0
                                               : animTile.modelData.mode)
                             }
@@ -494,14 +498,14 @@ PanelWindow {
                 width: parent.width
                 // Separate event-reactor mode; not part of the Surge 1→2 cycle.
                 label: "Reactor"
-                active: root.barAnim === 7
-                onActivated: root.barAnim = root.barAnim === 7 ? 0 : 7
+                active: ctrlPanel.root.barAnim === 7
+                onActivated: ctrlPanel.root.barAnim = ctrlPanel.root.barAnim === 7 ? 0 : 7
             }
             Tile {
                 width: parent.width
                 label: "Quotes"
-                active: root.barAnim === 8
-                onActivated: root.barAnim = root.barAnim === 8 ? 0 : 8
+                active: ctrlPanel.root.barAnim === 8
+                onActivated: ctrlPanel.root.barAnim = ctrlPanel.root.barAnim === 8 ? 0 : 8
             }
         }
     }
@@ -509,22 +513,22 @@ PanelWindow {
     // ── WIDGETS & WORKSPACES sub-panel (fly-out; stacks below SPLITS if both open) ──
     Rectangle {
         id: wwCard
-        visible: root.controlVisible && root.wwSubVisible
+        visible: ctrlPanel.root.controlVisible && ctrlPanel.root.wwSubVisible
         width: 248
         height: wwCol.implicitHeight + 24
-        radius: (root.controlVisible && root.wwSubVisible) ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
+        radius: (ctrlPanel.root.controlVisible && ctrlPanel.root.wwSubVisible) ? ctrlPanel.root.pillRadius : 0
+        color: ctrlPanel.root.bg
+        border.color: ctrlPanel.root.pillBorder
+        border.width: ctrlPanel.root.pillBorderW
+        PillShadow { theme: ctrlPanel.root }
         // same side as splitCard; if SPLITS is also open, stack below it
         x: (card.x + card.width + ctrlPanel.gap + width <= parent.width - 6)
            ? card.x + card.width + ctrlPanel.gap
            : card.x - ctrlPanel.gap - width
-        y: (root.controlVisible && root.splitsSubVisible)
-           ? (root.barPosition === "bottom" ? splitCard.y - ctrlPanel.gap - height
+        y: (ctrlPanel.root.controlVisible && ctrlPanel.root.splitsSubVisible)
+           ? (ctrlPanel.root.barPosition === "bottom" ? splitCard.y - ctrlPanel.gap - height
                                             : splitCard.y + splitCard.height + ctrlPanel.gap)
-           : (root.barPosition === "bottom" ? card.y + card.height - height : card.y)
+           : (ctrlPanel.root.barPosition === "bottom" ? card.y + card.height - height : card.y)
         opacity: ctrlPanel.reveal
 
         MouseArea { anchors.fill: parent; onClicked: {} }
@@ -538,32 +542,32 @@ PanelWindow {
             // ── WIDGETS toggle grid (moved here from the main card) ──
             UiText {
                 text: "WIDGETS"
-                color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+                color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
             Grid {
                 width: parent.width
                 columns: 2
                 columnSpacing: 8
                 rowSpacing: 8
-                Tile { width: root.evenW((wwCol.width - 8) / 2); label: "Memory";      active: root.modMemory;    onActivated: root.modMemory = !root.modMemory }
-                Tile { width: root.evenW((wwCol.width - 8) / 2); label: "Brightness";  visible: root.hasBacklight; active: root.modBrightness; onActivated: root.modBrightness = !root.modBrightness }
-                Tile { width: root.evenW((wwCol.width - 8) / 2); label: "AI usage";    active: root.modClaude;    onActivated: root.modClaude = !root.modClaude }
-                Tile { width: root.evenW((wwCol.width - 8) / 2); label: "Power Prof."; active: root.modPower;     onActivated: root.modPower = !root.modPower }
-                Tile { width: root.evenW((wwCol.width - 8) / 2); label: "Bluetooth";   active: root.modBluetooth; onActivated: root.modBluetooth = !root.modBluetooth }
-                Tile { width: root.evenW((wwCol.width - 8) / 2); label: "Network";     active: root.modNetwork; enabled: root.networkMode !== "wifi"; onActivated: root.modNetwork = !root.modNetwork }
-                Tile { width: root.evenW((wwCol.width - 8) / 2); label: "NordVPN";    active: root.modNordVpn; onActivated: root.modNordVpn = !root.modNordVpn }
-                Tile { objectName: "wallpaper-widget-toggle"; width: root.evenW((wwCol.width - 8) / 2); label: "Wallpapers"; active: root.modWallpapers; onActivated: root.modWallpapers = !root.modWallpapers }
-                Tile { objectName: "display-manager-widget-toggle"; width: root.evenW((wwCol.width - 8) / 2); label: "Display Manager"; active: root.modDisplayManager; onActivated: root.modDisplayManager = !root.modDisplayManager }
-                Tile { width: root.evenW((wwCol.width - 8) / 2); label: "Quick tools"; active: root.modQuick;   onActivated: root.modQuick = !root.modQuick }
-                Tile { width: root.evenW((wwCol.width - 8) / 2); label: "Status";      active: root.modStatus;  onActivated: root.modStatus = !root.modStatus }
-                Tile { width: root.evenW((wwCol.width - 8) / 2); label: "CPU";         active: root.modCpu;     onActivated: root.modCpu = !root.modCpu }
-                Tile { width: root.evenW((wwCol.width - 8) / 2); label: "GPU";         active: root.modGpu;     onActivated: root.modGpu = !root.modGpu }
-                Tile { width: root.evenW((wwCol.width - 8) / 2); label: "Volume";      active: root.modVolume;  onActivated: root.modVolume = !root.modVolume }
-                Tile { width: root.evenW((wwCol.width - 8) / 2); label: "Now playing"; active: root.modMpris;   onActivated: root.modMpris = !root.modMpris }
-                Tile { width: root.evenW((wwCol.width - 8) / 2); label: "Battery";     visible: root.hasBattery; active: true; enabled: false }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Memory";      active: ctrlPanel.root.modMemory;    onActivated: ctrlPanel.root.modMemory = !ctrlPanel.root.modMemory }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Brightness";  visible: ctrlPanel.root.hasBacklight; active: ctrlPanel.root.modBrightness; onActivated: ctrlPanel.root.modBrightness = !ctrlPanel.root.modBrightness }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "AI usage";    active: ctrlPanel.root.modClaude;    onActivated: ctrlPanel.root.modClaude = !ctrlPanel.root.modClaude }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Power Prof."; active: ctrlPanel.root.modPower;     onActivated: ctrlPanel.root.modPower = !ctrlPanel.root.modPower }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Bluetooth";   active: ctrlPanel.root.modBluetooth; onActivated: ctrlPanel.root.modBluetooth = !ctrlPanel.root.modBluetooth }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Network";     active: ctrlPanel.root.modNetwork; enabled: ctrlPanel.root.networkMode !== "wifi"; onActivated: ctrlPanel.root.modNetwork = !ctrlPanel.root.modNetwork }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "NordVPN";    active: ctrlPanel.root.modNordVpn; onActivated: ctrlPanel.root.modNordVpn = !ctrlPanel.root.modNordVpn }
+                Tile { objectName: "wallpaper-widget-toggle"; width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Wallpapers"; active: ctrlPanel.root.modWallpapers; onActivated: ctrlPanel.root.modWallpapers = !ctrlPanel.root.modWallpapers }
+                Tile { objectName: "display-manager-widget-toggle"; width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Display Manager"; active: ctrlPanel.root.modDisplayManager; onActivated: ctrlPanel.root.modDisplayManager = !ctrlPanel.root.modDisplayManager }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Quick tools"; active: ctrlPanel.root.modQuick;   onActivated: ctrlPanel.root.modQuick = !ctrlPanel.root.modQuick }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Status";      active: ctrlPanel.root.modStatus;  onActivated: ctrlPanel.root.modStatus = !ctrlPanel.root.modStatus }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "CPU";         active: ctrlPanel.root.modCpu;     onActivated: ctrlPanel.root.modCpu = !ctrlPanel.root.modCpu }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "GPU";         active: ctrlPanel.root.modGpu;     onActivated: ctrlPanel.root.modGpu = !ctrlPanel.root.modGpu }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Volume";      active: ctrlPanel.root.modVolume;  onActivated: ctrlPanel.root.modVolume = !ctrlPanel.root.modVolume }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Now playing"; active: ctrlPanel.root.modMpris;   onActivated: ctrlPanel.root.modMpris = !ctrlPanel.root.modMpris }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Battery";     visible: ctrlPanel.root.hasBattery; active: true; enabled: false }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             Tile {
                 width: parent.width
@@ -577,21 +581,21 @@ PanelWindow {
                 columns: 2
                 columnSpacing: 8
                 rowSpacing: 6
-                CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "Network";    active: root.compactNetwork;    onToggled: root.compactNetwork = !root.compactNetwork }
-                CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "Battery";    visible: root.hasBattery; active: root.compactBattery;    onToggled: root.compactBattery = !root.compactBattery }
-                CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "Brightness"; visible: root.hasBacklight; active: root.compactBrightness; onToggled: root.compactBrightness = !root.compactBrightness }
-                CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "Bluetooth";  active: root.compactBluetooth;  onToggled: root.compactBluetooth = !root.compactBluetooth }
-                CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "Power";      active: root.compactPower;      onToggled: root.compactPower = !root.compactPower }
-                CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "CPU";        active: root.compactCpu;        onToggled: root.compactCpu = !root.compactCpu }
-                CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "GPU";        active: root.compactGpu;        onToggled: root.compactGpu = !root.compactGpu }
-                CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "Memory";     active: root.compactMemory;     onToggled: root.compactMemory = !root.compactMemory }
-                CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "Volume";     active: root.compactVolume;     onToggled: root.compactVolume = !root.compactVolume }
-                CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "Now playing"; active: root.compactMpris;      onToggled: root.compactMpris = !root.compactMpris }
-                CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "NordVPN"; active: root.compactNordVpn; onToggled: root.compactNordVpn = !root.compactNordVpn }
-                CompactToggle { width: root.evenW((wwCol.width - 8) / 2); label: "AI usage"; active: root.compactAi; onToggled: root.compactAi = !root.compactAi }
+                CompactToggle { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Network";    active: ctrlPanel.root.compactNetwork;    onToggled: ctrlPanel.root.compactNetwork = !ctrlPanel.root.compactNetwork }
+                CompactToggle { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Battery";    visible: ctrlPanel.root.hasBattery; active: ctrlPanel.root.compactBattery;    onToggled: ctrlPanel.root.compactBattery = !ctrlPanel.root.compactBattery }
+                CompactToggle { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Brightness"; visible: ctrlPanel.root.hasBacklight; active: ctrlPanel.root.compactBrightness; onToggled: ctrlPanel.root.compactBrightness = !ctrlPanel.root.compactBrightness }
+                CompactToggle { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Bluetooth";  active: ctrlPanel.root.compactBluetooth;  onToggled: ctrlPanel.root.compactBluetooth = !ctrlPanel.root.compactBluetooth }
+                CompactToggle { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Power";      active: ctrlPanel.root.compactPower;      onToggled: ctrlPanel.root.compactPower = !ctrlPanel.root.compactPower }
+                CompactToggle { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "CPU";        active: ctrlPanel.root.compactCpu;        onToggled: ctrlPanel.root.compactCpu = !ctrlPanel.root.compactCpu }
+                CompactToggle { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "GPU";        active: ctrlPanel.root.compactGpu;        onToggled: ctrlPanel.root.compactGpu = !ctrlPanel.root.compactGpu }
+                CompactToggle { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Memory";     active: ctrlPanel.root.compactMemory;     onToggled: ctrlPanel.root.compactMemory = !ctrlPanel.root.compactMemory }
+                CompactToggle { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Volume";     active: ctrlPanel.root.compactVolume;     onToggled: ctrlPanel.root.compactVolume = !ctrlPanel.root.compactVolume }
+                CompactToggle { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Now playing"; active: ctrlPanel.root.compactMpris;      onToggled: ctrlPanel.root.compactMpris = !ctrlPanel.root.compactMpris }
+                CompactToggle { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "NordVPN"; active: ctrlPanel.root.compactNordVpn; onToggled: ctrlPanel.root.compactNordVpn = !ctrlPanel.root.compactNordVpn }
+                CompactToggle { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "AI usage"; active: ctrlPanel.root.compactAi; onToggled: ctrlPanel.root.compactAi = !ctrlPanel.root.compactAi }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             // ── WORKSPACES (collapsible, like the old widgets group) ──
             Tile {
@@ -619,22 +623,22 @@ PanelWindow {
                         delegate: Rectangle {
                             id: wsmTile
                             required property var modelData
-                            readonly property bool on:      root.workspaceMode === modelData.mode
+                            readonly property bool on:      ctrlPanel.root.workspaceMode === modelData.mode
                             readonly property bool hovered: wsmMa.containsMouse
-                            width: root.evenW((wsModeRow.width - wsModeRow.spacing * (wsModeRow.opts.length - 1)) / wsModeRow.opts.length)
-                            height: 25; radius: root.tileRadius
-                            color: on ? root.fillActive : hovered ? root.fillHover : root.fillIdle
-                            border.color: (on || hovered) ? root.seal : root.sep
+                            width: ctrlPanel.root.evenW((wsModeRow.width - wsModeRow.spacing * (wsModeRow.opts.length - 1)) / wsModeRow.opts.length)
+                            height: 25; radius: ctrlPanel.root.tileRadius
+                            color: on ? ctrlPanel.root.fillActive : hovered ? ctrlPanel.root.fillHover : ctrlPanel.root.fillIdle
+                            border.color: (on || hovered) ? ctrlPanel.root.seal : ctrlPanel.root.sep
                             border.width: 1
                             Behavior on color { ColorAnimation { duration: 120 } }
                             UiText {
                                 anchors.centerIn: parent
                                 text: wsmTile.modelData.label
-                                color: (wsmTile.on || wsmTile.hovered) ? root.seal : root.ink
-                                font.family: root.mono; font.pixelSize: 10
+                                color: (wsmTile.on || wsmTile.hovered) ? ctrlPanel.root.seal : ctrlPanel.root.ink
+                                font.family: ctrlPanel.root.mono; font.pixelSize: 10
                                 font.weight: wsmTile.on ? Font.Medium : Font.Normal
                             }
-                            MouseArea { id: wsmMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.workspaceMode = wsmTile.modelData.mode }
+                            MouseArea { id: wsmMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: ctrlPanel.root.workspaceMode = wsmTile.modelData.mode }
                         }
                     }
                 }
@@ -654,92 +658,92 @@ PanelWindow {
                         delegate: Rectangle {
                             id: wssTile
                             required property var modelData
-                            readonly property bool on:      root.workspaceStyle === modelData.mode
+                            readonly property bool on:      ctrlPanel.root.workspaceStyle === modelData.mode
                             readonly property bool hovered: wssMa.containsMouse
-                            width: root.evenW((wsStyleRow.width - wsStyleRow.spacing * (wsStyleRow.opts.length - 1)) / wsStyleRow.opts.length)
-                            height: 25; radius: root.tileRadius
-                            color: on ? root.fillActive : hovered ? root.fillHover : root.fillIdle
-                            border.color: (on || hovered) ? root.seal : root.sep
+                            width: ctrlPanel.root.evenW((wsStyleRow.width - wsStyleRow.spacing * (wsStyleRow.opts.length - 1)) / wsStyleRow.opts.length)
+                            height: 25; radius: ctrlPanel.root.tileRadius
+                            color: on ? ctrlPanel.root.fillActive : hovered ? ctrlPanel.root.fillHover : ctrlPanel.root.fillIdle
+                            border.color: (on || hovered) ? ctrlPanel.root.seal : ctrlPanel.root.sep
                             border.width: 1
                             Behavior on color { ColorAnimation { duration: 120 } }
                             UiText {
                                 anchors.centerIn: parent
                                 text: wssTile.modelData.label
-                                color: (wssTile.on || wssTile.hovered) ? root.seal : root.ink
-                                font.family: root.mono; font.pixelSize: 10
+                                color: (wssTile.on || wssTile.hovered) ? ctrlPanel.root.seal : ctrlPanel.root.ink
+                                font.family: ctrlPanel.root.mono; font.pixelSize: 10
                                 font.weight: wssTile.on ? Font.Medium : Font.Normal
                             }
-                            MouseArea { id: wssMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.workspaceStyle = wssTile.modelData.mode }
+                            MouseArea { id: wssMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: ctrlPanel.root.workspaceStyle = wssTile.modelData.mode }
                         }
                     }
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             // ── STYLE (bar pill style; paint-only, width-invariant) ──
             UiText {
                 text: "STYLE"
-                color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+                color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
             Row {
                 width: parent.width; spacing: 4
                 // independent toggles: each highlights when ON, click flips it (Border+Frost+Shadow combinable)
-                BarStylePreview { width: (wwCol.width - 8) / 3; theme: root; mode: "islands"; label: "Border"; selected: root.styleBorder; outline: root.styleBorder; onChosen: root.styleBorder = !root.styleBorder }
-                BarStylePreview { width: (wwCol.width - 8) / 3; theme: root; mode: "islands"; label: "Frost"; selected: root.styleFrost; frost: root.styleFrost; onChosen: root.styleFrost = !root.styleFrost }
-                BarStylePreview { width: (wwCol.width - 8) / 3; theme: root; mode: "islands"; label: "Shadow"; selected: root.styleShadow; shadow: root.styleShadow; onChosen: root.styleShadow = !root.styleShadow }
+                BarStylePreview { width: (wwCol.width - 8) / 3; theme: ctrlPanel.root; mode: "islands"; label: "Border"; selected: ctrlPanel.root.styleBorder; outline: ctrlPanel.root.styleBorder; onChosen: ctrlPanel.root.styleBorder = !ctrlPanel.root.styleBorder }
+                BarStylePreview { width: (wwCol.width - 8) / 3; theme: ctrlPanel.root; mode: "islands"; label: "Frost"; selected: ctrlPanel.root.styleFrost; frost: ctrlPanel.root.styleFrost; onChosen: ctrlPanel.root.styleFrost = !ctrlPanel.root.styleFrost }
+                BarStylePreview { width: (wwCol.width - 8) / 3; theme: ctrlPanel.root; mode: "islands"; label: "Shadow"; selected: ctrlPanel.root.styleShadow; shadow: ctrlPanel.root.styleShadow; onChosen: ctrlPanel.root.styleShadow = !ctrlPanel.root.styleShadow }
             }
             Row {
                 width: parent.width; spacing: 4
-                Tile { width: root.evenW((wwCol.width - 4) / 2); label: "Radius 12"; active: !root.styleRadiusSmall; onActivated: root.styleRadiusSmall = false }
-                Tile { width: root.evenW((wwCol.width - 4) / 2); label: "Radius 6";  active: root.styleRadiusSmall;  onActivated: root.styleRadiusSmall = true }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Radius 12"; active: !ctrlPanel.root.styleRadiusSmall; onActivated: ctrlPanel.root.styleRadiusSmall = false }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Radius 6";  active: ctrlPanel.root.styleRadiusSmall;  onActivated: ctrlPanel.root.styleRadiusSmall = true }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             // ── POSITION (bar on top or bottom edge) ──
             UiText {
                 text: "POSITION"
-                color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+                color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
             Row {
                 width: parent.width; spacing: 4
-                Tile { width: root.evenW((wwCol.width - 4) / 2); label: "Top";    active: root.barPosition === "top";    onActivated: root.barPosition = "top" }
-                Tile { width: root.evenW((wwCol.width - 4) / 2); label: "Bottom"; active: root.barPosition === "bottom"; onActivated: root.barPosition = "bottom" }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Top";    active: ctrlPanel.root.barPosition === "top";    onActivated: ctrlPanel.root.barPosition = "top" }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Bottom"; active: ctrlPanel.root.barPosition === "bottom"; onActivated: ctrlPanel.root.barPosition = "bottom" }
             }
 
             Row {
                 width: parent.width; spacing: 4
-                Tile { width: root.evenW((wwCol.width - 4) / 2); label: "Left"; active: root.barPosition === "left"; onActivated: root.barPosition = "left" }
-                Tile { width: root.evenW((wwCol.width - 4) / 2); label: "Right"; active: root.barPosition === "right"; onActivated: root.barPosition = "right" }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Left"; active: ctrlPanel.root.barPosition === "left"; onActivated: ctrlPanel.root.barPosition = "left" }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Right"; active: ctrlPanel.root.barPosition === "right"; onActivated: ctrlPanel.root.barPosition = "right" }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             // ── LOGO (launcher text/icon variant) ──
             UiText {
                 text: "LOGO"
-                color: root.sumiHi; font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+                color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
             Row {
                 width: parent.width
                 spacing: 4
                 Tile {
-                    width: root.evenW((wwCol.width - 4) / 2)
-                    label: root.launcherLogoLabel(root.launcherLogoText)
-                    active: root.launcherLogoMode === "text"
+                    width: ctrlPanel.root.evenW((wwCol.width - 4) / 2)
+                    label: ctrlPanel.root.launcherLogoLabel(ctrlPanel.root.launcherLogoText)
+                    active: ctrlPanel.root.launcherLogoMode === "text"
                     onActivated: {
-                        if (root.launcherLogoMode === "text") root.nextLauncherLogoText()
-                        else root.launcherLogoMode = "text"
+                        if (ctrlPanel.root.launcherLogoMode === "text") ctrlPanel.root.nextLauncherLogoText()
+                        else ctrlPanel.root.launcherLogoMode = "text"
                     }
                 }
                 Tile {
-                    width: root.evenW((wwCol.width - 4) / 2)
-                    label: root.launcherLogoLabel(root.launcherLogoIcon)
-                    active: root.launcherLogoMode === "icon"
+                    width: ctrlPanel.root.evenW((wwCol.width - 4) / 2)
+                    label: ctrlPanel.root.launcherLogoLabel(ctrlPanel.root.launcherLogoIcon)
+                    active: ctrlPanel.root.launcherLogoMode === "icon"
                     onActivated: {
-                        if (root.launcherLogoMode === "icon") root.nextLauncherLogoIcon()
-                        else root.launcherLogoMode = "icon"
+                        if (ctrlPanel.root.launcherLogoMode === "icon") ctrlPanel.root.nextLauncherLogoIcon()
+                        else ctrlPanel.root.launcherLogoMode = "icon"
                     }
                 }
             }

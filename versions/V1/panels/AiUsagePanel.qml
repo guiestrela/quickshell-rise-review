@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import "../modules"
 import Quickshell
@@ -11,7 +12,7 @@ PanelWindow {
     id: aiPanel
     required property var root
 
-    screen: root.activePopupScreen
+    screen: aiPanel.root.activePopupScreen
 
     color: "transparent"
     anchors { top: true; bottom: true; left: true; right: true }
@@ -25,29 +26,29 @@ PanelWindow {
 
     // ── usage data: rendered from root.ai* — the single shared parse in Theme.qml
     //    that the bar pill uses too, so the two views can never drift apart. ──
-    readonly property int    clPct5h:     root.aiClPct5h
-    readonly property int    clPct7d:     root.aiClPct7d
-    readonly property int    clReset5hTs: root.aiClReset5hTs
-    readonly property int    clReset7dTs: root.aiClReset7dTs
-    readonly property string clTokens:    root.aiClTokens
-    readonly property string clRate:      root.aiClRate
-    readonly property int    clToday:     root.aiClToday
-    readonly property bool   clFresh:     root.aiClFresh
-    readonly property bool   clHas:       root.aiClHas
+    readonly property int    clPct5h:     aiPanel.root.aiClPct5h
+    readonly property int    clPct7d:     aiPanel.root.aiClPct7d
+    readonly property int    clReset5hTs: aiPanel.root.aiClReset5hTs
+    readonly property int    clReset7dTs: aiPanel.root.aiClReset7dTs
+    readonly property string clTokens:    aiPanel.root.aiClTokens
+    readonly property string clRate:      aiPanel.root.aiClRate
+    readonly property int    clToday:     aiPanel.root.aiClToday
+    readonly property bool   clFresh:     aiPanel.root.aiClFresh
+    readonly property bool   clHas:       aiPanel.root.aiClHas
 
-    readonly property int    cxPct5h:     root.aiCxPct5h
-    readonly property int    cxPct7d:     root.aiCxPct7d
-    readonly property int    cxReset5hTs: root.aiCxReset5hTs
-    readonly property int    cxReset7dTs: root.aiCxReset7dTs
-    readonly property string cxPlan:      root.aiCxPlan
-    readonly property string cxTokens:    root.aiCxTokens
-    readonly property string cxRate:      root.aiCxRate
-    readonly property int    cxToday:     root.aiCxToday
-    readonly property bool   cxFresh:     root.aiCxFresh
-    readonly property bool   cxHas:       root.aiCxHas
-    readonly property var    cxWindows:   root.aiCxWindows || []
-    readonly property string cxLimitStatus: root.aiCxLimitStatus
-    readonly property string cxLimitReachedType: root.aiCxLimitReachedType
+    readonly property int    cxPct5h:     aiPanel.root.aiCxPct5h
+    readonly property int    cxPct7d:     aiPanel.root.aiCxPct7d
+    readonly property int    cxReset5hTs: aiPanel.root.aiCxReset5hTs
+    readonly property int    cxReset7dTs: aiPanel.root.aiCxReset7dTs
+    readonly property string cxPlan:      aiPanel.root.aiCxPlan
+    readonly property string cxTokens:    aiPanel.root.aiCxTokens
+    readonly property string cxRate:      aiPanel.root.aiCxRate
+    readonly property int    cxToday:     aiPanel.root.aiCxToday
+    readonly property bool   cxFresh:     aiPanel.root.aiCxFresh
+    readonly property bool   cxHas:       aiPanel.root.aiCxHas
+    readonly property var    cxWindows:   aiPanel.root.aiCxWindows || []
+    readonly property string cxLimitStatus: aiPanel.root.aiCxLimitStatus
+    readonly property string cxLimitReachedType: aiPanel.root.aiCxLimitReachedType
     readonly property var    cxWin0:      cxWindows.length > 0 ? cxWindows[0] : null
     readonly property var    cxWin1:      cxWindows.length > 1 ? cxWindows[1] : null
     readonly property bool   cxHasGeneral5h: {
@@ -57,26 +58,26 @@ PanelWindow {
         return false
     }
 
-    readonly property int    ocPct5h:     root.aiOcPct5h
-    readonly property int    ocPct7d:     root.aiOcPct7d
-    readonly property string ocPlan:      root.aiOcPlan
-    readonly property string ocTokens:    root.aiOcTokens
-    readonly property string ocRate:      root.aiOcRate
-    readonly property string ocModel:     root.aiOcModel
-    readonly property int    ocToday:     root.aiOcToday
-    readonly property bool   ocFresh:     root.aiOcFresh
-    readonly property bool   ocHas:       root.aiOcHas
-    readonly property var    ocModels:    root.aiOcModels
+    readonly property int    ocPct5h:     aiPanel.root.aiOcPct5h
+    readonly property int    ocPct7d:     aiPanel.root.aiOcPct7d
+    readonly property string ocPlan:      aiPanel.root.aiOcPlan
+    readonly property string ocTokens:    aiPanel.root.aiOcTokens
+    readonly property string ocRate:      aiPanel.root.aiOcRate
+    readonly property string ocModel:     aiPanel.root.aiOcModel
+    readonly property int    ocToday:     aiPanel.root.aiOcToday
+    readonly property bool   ocFresh:     aiPanel.root.aiOcFresh
+    readonly property bool   ocHas:       aiPanel.root.aiOcHas
+    readonly property var    ocModels:    aiPanel.root.aiOcModels
 
-    readonly property int    cpPct:       root.aiCpPct
-    readonly property string cpLabel:     root.aiCpLabel
-    readonly property int    cpResetTs:   root.aiCpResetTs
-    readonly property string cpPlan:      root.aiCpPlan
-    readonly property bool   cpUnlimited: root.aiCpUnlimited
-    readonly property int    cpUsed:      root.aiCpCreditsUsed
-    readonly property int    cpEntitlement: root.aiCpCreditsEntitlement
-    readonly property bool   cpFresh:     root.aiCpFresh
-    readonly property bool   cpHas:       root.aiCpHas
+    readonly property int    cpPct:       aiPanel.root.aiCpPct
+    readonly property string cpLabel:     aiPanel.root.aiCpLabel
+    readonly property int    cpResetTs:   aiPanel.root.aiCpResetTs
+    readonly property string cpPlan:      aiPanel.root.aiCpPlan
+    readonly property bool   cpUnlimited: aiPanel.root.aiCpUnlimited
+    readonly property int    cpUsed:      aiPanel.root.aiCpCreditsUsed
+    readonly property int    cpEntitlement: aiPanel.root.aiCpCreditsEntitlement
+    readonly property bool   cpFresh:     aiPanel.root.aiCpFresh
+    readonly property bool   cpHas:       aiPanel.root.aiCpHas
 
     property var availableTools: []
     property bool authChecked: false
@@ -126,28 +127,29 @@ PanelWindow {
         onTriggered: aiPanel.refreshAuthStatus()
     }
 
-    readonly property bool   showClaude:  availableTools.length > 0 && root.aiTool === "claude"
-    readonly property bool   showCodex:   availableTools.length > 0 && root.aiTool === "codex"
-    readonly property bool   showOpenCode: availableTools.length > 0 && root.aiTool === "opencode"
-    readonly property bool   showCopilot: availableTools.length > 0 && root.aiTool === "copilot"
+    readonly property bool   showClaude:  availableTools.length > 0 && aiPanel.root.aiTool === "claude"
+    readonly property bool   showCodex:   availableTools.length > 0 && aiPanel.root.aiTool === "codex"
+    readonly property bool   showOpenCode: availableTools.length > 0 && aiPanel.root.aiTool === "opencode"
+    readonly property bool   showCopilot: availableTools.length > 0 && aiPanel.root.aiTool === "copilot"
 
-    property real reveal: root.aiUsageVisible ? 1 : 0
+    property real reveal: aiPanel.root.aiUsageVisible ? 1 : 0
     Behavior on reveal {
         NumberAnimation {
-            duration: root.aiUsageVisible ? 160 : 120
-            easing.type: root.aiUsageVisible ? Easing.OutCubic : Easing.InCubic
+            duration: aiPanel.root.aiUsageVisible ? 160 : 120
+            easing.type: aiPanel.root.aiUsageVisible ? Easing.OutCubic : Easing.InCubic
         }
     }
     visible: reveal > 0.001
-    WlrLayershell.keyboardFocus: root.aiUsageVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: aiPanel.root.aiUsageVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     MouseArea {
         anchors.fill: parent
-        onClicked: root.aiUsageVisible = false
+        onClicked: aiPanel.root.aiUsageVisible = false
     }
 
     // ── reusable label · bar · % row ──
     component UsageRow: Item {
+        id: usageRow
         property string label: ""
         property int pct: 0
         property bool dim: false
@@ -156,14 +158,14 @@ PanelWindow {
         UiText {
             id: rowLbl
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-            text: label; color: aiPanel.root.sumiHi
+            text: usageRow.label; color: aiPanel.root.sumiHi
             font.family: aiPanel.root.mono; font.pixelSize: 11; font.letterSpacing: 1
         }
         UiText {
             id: rowVal
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-            text: pct + "%"
-            color: dim ? aiPanel.root.sumi : aiPanel.root.seal
+            text: usageRow.pct + "%"
+            color: usageRow.dim ? aiPanel.root.sumi : aiPanel.root.seal
             font.family: aiPanel.root.mono; font.pixelSize: 11; font.weight: Font.Medium
         }
         Rectangle {
@@ -173,9 +175,9 @@ PanelWindow {
             height: 8; radius: 4
             color: Qt.rgba(aiPanel.root.seal.r, aiPanel.root.seal.g, aiPanel.root.seal.b, 0.15)
             Rectangle {
-                width: parent.width * Math.min(100, parent ? pct : 0) / 100
+                width: parent.width * Math.min(100, parent ? usageRow.pct : 0) / 100
                 height: parent.height; radius: 4
-                color: pct >= 90 ? aiPanel.root.sealRaw : aiPanel.root.seal
+                color: usageRow.pct >= 90 ? aiPanel.root.sealRaw : aiPanel.root.seal
                 Behavior on width { NumberAnimation { duration: 300 } }
             }
         }
@@ -183,19 +185,20 @@ PanelWindow {
 
     // ── reusable key/value detail row ──
     component DetailRow: Row {
+        id: detailRow
         property string k: ""
         property string v: ""
         width: parent ? parent.width : 0
         spacing: 8
         UiText {
-            text: k; color: aiPanel.root.sumiHi
+            text: detailRow.k; color: aiPanel.root.sumiHi
             font.family: aiPanel.root.mono; font.pixelSize: 11
             width: Math.max(0, (parent.width - parent.spacing) * 0.45)
             wrapMode: Text.Wrap
             textFormat: Text.PlainText
         }
         UiText {
-            text: v; color: aiPanel.root.ink
+            text: detailRow.v; color: aiPanel.root.ink
             font.family: aiPanel.root.mono; font.pixelSize: 11
             width: Math.max(0, (parent.width - parent.spacing) * 0.55); horizontalAlignment: Text.AlignRight
             wrapMode: Text.Wrap
@@ -205,6 +208,7 @@ PanelWindow {
 
     // ── compact OpenCode per-model usage row ──
     component ModelUsageRow: Item {
+        id: modelUsageRow
         property string name: ""
         property string totalLabel: ""
         property string inputLabel: ""
@@ -222,14 +226,14 @@ PanelWindow {
             id: modelName
             anchors.left: parent.left; anchors.top: parent.top
             width: parent.width * 0.68
-            text: name
+            text: modelUsageRow.name
             elide: Text.ElideRight
             color: aiPanel.root.ink
             font.family: aiPanel.root.mono; font.pixelSize: 10; font.weight: Font.Medium
         }
         UiText {
             anchors.right: parent.right; anchors.top: parent.top
-            text: totalLabel
+            text: modelUsageRow.totalLabel
             color: aiPanel.root.seal
             font.family: aiPanel.root.mono; font.pixelSize: 10; font.weight: Font.Medium
         }
@@ -239,7 +243,7 @@ PanelWindow {
             height: 6; radius: 3
             color: Qt.rgba(aiPanel.root.seal.r, aiPanel.root.seal.g, aiPanel.root.seal.b, 0.14)
             Rectangle {
-                width: parent.width * Math.max(0, Math.min(100, pct)) / 100
+                width: parent.width * Math.max(0, Math.min(100, modelUsageRow.pct)) / 100
                 height: parent.height; radius: 3
                 color: aiPanel.root.seal
                 Behavior on width { NumberAnimation { duration: 300 } }
@@ -247,11 +251,11 @@ PanelWindow {
         }
         UiText {
             anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-            text: "I " + inputLabel + "  O " + outputLabel
-                + (reasoningLabel !== "0" ? "  R " + reasoningLabel : "")
-                + (cacheReadLabel !== "0" ? "  CR " + cacheReadLabel : "")
-                + (cacheWriteLabel !== "0" ? "  CW " + cacheWriteLabel : "")
-                + (todayLabel !== "0" ? "  today " + todayLabel : "")
+            text: "I " + modelUsageRow.inputLabel + "  O " + modelUsageRow.outputLabel
+                + (modelUsageRow.reasoningLabel !== "0" ? "  R " + modelUsageRow.reasoningLabel : "")
+                + (modelUsageRow.cacheReadLabel !== "0" ? "  CR " + modelUsageRow.cacheReadLabel : "")
+                + (modelUsageRow.cacheWriteLabel !== "0" ? "  CW " + modelUsageRow.cacheWriteLabel : "")
+                + (modelUsageRow.todayLabel !== "0" ? "  today " + modelUsageRow.todayLabel : "")
             elide: Text.ElideRight
             color: aiPanel.root.sumiHi
             font.family: aiPanel.root.mono; font.pixelSize: 9
@@ -261,21 +265,21 @@ PanelWindow {
     Rectangle {
         id: card
         width: Math.min(360, parent.width - 12)
-        height: Math.min(col.implicitHeight + 2 * aiPanel.contentPadding, parent.height - 2 * (barBottom + gap))
-        radius: reveal > 0.001 ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
+        height: Math.min(col.implicitHeight + 2 * aiPanel.contentPadding, parent.height - 2 * (aiPanel.barBottom + aiPanel.gap))
+        radius: aiPanel.reveal > 0.001 ? aiPanel.root.pillRadius : 0
+        color: aiPanel.root.bg
+        border.color: aiPanel.root.pillBorder
+        border.width: aiPanel.root.pillBorderW
+        PillShadow { theme: aiPanel.root }
 
-        x: Math.round(Math.max(6, Math.min(root.aiBarX - width / 2, parent.width - width - 6)))
-        y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
+        x: Math.round(Math.max(6, Math.min(aiPanel.root.aiBarX - width / 2, parent.width - width - 6)))
+        y: aiPanel.root.barPosition === "bottom" ? (parent.height - aiPanel.barBottom - aiPanel.gap - height) : (aiPanel.barBottom + aiPanel.gap)
         opacity: aiPanel.reveal
-        focus: root.aiUsageVisible
+        focus: aiPanel.root.aiUsageVisible
 
         Keys.onPressed: function(event) {
             if (event.key === Qt.Key_Escape) {
-                root.aiUsageVisible = false;
+                aiPanel.root.aiUsageVisible = false;
                 event.accepted = true;
             }
         }
@@ -304,8 +308,8 @@ PanelWindow {
                         anchors.left: parent.left
                         anchors.verticalCenter: parent.verticalCenter
                         text: "AI USAGE"
-                        color: root.ink
-                        font.family: root.mono
+                        color: aiPanel.root.ink
+                        font.family: aiPanel.root.mono
                         font.pixelSize: 13
                         font.letterSpacing: 2
                         font.weight: Font.Medium
@@ -314,7 +318,7 @@ PanelWindow {
                         anchors.right: parent.right
                         anchors.verticalCenter: parent.verticalCenter
                         text: "✕"
-                        color: closeMa.containsMouse ? root.seal : root.sumi
+                        color: closeMa.containsMouse ? aiPanel.root.seal : aiPanel.root.sumi
                         font.pixelSize: 12
                         Behavior on color { ColorAnimation { duration: 120 } }
                         MouseArea {
@@ -322,7 +326,7 @@ PanelWindow {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: root.aiUsageVisible = false
+                            onClicked: aiPanel.root.aiUsageVisible = false
                         }
                     }
                 }
@@ -343,20 +347,21 @@ PanelWindow {
                     Repeater {
                         model: aiPanel.availableTools
                         Rectangle {
+                            id: toolOption
                             required property var modelData
                             width: (parent.width - Math.max(0, aiPanel.availableTools.length - 1) * 6) / Math.max(1, aiPanel.availableTools.length)
-                            height: 32; radius: root.tileRadius
-                            readonly property bool active: root.aiTool === modelData.id
-                            color: active ? root.fillActive
-                                  : segMa.containsMouse ? root.fillHover : root.fillIdle
-                            border.color: (active || segMa.containsMouse) ? root.seal : root.sep
+                            height: 32; radius: aiPanel.root.tileRadius
+                            readonly property bool active: aiPanel.root.aiTool === modelData.id
+                            color: active ? aiPanel.root.fillActive
+                                  : segMa.containsMouse ? aiPanel.root.fillHover : aiPanel.root.fillIdle
+                            border.color: (active || segMa.containsMouse) ? aiPanel.root.seal : aiPanel.root.sep
                             border.width: 1
                             Behavior on color { ColorAnimation { duration: 120 } }
                             UiText {
                                 anchors.centerIn: parent
-                                text: modelData.label
-                                color: (parent.active || segMa.containsMouse) ? root.seal : root.ink
-                                font.family: root.mono; font.pixelSize: 11
+                                text: toolOption.modelData.label
+                                color: (parent.active || segMa.containsMouse) ? aiPanel.root.seal : aiPanel.root.ink
+                                font.family: aiPanel.root.mono; font.pixelSize: 11
                                 font.weight: parent.active ? Font.Medium : Font.Normal
                             }
                             MouseArea {
@@ -364,13 +369,13 @@ PanelWindow {
                                 anchors.fill: parent
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: root.aiTool = parent.modelData.id
+                                onClicked: aiPanel.root.aiTool = parent.modelData.id
                             }
                         }
                     }
                 }
 
-                Rectangle { width: parent.width; height: 1; color: root.sep }
+                Rectangle { width: parent.width; height: 1; color: aiPanel.root.sep }
 
                 // ── Claude Code ──
                 Item {
@@ -378,31 +383,31 @@ PanelWindow {
                     width: parent.width; height: 16
                     UiText {
                         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                        text: "Claude Code"; color: root.ink
-                        font.family: root.mono; font.pixelSize: 12; font.weight: Font.Medium
+                        text: "Claude Code"; color: aiPanel.root.ink
+                        font.family: aiPanel.root.mono; font.pixelSize: 12; font.weight: Font.Medium
                     }
                     UiText {
                         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                         text: aiPanel.clFresh ? "live" : "stale"
-                        color: aiPanel.clFresh ? root.sumi : root.sealRaw
-                        font.family: root.mono; font.pixelSize: 10
+                        color: aiPanel.clFresh ? aiPanel.root.sumi : aiPanel.root.sealRaw
+                        font.family: aiPanel.root.mono; font.pixelSize: 10
                     }
                 }
                 UiText {
                     visible: aiPanel.showClaude && !aiPanel.clHas
                     width: parent.width
                     text: "no data — run claude"
-                    color: root.sumiHi; font.family: root.mono; font.pixelSize: 11
+                    color: aiPanel.root.sumiHi; font.family: aiPanel.root.mono; font.pixelSize: 11
                 }
                 UsageRow { visible: aiPanel.showClaude && aiPanel.clHas; label: "5h"; pct: aiPanel.clPct5h; dim: !aiPanel.clFresh }
                 UsageRow { visible: aiPanel.showClaude && aiPanel.clHas; label: "7d"; pct: aiPanel.clPct7d; dim: !aiPanel.clFresh }
-                DetailRow { visible: aiPanel.showClaude && aiPanel.clHas; k: "5h resets in"; v: root.aiFmtResetDetail(aiPanel.clReset5hTs) || "—" }
-                DetailRow { visible: aiPanel.showClaude && aiPanel.clHas; k: "7d resets in"; v: root.aiFmtResetDetail(aiPanel.clReset7dTs) || "—" }
+                DetailRow { visible: aiPanel.showClaude && aiPanel.clHas; k: "5h resets in"; v: aiPanel.root.aiFmtResetDetail(aiPanel.clReset5hTs) || "—" }
+                DetailRow { visible: aiPanel.showClaude && aiPanel.clHas; k: "7d resets in"; v: aiPanel.root.aiFmtResetDetail(aiPanel.clReset7dTs) || "—" }
                 DetailRow { visible: aiPanel.showClaude && aiPanel.clHas && aiPanel.clTokens !== ""; k: "Tokens"; v: aiPanel.clTokens }
                 DetailRow { visible: aiPanel.showClaude && aiPanel.clHas && aiPanel.clRate !== "";   k: "Rate"; v: aiPanel.clRate }
                 DetailRow { visible: aiPanel.showClaude && aiPanel.clHas && aiPanel.clToday > 0; k: "Today"; v: (aiPanel.clToday / 1e6).toFixed(2) + "M tok" }
 
-                Rectangle { visible: false; width: parent.width; height: 1; color: root.sep }
+                Rectangle { visible: false; width: parent.width; height: 1; color: aiPanel.root.sep }
 
                 // ── OpenAI Codex ──
                 Item {
@@ -411,31 +416,31 @@ PanelWindow {
                     UiText {
                         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                         text: "OpenAI Codex" + (aiPanel.cxPlan ? "  · " + aiPanel.cxPlan : "")
-                        color: root.ink
-                        font.family: root.mono; font.pixelSize: 12; font.weight: Font.Medium
+                        color: aiPanel.root.ink
+                        font.family: aiPanel.root.mono; font.pixelSize: 12; font.weight: Font.Medium
                     }
                     UiText {
                         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                         text: aiPanel.cxFresh ? "live" : "stale"
-                        color: aiPanel.cxFresh ? root.sumi : root.sealRaw
-                        font.family: root.mono; font.pixelSize: 10
+                        color: aiPanel.cxFresh ? aiPanel.root.sumi : aiPanel.root.sealRaw
+                        font.family: aiPanel.root.mono; font.pixelSize: 10
                     }
                 }
                 UiText {
                     visible: aiPanel.showCodex && !aiPanel.cxHas
                     width: parent.width
                     text: "no data — run codex"
-                    color: root.sumiHi; font.family: root.mono; font.pixelSize: 11
+                    color: aiPanel.root.sumiHi; font.family: aiPanel.root.mono; font.pixelSize: 11
                 }
                 UsageRow { visible: aiPanel.showCodex && aiPanel.cxWin0 !== null; label: aiPanel.cxWin0 ? aiPanel.cxWin0.label : ""; pct: aiPanel.cxWin0 ? aiPanel.cxWin0.pct : 0; dim: !aiPanel.cxFresh }
                 UsageRow { visible: aiPanel.showCodex && aiPanel.cxWin1 !== null; label: aiPanel.cxWin1 ? aiPanel.cxWin1.label : ""; pct: aiPanel.cxWin1 ? aiPanel.cxWin1.pct : 0; dim: !aiPanel.cxFresh }
-                DetailRow { visible: aiPanel.showCodex && aiPanel.cxWin0 !== null; k: (aiPanel.cxWin0 ? aiPanel.cxWin0.label : "") + " resets in"; v: root.aiFmtResetDetail(aiPanel.cxWin0 ? aiPanel.cxWin0.resetTs : 0) || "—" }
-                DetailRow { visible: aiPanel.showCodex && aiPanel.cxWin1 !== null; k: (aiPanel.cxWin1 ? aiPanel.cxWin1.label : "") + " resets in"; v: root.aiFmtResetDetail(aiPanel.cxWin1 ? aiPanel.cxWin1.resetTs : 0) || "—" }
-                DetailRow { visible: aiPanel.showCodex && aiPanel.cxHas; k: "General limit"; v: root.aiCodexStatusLabel(aiPanel.cxLimitStatus, aiPanel.cxLimitReachedType) }
+                DetailRow { visible: aiPanel.showCodex && aiPanel.cxWin0 !== null; k: (aiPanel.cxWin0 ? aiPanel.cxWin0.label : "") + " resets in"; v: aiPanel.root.aiFmtResetDetail(aiPanel.cxWin0 ? aiPanel.cxWin0.resetTs : 0) || "—" }
+                DetailRow { visible: aiPanel.showCodex && aiPanel.cxWin1 !== null; k: (aiPanel.cxWin1 ? aiPanel.cxWin1.label : "") + " resets in"; v: aiPanel.root.aiFmtResetDetail(aiPanel.cxWin1 ? aiPanel.cxWin1.resetTs : 0) || "—" }
+                DetailRow { visible: aiPanel.showCodex && aiPanel.cxHas; k: "General limit"; v: aiPanel.root.aiCodexStatusLabel(aiPanel.cxLimitStatus, aiPanel.cxLimitReachedType) }
                 DetailRow { visible: aiPanel.showCodex && aiPanel.cxHas && aiPanel.cxRate !== "";   k: "Local activity (1h, incl. cached)"; v: aiPanel.cxRate }
                 DetailRow { visible: aiPanel.showCodex && aiPanel.cxHas && aiPanel.cxToday > 0; k: "Today"; v: (aiPanel.cxToday / 1e6).toFixed(2) + "M tok" }
 
-                Rectangle { visible: false; width: parent.width; height: 1; color: root.sep }
+                Rectangle { visible: false; width: parent.width; height: 1; color: aiPanel.root.sep }
 
                 // ── OpenCode ──
                 Item {
@@ -444,21 +449,21 @@ PanelWindow {
                     UiText {
                         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                         text: "OpenCode" + (aiPanel.ocPlan ? "  · " + aiPanel.ocPlan : "")
-                        color: root.ink
-                        font.family: root.mono; font.pixelSize: 12; font.weight: Font.Medium
+                        color: aiPanel.root.ink
+                        font.family: aiPanel.root.mono; font.pixelSize: 12; font.weight: Font.Medium
                     }
                     UiText {
                         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                         text: aiPanel.ocFresh ? "live" : "stale"
-                        color: aiPanel.ocFresh ? root.sumi : root.sealRaw
-                        font.family: root.mono; font.pixelSize: 10
+                        color: aiPanel.ocFresh ? aiPanel.root.sumi : aiPanel.root.sealRaw
+                        font.family: aiPanel.root.mono; font.pixelSize: 10
                     }
                 }
                 UiText {
                     visible: aiPanel.showOpenCode && !aiPanel.ocHas
                     width: parent.width
                     text: "no data — run opencode"
-                    color: root.sumiHi; font.family: root.mono; font.pixelSize: 11
+                    color: aiPanel.root.sumiHi; font.family: aiPanel.root.mono; font.pixelSize: 11
                 }
                 UsageRow { visible: aiPanel.showOpenCode && aiPanel.ocHas; label: "5h"; pct: aiPanel.ocPct5h; dim: !aiPanel.ocFresh }
                 UsageRow { visible: aiPanel.showOpenCode && aiPanel.ocHas; label: "7d"; pct: aiPanel.ocPct7d; dim: !aiPanel.ocFresh }
@@ -473,19 +478,20 @@ PanelWindow {
                     UiText {
                         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                         text: "MODELS"
-                        color: root.sumiHi
-                        font.family: root.mono; font.pixelSize: 10; font.letterSpacing: 1
+                        color: aiPanel.root.sumiHi
+                        font.family: aiPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
                     }
                     UiText {
                         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                         text: "recent"
-                        color: root.sumi
-                        font.family: root.mono; font.pixelSize: 10
+                        color: aiPanel.root.sumi
+                        font.family: aiPanel.root.mono; font.pixelSize: 10
                     }
                 }
                 Repeater {
                     model: (aiPanel.showOpenCode && aiPanel.ocHas) ? aiPanel.ocModels : []
                     ModelUsageRow {
+                        required property var modelData
                         width: col.width
                         name: modelData.name || ""
                         totalLabel: modelData.totalLabel || ""
@@ -510,22 +516,22 @@ PanelWindow {
                         wrapMode: Text.WordWrap
                         textFormat: Text.PlainText
                         text: "GitHub Copilot" + (aiPanel.cpPlan ? "  · " + aiPanel.cpPlan : "")
-                        color: root.ink
-                        font.family: root.mono; font.pixelSize: 12; font.weight: Font.Medium
+                        color: aiPanel.root.ink
+                        font.family: aiPanel.root.mono; font.pixelSize: 12; font.weight: Font.Medium
                     }
                     UiText {
                         id: copilotFreshness
                         anchors.right: parent.right; anchors.top: parent.top
                         text: aiPanel.cpFresh ? "live" : "stale"
-                        color: aiPanel.cpFresh ? root.sumi : root.sealRaw
-                        font.family: root.mono; font.pixelSize: 10
+                        color: aiPanel.cpFresh ? aiPanel.root.sumi : aiPanel.root.sealRaw
+                        font.family: aiPanel.root.mono; font.pixelSize: 10
                     }
                 }
                 UiText {
                     visible: aiPanel.showCopilot && !aiPanel.cpHas
                     width: parent.width
                     text: "no data — run gh auth login"
-                    color: root.sumiHi; font.family: root.mono; font.pixelSize: 11
+                    color: aiPanel.root.sumiHi; font.family: aiPanel.root.mono; font.pixelSize: 11
                 }
                 UsageRow {
                     visible: aiPanel.showCopilot && aiPanel.cpHas && !aiPanel.cpUnlimited
@@ -540,7 +546,7 @@ PanelWindow {
                 DetailRow {
                     visible: aiPanel.showCopilot && aiPanel.cpHas && !aiPanel.cpUnlimited
                     k: (aiPanel.cpLabel || "30d") + " resets in"
-                    v: root.aiFmtResetDetail(aiPanel.cpResetTs) || "—"
+                    v: aiPanel.root.aiFmtResetDetail(aiPanel.cpResetTs) || "—"
                 }
                 DetailRow {
                     visible: aiPanel.showCopilot && aiPanel.cpHas && aiPanel.cpEntitlement > 0

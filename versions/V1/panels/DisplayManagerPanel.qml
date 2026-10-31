@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls as Controls
 import Quickshell
@@ -369,7 +370,8 @@ PanelWindow {
                     objectName: "display-monitor-list"
                     width: parent.width; spacing: 6
                     Repeater { model: panel.controller.previewMonitors
-                        delegate: RiseButton { required property var modelData; text: modelData.name + (modelData.disabled ? " · OFF" : ""); onClicked: panel.controller.selectedMonitor=modelData.name }
+                        delegate: RiseButton {
+                            id: entryDelegate1; required property var modelData; text: modelData.name + (modelData.disabled ? " · OFF" : ""); onClicked: panel.controller.selectedMonitor=modelData.name }
                     }
                 }
 
@@ -432,6 +434,7 @@ PanelWindow {
                         Repeater {
                             model: 10
                             delegate: RiseButton {
+                                id: entryDelegate2
                                 required property int index
                                 objectName: "display-workspace-" + (index + 1)
                                 width: 28; height: 30; leftPadding: 0; rightPadding: 0

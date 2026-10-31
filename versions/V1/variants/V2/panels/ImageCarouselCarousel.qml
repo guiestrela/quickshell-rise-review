@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Effects
 import QtQuick.Shapes
@@ -14,7 +15,7 @@ PanelWindow {
     id: panel
     required property var root
 
-    screen: root.activePopupScreen
+    screen: panel.root.activePopupScreen
 
     color: "transparent"
     anchors { top: true; bottom: true; left: true; right: true }
@@ -23,9 +24,9 @@ PanelWindow {
     WlrLayershell.namespace: "omarchy-image-carousel-cr"
     WlrLayershell.keyboardFocus: panel.visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    readonly property bool active: root.pickerStyle === "carousel"
-    readonly property bool isThemeMode: root.imagePickerMode === "theme"
-    readonly property bool ready: root.imagePickerVisible && active && imagesLoaded && layoutSettled
+    readonly property bool active: panel.root.pickerStyle === "carousel"
+    readonly property bool isThemeMode: panel.root.imagePickerMode === "theme"
+    readonly property bool ready: panel.root.imagePickerVisible && active && imagesLoaded && layoutSettled
 
     property bool imagesLoaded:  false
     property bool layoutSettled: false
@@ -52,10 +53,10 @@ PanelWindow {
     property bool   themeImagesLoaded: false
     property bool   themeScanDone: false
 
-    visible: root.imagePickerVisible && active
+    visible: panel.root.imagePickerVisible && active
 
     // ── open / style gating ──
-    function modeKey() { return root.imagePickerMode === "theme" ? "theme" : "wallpaper" }
+    function modeKey() { return panel.root.imagePickerMode === "theme" ? "theme" : "wallpaper" }
     function scanCachePathFor(mode) {
         return Quickshell.env("HOME") + "/.cache/quickshell-scan-" + (mode === "theme" ? "theme" : "wallpaper")
     }
@@ -101,7 +102,7 @@ PanelWindow {
     }
     function syncOpen() {
         var mode = panel.modeKey()
-        if (root.imagePickerVisible && active) {
+        if (panel.root.imagePickerVisible && active) {
             if (panel.loadedMode !== mode) {
                 panel.saveModeState()
                 panel.restoreModeState(mode)
@@ -113,7 +114,7 @@ PanelWindow {
                 panel.selectedIndex = 0
             } else if (panel.imageArray.length > 0) {
                 Qt.callLater(function() {
-                    if (root.imagePickerVisible && panel.active && panel.imagesLoaded) {
+                    if (panel.root.imagePickerVisible && panel.active && panel.imagesLoaded) {
                         panel.layoutSettled = true
                         carousel.forceActiveFocus()
                     }
@@ -127,7 +128,7 @@ PanelWindow {
         }
     }
     Connections {
-        target: root
+        target: panel.root
         function onImagePickerVisibleChanged() { panel.syncOpen() }
         function onImagePickerModeChanged()    { panel.syncOpen() }
         function onPickerStyleChanged()         { panel.syncOpen() }
@@ -141,14 +142,14 @@ PanelWindow {
         command: requestMode === "theme"
             ? ["bash", "-c",
                "CACHE=$HOME/.cache/quickshell-theme-picker; " +
-               "name=$(cat " + panel.shq(root.themeNamePath) + " 2>/dev/null || true); " +
+               "name=$(cat " + panel.shq(panel.root.themeNamePath) + " 2>/dev/null || true); " +
                "for ext in png jpg jpeg webp; do f=\"$CACHE/$name.$ext\"; [ -L \"$f\" ] && echo \"$f\" && exit 0; done; echo ''"]
-            : ["bash", "-c", "readlink -f " + panel.shq(root.currentBackgroundPath) + " 2>/dev/null || true"]
+            : ["bash", "-c", "readlink -f " + panel.shq(panel.root.currentBackgroundPath) + " 2>/dev/null || true"]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
                 var mode = currentProc.requestMode
-                if (mode !== panel.modeKey() || !root.imagePickerVisible || !panel.active) return
+                if (mode !== panel.modeKey() || !panel.root.imagePickerVisible || !panel.active) return
                 panel.currentImage = this.text.trim()
                 // instant: paint from the cached scan while we refresh live
                 cacheProc.requestMode = mode
@@ -185,7 +186,7 @@ PanelWindow {
                 "hash_for() { local s=\"$1\" r m key h tmp; r=$(readlink -f \"$s\" 2>/dev/null || printf '%s' \"$s\"); m=$(stat -Lc '%s:%Y:%Z' \"$s\" 2>/dev/null) || return 1; key=\"$r|$m\"; h=$(awk -F '\\t' -v k=\"$key\" '$1 == k { v=$2 } END { print v }' \"$HASHCACHE\" 2>/dev/null); if [ -z \"$h\" ]; then h=$(sha256sum \"$s\" 2>/dev/null | cut -d' ' -f1); [ -n \"$h\" ] || return 1; tmp=\"$HASHCACHE.$$\"; { awk -F '\\t' -v k=\"$key\" '$1 != k' \"$HASHCACHE\" 2>/dev/null; printf '%s\\t%s\\n' \"$key\" \"$h\"; } > \"$tmp\" && mv -f \"$tmp\" \"$HASHCACHE\"; fi; printf '%s' \"$h\"; };",
                 "thumb_for() { local s=\"$1\" k; k=$(hash_for \"$s\") || return 1; printf '%s/%s-512.jpg' \"$D\" \"$k\"; };",
                 "declare -A seen_themes=();",
-                "for d in ~/.config/omarchy/themes/* " + panel.shq(root.omarchyInstallRoot + "/themes") + "/* ~/.local/share/omarchy/themes/* /usr/share/omarchy/themes/*; do",
+                "for d in ~/.config/omarchy/themes/* " + panel.shq(panel.root.omarchyInstallRoot + "/themes") + "/* ~/.local/share/omarchy/themes/* /usr/share/omarchy/themes/*; do",
                 "  [ -d \"$d\" ] || continue;",
                 "  name=$(basename \"$d\");",
                 "  [[ ${seen_themes[$name]+yes} ]] && continue;",
@@ -223,9 +224,9 @@ PanelWindow {
         stdout: StdioCollector { onStreamFinished: wallpaperFolderChooser.selectedFolder = String(this.text || "").trim() }
         onExited: function(exitCode) {
             if (exitCode !== 0) return
-            root.setWallpaperManagerFolder(selectedFolder)
-            root.imagePickerVisible = false
-            Qt.callLater(function() { root.openImagePicker("wallpaper") })
+            panel.root.setWallpaperManagerFolder(selectedFolder)
+            panel.root.imagePickerVisible = false
+            Qt.callLater(function() { panel.root.openImagePicker("wallpaper") })
         }
     }
 
@@ -241,16 +242,16 @@ PanelWindow {
         var path = imageArray[selectedIndex].filePath; if (!path) return
         if (isThemeMode) {
             var name = Model.nameForPath(path)
-            applyThemeProc.command = ["env", "OMARCHY_PATH=" + root.omarchyInstallRoot, "omarchy-theme-set", name]
+            applyThemeProc.command = ["env", "OMARCHY_PATH=" + panel.root.omarchyInstallRoot, "omarchy-theme-set", name]
             applyThemeProc.running = false; applyThemeProc.running = true
-        } else if (root.wallpaperManagerFolder !== ""
-                   && path.indexOf(root.wallpaperManagerFolder + "/") === 0) {
-            root.pinWallpaper(path)
+        } else if (panel.root.wallpaperManagerFolder !== ""
+                   && path.indexOf(panel.root.wallpaperManagerFolder + "/") === 0) {
+            panel.root.pinWallpaper(path)
         } else {
             applyBgProc.command = ["bash", "-c", "omarchy-theme-bg-set '" + path.replace(/'/g, "'\\''") + "'"]
             applyBgProc.running = false; applyBgProc.running = true
         }
-        root.imagePickerVisible = false
+        panel.root.imagePickerVisible = false
     }
 
     function selectAdjacent(dir) {
@@ -279,7 +280,7 @@ PanelWindow {
 
     function shq(s) { return "'" + String(s).replace(/'/g, "'\\''") + "'" }
     function wallpaperFindRoots() {
-        var paths = root.wallpaperSourcePaths || []
+        var paths = panel.root.wallpaperSourcePaths || []
         var args = []
         for (var i = 0; i < paths.length; i++)
             if (paths[i]) args.push(panel.shq(paths[i]))
@@ -305,7 +306,7 @@ PanelWindow {
     }
     function applyScan(text, fromCache, mode) {
         mode = mode || panel.modeKey()
-        if (mode !== panel.modeKey() || panel.loadedMode !== mode || !root.imagePickerVisible || !panel.active) return
+        if (mode !== panel.modeKey() || panel.loadedMode !== mode || !panel.root.imagePickerVisible || !panel.active) return
         var t = String(text || "")
         if (fromCache && !t.trim()) return   // cache empty → wait for live scan; live empty → fall through to empty-state
         if (fromCache && panel.scanHasOriginalThumbs(t)) return
@@ -322,7 +323,7 @@ PanelWindow {
         panel.imagesLoaded  = images.length > 0; panel.scanDone = true
         panel.saveModeState()
         Qt.callLater(function() {
-            if (root.imagePickerVisible && panel.active && panel.modeKey() === mode && panel.loadedMode === mode) {
+            if (panel.root.imagePickerVisible && panel.active && panel.modeKey() === mode && panel.loadedMode === mode) {
                 panel.layoutSettled = true
                 if (panel.imageArray.length > 0) carousel.forceActiveFocus()   // keep Esc-catcher focused when empty
                 if (!fromCache) { panel.warmVisible(); warmTimer.restart() }
@@ -484,10 +485,10 @@ PanelWindow {
     readonly property int skew:       28
 
     // ── colors (red/accent via root.seal) ──
-    readonly property color selBorder:   root.seal
-    readonly property color unselBorder: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.22)
-    readonly property color dimColor:    root.paper
-    readonly property color footerText:  panel.readableAccent(root.seal)
+    readonly property color selBorder:   panel.root.seal
+    readonly property color unselBorder: Qt.rgba(panel.root.ink.r, panel.root.ink.g, panel.root.ink.b, 0.22)
+    readonly property color dimColor:    panel.root.paper
+    readonly property color footerText:  panel.readableAccent(panel.root.seal)
     readonly property color footerDim:   Qt.rgba(footerText.r, footerText.g, footerText.b, 0.68)
 
     function luma(c) { return 0.2126 * c.r + 0.7152 * c.g + 0.0722 * c.b }
@@ -503,7 +504,7 @@ PanelWindow {
     MouseArea {
         anchors.fill: parent
         enabled: panel.visible
-        onClicked: root.imagePickerVisible = false
+        onClicked: panel.root.imagePickerVisible = false
         onWheel: function(wheel) {
             if (!panel.ready) return
             panel.selectAdjacent(wheel.angleDelta.y < 0 ? 1 : -1)
@@ -517,7 +518,7 @@ PanelWindow {
         Keys.onPressed: function(event) {
             if (event.key === Qt.Key_Escape) {
                 if (panel.filterText) panel.filterText = ""
-                else root.imagePickerVisible = false
+                else panel.root.imagePickerVisible = false
                 event.accepted = true
             } else if (event.key === Qt.Key_Backspace) {
                 if (panel.filterText.length > 0) panel.filterText = panel.filterText.slice(0, -1)
@@ -531,23 +532,23 @@ PanelWindow {
         }
     }
     Text {
-        visible: root.imagePickerVisible && panel.active && panel.ready && Model.matchCount(panel.imageArray, panel.filterText) === 0
+        visible: panel.root.imagePickerVisible && panel.active && panel.ready && Model.matchCount(panel.imageArray, panel.filterText) === 0
         anchors.centerIn: parent
         horizontalAlignment: Text.AlignHCenter
         text: "No matches: " + panel.filterText + "\n\nBackspace to edit, or Esc to clear"
-        color: root.ink
-        font.family: root.mono; font.pixelSize: 16; font.letterSpacing: 1
+        color: panel.root.ink
+        font.family: panel.root.mono; font.pixelSize: 16; font.letterSpacing: 1
     }
     Text {
-        visible: root.imagePickerVisible && panel.active && !panel.ready
+        visible: panel.root.imagePickerVisible && panel.active && !panel.ready
         anchors.centerIn: parent
         horizontalAlignment: Text.AlignHCenter
         text: panel.scanDone
               ? (panel.isThemeMode ? "No themes found" : "No wallpapers found") + "\n\nEsc or click to close"
               : "Loading…"
-        color: root.ink
+        color: panel.root.ink
         style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.6)
-        font.family: root.mono; font.pixelSize: 18
+        font.family: panel.root.mono; font.pixelSize: 18
     }
 
     // ── Carousel ──
@@ -567,7 +568,7 @@ PanelWindow {
         Keys.onPressed: function(event) {
             if (event.key === Qt.Key_Escape) {
                 if (panel.filterText) panel.filterText = ""
-                else root.imagePickerVisible = false
+                else panel.root.imagePickerVisible = false
                 event.accepted = true
             } else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter) {
                 panel.applySelected(); event.accepted = true
@@ -701,7 +702,7 @@ PanelWindow {
 
                         MouseArea {
                             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: slice.selected ? panel.applySelected() : (panel.selectedIndex = index)
+                            onClicked: slice.selected ? panel.applySelected() : (panel.selectedIndex = slice.index)
                         }
                     }
                 }
@@ -715,18 +716,18 @@ PanelWindow {
         z: 600
         width: Math.min(260, Math.max(86, folderButtonText.implicitWidth + 18))
         height: 26
-        radius: root.tileRadius
-        color: folderButtonMouse.containsMouse ? root.fillHover : root.fillIdle
-        border.color: folderButtonMouse.containsMouse ? root.seal : root.sep
+        radius: panel.root.tileRadius
+        color: folderButtonMouse.containsMouse ? panel.root.fillHover : panel.root.fillIdle
+        border.color: folderButtonMouse.containsMouse ? panel.root.seal : panel.root.sep
         border.width: 1
         Text {
             id: folderButtonText
             anchors.centerIn: parent
             width: parent.width - 16
             horizontalAlignment: Text.AlignHCenter
-            text: root.wallpaperManagerFolder === "" ? "+ FOLDER" : "FOLDER · " + root.wallpaperManagerFolder.split("/").pop()
-            color: root.ink
-            font.family: root.mono
+            text: panel.root.wallpaperManagerFolder === "" ? "+ FOLDER" : "FOLDER · " + panel.root.wallpaperManagerFolder.split("/").pop()
+            color: panel.root.ink
+            font.family: panel.root.mono
             font.pixelSize: 9
             elide: Text.ElideRight
         }
@@ -738,9 +739,9 @@ PanelWindow {
             cursorShape: Qt.PointingHandCursor
             onClicked: function(mouse) {
                 if (mouse.button === Qt.RightButton) {
-                    root.setWallpaperManagerFolder("")
-                    root.imagePickerVisible = false
-                    Qt.callLater(function() { root.openImagePicker("wallpaper") })
+                    panel.root.setWallpaperManagerFolder("")
+                    panel.root.imagePickerVisible = false
+                    Qt.callLater(function() { panel.root.openImagePicker("wallpaper") })
                 } else panel.chooseWallpaperFolder()
             }
         }
@@ -752,7 +753,7 @@ PanelWindow {
         z: 500
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.top: carousel.bottom; anchors.topMargin: 18
-        width: root.evenW(Math.min(panel.expandedW + 96, Math.max(320, parent.width - 48)))
+        width: panel.root.evenW(Math.min(panel.expandedW + 96, Math.max(320, parent.width - 48)))
         spacing: 5
 
         Text {
@@ -761,7 +762,7 @@ PanelWindow {
             text: panel.currentLabel()
             color: panel.footerText
             renderType: Text.NativeRendering
-            font.family: root.mono; font.pixelSize: 30; font.weight: Font.DemiBold
+            font.family: panel.root.mono; font.pixelSize: 30; font.weight: Font.DemiBold
             horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
         }
 
@@ -772,7 +773,7 @@ PanelWindow {
             text: panel.filterText
             color: panel.footerText; opacity: 0.95
             renderType: Text.NativeRendering
-            font.family: root.mono; font.pixelSize: 15
+            font.family: panel.root.mono; font.pixelSize: 15
             horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
         }
 
@@ -782,7 +783,7 @@ PanelWindow {
             text: "← → navigate   Enter apply   Esc cancel   type to filter"
             color: panel.footerDim
             renderType: Text.NativeRendering
-            font.family: root.mono; font.pixelSize: 11
+            font.family: panel.root.mono; font.pixelSize: 11
             horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
         }
     }

@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
@@ -7,7 +8,7 @@ PanelWindow {
     id: overlay
     required property var root
 
-    screen: root.activePopupScreen
+    screen: overlay.root.activePopupScreen
 
     color: "transparent"
     anchors { top: true; bottom: true; left: true; right: true }
@@ -21,11 +22,11 @@ PanelWindow {
     readonly property int barBottom: 35
     readonly property int gap: 6
 
-    property real reveal: root.tooltipShown ? 1 : 0
+    property real reveal: overlay.root.tooltipShown ? 1 : 0
     Behavior on reveal {
         NumberAnimation {
-            duration: root.tooltipShown ? 160 : 120
-            easing.type: root.tooltipShown ? Easing.OutCubic : Easing.InCubic
+            duration: overlay.root.tooltipShown ? 160 : 120
+            easing.type: overlay.root.tooltipShown ? Easing.OutCubic : Easing.InCubic
         }
     }
     visible: reveal > 0.001
@@ -39,19 +40,19 @@ PanelWindow {
         height: tipLabel.implicitHeight + padV * 2
 
         x: {
-            if (root.barVertical === true) return root.barPosition === "left" ? root.verticalBarWidth + gap : parent.width - root.verticalBarWidth - width - gap
-            var cx = root.tooltipX;
+            if (overlay.root.barVertical === true) return overlay.root.barPosition === "left" ? overlay.root.verticalBarWidth + overlay.gap : parent.width - overlay.root.verticalBarWidth - width - overlay.gap
+            var cx = overlay.root.tooltipX;
             return Math.max(4, Math.min(parent.width - width - 4, cx - width / 2));
         }
         // Follow the actual owner, including freely rearranged widgets and panel
         // row actions. Prefer the inward side of the bar, then flip when the
         // preferred side would leave the screen.
         y: {
-            if (root.barVertical === true) return Math.max(4, Math.min(parent.height - height - 4, (root.tooltipTopY + root.tooltipBottomY - height) / 2))
-            var above = root.tooltipTopY - gap - height
-            var below = root.tooltipBottomY + gap
+            if (overlay.root.barVertical === true) return Math.max(4, Math.min(parent.height - height - 4, (overlay.root.tooltipTopY + overlay.root.tooltipBottomY - height) / 2))
+            var above = overlay.root.tooltipTopY - overlay.gap - height
+            var below = overlay.root.tooltipBottomY + overlay.gap
             var maxY = parent.height - height - 4
-            var candidate = root.barPosition === "bottom" ? above : below
+            var candidate = overlay.root.barPosition === "bottom" ? above : below
 
             if (candidate < 4 && below <= maxY)
                 candidate = below
@@ -63,21 +64,21 @@ PanelWindow {
 
         // Match the bar's surface recipe so the tooltip responds to the same
         // border, frost and corner-radius controls as its trigger.
-        color: root.barBg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        radius: root.pillRadius
+        color: overlay.root.barBg
+        border.color: overlay.root.pillBorder
+        border.width: overlay.root.pillBorderW
+        radius: overlay.root.pillRadius
         opacity: overlay.reveal
 
         // border-less style → drop the border, drop a dark shadow (same as pills)
-        PillShadow { theme: root }
+        PillShadow { theme: overlay.root }
 
         UiText {
             id: tipLabel
             anchors.centerIn: parent
-            text: root.tooltipText
-            color: root.ink
-            font.family: root.mono
+            text: overlay.root.tooltipText
+            color: overlay.root.ink
+            font.family: overlay.root.mono
             font.pixelSize: 12
             font.letterSpacing: 1
         }

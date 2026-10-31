@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 // V1 variant adapter: bind one bar to each real Wayland output, skip
 // transient nameless/0x0 placeholder screens, and recreate a BarSlot when that
 // output disappears and returns. If a screen remains valid but the layer window
@@ -211,11 +212,11 @@ Item {
                 onClicked: dismissLayer.root.closePopups()
             }
         }
-        visible: root.anyPopupVisible
-            && !root.keyboardPopupVisible
+        visible: dismissLayer.root.anyPopupVisible
+            && !dismissLayer.root.keyboardPopupVisible
             && targetScreen
             && targetScreen.name !== ""
-            && !root.isActivePopupScreenName(targetScreen.name)
+            && !dismissLayer.root.isActivePopupScreenName(targetScreen.name)
     }
 
     Variants {

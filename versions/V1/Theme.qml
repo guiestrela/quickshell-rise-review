@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -2845,13 +2846,15 @@ Item {
     }
 
     LazyLoader {
+        id: pickerLoader
+        readonly property var owner: theme
         active: theme.variantHost === null
         IpcHandler {
             target: "picker"
-            function theme(): void { ipcOpenPicker("theme") }
-            function wallpaper(): void { ipcOpenPicker("wallpaper") }
-            function screenshots(): void { ipcOpenPicker("screenshots") }
-            function videos(): void { ipcOpenPicker("videos") }
+            function theme(): void { pickerLoader.owner.ipcOpenPicker("theme") }
+            function wallpaper(): void { pickerLoader.owner.ipcOpenPicker("wallpaper") }
+            function screenshots(): void { pickerLoader.owner.ipcOpenPicker("screenshots") }
+            function videos(): void { pickerLoader.owner.ipcOpenPicker("videos") }
         }
     }
 }

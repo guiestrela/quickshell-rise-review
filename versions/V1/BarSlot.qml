@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 // ─────────────────────────────────────────────────────────────────────────────
 // BarSlot — slot-based bar (WIP port). Step 3: full static layout, all 15 groups
 // in 3 regions on one continuous section-pill (matches the default no-split look).

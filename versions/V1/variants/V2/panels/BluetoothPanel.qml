@@ -1005,7 +1005,7 @@ PanelWindow {
         }
     }
 
-    Process { id: btRunner; command: ["bash", "-c", root.launchBtCmd] }
+    Process { id: btRunner; command: ["bash", "-c", btPanel.root.launchBtCmd] }
 
     onVisibleChanged: { if (visible) btPanel.refresh() }
 }

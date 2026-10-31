@@ -19,7 +19,7 @@ for (const [variant, path] of [
     assert.match(qml, new RegExp(`${id}\\.containsMouse && ${id}\\.enabled \\? vpnPanel\\.root\\.seal`), `${variant}: ${id} native enabled hover border`);
   }
   assert.match(qml, /color: vpnPanel\.autoConnectEnabled \? vpnPanel\.root\.fillActive/, `${variant}: selected auto-connect uses Network active fill`);
-  const technologyLabel = qml.split('text: modelData; color: parent.selected')[1]?.split('}')[0] || '';
+  const technologyLabel = qml.split('text: entryDelegate2.modelData; color: parent.selected')[1]?.split('}')[0] || '';
   assert.match(technologyLabel, /font.pixelSize: 10/, `${variant}: technology labels use Network 10px action typography`);
   assert.match(qml, /Keys\.onPressed[\s\S]*Qt\.Key_Escape[\s\S]*closePanel\(\)/,
     `${variant}: Escape continues to dismiss the panel`);
