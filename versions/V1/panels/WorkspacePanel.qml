@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import "../modules"
 import Quickshell
@@ -8,7 +9,7 @@ PanelWindow {
     id: wsPanel
     required property var root
 
-    screen: root.activePopupScreen
+    screen: wsPanel.root.activePopupScreen
 
     color: "transparent"
     anchors { top: true; bottom: true; left: true; right: true }
@@ -19,35 +20,35 @@ PanelWindow {
     readonly property int barBottom: 35
     readonly property int gap: 8
 
-    property real reveal: root.workspaceVisible ? 1 : 0
+    property real reveal: wsPanel.root.workspaceVisible ? 1 : 0
     Behavior on reveal {
         NumberAnimation {
-            duration: root.workspaceVisible ? 160 : 120
-            easing.type: root.workspaceVisible ? Easing.OutCubic : Easing.InCubic
+            duration: wsPanel.root.workspaceVisible ? 160 : 120
+            easing.type: wsPanel.root.workspaceVisible ? Easing.OutCubic : Easing.InCubic
         }
     }
     visible: reveal > 0.001
-    WlrLayershell.keyboardFocus: root.workspaceVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: wsPanel.root.workspaceVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    MouseArea { anchors.fill: parent; onClicked: root.workspaceVisible = false }
+    MouseArea { anchors.fill: parent; onClicked: wsPanel.root.workspaceVisible = false }
 
     Rectangle {
         id: card
         width: 240
         height: col.implicitHeight + 24
-        radius: reveal > 0.001 ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
+        radius: wsPanel.reveal > 0.001 ? wsPanel.root.pillRadius : 0
+        color: wsPanel.root.bg
+        border.color: wsPanel.root.pillBorder
+        border.width: wsPanel.root.pillBorderW
+        PillShadow { theme: wsPanel.root }
 
-        x: Math.round(Math.max(6, Math.min(root.workspaceBarX - width / 2, parent.width - width - 6)))
-        y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
+        x: Math.round(Math.max(6, Math.min(wsPanel.root.workspaceBarX - width / 2, parent.width - width - 6)))
+        y: wsPanel.root.barPosition === "bottom" ? (parent.height - wsPanel.barBottom - wsPanel.gap - height) : (wsPanel.barBottom + wsPanel.gap)
         opacity: wsPanel.reveal
-        focus: root.workspaceVisible
+        focus: wsPanel.root.workspaceVisible
 
         Keys.onPressed: function(event) {
-            if (event.key === Qt.Key_Escape) { root.workspaceVisible = false; event.accepted = true }
+            if (event.key === Qt.Key_Escape) { wsPanel.root.workspaceVisible = false; event.accepted = true }
         }
 
         MouseArea { anchors.fill: parent; onClicked: {} }
@@ -64,18 +65,18 @@ PanelWindow {
                 UiText {
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                     text: "Workspaces"
-                    color: root.ink; font.family: root.mono; font.pixelSize: 13
+                    color: wsPanel.root.ink; font.family: wsPanel.root.mono; font.pixelSize: 13
                     font.letterSpacing: 2; font.weight: Font.Medium
                 }
                 UiText {
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                    text: "✕"; color: closeMa.containsMouse ? root.seal : root.sumi; font.pixelSize: 12
+                    text: "✕"; color: closeMa.containsMouse ? wsPanel.root.seal : wsPanel.root.sumi; font.pixelSize: 12
                     Behavior on color { ColorAnimation { duration: 120 } }
-                    MouseArea { id: closeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.workspaceVisible = false }
+                    MouseArea { id: closeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: wsPanel.root.workspaceVisible = false }
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: wsPanel.root.sep }
 
             Column {
                 width: parent.width
@@ -84,30 +85,32 @@ PanelWindow {
                     model: Hyprland.workspaces
 
                     delegate: Rectangle {
+
+                        id: workspaceRow
                         required property var modelData
                         visible: modelData.id > 0   // F13: hide special (negative-id) workspaces from the normal list
                         readonly property bool isActive: Hyprland.focusedWorkspace && Hyprland.focusedWorkspace.id === modelData.id
                         width: col.width
-                        height: 30; radius: root.tileRadius
-                        color: isActive ? root.fillActive
-                                : ma.containsMouse ? root.fillHover : root.fillIdle
-                        border.color: (ma.containsMouse || isActive) ? root.seal : root.sep
+                        height: 30; radius: wsPanel.root.tileRadius
+                        color: isActive ? wsPanel.root.fillActive
+                                : ma.containsMouse ? wsPanel.root.fillHover : wsPanel.root.fillIdle
+                        border.color: (ma.containsMouse || isActive) ? wsPanel.root.seal : wsPanel.root.sep
                         border.width: 1
                         Behavior on color { ColorAnimation { duration: 120 } }
 
                         UiText {
                             anchors.left: parent.left; anchors.leftMargin: 10
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "Workspace " + modelData.id
-                            color: (ma.containsMouse || isActive) ? root.seal : root.ink
-                            font.family: root.mono; font.pixelSize: 12
-                            font.weight: isActive ? Font.Medium : Font.Normal
+                            text: "Workspace " + workspaceRow.modelData.id
+                            color: (ma.containsMouse || workspaceRow.isActive) ? wsPanel.root.seal : wsPanel.root.ink
+                            font.family: wsPanel.root.mono; font.pixelSize: 12
+                            font.weight: workspaceRow.isActive ? Font.Medium : Font.Normal
                         }
                         UiText {
                             anchors.right: parent.right; anchors.rightMargin: 10
                             anchors.verticalCenter: parent.verticalCenter
-                            text: modelData.toplevels && modelData.toplevels.values ? modelData.toplevels.values.length : ""
-                            color: root.sumiHi; font.family: root.mono; font.pixelSize: 10
+                            text: workspaceRow.modelData.toplevels && workspaceRow.modelData.toplevels.values ? workspaceRow.modelData.toplevels.values.length : ""
+                            color: wsPanel.root.sumiHi; font.family: wsPanel.root.mono; font.pixelSize: 10
                         }
 
                         MouseArea {
@@ -116,8 +119,8 @@ PanelWindow {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                root.gotoWorkspace(modelData.id)
-                                root.workspaceVisible = false
+                                wsPanel.root.gotoWorkspace(workspaceRow.modelData.id)
+                                wsPanel.root.workspaceVisible = false
                             }
                         }
                     }

@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import Quickshell.Hyprland
 import QtQuick
 import QtQuick.Shapes
@@ -10,10 +11,10 @@ Item {
     // border needs its own breathing room, though: make that padding part of the
     // real implicit width so the border, drag geometry and split points all use
     // the same measurement instead of reconstructing an approximate visual edge.
-    readonly property int borderHorizontalPadding: !root.barVertical && root.widgetHasBorder("G2") ? 6 : 0
+    readonly property int borderHorizontalPadding: !wsWidget.root.barVertical && wsWidget.root.widgetHasBorder("G2") ? 6 : 0
     implicitWidth: wsRow.implicitWidth + 2 * borderHorizontalPadding
-    implicitHeight: root.barVertical ? wsRow.implicitHeight : 28
-    readonly property color contentColor: root.widgetContentColor("G2", root.seal)
+    implicitHeight: wsWidget.root.barVertical ? wsRow.implicitHeight : 28
+    readonly property color contentColor: wsWidget.root.widgetContentColor("G2", wsWidget.root.seal)
 
     // The focused workspace's id ONLY when it's a real (positive) workspace beyond
     // the persist range — else 0. An int signals on value change only, so switching
@@ -22,21 +23,21 @@ Item {
     // animating instead of the whole model rebuilding (B2). `id > n` (n≥5) also
     // excludes negative special/scratchpad ids (B3).
     readonly property int extraWs: {
-        if (root.workspaceMode === "active") return 0
-        var n = root.workspaceMode === "5" ? 5 : 10
+        if (wsWidget.root.workspaceMode === "active") return 0
+        var n = wsWidget.root.workspaceMode === "5" ? 5 : 10
         var f = Hyprland.focusedWorkspace
         return (f && f.id > n) ? f.id : 0
     }
 
     readonly property var workspaceList: {
-        if (root.workspaceMode === "active") {
+        if (wsWidget.root.workspaceMode === "active") {
             var ids = {}
             var ws = Hyprland.workspaces.values
             for (var i = 0; i < ws.length; i++) if (ws[i].id > 0) ids[ws[i].id] = true   // F13: skip special (negative-id) workspaces
             if (Hyprland.focusedWorkspace && Hyprland.focusedWorkspace.id > 0) ids[Hyprland.focusedWorkspace.id] = true
             return Object.keys(ids).map(Number).sort(function(a, b) { return a - b })
         }
-        var n = root.workspaceMode === "5" ? 5 : 10
+        var n = wsWidget.root.workspaceMode === "5" ? 5 : 10
         var list = []; for (var j = 1; j <= n; j++) list.push(j)
         if (extraWs > 0) list.push(extraWs)   // focused-beyond-range, stable per id
         return list
@@ -47,16 +48,16 @@ Item {
         anchors.fill: parent
         acceptedButtons: Qt.RightButton
         cursorShape: Qt.PointingHandCursor
-        onClicked: root.workspaceVisible = !root.workspaceVisible
+        onClicked: wsWidget.root.workspaceVisible = !wsWidget.root.workspaceVisible
     }
 
     Grid {
         id: wsRow
-        columns: root.barVertical ? 1 : Math.max(1, wsWidget.workspaceList.length)
+        columns: wsWidget.root.barVertical ? 1 : Math.max(1, wsWidget.workspaceList.length)
         anchors.centerIn: parent
         z: 1
-        spacing: root.barVertical ? 2 : root.workspaceStyle === "rings" ? 3
-               : root.workspaceStyle === "aurora" ? 4
+        spacing: wsWidget.root.barVertical ? 2 : wsWidget.root.workspaceStyle === "rings" ? 3
+               : wsWidget.root.workspaceStyle === "aurora" ? 4
                : 5
 
         Repeater {
@@ -83,13 +84,13 @@ Item {
 
                 readonly property bool isEmpty: !isFocused && !isOccupied
 
-                implicitWidth: root.barVertical ? 34 : root.workspaceStyle === "numbers" ? 22
-                             : root.workspaceStyle === "kanji"   ? 22
-                             : root.workspaceStyle === "magic"   ? (isFocused ? 20 : 18)
-                             : root.workspaceStyle === "rings"   ? 20
-                             : root.workspaceStyle === "aurora"  ? (isFocused ? 34 : 12)
+                implicitWidth: wsWidget.root.barVertical ? 34 : wsWidget.root.workspaceStyle === "numbers" ? 22
+                             : wsWidget.root.workspaceStyle === "kanji"   ? 22
+                             : wsWidget.root.workspaceStyle === "magic"   ? (isFocused ? 20 : 18)
+                             : wsWidget.root.workspaceStyle === "rings"   ? 20
+                             : wsWidget.root.workspaceStyle === "aurora"  ? (isFocused ? 34 : 12)
                              : (isFocused ? 32 : 16)
-                implicitHeight: root.barVertical ? 24 : 28
+                implicitHeight: wsWidget.root.barVertical ? 24 : 28
 
                 Behavior on implicitWidth {
                     NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
@@ -98,14 +99,14 @@ Item {
                 // ── DEFAULT style: glow + dot ──
                 // glow — alle states, nur opacity variiert
                 Rectangle {
-                    visible: root.workspaceStyle === "default"
+                    visible: wsWidget.root.workspaceStyle === "default"
                     anchors.centerIn: parent
-                    width:  isFocused ? 34 : 16
-                    height: isFocused ? 16 : 16
-                    radius: isFocused ?  8 :  8
-                    color: isFocused
+                    width:  wsCell.isFocused ? 34 : 16
+                    height: wsCell.isFocused ? 16 : 16
+                    radius: wsCell.isFocused ?  8 :  8
+                    color: wsCell.isFocused
                         ? Qt.rgba(wsWidget.contentColor.r, wsWidget.contentColor.g, wsWidget.contentColor.b, 0.20)
-                        : isOccupied
+                        : wsCell.isOccupied
                         ? Qt.rgba(wsWidget.contentColor.r, wsWidget.contentColor.g, wsWidget.contentColor.b, 0.18)
                         : Qt.rgba(wsWidget.contentColor.r, wsWidget.contentColor.g, wsWidget.contentColor.b, 0.06)
 
@@ -116,14 +117,14 @@ Item {
                 // pill / kreis
                 Rectangle {
                     id: dot
-                    visible: root.workspaceStyle === "default"
+                    visible: wsWidget.root.workspaceStyle === "default"
                     anchors.centerIn: parent
-                    width:  isFocused  ? 26 : 8
+                    width:  wsCell.isFocused  ? 26 : 8
                     height: 8
                     radius: 4
-                    color:  isFocused
+                    color:  wsCell.isFocused
                         ? wsWidget.contentColor
-                        : isOccupied
+                        : wsCell.isOccupied
                         ? wsWidget.contentColor
                         : Qt.rgba(wsWidget.contentColor.r, wsWidget.contentColor.g, wsWidget.contentColor.b, 0.25)
 
@@ -133,26 +134,26 @@ Item {
 
                 // ── NUMBERS style: a digit on the shared 6px V2 button shape. ──
                 Rectangle {
-                    visible: root.workspaceStyle === "numbers"
+                    visible: wsWidget.root.workspaceStyle === "numbers"
                     anchors.centerIn: parent
                     width:  20
                     height: 20
-                    radius: root.panelButtonRadius
-                    color: isFocused  ? Qt.rgba(wsWidget.contentColor.r, wsWidget.contentColor.g, wsWidget.contentColor.b, 0.30)
-                         : isOccupied ? Qt.rgba(wsWidget.contentColor.r, wsWidget.contentColor.g, wsWidget.contentColor.b, 0.12)
+                    radius: wsWidget.root.panelButtonRadius
+                    color: wsCell.isFocused  ? Qt.rgba(wsWidget.contentColor.r, wsWidget.contentColor.g, wsWidget.contentColor.b, 0.30)
+                         : wsCell.isOccupied ? Qt.rgba(wsWidget.contentColor.r, wsWidget.contentColor.g, wsWidget.contentColor.b, 0.12)
                                       : Qt.rgba(wsWidget.contentColor.r, wsWidget.contentColor.g, wsWidget.contentColor.b, 0.04)
                     Behavior on color { ColorAnimation { duration: 200 } }
                     Text {
                         anchors.centerIn: parent
-                        text: wsId
+                        text: wsCell.wsId
                         // focused = the only BRIGHT digit (lightened seal + bold + bigger);
                         // others dimmed so the active workspace is unmistakable
-                        color: isFocused  ? wsWidget.contentColor
-                             : isOccupied ? Qt.rgba(wsWidget.contentColor.r, wsWidget.contentColor.g, wsWidget.contentColor.b, 0.5)
+                        color: wsCell.isFocused  ? wsWidget.contentColor
+                             : wsCell.isOccupied ? Qt.rgba(wsWidget.contentColor.r, wsWidget.contentColor.g, wsWidget.contentColor.b, 0.5)
                                           : Qt.rgba(wsWidget.contentColor.r, wsWidget.contentColor.g, wsWidget.contentColor.b, 0.28)
-                        font.family: root.mono
-                        font.pixelSize: isFocused ? 13 : 12
-                        font.weight: isFocused ? Font.Bold : Font.Normal
+                        font.family: wsWidget.root.mono
+                        font.pixelSize: wsCell.isFocused ? 13 : 12
+                        font.weight: wsCell.isFocused ? Font.Bold : Font.Normal
                     }
                 }
 
@@ -160,17 +161,17 @@ Item {
                 //    all forced into ONE font (Adwaita Mono has all three) so they share
                 //    a metric → no cross-font fallback misalignment ──
                 Text {
-                    visible: root.workspaceStyle === "magic"
+                    visible: wsWidget.root.workspaceStyle === "magic"
                     anchors.centerIn: parent
-                    anchors.verticalCenterOffset: isFocused ? 0 : 1   // active lifted vs occupied/empty
-                    text: isFocused  ? String.fromCodePoint(0x2726)    // ✦ filled four-point star (active)
-                         : isOccupied ? String.fromCodePoint(0x2727)    // ✧ hollow four-point star (occupied)
+                    anchors.verticalCenterOffset: wsCell.isFocused ? 0 : 1   // active lifted vs occupied/empty
+                    text: wsCell.isFocused  ? String.fromCodePoint(0x2726)    // ✦ filled four-point star (active)
+                         : wsCell.isOccupied ? String.fromCodePoint(0x2727)    // ✧ hollow four-point star (occupied)
                                       : String.fromCodePoint(0x00B7)    // · middle dot (empty)
-                    color: isFocused  ? wsWidget.contentColor
-                         : isOccupied ? Qt.rgba(wsWidget.contentColor.r, wsWidget.contentColor.g, wsWidget.contentColor.b, 0.7)
+                    color: wsCell.isFocused  ? wsWidget.contentColor
+                         : wsCell.isOccupied ? Qt.rgba(wsWidget.contentColor.r, wsWidget.contentColor.g, wsWidget.contentColor.b, 0.7)
                                       : Qt.rgba(wsWidget.contentColor.r, wsWidget.contentColor.g, wsWidget.contentColor.b, 0.3)
                     font.family: "Adwaita Mono"   // all 3 sparkle glyphs live here → one consistent metric
-                    font.pixelSize: isFocused ? 22 : 18
+                    font.pixelSize: wsCell.isFocused ? 22 : 18
                     renderType: Text.NativeRendering   // crisp hinted raster (default QtRendering softens small symbols)
                     Behavior on color { ColorAnimation { duration: 200 } }
                 }
@@ -179,16 +180,16 @@ Item {
                 //    focused/occupied/empty treatment as the other styles; ids >10
                 //    fall back to the Arabic number ──
                 Text {
-                    visible: root.workspaceStyle === "kanji"
+                    visible: wsWidget.root.workspaceStyle === "kanji"
                     anchors.centerIn: parent
-                    text: wsId >= 1 && wsId <= 10
-                        ? ["一","二","三","四","五","六","七","八","九","十"][wsId - 1]
-                        : String(wsId)
-                    color: isFocused  ? wsWidget.contentColor
-                         : isOccupied ? Qt.rgba(wsWidget.contentColor.r, wsWidget.contentColor.g, wsWidget.contentColor.b, 0.7)
+                    text: wsCell.wsId >= 1 && wsCell.wsId <= 10
+                        ? ["一","二","三","四","五","六","七","八","九","十"][wsCell.wsId - 1]
+                        : String(wsCell.wsId)
+                    color: wsCell.isFocused  ? wsWidget.contentColor
+                         : wsCell.isOccupied ? Qt.rgba(wsWidget.contentColor.r, wsWidget.contentColor.g, wsWidget.contentColor.b, 0.7)
                                       : Qt.rgba(wsWidget.contentColor.r, wsWidget.contentColor.g, wsWidget.contentColor.b, 0.3)
                     font.family: "Noto Sans CJK JP"
-                    font.pixelSize: isFocused ? 15 : 13
+                    font.pixelSize: wsCell.isFocused ? 15 : 13
                     font.weight: Font.Normal
                     renderType: Text.NativeRendering
                     Behavior on color { ColorAnimation { duration: 200 } }
@@ -199,15 +200,15 @@ Item {
                 //    stays "rings" so existing V2 caches migrate without a reset. ──
                 Text {
                     id: frameLabel
-                    visible: root.workspaceStyle === "rings"
+                    visible: wsWidget.root.workspaceStyle === "rings"
                     anchors.centerIn: parent
-                    text: String(wsId)
+                    text: String(wsCell.wsId)
                     color: wsWidget.contentColor
                     opacity: wsMa.containsMouse ? 1.0
-                        : isFocused ? 1.0
-                        : isOccupied ? 0.64
+                        : wsCell.isFocused ? 1.0
+                        : wsCell.isOccupied ? 0.64
                         : 0.24
-                    font.family: root.mono
+                    font.family: wsWidget.root.mono
                     font.pixelSize: 12
                     font.weight: Font.Normal
                     font.hintingPreference: Font.PreferNoHinting
@@ -224,9 +225,9 @@ Item {
                 //    occupied/empty state renders as a true circle. ──
                 Item {
                     id: auroraMark
-                    visible: root.workspaceStyle === "aurora"
+                    visible: wsWidget.root.workspaceStyle === "aurora"
                     anchors.centerIn: parent
-                    width: isFocused ? 32 : 10
+                    width: wsCell.isFocused ? 32 : 10
                     height: 16
 
                     Behavior on width {
@@ -235,13 +236,13 @@ Item {
 
                     Rectangle {
                         anchors.centerIn: parent
-                        width: isFocused ? 28 : (isOccupied ? 6 : 4)
-                        height: isFocused ? 3 : (isOccupied ? 6 : 4)
+                        width: wsCell.isFocused ? 28 : (wsCell.isOccupied ? 6 : 4)
+                        height: wsCell.isFocused ? 3 : (wsCell.isOccupied ? 6 : 4)
                         radius: height / 2
                         color: wsWidget.contentColor
                         opacity: wsMa.containsMouse ? 1.0
-                            : isFocused ? 0.92
-                            : isOccupied ? 0.62
+                            : wsCell.isFocused ? 0.92
+                            : wsCell.isOccupied ? 0.62
                             : 0.18
                         antialiasing: true
 
@@ -264,11 +265,11 @@ Item {
                     hoverEnabled: true
                     acceptedButtons: Qt.LeftButton | Qt.RightButton
                     onClicked: function(mouse) {
-                        if (mouse.button === Qt.RightButton) root.workspaceVisible = !root.workspaceVisible
-                        else root.gotoWorkspace(wsId)
+                        if (mouse.button === Qt.RightButton) wsWidget.root.workspaceVisible = !wsWidget.root.workspaceVisible
+                        else wsWidget.root.gotoWorkspace(wsCell.wsId)
                     }
-                    onEntered: wsCell.scale = root.workspaceStyle === "rings" ? 1.0
-                        : root.workspaceStyle === "aurora" ? 1.04 : 1.15
+                    onEntered: wsCell.scale = wsWidget.root.workspaceStyle === "rings" ? 1.0
+                        : wsWidget.root.workspaceStyle === "aurora" ? 1.04 : 1.15
                     onExited:  wsCell.scale = 1.0
                 }
             }
@@ -290,7 +291,7 @@ Item {
         id: frameMotion
         anchors.fill: parent
         z: 0
-        visible: root.workspaceStyle === "rings" && targetIndex >= 0
+        visible: wsWidget.root.workspaceStyle === "rings" && targetIndex >= 0
 
         readonly property int targetIndex: {
             var focused = Hyprland.focusedWorkspace
@@ -298,8 +299,8 @@ Item {
             return wsWidget.workspaceList.indexOf(focused.id)
         }
         readonly property real targetLeft: targetIndex >= 0
-            ? root.barVertical ? wsRow.x + 8 : wsRow.x + targetIndex * (20 + wsRow.spacing) + 1 : 0
-        readonly property real targetTop: root.barVertical
+            ? wsWidget.root.barVertical ? wsRow.x + 8 : wsRow.x + targetIndex * (20 + wsRow.spacing) + 1 : 0
+        readonly property real targetTop: wsWidget.root.barVertical
             ? wsRow.y + Math.max(0, targetIndex) * (24 + wsRow.spacing) + 3 : 5
         property real animatedY: targetTop
         Behavior on animatedY { NumberAnimation { duration: 190; easing.type: Easing.OutCubic } }

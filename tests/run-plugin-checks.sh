@@ -78,6 +78,10 @@ check_qml
 
 check "variant failure and retry" python3 tests/test-variant-failure-runtime.py
 check "network SSID width" python3 tests/test-network-ssid-width.py
+check "weather radar lifecycle" python3 tests/test-weather-radar-lifecycle.py
+check "system panel bindings" python3 tests/test-system-panels-runtime.py
+check "energy panel bindings" python3 tests/test-energy-panels-runtime.py
+check "calendar and workspace panels" python3 tests/test-calendar-workspace-panels.py
 check "AI widget mouse actions" python3 tests/test-ai-widget-click.py
 
 check "JavaScript regressions" node --test tests/*.test.mjs tests/*.test.cjs tests/test-display-*.cjs
@@ -85,6 +89,7 @@ check "bar style previews" python3 tests/test-bar-style-preview.py
 check "vertical bar layout" python3 tests/test-vertical-bar-layout.py
 check "V1 vertical bar layout" python3 tests/test-v1-vertical-bar.py
 check "vertical workspaces" python3 tests/test-vertical-workspaces.py
+check "workspace focus and navigation" python3 tests/test-workspace-focus-runtime.py
 check "AI collector installation" bash tests/install-ai-backends-integration.sh
 check "Codex cache fallback" env TMPDIR="$tmp" python3 tests/codex-cache-fallback-regression.py
 check "Codex pipe framing" python3 tests/codex-rpc-buffer-regression.py

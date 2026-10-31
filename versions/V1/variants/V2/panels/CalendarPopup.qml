@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import "../modules"
 import Quickshell
@@ -9,7 +10,7 @@ PanelWindow {
     id: calPopup
     required property var root
 
-    screen: root.activePopupScreen
+    screen: calPopup.root.activePopupScreen
 
     color: "transparent"
     anchors { top: true; bottom: true; left: true; right: true }
@@ -17,7 +18,7 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "omarchy-calendar"
 
-    readonly property int barBottom: root.v2BarHeight
+    readonly property int barBottom: calPopup.root.v2BarHeight
     readonly property int gap: 6
     property var calendarEvents: []
     property string calendarLoadError: ""
@@ -50,8 +51,8 @@ PanelWindow {
     }
     readonly property string agendaDateKey: {
         var now = new Date()
-        var target = new Date(now.getFullYear(), now.getMonth() + root.calendarMonthOffset,
-                              root.selectedDay || now.getDate())
+        var target = new Date(now.getFullYear(), now.getMonth() + calPopup.root.calendarMonthOffset,
+                              calPopup.root.selectedDay || now.getDate())
         return dateKey(target)
     }
     readonly property var agendaEvents: CalendarModel.eventsForDate(calendarEvents, agendaDateKey)
@@ -59,13 +60,13 @@ PanelWindow {
     function hasEventOnDay(day) {
         if (!day) return false
         var now = new Date()
-        var target = new Date(now.getFullYear(), now.getMonth() + root.calendarMonthOffset, day)
+        var target = new Date(now.getFullYear(), now.getMonth() + calPopup.root.calendarMonthOffset, day)
         return CalendarModel.eventsForDate(calendarEvents, dateKey(target)).length > 0
     }
 
     function refreshCalendarEvents() {
         var now = new Date()
-        var month = new Date(now.getFullYear(), now.getMonth() + root.calendarMonthOffset, 1)
+        var month = new Date(now.getFullYear(), now.getMonth() + calPopup.root.calendarMonthOffset, 1)
         var end = new Date(month.getFullYear(), month.getMonth() + 1, 0)
         calendarEventsProc.command = [calendarEventsPath, dateKey(month), dateKey(end)]
         calendarLoading = true
@@ -75,7 +76,7 @@ PanelWindow {
 
     function pullGoogleCalendar() {
         var now = new Date()
-        var month = new Date(now.getFullYear(), now.getMonth() + root.calendarMonthOffset, 1)
+        var month = new Date(now.getFullYear(), now.getMonth() + calPopup.root.calendarMonthOffset, 1)
         var end = new Date(month.getFullYear(), month.getMonth() + 1, 0)
         calendarSyncMessage = "Pulling updates from Google…"
         calendarActionProc.command = [calendarPullPath, dateKey(month), dateKey(end)]
@@ -137,30 +138,30 @@ PanelWindow {
 
 
 
-    property real reveal: root.calendarVisible ? 1 : 0
+    property real reveal: calPopup.root.calendarVisible ? 1 : 0
     Behavior on reveal {
         NumberAnimation {
-            duration: root.calendarVisible ? 160 : 120
-            easing.type: root.calendarVisible ? Easing.OutCubic : Easing.InCubic
+            duration: calPopup.root.calendarVisible ? 160 : 120
+            easing.type: calPopup.root.calendarVisible ? Easing.OutCubic : Easing.InCubic
         }
     }
     visible: reveal > 0.001
-    WlrLayershell.keyboardFocus: root.calendarVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: calPopup.root.calendarVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     MouseArea {
         anchors.fill: parent
-        onClicked: root.calendarVisible = false
+        onClicked: calPopup.root.calendarVisible = false
     }
 
     Rectangle {
         id: card
         width: 280
         height: col.implicitHeight + 24
-        radius: reveal > 0.001 ? root.panelRadius : 0
+        radius: calPopup.reveal > 0.001 ? calPopup.root.panelRadius : 0
         color: "transparent"
-        border.color: root.panelBorder
+        border.color: calPopup.root.panelBorder
         border.width: 0
-        PillShadow { theme: root }
+        PillShadow { theme: calPopup.root }
         ConnectedPanelSurface {
             root: calPopup.root
             ownerActive: calPopup.root.calendarVisible
@@ -170,15 +171,15 @@ PanelWindow {
 
         SidePanelPositioner { root: calPopup.root; target: parent; anchorName: "calendar" }
         x: Math.round((parent.width - width) / 2)
-        y: root.barPosition === "bottom"
-            ? (parent.height - barBottom - gap - height) + 2 * (1 - calPopup.reveal)
-            : (barBottom + gap) - 2 * (1 - calPopup.reveal)
+        y: calPopup.root.barPosition === "bottom"
+            ? (parent.height - calPopup.barBottom - calPopup.gap - height) + 2 * (1 - calPopup.reveal)
+            : (calPopup.barBottom + calPopup.gap) - 2 * (1 - calPopup.reveal)
         opacity: calPopup.reveal
-        focus: root.calendarVisible
+        focus: calPopup.root.calendarVisible
 
         Keys.onPressed: function(event) {
             if (event.key === Qt.Key_Escape) {
-                root.calendarVisible = false;
+                calPopup.root.calendarVisible = false;
                 event.accepted = true;
             }
         }
@@ -200,29 +201,29 @@ PanelWindow {
                 Rectangle {
                     id: prevBtn
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                    width: 24; height: 24; radius: root.panelButtonRadius
+                    width: 24; height: 24; radius: calPopup.root.panelButtonRadius
                     color: "transparent"
                     UiText {
                         anchors.centerIn: parent
                         text: "‹"   // ‹
-                        color: prevMa.containsMouse ? root.seal : root.sumi
-                        font.family: root.mono; font.pixelSize: 16
+                        color: prevMa.containsMouse ? calPopup.root.seal : calPopup.root.sumi
+                        font.family: calPopup.root.mono; font.pixelSize: 16
                     }
                     MouseArea {
                         id: prevMa
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.calendarMonthOffset--
+                        onClicked: calPopup.root.calendarMonthOffset--
                     }
                 }
 
                 // month + year — click to jump back to today
                 UiText {
                     anchors.centerIn: parent
-                    text: root.calendarMonthName + "  " + root.calendarYear
-                    color: monthMa.containsMouse && root.calendarMonthOffset !== 0 ? root.seal : root.ink
-                    font.family: root.mono
+                    text: calPopup.root.calendarMonthName + "  " + calPopup.root.calendarYear
+                    color: monthMa.containsMouse && calPopup.root.calendarMonthOffset !== 0 ? calPopup.root.seal : calPopup.root.ink
+                    font.family: calPopup.root.mono
                     font.pixelSize: 12
                     font.letterSpacing: 2
                     font.weight: Font.Medium
@@ -230,8 +231,8 @@ PanelWindow {
                         id: monthMa
                         anchors.fill: parent; anchors.margins: -6
                         hoverEnabled: true
-                        cursorShape: root.calendarMonthOffset !== 0 ? Qt.PointingHandCursor : Qt.ArrowCursor
-                        onClicked: root.calendarMonthOffset = 0
+                        cursorShape: calPopup.root.calendarMonthOffset !== 0 ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        onClicked: calPopup.root.calendarMonthOffset = 0
                     }
                 }
 
@@ -239,25 +240,25 @@ PanelWindow {
                 Rectangle {
                     id: nextBtn
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                    width: 24; height: 24; radius: root.panelButtonRadius
+                    width: 24; height: 24; radius: calPopup.root.panelButtonRadius
                     color: "transparent"
                     UiText {
                         anchors.centerIn: parent
                         text: "›"   // ›
-                        color: nextMa.containsMouse ? root.seal : root.sumi
-                        font.family: root.mono; font.pixelSize: 16
+                        color: nextMa.containsMouse ? calPopup.root.seal : calPopup.root.sumi
+                        font.family: calPopup.root.mono; font.pixelSize: 16
                     }
                     MouseArea {
                         id: nextMa
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.calendarMonthOffset++
+                        onClicked: calPopup.root.calendarMonthOffset++
                     }
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: calPopup.root.sep }
 
             // ── weekday headers ──
             Row {
@@ -265,16 +266,17 @@ PanelWindow {
                 Repeater {
                     model: ["MO","TU","WE","TH","FR","SA","SU"]
                     delegate: Item {
+                        id: weekdayCell
                         required property string modelData
                         required property int index
                         width: parent.width / 7
                         height: 20
                         UiText {
                             anchors.centerIn: parent
-                            text: modelData
-                            color: index >= 5 ? root.seal : root.inkDeep
-                            opacity: index >= 5 ? 0.85 : 0.7
-                            font.family: root.mono
+                            text: weekdayCell.modelData
+                            color: weekdayCell.index >= 5 ? calPopup.root.seal : calPopup.root.inkDeep
+                            opacity: weekdayCell.index >= 5 ? 0.85 : 0.7
+                            font.family: calPopup.root.mono
                             font.pixelSize: 10
                             font.letterSpacing: 2
                         }
@@ -289,8 +291,9 @@ PanelWindow {
                 columnSpacing: 0
                 width: parent.width
                 Repeater {
-                    model: root.calendarCells
+                    model: calPopup.root.calendarCells
                     delegate: Item {
+                        id: dayCell
                         required property var modelData
                         required property int index
                         width: parent.width / 7
@@ -299,27 +302,27 @@ PanelWindow {
                         readonly property int dayOfWeek: index % 7
                         readonly property bool isCurrentMonth: modelData.day !== 0
                         readonly property bool isToday: modelData.today
-                        readonly property bool isSelected: isCurrentMonth && root.selectedDay === modelData.day && root.calendarMonthOffset === 0
+                        readonly property bool isSelected: isCurrentMonth && calPopup.root.selectedDay === modelData.day && calPopup.root.calendarMonthOffset === 0
 
                         readonly property color textColor: {
-                            if (isToday) return root.seal.hsvValue < 0.5 ? root.ink : root.paper;
-                            if (!isCurrentMonth) return root.inkDeep;
-                            return dayOfWeek >= 5 ? root.seal : root.ink;
+                            if (isToday) return calPopup.root.seal.hsvValue < 0.5 ? calPopup.root.ink : calPopup.root.paper;
+                            if (!isCurrentMonth) return calPopup.root.inkDeep;
+                            return dayOfWeek >= 5 ? calPopup.root.seal : calPopup.root.ink;
                         }
 
                         Rectangle {
                             anchors.centerIn: parent
                             width: 24; height: 24; radius: 12
-                            color: root.seal
-                            visible: isToday
+                            color: calPopup.root.seal
+                            visible: dayCell.isToday
                         }
 
                         Rectangle {
                             anchors.centerIn: parent
                             width: 24; height: 24; radius: 12
-                            border.color: root.seal; border.width: 1
+                            border.color: calPopup.root.seal; border.width: 1
                             color: "transparent"
-                            visible: isSelected && !isToday
+                            visible: dayCell.isSelected && !dayCell.isToday
                         }
 
                         Rectangle {
@@ -327,31 +330,31 @@ PanelWindow {
                             anchors.bottom: parent.bottom
                             anchors.bottomMargin: 1
                             width: 4; height: 4; radius: 2
-                            color: isToday ? root.paper : root.seal
-                            visible: isCurrentMonth && calPopup.hasEventOnDay(modelData.day)
+                            color: dayCell.isToday ? calPopup.root.paper : calPopup.root.seal
+                            visible: dayCell.isCurrentMonth && calPopup.hasEventOnDay(dayCell.modelData.day)
                         }
 
                         UiText {
                             anchors.centerIn: parent
-                            text: modelData.day === 0 ? "" : modelData.day
-                            color: textColor
-                            opacity: isCurrentMonth ? 1.0 : 0.35
-                            font.family: root.mono
+                            text: dayCell.modelData.day === 0 ? "" : dayCell.modelData.day
+                            color: dayCell.textColor
+                            opacity: dayCell.isCurrentMonth ? 1.0 : 0.35
+                            font.family: calPopup.root.mono
                             font.pixelSize: 12
-                            font.weight: isToday ? Font.Medium : Font.Light
+                            font.weight: dayCell.isToday ? Font.Medium : Font.Light
                         }
 
                         MouseArea {
                             anchors.fill: parent
-                            hoverEnabled: isCurrentMonth
-                            enabled: isCurrentMonth
-                            cursorShape: isCurrentMonth ? Qt.PointingHandCursor : Qt.ArrowCursor
-                            onClicked: root.selectedDay = modelData.day
+                            hoverEnabled: dayCell.isCurrentMonth
+                            enabled: dayCell.isCurrentMonth
+                            cursorShape: dayCell.isCurrentMonth ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            onClicked: calPopup.root.selectedDay = dayCell.modelData.day
                         }
                     }
                 }
             }
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: calPopup.root.sep }
 
             Item {
                 width: parent.width
@@ -360,8 +363,8 @@ PanelWindow {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: "AGENDA · " + calPopup.agendaDateKey
-                    color: root.sumiHi
-                    font.family: root.mono
+                    color: calPopup.root.sumiHi
+                    font.family: calPopup.root.mono
                     font.pixelSize: 9
                     font.letterSpacing: 0.5
                 }
@@ -369,8 +372,8 @@ PanelWindow {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     text: calPopup.calendarLoading ? "…" : "↻"
-                    color: refreshAgendaMouse.containsMouse ? root.seal : root.sumi
-                    font.family: root.mono
+                    color: refreshAgendaMouse.containsMouse ? calPopup.root.seal : calPopup.root.sumi
+                    font.family: calPopup.root.mono
                     font.pixelSize: 12
                     MouseArea {
                         id: refreshAgendaMouse
@@ -389,6 +392,7 @@ PanelWindow {
                 Repeater {
                     model: calPopup.agendaEvents.slice(0, 4)
                     delegate: Row {
+                        id: agendaRow
                         required property var modelData
                         width: parent.width
                         height: 18
@@ -396,33 +400,33 @@ PanelWindow {
                         Rectangle {
                             anchors.verticalCenter: parent.verticalCenter
                             width: 3; height: 12; radius: 2
-                            color: CalendarModel.calendarColor(modelData) || root.seal
+                            color: CalendarModel.calendarColor(agendaRow.modelData) || calPopup.root.seal
                         }
                         UiText {
                             width: 46
                             height: parent.height
                             verticalAlignment: Text.AlignVCenter
-                            text: modelData.all_day ? "ALL DAY" : String(modelData.start || "").slice(11, 16)
-                            color: root.seal
-                            font.family: root.mono
+                            text: agendaRow.modelData.all_day ? "ALL DAY" : String(agendaRow.modelData.start || "").slice(11, 16)
+                            color: calPopup.root.seal
+                            font.family: calPopup.root.mono
                             font.pixelSize: 8
                         }
                         UiText {
                             width: parent.width - 88
                             height: parent.height
                             verticalAlignment: Text.AlignVCenter
-                            text: String(modelData.title || "Untitled event")
-                            color: root.ink
-                            font.family: root.mono
+                            text: String(agendaRow.modelData.title || "Untitled event")
+                            color: calPopup.root.ink
+                            font.family: calPopup.root.mono
                             font.pixelSize: 9
                             elide: Text.ElideRight
                         }
                         Rectangle {
-                            width: 22; height: 18; radius: root.tileRadius
-                            color: deleteMouse.containsMouse ? root.fillHover : root.fillIdle
-                            border.color: deleteMouse.containsMouse ? root.seal : root.sep; border.width: 1
-                            UiText { anchors.centerIn: parent; text: "DEL"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 7 }
-                            MouseArea { id: deleteMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: calPopup.deleteEvent(modelData) }
+                            width: 22; height: 18; radius: calPopup.root.tileRadius
+                            color: deleteMouse.containsMouse ? calPopup.root.fillHover : calPopup.root.fillIdle
+                            border.color: deleteMouse.containsMouse ? calPopup.root.seal : calPopup.root.sep; border.width: 1
+                            UiText { anchors.centerIn: parent; text: "DEL"; color: calPopup.root.sumiHi; font.family: calPopup.root.mono; font.pixelSize: 7 }
+                            MouseArea { id: deleteMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: calPopup.deleteEvent(agendaRow.modelData) }
                         }
                     }
                 }
@@ -430,8 +434,8 @@ PanelWindow {
                     width: parent.width
                     visible: !calPopup.calendarLoading && calPopup.agendaEvents.length === 0
                     text: calPopup.calendarLoadError || "No events for this day"
-                    color: calPopup.calendarLoadError ? root.sumi : root.inkDeep
-                    font.family: root.mono
+                    color: calPopup.calendarLoadError ? calPopup.root.sumi : calPopup.root.inkDeep
+                    font.family: calPopup.root.mono
                     font.pixelSize: 9
                     elide: Text.ElideRight
                 }
@@ -439,17 +443,17 @@ PanelWindow {
             Row {
                 width: parent.width; height: 24
                 Rectangle {
-                    width: parent.width; height: 24; radius: root.tileRadius
-                    color: newEventMouse.containsMouse ? root.fillHover : root.fillIdle
-                    border.color: newEventMouse.containsMouse ? root.seal : root.sep; border.width: 1
-                    UiText { anchors.centerIn: parent; text: calPopup.editingEvent ? "CANCEL EVENT" : "+ NEW EVENT"; color: root.seal; font.family: root.mono; font.pixelSize: 8 }
+                    width: parent.width; height: 24; radius: calPopup.root.tileRadius
+                    color: newEventMouse.containsMouse ? calPopup.root.fillHover : calPopup.root.fillIdle
+                    border.color: newEventMouse.containsMouse ? calPopup.root.seal : calPopup.root.sep; border.width: 1
+                    UiText { anchors.centerIn: parent; text: calPopup.editingEvent ? "CANCEL EVENT" : "+ NEW EVENT"; color: calPopup.root.seal; font.family: calPopup.root.mono; font.pixelSize: 8 }
                     MouseArea { id: newEventMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: calPopup.editingEvent ? calPopup.editingEvent = false : calPopup.startEventCreation() }
                 }
             }
             Column {
                 visible: calPopup.editingEvent; width: parent.width; spacing: 5
-                TextInput { id: eventTitleInput; width: parent.width; height: 25; text: calPopup.eventTitle; onTextEdited: calPopup.eventTitle = text; color: root.ink; font.family: root.mono; font.pixelSize: 10; leftPadding: 7; Rectangle { z: -1; anchors.fill: parent; color: root.fillIdle; border.color: root.sep; border.width: 1; radius: root.tileRadius } }
-                TextInput { width: parent.width; height: 30; text: calPopup.eventDescription; onTextEdited: calPopup.eventDescription = text; color: root.ink; font.family: root.mono; font.pixelSize: 9; leftPadding: 7; Rectangle { z: -1; anchors.fill: parent; color: root.fillIdle; border.color: root.sep; border.width: 1; radius: root.tileRadius } }
+                TextInput { id: eventTitleInput; width: parent.width; height: 25; text: calPopup.eventTitle; onTextEdited: calPopup.eventTitle = text; color: calPopup.root.ink; font.family: calPopup.root.mono; font.pixelSize: 10; leftPadding: 7; Rectangle { z: -1; anchors.fill: parent; color: calPopup.root.fillIdle; border.color: calPopup.root.sep; border.width: 1; radius: calPopup.root.tileRadius } }
+                TextInput { width: parent.width; height: 30; text: calPopup.eventDescription; onTextEdited: calPopup.eventDescription = text; color: calPopup.root.ink; font.family: calPopup.root.mono; font.pixelSize: 9; leftPadding: 7; Rectangle { z: -1; anchors.fill: parent; color: calPopup.root.fillIdle; border.color: calPopup.root.sep; border.width: 1; radius: calPopup.root.tileRadius } }
                 Row {
                     width: parent.width
                     height: 22
@@ -457,22 +461,23 @@ PanelWindow {
                     Repeater {
                         model: [{ v: "none", t: "ONCE" }, { v: "daily", t: "DAY" }, { v: "weekly", t: "WEEK" }, { v: "monthly", t: "MONTH" }, { v: "yearly", t: "YEAR" }]
                         delegate: Rectangle {
+                            id: repeatOption
                             required property var modelData
                             width: (parent.width - 12) / 5
                             height: 22
-                            radius: root.tileRadius
-                            color: calPopup.eventRepeat === modelData.v ? root.fillActive : root.fillIdle
-                            border.color: calPopup.eventRepeat === modelData.v ? root.seal : root.sep
+                            radius: calPopup.root.tileRadius
+                            color: calPopup.eventRepeat === modelData.v ? calPopup.root.fillActive : calPopup.root.fillIdle
+                            border.color: calPopup.eventRepeat === modelData.v ? calPopup.root.seal : calPopup.root.sep
                             border.width: 1
-                            UiText { anchors.centerIn: parent; text: modelData.t; color: root.ink; font.family: root.mono; font.pixelSize: 7 }
-                            MouseArea { anchors.fill: parent; onClicked: calPopup.eventRepeat = modelData.v }
+                            UiText { anchors.centerIn: parent; text: repeatOption.modelData.t; color: calPopup.root.ink; font.family: calPopup.root.mono; font.pixelSize: 7 }
+                            MouseArea { anchors.fill: parent; onClicked: calPopup.eventRepeat = repeatOption.modelData.v }
                         }
                     }
                 }
-                TextInput { visible: calPopup.eventRepeat !== "none"; width: parent.width; height: 23; text: calPopup.eventRepeatCount; onTextEdited: calPopup.eventRepeatCount = text; color: root.ink; font.family: root.mono; font.pixelSize: 9; leftPadding: 7; Rectangle { z: -1; anchors.fill: parent; color: root.fillIdle; border.color: root.sep; border.width: 1; radius: root.tileRadius } }
+                TextInput { visible: calPopup.eventRepeat !== "none"; width: parent.width; height: 23; text: calPopup.eventRepeatCount; onTextEdited: calPopup.eventRepeatCount = text; color: calPopup.root.ink; font.family: calPopup.root.mono; font.pixelSize: 9; leftPadding: 7; Rectangle { z: -1; anchors.fill: parent; color: calPopup.root.fillIdle; border.color: calPopup.root.sep; border.width: 1; radius: calPopup.root.tileRadius } }
                 Rectangle {
-                    width: parent.width; height: 25; radius: root.tileRadius; color: root.seal
-                    UiText { anchors.centerIn: parent; text: calendarCreateProc.running ? "SAVING..." : "SAVE EVENT"; color: root.paper; font.family: root.mono; font.pixelSize: 8 }
+                    width: parent.width; height: 25; radius: calPopup.root.tileRadius; color: calPopup.root.seal
+                    UiText { anchors.centerIn: parent; text: calendarCreateProc.running ? "SAVING..." : "SAVE EVENT"; color: calPopup.root.paper; font.family: calPopup.root.mono; font.pixelSize: 8 }
                     MouseArea { anchors.fill: parent; enabled: !calendarCreateProc.running; onClicked: calPopup.saveEvent() }
                 }
             }
@@ -480,8 +485,8 @@ PanelWindow {
                 width: parent.width
                 visible: !calPopup.calendarConnected
                 text: "Google sync needs setup. Direct uses your own Google Cloud client and keeps refreshes between this machine and Google; Hosted needs no client but relays sign-in and refreshes through caldir.org."
-                color: root.sumi
-                font.family: root.mono
+                color: calPopup.root.sumi
+                font.family: calPopup.root.mono
                 font.pixelSize: 7
                 wrapMode: Text.Wrap
             }
@@ -494,20 +499,21 @@ PanelWindow {
                 Repeater {
                     model: [{ v: "direct", t: "GOOGLE DIRECT" }, { v: "hosted", t: "GOOGLE HOSTED" }]
                     delegate: Rectangle {
+                        id: setupModeOption
                         required property var modelData
                         width: (calendarSetupModeRow.width - calendarSetupModeRow.spacing) / 2
                         height: 24
-                        radius: root.tileRadius
-                        color: setupModeMouse.containsMouse ? root.fillHover : root.fillIdle
-                        border.color: setupModeMouse.containsMouse ? root.seal : root.sep
+                        radius: calPopup.root.tileRadius
+                        color: setupModeMouse.containsMouse ? calPopup.root.fillHover : calPopup.root.fillIdle
+                        border.color: setupModeMouse.containsMouse ? calPopup.root.seal : calPopup.root.sep
                         border.width: 1
-                        UiText { anchors.centerIn: parent; text: modelData.t; color: root.seal; font.family: root.mono; font.pixelSize: 8 }
+                        UiText { anchors.centerIn: parent; text: setupModeOption.modelData.t; color: calPopup.root.seal; font.family: calPopup.root.mono; font.pixelSize: 8 }
                         MouseArea {
                             id: setupModeMouse
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: calPopup.connectGoogleCalendar(modelData.v)
+                            onClicked: calPopup.connectGoogleCalendar(setupModeOption.modelData.v)
                         }
                     }
                 }
@@ -520,19 +526,20 @@ PanelWindow {
                 Repeater {
                     model: ["PULL GOOGLE", calPopup.calendarPushArmed ? "CONFIRM PUSH" : "PUSH GOOGLE"]
                     delegate: Rectangle {
+                        id: syncActionOption
                         required property string modelData
                         required property int index
                         width: (calendarSyncActionsRow.width - calendarSyncActionsRow.spacing) / 2
                         height: 24
-                        radius: root.tileRadius
-                        color: actionMouse.containsMouse ? root.fillHover : root.fillIdle
-                        border.color: actionMouse.containsMouse ? root.seal : root.sep
+                        radius: calPopup.root.tileRadius
+                        color: actionMouse.containsMouse ? calPopup.root.fillHover : calPopup.root.fillIdle
+                        border.color: actionMouse.containsMouse ? calPopup.root.seal : calPopup.root.sep
                         border.width: 1
                         UiText {
                             anchors.centerIn: parent
-                            text: calPopup.calendarLoading || calendarActionProc.running ? "WAIT…" : modelData
-                            color: index === 1 && calPopup.calendarPushArmed ? root.color01 : root.seal
-                            font.family: root.mono
+                            text: calPopup.calendarLoading || calendarActionProc.running ? "WAIT…" : syncActionOption.modelData
+                            color: syncActionOption.index === 1 && calPopup.calendarPushArmed ? calPopup.root.color01 : calPopup.root.seal
+                            font.family: calPopup.root.mono
                             font.pixelSize: 8
                         }
                         MouseArea {
@@ -541,7 +548,7 @@ PanelWindow {
                             hoverEnabled: true
                             enabled: !calendarActionProc.running && !calPopup.calendarLoading
                             cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                            onClicked: index === 0 ? calPopup.pullGoogleCalendar() : calPopup.pushGoogleCalendar()
+                            onClicked: syncActionOption.index === 0 ? calPopup.pullGoogleCalendar() : calPopup.pushGoogleCalendar()
                         }
                     }
                 }
@@ -551,8 +558,8 @@ PanelWindow {
                 width: parent.width
                 visible: calPopup.calendarSyncMessage !== ""
                 text: calPopup.calendarSyncMessage
-                color: calPopup.calendarSyncMessage.indexOf("failed") >= 0 ? root.color01 : root.sumi
-                font.family: root.mono
+                color: calPopup.calendarSyncMessage.indexOf("failed") >= 0 ? calPopup.root.color01 : calPopup.root.sumi
+                font.family: calPopup.root.mono
                 font.pixelSize: 8
                 wrapMode: Text.Wrap
             }
@@ -565,7 +572,7 @@ PanelWindow {
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
-                    var data = JSON.parse(String(this.text || "{}"))
+                    const data = JSON.parse(String(this.text || "{}"))
                     if (data.ok === true && Array.isArray(data.events)) {
                         calPopup.calendarEvents = data.events
                         calPopup.calendarLoadError = ""
@@ -697,7 +704,7 @@ PanelWindow {
     Component.onCompleted: refreshGoogleState()
     onVisibleChanged: if (visible) { refreshCalendarEvents(); refreshGoogleState() }
     Connections {
-        target: root
+        target: calPopup.root
         function onCalendarMonthOffsetChanged() { if (calPopup.visible) calPopup.refreshCalendarEvents() }
     }
 }

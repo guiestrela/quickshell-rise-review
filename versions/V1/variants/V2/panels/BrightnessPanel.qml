@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import "../modules"
 import Quickshell
@@ -9,7 +10,7 @@ PanelWindow {
     id: briPanel
     required property var root
 
-    screen: root.activePopupScreen
+    screen: briPanel.root.activePopupScreen
 
     color: "transparent"
     anchors { top: true; bottom: true; left: true; right: true }
@@ -17,24 +18,24 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "omarchy-brightness"
 
-    readonly property int barBottom: root.v2BarHeight
+    readonly property int barBottom: briPanel.root.v2BarHeight
     readonly property int gap: 6
 
     property int percent: 0
     property int queuedSetPercent: -1
     property bool brightnessErrorNotified: false
 
-    property real reveal: root.brightnessVisible ? 1 : 0
+    property real reveal: briPanel.root.brightnessVisible ? 1 : 0
     Behavior on reveal {
         NumberAnimation {
-            duration: root.brightnessVisible ? 160 : 120
-            easing.type: root.brightnessVisible ? Easing.OutCubic : Easing.InCubic
+            duration: briPanel.root.brightnessVisible ? 160 : 120
+            easing.type: briPanel.root.brightnessVisible ? Easing.OutCubic : Easing.InCubic
         }
     }
     visible: reveal > 0.001
-    WlrLayershell.keyboardFocus: root.brightnessVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: briPanel.root.brightnessVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    MouseArea { anchors.fill: parent; onClicked: root.brightnessVisible = false }
+    MouseArea { anchors.fill: parent; onClicked: briPanel.root.brightnessVisible = false }
 
     function refresh() { briData.running = false; briData.running = true }
 
@@ -71,11 +72,11 @@ PanelWindow {
         id: card
         width: 280
         height: col.implicitHeight + 24
-        radius: reveal > 0.001 ? root.panelRadius : 0
+        radius: briPanel.reveal > 0.001 ? briPanel.root.panelRadius : 0
         color: "transparent"
-        border.color: root.panelBorder
+        border.color: briPanel.root.panelBorder
         border.width: 0
-        PillShadow { theme: root }
+        PillShadow { theme: briPanel.root }
         ConnectedPanelSurface {
             root: briPanel.root
             ownerActive: briPanel.root.brightnessVisible
@@ -84,15 +85,15 @@ PanelWindow {
         }
 
         SidePanelPositioner { root: briPanel.root; target: parent; anchorName: "brightness" }
-        x: Math.round(Math.max(6, Math.min(root.brightnessBarX - width / 2, parent.width - width - 6)))
-        y: root.barPosition === "bottom"
-            ? (parent.height - barBottom - gap - height) + 2 * (1 - briPanel.reveal)
-            : (barBottom + gap) - 2 * (1 - briPanel.reveal)
+        x: Math.round(Math.max(6, Math.min(briPanel.root.brightnessBarX - width / 2, parent.width - width - 6)))
+        y: briPanel.root.barPosition === "bottom"
+            ? (parent.height - briPanel.barBottom - briPanel.gap - height) + 2 * (1 - briPanel.reveal)
+            : (briPanel.barBottom + briPanel.gap) - 2 * (1 - briPanel.reveal)
         opacity: briPanel.reveal
-        focus: root.brightnessVisible
+        focus: briPanel.root.brightnessVisible
 
         Keys.onPressed: function(event) {
-            if (event.key === Qt.Key_Escape) { root.brightnessVisible = false; event.accepted = true }
+            if (event.key === Qt.Key_Escape) { briPanel.root.brightnessVisible = false; event.accepted = true }
         }
 
         MouseArea { anchors.fill: parent; onClicked: {} }
@@ -109,18 +110,18 @@ PanelWindow {
                 UiText {
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                     text: "Brightness"
-                    color: root.ink; font.family: root.mono; font.pixelSize: 13
+                    color: briPanel.root.ink; font.family: briPanel.root.mono; font.pixelSize: 13
                     font.letterSpacing: 2; font.weight: Font.Medium
                 }
                 UiText {
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                    text: "✕"; color: closeMa.containsMouse ? root.seal : root.sumi; font.pixelSize: 12
+                    text: "✕"; color: closeMa.containsMouse ? briPanel.root.seal : briPanel.root.sumi; font.pixelSize: 12
                     Behavior on color { ColorAnimation { duration: 120 } }
-                    MouseArea { id: closeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.brightnessVisible = false }
+                    MouseArea { id: closeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: briPanel.root.brightnessVisible = false }
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: briPanel.root.sep }
 
             // ── interactive bar ──
             Item {
@@ -130,17 +131,17 @@ PanelWindow {
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.top: parent.top
                     text: briPanel.percent + "%"
-                    color: root.seal
-                    font.family: root.mono; font.pixelSize: 11; font.weight: Font.Medium
+                    color: briPanel.root.seal
+                    font.family: briPanel.root.mono; font.pixelSize: 11; font.weight: Font.Medium
                 }
                 Rectangle {
                     id: track
                     anchors.bottom: parent.bottom
                     width: parent.width; height: 8; radius: 4
-                    color: root.fillActive
+                    color: briPanel.root.fillActive
                     Rectangle {
                         width: parent.width * briPanel.percent / 100
-                        height: parent.height; radius: 4; color: root.seal
+                        height: parent.height; radius: 4; color: briPanel.root.seal
                         Behavior on width { NumberAnimation { duration: 150 } }
                     }
                     MouseArea {
@@ -156,7 +157,7 @@ PanelWindow {
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: briPanel.root.sep }
 
             // ── +/- buttons ──
             Row {
@@ -164,15 +165,15 @@ PanelWindow {
                 spacing: 8
                 Rectangle {
                     id: btnDown
-                    width: root.evenW((parent.width - 8) / 2); height: 28; radius: root.panelButtonRadius
-                    color: _dn.containsMouse ? root.fillHover : root.fillIdle
-                    border.color: _dn.containsMouse ? root.seal : root.sep
+                    width: briPanel.root.evenW((parent.width - 8) / 2); height: 28; radius: briPanel.root.panelButtonRadius
+                    color: _dn.containsMouse ? briPanel.root.fillHover : briPanel.root.fillIdle
+                    border.color: _dn.containsMouse ? briPanel.root.seal : briPanel.root.sep
                     border.width: 1
                     Behavior on color { ColorAnimation { duration: 120 } }
                     UiText {
                         anchors.centerIn: parent
-                        text: "− 5%"; color: _dn.containsMouse ? root.seal : root.sumi
-                        font.family: root.mono; font.pixelSize: 11
+                        text: "− 5%"; color: _dn.containsMouse ? briPanel.root.seal : briPanel.root.sumi
+                        font.family: briPanel.root.mono; font.pixelSize: 11
                     }
                     MouseArea {
                         id: _dn
@@ -183,15 +184,15 @@ PanelWindow {
                 }
                 Rectangle {
                     id: btnUp
-                    width: root.evenW((parent.width - 8) / 2); height: 28; radius: root.panelButtonRadius
-                    color: _up.containsMouse ? root.fillHover : root.fillIdle
-                    border.color: _up.containsMouse ? root.seal : root.sep
+                    width: briPanel.root.evenW((parent.width - 8) / 2); height: 28; radius: briPanel.root.panelButtonRadius
+                    color: _up.containsMouse ? briPanel.root.fillHover : briPanel.root.fillIdle
+                    border.color: _up.containsMouse ? briPanel.root.seal : briPanel.root.sep
                     border.width: 1
                     Behavior on color { ColorAnimation { duration: 120 } }
                     UiText {
                         anchors.centerIn: parent
-                        text: "+ 5%"; color: _up.containsMouse ? root.seal : root.sumi
-                        font.family: root.mono; font.pixelSize: 11
+                        text: "+ 5%"; color: _up.containsMouse ? briPanel.root.seal : briPanel.root.sumi
+                        font.family: briPanel.root.mono; font.pixelSize: 11
                     }
                     MouseArea {
                         id: _up

@@ -80,7 +80,7 @@ Item {
         for (var r = 0; r < models.length; r++) {
             for (var i = 0; i < models[r].count; i++) {
                 var gid = models[r].get(i).gid
-                if (gid || root.barUnlocked) out.push({gid: gid, region: r, index: i})
+                if (gid || rail.root.barUnlocked) out.push({gid: gid, region: r, index: i})
             }
         }
         return out
@@ -111,12 +111,12 @@ Item {
                     if (names[n] === "weather") localY = item.contentItem.weatherCenterY
                 }
                 values[names[n]] = item.mapToItem(rail, 0, localY).y
-                xs[names[n]] = root.barPosition === "right" ? rail.barWindow.screen.width - root.verticalBarWidth / 2 : root.verticalBarWidth / 2
+                xs[names[n]] = rail.root.barPosition === "right" ? rail.barWindow.screen.width - rail.root.verticalBarWidth / 2 : rail.root.verticalBarWidth / 2
             }
         }
         rail.updateRuns()
-        root.publishVerticalAnchors(barWindow.screenName, values)
-        root.publishBarAnchors(barWindow.screenName, xs)
+        rail.root.publishVerticalAnchors(barWindow.screenName, values)
+        rail.root.publishBarAnchors(barWindow.screenName, xs)
     }
     Timer { id: layoutTimer; interval: 0; onTriggered: { anchorTimer.restart() } }
     Timer { id: anchorTimer; interval: 0; onTriggered: rail.publishAnchors() }
@@ -128,14 +128,14 @@ Item {
         function onBarUnlockedChanged() { rail.sourceRegion = -1; rail.sourceIndex = -1 }
         function onBarPositionChanged() { anchorTimer.restart() }
     }
-    focus: root.barUnlocked
-    Keys.onEscapePressed: root.barUnlocked = false
+    focus: rail.root.barUnlocked
+    Keys.onEscapePressed: rail.root.barUnlocked = false
     Rectangle {
         id: surface
         anchors.fill: parent
         color: "transparent"
-        radius: root.pillRadius
-        border.color: root.pillBorder
+        radius: rail.root.pillRadius
+        border.color: rail.root.pillBorder
         border.width: 0
         Repeater {
             model: rail.runs
@@ -183,7 +183,7 @@ Item {
             contentHeight: stack.height
             clip: true
             boundsBehavior: Flickable.StopAtBounds
-            interactive: !root.barUnlocked
+            interactive: !rail.root.barUnlocked
             onContentYChanged: anchorTimer.restart()
             WheelHandler {
                 enabled: rail.root.barUnlocked
@@ -232,7 +232,7 @@ Item {
                         readonly property bool groupedSurface: gid === "G3" || gid === "G8" || gid === "G10"
                         parent: rail.regionColumns[modelData.region]
                         width: parent.width
-                        readonly property real contentHeight: loader.item && loader.item.implicitWidth > 0 ? Math.max(36, loader.item.implicitHeight + (groupedSurface ? 8 : 0)) : root.barUnlocked ? 32 : 0
+                        readonly property real contentHeight: loader.item && loader.item.implicitWidth > 0 ? Math.max(36, loader.item.implicitHeight + (groupedSurface ? 8 : 0)) : rail.root.barUnlocked ? 32 : 0
                         height: contentHeight > 0 ? contentHeight + (rail.splitAfter(modelData.region, modelData.index) ? 12 : 0) : 0
                         visible: height > 0
                         onYChanged: anchorTimer.restart()
@@ -243,11 +243,11 @@ Item {
                             anchors.horizontalCenter: parent.horizontalCenter
                             y: (cell.contentHeight - height) / 2
                             width: rail.pillWidth
-                            height: Math.max(root.pillH, loader.implicitHeight + 8)
-                            radius: root.pillRadius
-                            color: root.pill
-                            border.color: root.pillBorder
-                            border.width: root.pillBorderW
+                            height: Math.max(rail.root.pillH, loader.implicitHeight + 8)
+                            radius: rail.root.pillRadius
+                            color: rail.root.pill
+                            border.color: rail.root.pillBorder
+                            border.width: rail.root.pillBorderW
                             PillShadow { theme: rail.root }
                         }
                         Loader {
@@ -262,7 +262,7 @@ Item {
                         }
                         MouseArea {
                             anchors.fill: parent
-                            enabled: root.barUnlocked && !root.layoutProtected
+                            enabled: rail.root.barUnlocked && !rail.root.layoutProtected
                             preventStealing: true
                             onPressed: { rail.sourceRegion = cell.modelData.region; rail.sourceIndex = cell.modelData.index }
                             onReleased: function(mouse) {
@@ -290,22 +290,22 @@ Item {
         MouseArea {
             anchors.fill: parent
             z: -1
-            onDoubleClicked: if (!root.layoutProtected) root.barUnlocked = true
+            onDoubleClicked: if (!rail.root.layoutProtected) rail.root.barUnlocked = true
         }
     }
     component Action: Item {
         id: action
         property string label: ""
-        property color contentColor: root.ink
+        property color contentColor: rail.root.ink
         signal activated()
         signal secondaryActivated()
         implicitWidth: 32; implicitHeight: 32
-        Text { anchors.centerIn: parent; text: action.label; color: action.contentColor; font.family: root.mono; font.pixelSize: 11 }
+        Text { anchors.centerIn: parent; text: action.label; color: action.contentColor; font.family: rail.root.mono; font.pixelSize: 11 }
         MouseArea {
             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
             acceptedButtons: Qt.LeftButton | Qt.RightButton
             onClicked: function(mouse) {
-                root.activatePopupScreen(rail.barWindow.screen)
+                rail.root.activatePopupScreen(rail.barWindow.screen)
                 if (mouse.button === Qt.RightButton) action.secondaryActivated()
                 else action.activated()
             }
@@ -341,8 +341,8 @@ Item {
                     label: Qt.formatDateTime(now.date, rail.root.clock12h ? "hh\nmm\nAP" : "HH\nmm")
                     SystemClock { id: now; precision: SystemClock.Minutes }
                     implicitHeight: rail.root.clock12h ? 44 : 32
-                    onActivated: root.calendarVisible = !root.calendarVisible
-                    onSecondaryActivated: root.weatherVisible = !root.weatherVisible
+                    onActivated: rail.root.calendarVisible = !rail.root.calendarVisible
+                    onSecondaryActivated: rail.root.weatherVisible = !rail.root.weatherVisible
                 }
             }
         }
@@ -351,9 +351,9 @@ Item {
     Component {
         id: statusGroupComponent
         Item {
-            implicitWidth: root.modStatus ? 32 : 0
-            visible: root.modStatus
-            implicitHeight: root.modStatus ? column.implicitHeight : 0
+            implicitWidth: rail.root.modStatus ? 32 : 0
+            visible: rail.root.modStatus
+            implicitHeight: rail.root.modStatus ? column.implicitHeight : 0
             Column {
                 id: column
                 width: parent.width
@@ -367,9 +367,9 @@ Item {
     Component {
         id: quick
         Item {
-            implicitWidth: root.modQuick ? 32 : 0
-            visible: root.modQuick
-            implicitHeight: root.modQuick ? column.implicitHeight : 0
+            implicitWidth: rail.root.modQuick ? 32 : 0
+            visible: rail.root.modQuick
+            implicitHeight: rail.root.modQuick ? column.implicitHeight : 0
             Column {
                 id: column
                 width: parent.width
@@ -382,9 +382,9 @@ Item {
     }
     Component.onDestruction: {
         if (root) {
-            var next = Object.assign({}, root.verticalAnchorsByScreen)
+            var next = Object.assign({}, rail.root.verticalAnchorsByScreen)
             delete next[barWindow.screenName]
-            root.verticalAnchorsByScreen = next
+            rail.root.verticalAnchorsByScreen = next
         }
     }
     function layoutSnapshot() {

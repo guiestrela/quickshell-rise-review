@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import "../modules"
 import Quickshell
@@ -9,7 +10,7 @@ PanelWindow {
     id: batPanel
     required property var root
 
-    screen: root.activePopupScreen
+    screen: batPanel.root.activePopupScreen
 
     color: "transparent"
     anchors { top: true; bottom: true; left: true; right: true }
@@ -17,7 +18,7 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "omarchy-battery"
 
-    readonly property int barBottom: root.v2BarHeight
+    readonly property int barBottom: batPanel.root.v2BarHeight
     readonly property int gap: 6
 
     property int    percent: 0
@@ -40,27 +41,27 @@ PanelWindow {
         return t.length > 0 ? t.charAt(0).toUpperCase() + t.slice(1) : "Unknown"
     }
 
-    property real reveal: root.batteryVisible ? 1 : 0
+    property real reveal: batPanel.root.batteryVisible ? 1 : 0
     Behavior on reveal {
         NumberAnimation {
-            duration: root.batteryVisible ? 160 : 120
-            easing.type: root.batteryVisible ? Easing.OutCubic : Easing.InCubic
+            duration: batPanel.root.batteryVisible ? 160 : 120
+            easing.type: batPanel.root.batteryVisible ? Easing.OutCubic : Easing.InCubic
         }
     }
     visible: reveal > 0.001
-    WlrLayershell.keyboardFocus: root.batteryVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: batPanel.root.batteryVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    MouseArea { anchors.fill: parent; onClicked: root.batteryVisible = false }
+    MouseArea { anchors.fill: parent; onClicked: batPanel.root.batteryVisible = false }
 
     Rectangle {
         id: card
         width: 300
         height: col.implicitHeight + 24
-        radius: reveal > 0.001 ? root.panelRadius : 0
+        radius: batPanel.reveal > 0.001 ? batPanel.root.panelRadius : 0
         color: "transparent"
-        border.color: root.panelBorder
+        border.color: batPanel.root.panelBorder
         border.width: 0
-        PillShadow { theme: root }
+        PillShadow { theme: batPanel.root }
         ConnectedPanelSurface {
             root: batPanel.root
             ownerActive: batPanel.root.batteryVisible
@@ -69,15 +70,15 @@ PanelWindow {
         }
 
         SidePanelPositioner { root: batPanel.root; target: parent; anchorName: "battery" }
-        x: Math.round(Math.max(6, Math.min(root.batteryBarX - width / 2, parent.width - width - 6)))
-        y: root.barPosition === "bottom"
-            ? (parent.height - barBottom - gap - height) + 2 * (1 - batPanel.reveal)
-            : (barBottom + gap) - 2 * (1 - batPanel.reveal)
+        x: Math.round(Math.max(6, Math.min(batPanel.root.batteryBarX - width / 2, parent.width - width - 6)))
+        y: batPanel.root.barPosition === "bottom"
+            ? (parent.height - batPanel.barBottom - batPanel.gap - height) + 2 * (1 - batPanel.reveal)
+            : (batPanel.barBottom + batPanel.gap) - 2 * (1 - batPanel.reveal)
         opacity: batPanel.reveal
-        focus: root.batteryVisible
+        focus: batPanel.root.batteryVisible
 
         Keys.onPressed: function(event) {
-            if (event.key === Qt.Key_Escape) { root.batteryVisible = false; event.accepted = true }
+            if (event.key === Qt.Key_Escape) { batPanel.root.batteryVisible = false; event.accepted = true }
         }
 
         MouseArea { anchors.fill: parent; onClicked: {} }
@@ -94,18 +95,18 @@ PanelWindow {
                 UiText {
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                     text: "Battery"
-                    color: root.ink; font.family: root.mono; font.pixelSize: 13
+                    color: batPanel.root.ink; font.family: batPanel.root.mono; font.pixelSize: 13
                     font.letterSpacing: 2; font.weight: Font.Medium
                 }
                 UiText {
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                    text: "✕"; color: closeMa.containsMouse ? root.seal : root.sumi; font.pixelSize: 12
+                    text: "✕"; color: closeMa.containsMouse ? batPanel.root.seal : batPanel.root.sumi; font.pixelSize: 12
                     Behavior on color { ColorAnimation { duration: 120 } }
-                    MouseArea { id: closeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.batteryVisible = false }
+                    MouseArea { id: closeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: batPanel.root.batteryVisible = false }
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: batPanel.root.sep }
 
             Item {
                 width: parent.width
@@ -114,17 +115,17 @@ PanelWindow {
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.top: parent.top
                     text: batPanel.percent + "%"
-                    color: batPanel.charging ? root.indigo : root.seal
-                    font.family: root.mono; font.pixelSize: 11; font.weight: Font.Medium
+                    color: batPanel.charging ? batPanel.root.indigo : batPanel.root.seal
+                    font.family: batPanel.root.mono; font.pixelSize: 11; font.weight: Font.Medium
                 }
                 Rectangle {
                     anchors.bottom: parent.bottom
                     width: parent.width; height: 8; radius: 4
-                    color: root.fillActive
+                    color: batPanel.root.fillActive
                     Rectangle {
                         width: parent.width * batPanel.percent / 100
                         height: parent.height; radius: 4
-                        color: batPanel.charging ? root.indigo : root.seal
+                        color: batPanel.charging ? batPanel.root.indigo : batPanel.root.seal
                         Behavior on width { NumberAnimation { duration: 300 } }
                     }
                 }
@@ -135,57 +136,57 @@ PanelWindow {
                 spacing: 4
                 Row {
                     width: parent.width
-                    UiText { text: "Status"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: "Status"; color: batPanel.root.sumiHi; font.family: batPanel.root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
                     UiText {
                         text: batPanel.statusTitle(batPanel.status)
-                        color: batPanel.charging ? root.indigo : root.ink
-                        font.family: root.mono; font.pixelSize: 11
+                        color: batPanel.charging ? batPanel.root.indigo : batPanel.root.ink
+                        font.family: batPanel.root.mono; font.pixelSize: 11
                     }
                 }
                 Row {
                     width: parent.width
                     visible: batPanel.timeText !== ""
-                    UiText { text: batPanel.timeLabel; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
-                    UiText { text: batPanel.timeText; color: root.ink; font.family: root.mono; font.pixelSize: 11 }
+                    UiText { text: batPanel.timeLabel; color: batPanel.root.sumiHi; font.family: batPanel.root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: batPanel.timeText; color: batPanel.root.ink; font.family: batPanel.root.mono; font.pixelSize: 11 }
                 }
                 Row {
                     width: parent.width
                     visible: batPanel.healthText !== ""
-                    UiText { text: batPanel.healthLabel; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
-                    UiText { text: batPanel.healthText; color: root.ink; font.family: root.mono; font.pixelSize: 11 }
+                    UiText { text: batPanel.healthLabel; color: batPanel.root.sumiHi; font.family: batPanel.root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: batPanel.healthText; color: batPanel.root.ink; font.family: batPanel.root.mono; font.pixelSize: 11 }
                 }
                 Row {
                     width: parent.width
                     visible: batPanel.powerRate !== ""
-                    UiText { text: batPanel.charging ? "Charge rate" : "Power draw"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
-                    UiText { text: batPanel.powerRate + " W"; color: root.ink; font.family: root.mono; font.pixelSize: 11 }
+                    UiText { text: batPanel.charging ? "Charge rate" : "Power draw"; color: batPanel.root.sumiHi; font.family: batPanel.root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: batPanel.powerRate + " W"; color: batPanel.root.ink; font.family: batPanel.root.mono; font.pixelSize: 11 }
                 }
                 Row {
                     width: parent.width
                     visible: batPanel.sizeText !== ""
-                    UiText { text: "Battery size"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
-                    UiText { text: batPanel.sizeText; color: root.ink; font.family: root.mono; font.pixelSize: 11 }
+                    UiText { text: "Battery size"; color: batPanel.root.sumiHi; font.family: batPanel.root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: batPanel.sizeText; color: batPanel.root.ink; font.family: batPanel.root.mono; font.pixelSize: 11 }
                 }
                 Row {
                     width: parent.width
                     visible: batPanel.cycles > 0
-                    UiText { text: "Charge cycles"; color: root.sumiHi; font.family: root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
-                    UiText { text: String(batPanel.cycles); color: root.ink; font.family: root.mono; font.pixelSize: 11 }
+                    UiText { text: "Charge cycles"; color: batPanel.root.sumiHi; font.family: batPanel.root.mono; font.pixelSize: 11; width: parent.width * 0.4 }
+                    UiText { text: String(batPanel.cycles); color: batPanel.root.ink; font.family: batPanel.root.mono; font.pixelSize: 11 }
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: batPanel.root.sep }
 
             Rectangle {
                 width: parent.width
-                height: 28; radius: root.panelButtonRadius
-                color: btopMa.containsMouse ? root.fillPrimaryHover : root.seal
+                height: 28; radius: batPanel.root.panelButtonRadius
+                color: btopMa.containsMouse ? batPanel.root.fillPrimaryHover : batPanel.root.seal
                 Behavior on color { ColorAnimation { duration: 120 } }
-                UiText { anchors.centerIn: parent; text: "Open btop"; color: root.paper; font.family: root.mono; font.pixelSize: 11 }
+                UiText { anchors.centerIn: parent; text: "Open btop"; color: batPanel.root.paper; font.family: batPanel.root.mono; font.pixelSize: 11 }
                 MouseArea {
                     id: btopMa
                     anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                    onClicked: { root.batteryVisible = false; btopRunner.running = false; btopRunner.running = true }
+                    onClicked: { batPanel.root.batteryVisible = false; btopRunner.running = false; btopRunner.running = true }
                 }
             }
         }
@@ -215,7 +216,7 @@ PanelWindow {
 
     Timer {
         interval: 5000
-        running: root.batteryVisible
+        running: batPanel.root.batteryVisible
         repeat: true
         triggeredOnStart: true
         onTriggered: batPanel.refreshBatteryData()

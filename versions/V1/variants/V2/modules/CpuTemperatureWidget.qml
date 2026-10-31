@@ -3,18 +3,18 @@ import QtQuick
 Item {
     id: rootMod
     required property var root
-    readonly property color contentColor: root.widgetContentColor("G16", root.widgetIconColor)
+    readonly property color contentColor: rootMod.root.widgetContentColor("G16", rootMod.root.widgetIconColor)
 
-    readonly property int temperature: root.barTemperatureC
-    readonly property string sourceLabel: root.barTemperatureSourceLabel(root.barTemperatureSource)
+    readonly property int temperature: rootMod.root.barTemperatureC
+    readonly property string sourceLabel: rootMod.root.barTemperatureSourceLabel(rootMod.root.barTemperatureSource)
     readonly property string tooltipText: sourceLabel + " · " + temperature + "°C"
 
     visible: implicitWidth > 0.5
-    implicitWidth: root.modCpuTemperature && root.barTemperatureAvailable
+    implicitWidth: rootMod.root.modCpuTemperature && rootMod.root.barTemperatureAvailable
         ? row.implicitWidth + 18
         : 0
     implicitHeight: 28
-    opacity: root.modCpuTemperature && root.barTemperatureAvailable ? 1 : 0
+    opacity: rootMod.root.modCpuTemperature && rootMod.root.barTemperatureAvailable ? 1 : 0
     Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
 
     Row {
@@ -26,18 +26,18 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: "" // Font Awesome thermometer-half (Nerd Font)
             color: rootMod.contentColor
-            font.family: root.mono
+            font.family: rootMod.root.mono
             font.pixelSize: 13
             font.weight: Font.Light
             font.hintingPreference: Font.PreferFullHinting
         }
 
         UiText {
-            visible: !root.iconOnly("G16")
+            visible: !rootMod.root.iconOnly("G16")
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.temperature + "°"
             color: rootMod.contentColor
-            font.family: root.mono
+            font.family: rootMod.root.mono
             font.pixelSize: 12
         }
     }
@@ -50,6 +50,6 @@ Item {
         cursorShape: Qt.PointingHandCursor
         onEntered: tip.show()
         onExited: tip.hide()
-        onClicked: { tip.hide(); root.thermalVisible = !root.thermalVisible }
+        onClicked: { tip.hide(); rootMod.root.thermalVisible = !rootMod.root.thermalVisible }
     }
 }

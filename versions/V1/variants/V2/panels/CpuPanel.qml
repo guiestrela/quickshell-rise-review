@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import "../modules"
 import Quickshell
@@ -8,7 +9,7 @@ PanelWindow {
     id: cpuPanel
     required property var root
 
-    screen: root.activePopupScreen
+    screen: cpuPanel.root.activePopupScreen
 
     color: "transparent"
     anchors { top: true; bottom: true; left: true; right: true }
@@ -16,35 +17,36 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "omarchy-cpu"
 
-    readonly property int barBottom: root.v2BarHeight
+    readonly property int barBottom: cpuPanel.root.v2BarHeight
     readonly property int gap: 6
-    readonly property int cpuPct: root.systemCpuPercent
+    readonly property int cpuPct: cpuPanel.root.systemCpuPercent
 
-    readonly property string topologySummary: root.cpuCoreCount > 0 && root.cpuThreadCount > 0
-        ? root.cpuCoreCount + "C / " + root.cpuThreadCount + "T" : ""
-    readonly property string clockSummary: root.cpuClockMHz > 0
-        ? (root.cpuClockMHz / 1000).toFixed(1) + " / "
-            + (root.cpuMaxClockMHz / 1000).toFixed(1) + " GHz"
+    readonly property string topologySummary: cpuPanel.root.cpuCoreCount > 0 && cpuPanel.root.cpuThreadCount > 0
+        ? cpuPanel.root.cpuCoreCount + "C / " + cpuPanel.root.cpuThreadCount + "T" : ""
+    readonly property string clockSummary: cpuPanel.root.cpuClockMHz > 0
+        ? (cpuPanel.root.cpuClockMHz / 1000).toFixed(1) + " / "
+            + (cpuPanel.root.cpuMaxClockMHz / 1000).toFixed(1) + " GHz"
         : ""
-    readonly property string loadSummary: root.systemLoad1.toFixed(2) + " · "
-        + root.systemLoad5.toFixed(2) + " · " + root.systemLoad15.toFixed(2)
+    readonly property string loadSummary: cpuPanel.root.systemLoad1.toFixed(2) + " · "
+        + cpuPanel.root.systemLoad5.toFixed(2) + " · " + cpuPanel.root.systemLoad15.toFixed(2)
     readonly property string powerMode: {
-        var mode = root.cpuEnergyPreference !== ""
-            ? root.cpuEnergyPreference : root.cpuScalingGovernor
+        var mode = cpuPanel.root.cpuEnergyPreference !== ""
+            ? cpuPanel.root.cpuEnergyPreference : cpuPanel.root.cpuScalingGovernor
         return mode.replace(/_/g, " ")
     }
 
-    property real reveal: root.cpuVisible ? 1 : 0
+    property real reveal: cpuPanel.root.cpuVisible ? 1 : 0
     Behavior on reveal {
         NumberAnimation {
-            duration: root.cpuVisible ? 160 : 120
-            easing.type: root.cpuVisible ? Easing.OutCubic : Easing.InCubic
+            duration: cpuPanel.root.cpuVisible ? 160 : 120
+            easing.type: cpuPanel.root.cpuVisible ? Easing.OutCubic : Easing.InCubic
         }
     }
     visible: reveal > 0.001
-    WlrLayershell.keyboardFocus: root.cpuVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: cpuPanel.root.cpuVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     component InfoRow: Item {
+        id: infoRow
         property string label: ""
         property string value: ""
         property color valueColor: cpuPanel.root.ink
@@ -57,7 +59,7 @@ PanelWindow {
             id: infoLabel
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
-            text: label
+            text: infoRow.label
             color: cpuPanel.root.sumiHi
             font.family: cpuPanel.root.mono
             font.pixelSize: 10
@@ -67,8 +69,8 @@ PanelWindow {
             anchors.leftMargin: 12
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
-            text: value
-            color: valueColor
+            text: infoRow.value
+            color: infoRow.valueColor
             font.family: cpuPanel.root.mono
             font.pixelSize: 10
             elide: Text.ElideRight
@@ -78,18 +80,18 @@ PanelWindow {
 
     MouseArea {
         anchors.fill: parent
-        onClicked: root.cpuVisible = false
+        onClicked: cpuPanel.root.cpuVisible = false
     }
 
     Rectangle {
         id: card
         width: 340
         height: col.implicitHeight + 24
-        radius: reveal > 0.001 ? root.panelRadius : 0
+        radius: cpuPanel.reveal > 0.001 ? cpuPanel.root.panelRadius : 0
         color: "transparent"
-        border.color: root.panelBorder
+        border.color: cpuPanel.root.panelBorder
         border.width: 0
-        PillShadow { theme: root }
+        PillShadow { theme: cpuPanel.root }
         ConnectedPanelSurface {
             root: cpuPanel.root
             ownerActive: cpuPanel.root.cpuVisible
@@ -98,16 +100,16 @@ PanelWindow {
         }
 
         SidePanelPositioner { root: cpuPanel.root; target: parent; anchorName: "cpu" }
-        x: Math.round(Math.max(6, Math.min(root.cpuBarX - width / 2, parent.width - width - 6)))
-        y: root.barPosition === "bottom"
-            ? (parent.height - barBottom - gap - height) + 2 * (1 - cpuPanel.reveal)
-            : (barBottom + gap) - 2 * (1 - cpuPanel.reveal)
+        x: Math.round(Math.max(6, Math.min(cpuPanel.root.cpuBarX - width / 2, parent.width - width - 6)))
+        y: cpuPanel.root.barPosition === "bottom"
+            ? (parent.height - cpuPanel.barBottom - cpuPanel.gap - height) + 2 * (1 - cpuPanel.reveal)
+            : (cpuPanel.barBottom + cpuPanel.gap) - 2 * (1 - cpuPanel.reveal)
         opacity: cpuPanel.reveal
-        focus: root.cpuVisible
+        focus: cpuPanel.root.cpuVisible
 
         Keys.onPressed: function(event) {
             if (event.key === Qt.Key_Escape) {
-                root.cpuVisible = false
+                cpuPanel.root.cpuVisible = false
                 event.accepted = true
             }
         }
@@ -127,8 +129,8 @@ PanelWindow {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: "CPU"
-                    color: root.ink
-                    font.family: root.mono
+                    color: cpuPanel.root.ink
+                    font.family: cpuPanel.root.mono
                     font.pixelSize: 13
                     font.letterSpacing: 2
                     font.weight: Font.Medium
@@ -137,9 +139,9 @@ PanelWindow {
                     anchors.right: closeText.left
                     anchors.rightMargin: 16
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "KERNEL " + root.kernelRelease
-                    color: root.sumiHi
-                    font.family: root.mono
+                    text: "KERNEL " + cpuPanel.root.kernelRelease
+                    color: cpuPanel.root.sumiHi
+                    font.family: cpuPanel.root.mono
                     font.pixelSize: 9
                 }
                 UiText {
@@ -147,7 +149,7 @@ PanelWindow {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     text: "✕"
-                    color: closeMa.containsMouse ? root.seal : root.sumi
+                    color: closeMa.containsMouse ? cpuPanel.root.seal : cpuPanel.root.sumi
                     font.pixelSize: 12
                     Behavior on color { ColorAnimation { duration: 120 } }
                     MouseArea {
@@ -155,12 +157,12 @@ PanelWindow {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.cpuVisible = false
+                        onClicked: cpuPanel.root.cpuVisible = false
                     }
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: cpuPanel.root.sep }
 
             Item {
                 width: parent.width
@@ -170,9 +172,9 @@ PanelWindow {
                     anchors.right: topologyValue.left
                     anchors.rightMargin: 12
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.cpuModelName
-                    color: root.ink
-                    font.family: root.mono
+                    text: cpuPanel.root.cpuModelName
+                    color: cpuPanel.root.ink
+                    font.family: cpuPanel.root.mono
                     font.pixelSize: 10
                     elide: Text.ElideRight
                 }
@@ -181,8 +183,8 @@ PanelWindow {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     text: cpuPanel.topologySummary
-                    color: root.sumiHi
-                    font.family: root.mono
+                    color: cpuPanel.root.sumiHi
+                    font.family: cpuPanel.root.mono
                     font.pixelSize: 10
                 }
             }
@@ -195,8 +197,8 @@ PanelWindow {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: "USAGE"
-                    color: root.sumiHi
-                    font.family: root.mono
+                    color: cpuPanel.root.sumiHi
+                    font.family: cpuPanel.root.mono
                     font.pixelSize: 11
                     font.letterSpacing: 1
                 }
@@ -205,8 +207,8 @@ PanelWindow {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     text: cpuPanel.cpuPct + "%"
-                    color: root.seal
-                    font.family: root.mono
+                    color: cpuPanel.root.seal
+                    font.family: cpuPanel.root.mono
                     font.pixelSize: 11
                     font.weight: Font.Medium
                 }
@@ -218,12 +220,12 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     height: 8
                     radius: 4
-                    color: root.fillActive
+                    color: cpuPanel.root.fillActive
                     Rectangle {
                         width: parent.width * cpuPanel.cpuPct / 100
                         height: parent.height
                         radius: 4
-                        color: root.seal
+                        color: cpuPanel.root.seal
                         Behavior on width { NumberAnimation { duration: 300 } }
                     }
                 }
@@ -245,17 +247,17 @@ PanelWindow {
             InfoRow { label: "Load 1 · 5 · 15"; value: cpuPanel.loadSummary }
             InfoRow {
                 label: "Breakdown"
-                value: "User " + root.systemCpuUserPercent + "% · System "
-                    + root.systemCpuSystemPercent + "% · I/O " + root.systemCpuIoWaitPercent + "%"
+                value: "User " + cpuPanel.root.systemCpuUserPercent + "% · System "
+                    + cpuPanel.root.systemCpuSystemPercent + "% · I/O " + cpuPanel.root.systemCpuIoWaitPercent + "%"
             }
             InfoRow { label: "Power mode"; value: cpuPanel.powerMode }
             InfoRow {
                 label: "Throttling"
-                value: root.cpuThrottleCount > 0 ? root.cpuThrottleCount + " events" : ""
-                valueColor: root.sealRaw
+                value: cpuPanel.root.cpuThrottleCount > 0 ? cpuPanel.root.cpuThrottleCount + " events" : ""
+                valueColor: cpuPanel.root.sealRaw
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: cpuPanel.root.sep }
 
             Item {
                 width: parent.width
@@ -264,8 +266,8 @@ PanelWindow {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: "TOP PROCESSES"
-                    color: root.sumiHi
-                    font.family: root.mono
+                    color: cpuPanel.root.sumiHi
+                    font.family: cpuPanel.root.mono
                     font.pixelSize: 9
                     font.letterSpacing: 1
                 }
@@ -273,8 +275,8 @@ PanelWindow {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     text: "CPU"
-                    color: root.sumi
-                    font.family: root.mono
+                    color: cpuPanel.root.sumi
+                    font.family: cpuPanel.root.mono
                     font.pixelSize: 9
                 }
             }
@@ -286,9 +288,10 @@ PanelWindow {
                 Repeater {
                     model: 3
                     delegate: Item {
+                        id: processRow
                         required property int index
-                        readonly property var process: index < root.cpuTopProcesses.length
-                            ? root.cpuTopProcesses[index] : null
+                        readonly property var process: index < cpuPanel.root.cpuTopProcesses.length
+                            ? cpuPanel.root.cpuTopProcesses[index] : null
                         width: col.width
                         height: 16
 
@@ -296,9 +299,9 @@ PanelWindow {
                             id: processRank
                             anchors.left: parent.left
                             anchors.verticalCenter: parent.verticalCenter
-                            text: String(index + 1).padStart(2, "0")
-                            color: root.sumi
-                            font.family: root.mono
+                            text: String(processRow.index + 1).padStart(2, "0")
+                            color: cpuPanel.root.sumi
+                            font.family: cpuPanel.root.mono
                             font.pixelSize: 9
                         }
                         UiText {
@@ -307,9 +310,9 @@ PanelWindow {
                             anchors.right: processValue.left
                             anchors.rightMargin: 8
                             anchors.verticalCenter: parent.verticalCenter
-                            text: process ? process.name : (index === 0 ? "Collecting…" : "—")
-                            color: process ? root.ink : root.sumi
-                            font.family: root.mono
+                            text: processRow.process ? processRow.process.name : (processRow.index === 0 ? "Collecting…" : "—")
+                            color: processRow.process ? cpuPanel.root.ink : cpuPanel.root.sumi
+                            font.family: cpuPanel.root.mono
                             font.pixelSize: 10
                             elide: Text.ElideRight
                         }
@@ -318,9 +321,9 @@ PanelWindow {
                             width: 52
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
-                            text: process ? Number(process.percent).toFixed(1) + "%" : "—"
-                            color: process ? root.ink : root.sumi
-                            font.family: root.mono
+                            text: processRow.process ? Number(processRow.process.percent).toFixed(1) + "%" : "—"
+                            color: processRow.process ? cpuPanel.root.ink : cpuPanel.root.sumi
+                            font.family: cpuPanel.root.mono
                             font.pixelSize: 10
                             horizontalAlignment: Text.AlignRight
                         }
@@ -328,19 +331,19 @@ PanelWindow {
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: cpuPanel.root.sep }
 
             Rectangle {
                 width: parent.width
                 height: 28
-                radius: root.panelButtonRadius
-                color: btopMa.containsMouse ? root.fillPrimaryHover : root.seal
+                radius: cpuPanel.root.panelButtonRadius
+                color: btopMa.containsMouse ? cpuPanel.root.fillPrimaryHover : cpuPanel.root.seal
                 Behavior on color { ColorAnimation { duration: 120 } }
                 UiText {
                     anchors.centerIn: parent
                     text: "Open btop"
-                    color: root.paper
-                    font.family: root.mono
+                    color: cpuPanel.root.paper
+                    font.family: cpuPanel.root.mono
                     font.pixelSize: 11
                 }
                 MouseArea {
@@ -349,7 +352,7 @@ PanelWindow {
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: {
-                        root.cpuVisible = false
+                        cpuPanel.root.cpuVisible = false
                         btopRunner.running = false
                         btopRunner.running = true
                     }

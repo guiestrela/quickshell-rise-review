@@ -1358,7 +1358,7 @@ case_static_contracts() {
   assert_contains 'compactMpris: false' "$REPO_ROOT/versions/V1/modules/V1Defaults.js" "V1 MPRIS shared default"
   assert_contains 'model: root.barColorOptions' "$V1_CONTROL_PANEL" "V1 bar palette control"
   assert_contains 'label: "Now playing"' "$V1_CONTROL_PANEL" "V1 MPRIS presentation control"
-  assert_contains 'readonly property bool fullMode: root.compactMpris' "$V1_MPRIS_WIDGET" "V1 FULL presentation binding"
+  assert_contains 'readonly property bool fullMode: rootMod.root.compactMpris' "$V1_MPRIS_WIDGET" "V1 FULL presentation binding"
 
   # The analyzer config is supplied over an inherited file descriptor. Keeping
   # exec preserves Quickshell's direct process lifecycle while avoiding the old

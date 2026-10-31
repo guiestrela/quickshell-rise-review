@@ -16,9 +16,9 @@ Item {
     property int revision: 0
     property int sourceRegion: -1
     property int sourceIndex: -1
-    readonly property bool fit: root.barShellStyle !== "full"
-    readonly property int outerGap: root.barShellStyle === "fit" ? 2 : 0
-    readonly property int notchWing: root.barShellStyle === "notch" ? 12 : 0
+    readonly property bool fit: rail.root.barShellStyle !== "full"
+    readonly property int outerGap: rail.root.barShellStyle === "fit" ? 2 : 0
+    readonly property int notchWing: rail.root.barShellStyle === "notch" ? 12 : 0
     // Retain the last anchor while the shared panel reveal animates closed.
     property real panelNotchY: height / 2
     readonly property string panelAnchor: {
@@ -33,11 +33,11 @@ Item {
             if (root[name + "Visible"] === true) return names[name]
         return ""
     }
-    readonly property real activePanelY: panelAnchor ? root.verticalAnchorY(panelAnchor) : panelNotchY
+    readonly property real activePanelY: panelAnchor ? rail.root.verticalAnchorY(panelAnchor) : panelNotchY
     onActivePanelYChanged: if (panelAnchor) panelNotchY = activePanelY
     readonly property real panelNotchProgress: notchWing > 0 &&
-        root.activePopupScreenName === barWindow.screenName
-        ? Math.max(0, Math.min(1, root.panelInsetReveal || 0)) : 0
+        rail.root.activePopupScreenName === barWindow.screenName
+        ? Math.max(0, Math.min(1, rail.root.panelInsetReveal || 0)) : 0
     readonly property var anchorNames: ({
         G1: ["launcher"], G2: ["workspace"], G3: ["arch", "tray", "notif"],
         G4: ["memory"], G5: ["cpu"], G6: ["volume"], G7: ["ai"],
@@ -52,7 +52,7 @@ Item {
         for (var r = 0; r < models.length; r++) {
             for (var i = 0; i < models[r].count; i++) {
                 var gid = models[r].get(i).gid
-                if (gid || root.barUnlocked) out.push({gid: gid, region: r, index: i})
+                if (gid || rail.root.barUnlocked) out.push({gid: gid, region: r, index: i})
             }
         }
         return out
@@ -83,11 +83,11 @@ Item {
                     if (names[n] === "weather") localY = item.contentItem.weatherCenterY
                 }
                 values[names[n]] = item.mapToItem(rail, 0, localY).y
-                xs[names[n]] = root.barPosition === "right" ? rail.barWindow.screen.width - root.verticalBarWidth / 2 : root.verticalBarWidth / 2
+                xs[names[n]] = rail.root.barPosition === "right" ? rail.barWindow.screen.width - rail.root.verticalBarWidth / 2 : rail.root.verticalBarWidth / 2
             }
         }
-        root.publishVerticalAnchors(barWindow.screenName, values)
-        root.publishBarAnchors(barWindow.screenName, xs)
+        rail.root.publishVerticalAnchors(barWindow.screenName, values)
+        rail.root.publishBarAnchors(barWindow.screenName, xs)
     }
     Timer { id: layoutTimer; interval: 0; onTriggered: { anchorTimer.restart() } }
     Timer { id: anchorTimer; interval: 0; onTriggered: rail.publishAnchors() }
@@ -99,8 +99,8 @@ Item {
         function onBarUnlockedChanged() { rail.sourceRegion = -1; rail.sourceIndex = -1 }
         function onBarPositionChanged() { anchorTimer.restart() }
     }
-    focus: root.barUnlocked
-    Keys.onEscapePressed: root.barUnlocked = false
+    focus: rail.root.barUnlocked
+    Keys.onEscapePressed: rail.root.barUnlocked = false
     Rectangle {
         id: surface
         x: rail.outerGap
@@ -108,13 +108,13 @@ Item {
         y: rail.fit ? Math.max(rail.outerGap, (parent.height - height) / 2) : 0
         height: rail.fit ? Math.min(parent.height - 2 * Math.max(rail.outerGap, rail.notchWing), stack.implicitHeight + 12) : parent.height
         radius: rail.fit ? 8 : 0
-        topLeftRadius: root.barShellStyle === "dock" && root.barPosition === "left" ? 0 : radius
+        topLeftRadius: rail.root.barShellStyle === "dock" && rail.root.barPosition === "left" ? 0 : radius
         bottomLeftRadius: topLeftRadius
-        topRightRadius: root.barShellStyle === "dock" && root.barPosition === "right" ? 0 : radius
+        topRightRadius: rail.root.barShellStyle === "dock" && rail.root.barPosition === "right" ? 0 : radius
         bottomRightRadius: topRightRadius
-        color: rail.notchWing > 0 ? "transparent" : root.barBg
+        color: rail.notchWing > 0 ? "transparent" : rail.root.barBg
         border.width: 0 // Foreground border stays above widget fills.
-        border.color: root.islandBorder
+        border.color: rail.root.islandBorder
         Shape {
             id: notch
             visible: rail.notchWing > 0
@@ -219,7 +219,7 @@ Item {
             contentHeight: stack.height
             clip: true
             boundsBehavior: Flickable.StopAtBounds
-            interactive: !root.barUnlocked
+            interactive: !rail.root.barUnlocked
             onContentYChanged: anchorTimer.restart()
             WheelHandler {
                 enabled: rail.root.barUnlocked
@@ -267,19 +267,19 @@ Item {
                         readonly property var contentItem: loader.item
                         parent: rail.regionColumns[modelData.region]
                         width: parent.width
-                        height: loader.item && loader.item.implicitWidth > 0 ? Math.max(32, loader.item.implicitHeight) + (root.sepAfter(gid) ? 8 : 0) : root.barUnlocked ? 32 : 0
+                        height: loader.item && loader.item.implicitWidth > 0 ? Math.max(32, loader.item.implicitHeight) + (rail.root.sepAfter(gid) ? 8 : 0) : rail.root.barUnlocked ? 32 : 0
                         visible: height > 0
                         onYChanged: anchorTimer.restart()
                         onHeightChanged: layoutTimer.restart()
                         Rectangle {
                             anchors.horizontalCenter: parent.horizontalCenter
-                            width: Math.min(parent.width, loader.implicitWidth + 2 * root.widgetSurfacePadding(cell.gid))
+                            width: Math.min(parent.width, loader.implicitWidth + 2 * rail.root.widgetSurfacePadding(cell.gid))
                             height: Math.min(parent.height, loader.implicitHeight)
-                            radius: root.widgetSurfaceRadius(cell.gid)
-                            color: root.widgetFillColor(cell.gid)
-                            opacity: root.widgetSurfaceStyle(cell.gid).opacity
-                            border.width: root.widgetHasBorder(cell.gid) ? root.widgetSurfaceStyle(cell.gid).borderWidth : root.barUnlocked ? 1 : 0
-                            border.color: root.barUnlocked ? root.seal : root.widgetBorderColor(cell.gid)
+                            radius: rail.root.widgetSurfaceRadius(cell.gid)
+                            color: rail.root.widgetFillColor(cell.gid)
+                            opacity: rail.root.widgetSurfaceStyle(cell.gid).opacity
+                            border.width: rail.root.widgetHasBorder(cell.gid) ? rail.root.widgetSurfaceStyle(cell.gid).borderWidth : rail.root.barUnlocked ? 1 : 0
+                            border.color: rail.root.barUnlocked ? rail.root.seal : rail.root.widgetBorderColor(cell.gid)
                         }
                         Loader {
                             id: loader
@@ -290,13 +290,13 @@ Item {
                                 : cell.gid === "G10" ? quick : rail.registry[cell.gid] || null
                         }
                         Rectangle {
-                            visible: root.sepAfter(cell.gid)
+                            visible: rail.root.sepAfter(cell.gid)
                             anchors.bottom: parent.bottom; anchors.horizontalCenter: parent.horizontalCenter
-                            width: parent.width - 10; height: 1; color: root.sep
+                            width: parent.width - 10; height: 1; color: rail.root.sep
                         }
                         MouseArea {
                             anchors.fill: parent
-                            enabled: root.barUnlocked
+                            enabled: rail.root.barUnlocked
                             preventStealing: true
                             onPressed: { rail.sourceRegion = cell.modelData.region; rail.sourceIndex = cell.modelData.index }
                             onReleased: function(mouse) {
@@ -324,22 +324,22 @@ Item {
         MouseArea {
             anchors.fill: parent
             z: -1
-            onDoubleClicked: if (!root.layoutProtected) root.barUnlocked = true
+            onDoubleClicked: if (!rail.root.layoutProtected) rail.root.barUnlocked = true
         }
     }
     component Action: Item {
         id: action
         property string label: ""
-        property color contentColor: root.ink
+        property color contentColor: rail.root.ink
         signal activated()
         signal secondaryActivated()
         implicitWidth: 32; implicitHeight: 32
-        Text { anchors.centerIn: parent; text: action.label; color: action.contentColor; font.family: root.mono; font.pixelSize: 11 }
+        Text { anchors.centerIn: parent; text: action.label; color: action.contentColor; font.family: rail.root.mono; font.pixelSize: 11 }
         MouseArea {
             anchors.fill: parent; cursorShape: Qt.PointingHandCursor
             acceptedButtons: Qt.LeftButton | Qt.RightButton
             onClicked: function(mouse) {
-                root.activatePopupScreen(rail.barWindow.screen)
+                rail.root.activatePopupScreen(rail.barWindow.screen)
                 if (mouse.button === Qt.RightButton) action.secondaryActivated()
                 else action.activated()
             }
@@ -375,8 +375,8 @@ Item {
                     label: Qt.formatDateTime(now.date, rail.root.clock12h ? "hh\nmm\nAP" : "HH\nmm")
                     SystemClock { id: now; precision: SystemClock.Minutes }
                     implicitHeight: rail.root.clock12h ? 44 : 32
-                    onActivated: root.calendarVisible = !root.calendarVisible
-                    onSecondaryActivated: root.weatherVisible = !root.weatherVisible
+                    onActivated: rail.root.calendarVisible = !rail.root.calendarVisible
+                    onSecondaryActivated: rail.root.weatherVisible = !rail.root.weatherVisible
                 }
             }
         }
@@ -385,9 +385,9 @@ Item {
     Component {
         id: statusGroupComponent
         Item {
-            implicitWidth: root.modStatus ? 34 : 0
-            visible: root.modStatus
-            implicitHeight: root.modStatus ? column.implicitHeight : 0
+            implicitWidth: rail.root.modStatus ? 34 : 0
+            visible: rail.root.modStatus
+            implicitHeight: rail.root.modStatus ? column.implicitHeight : 0
             Column {
                 id: column
                 width: parent.width
@@ -401,9 +401,9 @@ Item {
     Component {
         id: quick
         Item {
-            implicitWidth: root.modQuick ? 34 : 0
-            visible: root.modQuick
-            implicitHeight: root.modQuick ? column.implicitHeight : 0
+            implicitWidth: rail.root.modQuick ? 34 : 0
+            visible: rail.root.modQuick
+            implicitHeight: rail.root.modQuick ? column.implicitHeight : 0
             Column {
                 id: column
                 width: parent.width
@@ -416,9 +416,9 @@ Item {
     }
     Component.onDestruction: {
         if (root) {
-            var next = Object.assign({}, root.verticalAnchorsByScreen)
+            var next = Object.assign({}, rail.root.verticalAnchorsByScreen)
             delete next[barWindow.screenName]
-            root.verticalAnchorsByScreen = next
+            rail.root.verticalAnchorsByScreen = next
         }
     }
     function layoutSnapshot() {

@@ -3,16 +3,16 @@ import QtQuick
 Item {
     id: rootMod
     required property var root
-    readonly property color contentColor: root.widgetContentColor("G18", root.widgetIconColor)
+    readonly property color contentColor: rootMod.root.widgetContentColor("G18", rootMod.root.widgetIconColor)
 
-    readonly property int percent: root.storagePercent
+    readonly property int percent: rootMod.root.storagePercent
     readonly property string tooltipText: "Root filesystem · " + percent + "% · "
-        + root.storageUsedGiB.toFixed(1) + "/" + root.storageTotalGiB.toFixed(1) + " GiB"
+        + rootMod.root.storageUsedGiB.toFixed(1) + "/" + rootMod.root.storageTotalGiB.toFixed(1) + " GiB"
 
     visible: implicitWidth > 0.5
-    implicitWidth: root.modStorage && root.storageAvailable ? row.implicitWidth + 18 : 0
+    implicitWidth: rootMod.root.modStorage && rootMod.root.storageAvailable ? row.implicitWidth + 18 : 0
     implicitHeight: 28
-    opacity: root.modStorage && root.storageAvailable ? 1 : 0
+    opacity: rootMod.root.modStorage && rootMod.root.storageAvailable ? 1 : 0
     Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
 
     Row {
@@ -25,17 +25,17 @@ Item {
             width: 15
             text: "󰋊"
             color: rootMod.contentColor
-            font.family: root.mono
+            font.family: rootMod.root.mono
             font.pixelSize: 15
             horizontalAlignment: Text.AlignHCenter
         }
 
         UiText {
-            visible: !root.iconOnly("G18")
+            visible: !rootMod.root.iconOnly("G18")
             anchors.verticalCenter: parent.verticalCenter
             text: String(Math.min(100, rootMod.percent)).padStart(2, "0") + "%"
             color: rootMod.contentColor
-            font.family: root.mono
+            font.family: rootMod.root.mono
             font.pixelSize: 12
         }
     }
@@ -48,6 +48,6 @@ Item {
         cursorShape: Qt.PointingHandCursor
         onEntered: tip.show()
         onExited: tip.hide()
-        onClicked: { tip.hide(); root.storageVisible = !root.storageVisible }
+        onClicked: { tip.hide(); rootMod.root.storageVisible = !rootMod.root.storageVisible }
     }
 }

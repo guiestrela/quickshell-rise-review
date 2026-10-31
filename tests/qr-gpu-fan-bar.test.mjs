@@ -11,5 +11,5 @@ test('external GPU RPM reuses telemetry without starting CPU reader',()=>{
  ctx.active=false;ctx.refresh();assert.equal(seen.length,2);
  ctx.active=true;ctx.externalSource=false;ctx.refresh();assert.equal(ctx.reader.running,true);
  const panel=fs.readFileSync('versions/V1/variants/V2/panels/GpuPanel.qml','utf8');
- assert.match(panel,/externalRpm: root.gpuFanRpm/);assert.match(panel,/externalSource: true/);
+ assert.match(panel,/externalRpm: gpuPanel\.root\.gpuFanRpm/);assert.match(panel,/externalSource: true/);
 });

@@ -1,5 +1,5 @@
+pragma ComponentBehavior: Bound
 import QtQuick
-import Quickshell
 import Quickshell.Io
 
 // Compact Rise-styled map built from public Esri and RainViewer tiles.
@@ -53,11 +53,11 @@ Item {
         stdout: StdioCollector {
             onStreamFinished: {
                 try {
-                    var data = JSON.parse(String(this.text || ""))
-                    var frames = data.radar && data.radar.past ? data.radar.past : []
-                    var frame = frames.length ? frames[frames.length - 1] : null
-                    var host = String(data.host || "")
-                    var path = String(frame && frame.path || "")
+                    const data = JSON.parse(String(this.text || ""))
+                    const frames = data.radar && data.radar.past ? data.radar.past : []
+                    const frame = frames.length ? frames[frames.length - 1] : null
+                    const host = String(data.host || "")
+                    const path = String(frame && frame.path || "")
                     if (/^https:\/\/(?:[A-Za-z0-9-]+\.)*rainviewer\.com(?::443)?$/.test(host)
                         && /^\/v2\/radar\/[A-Za-z0-9_-]+$/.test(path)) {
                         radar.radarHost = host
@@ -70,7 +70,7 @@ Item {
 
     Timer {
         interval: 600000
-        running: radar.visible && radar.located
+        running: radar.tilesActive && radar.visible && radar.located
         repeat: true
         triggeredOnStart: true
         onTriggered: if (!metadata.running) metadata.running = true
