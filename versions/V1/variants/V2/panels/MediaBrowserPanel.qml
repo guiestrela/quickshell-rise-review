@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
@@ -13,7 +14,7 @@ PanelWindow {
     id: panel
     required property var root
 
-    screen: root.activePopupScreen
+    screen: panel.root.activePopupScreen
 
     color: "transparent"
     anchors { top: true; bottom: true; left: true; right: true }
@@ -22,9 +23,9 @@ PanelWindow {
     WlrLayershell.namespace: "omarchy-media-browser"
     WlrLayershell.keyboardFocus: panel.visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    readonly property bool active: root.pickerStyle === "tanzaku" || root.pickerStyle === ""   // default
-    readonly property bool isVideos: root.mediaBrowserMode === "videos"
-    readonly property bool ready: root.mediaBrowserVisible && active && loaded && layoutSettled
+    readonly property bool active: panel.root.pickerStyle === "tanzaku" || panel.root.pickerStyle === ""   // default
+    readonly property bool isVideos: panel.root.mediaBrowserMode === "videos"
+    readonly property bool ready: panel.root.mediaBrowserVisible && active && loaded && layoutSettled
 
     property bool loaded:        false
     property bool layoutSettled: false
@@ -34,7 +35,7 @@ PanelWindow {
     property int  selFilt:       0
     property string filterText:  ""
 
-    visible: root.mediaBrowserVisible && active
+    visible: panel.root.mediaBrowserVisible && active
 
     // ── reveal ──
     property real reveal: 0
@@ -79,7 +80,7 @@ PanelWindow {
         panel.reveal        = 0
     }
     function syncOpen() {
-        if (root.mediaBrowserVisible && active) {
+        if (panel.root.mediaBrowserVisible && active) {
             panel.closing = false
             if (!loaded) {
                 panel.layoutSettled = false
@@ -94,7 +95,7 @@ PanelWindow {
         }
     }
     Connections {
-        target: root
+        target: panel.root
         function onMediaBrowserVisibleChanged() { panel.syncOpen() }
         function onPickerStyleChanged()          { panel.syncOpen() }
     }
@@ -131,7 +132,7 @@ PanelWindow {
         stdout: StdioCollector { onStreamFinished: panel.applyScan(this.text, true) }
     }
     function applyScan(text, fromCache) {
-        if (!root.mediaBrowserVisible || !panel.active) return
+        if (!panel.root.mediaBrowserVisible || !panel.active) return
         var t = String(text || "")
         if (fromCache && (!t.trim() || loaded)) return          // don't paint an empty/stale cache
         if (!fromCache && t.trim() === _lastScan.trim() && loaded) {
@@ -144,7 +145,7 @@ PanelWindow {
         panel.selFilt    = 0
         panel.loaded     = rows.length > 0
         Qt.callLater(function() {
-            if (root.mediaBrowserVisible && panel.active) {
+            if (panel.root.mediaBrowserVisible && panel.active) {
                 panel.layoutSettled = true
                 if (panel.imageArray.length > 0) stage.forceActiveFocus()   // keep Esc-catcher focused when empty
                 if (!fromCache) warmTimer.restart()
@@ -176,7 +177,7 @@ PanelWindow {
         command: []
         stdout: StdioCollector {
             waitForEnd: true
-            onStreamFinished: if (this.text.trim() && root.mediaBrowserVisible && panel.active)
+            onStreamFinished: if (this.text.trim() && panel.root.mediaBrowserVisible && panel.active)
                 panel.thumbEpoch++
         }
     }
@@ -210,7 +211,7 @@ PanelWindow {
         if (selFilt < 0 || selFilt >= filtered.length) return
         var path = filtered[selFilt].filePath; if (!path) return
         Quickshell.execDetached(["xdg-open", path])
-        root.mediaBrowserVisible = false
+        panel.root.mediaBrowserVisible = false
     }
 
     function moveSel(delta) {
@@ -272,9 +273,9 @@ PanelWindow {
     }
 
     // ── colors ──
-    readonly property color scrim:   Qt.rgba(root.paper.r, root.paper.g, root.paper.b, 0.8)
-    readonly property color frameBg: root.frameWeak
-    readonly property color uiDim:   Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.45)
+    readonly property color scrim:   Qt.rgba(panel.root.paper.r, panel.root.paper.g, panel.root.paper.b, 0.8)
+    readonly property color frameBg: panel.root.frameWeak
+    readonly property color uiDim:   Qt.rgba(panel.root.ink.r, panel.root.ink.g, panel.root.ink.b, 0.45)
 
     // ── scrim ──
     Rectangle {
@@ -285,7 +286,7 @@ PanelWindow {
     MouseArea {
         anchors.fill: parent
         enabled: panel.visible
-        onClicked: root.mediaBrowserVisible = false
+        onClicked: panel.root.mediaBrowserVisible = false
         onWheel: function(wheel) {
             if (!panel.ready) return
             panel.moveSel(wheel.angleDelta.y < 0 ? 1 : -1)
@@ -299,7 +300,7 @@ PanelWindow {
         Keys.onPressed: function(event) {
             if (event.key === Qt.Key_Escape) {
                 if (panel.filterText) panel.filterText = ""
-                else root.mediaBrowserVisible = false
+                else panel.root.mediaBrowserVisible = false
                 event.accepted = true
             } else if (event.key === Qt.Key_Backspace) {
                 if (panel.filterText.length > 0) panel.filterText = panel.filterText.slice(0, -1)
@@ -314,22 +315,22 @@ PanelWindow {
     }
     // ── loading / empty ──
     Text {
-        visible: root.mediaBrowserVisible && panel.active && panel.ready && panel.filtered.length === 0
+        visible: panel.root.mediaBrowserVisible && panel.active && panel.ready && panel.filtered.length === 0
         anchors.centerIn: parent
         horizontalAlignment: Text.AlignHCenter
         text: "No matches: " + panel.filterText + "\n\nBackspace to edit, or Esc to clear"
-        color: root.ink
-        font.family: root.mono; font.pixelSize: 16; font.letterSpacing: 1
+        color: panel.root.ink
+        font.family: panel.root.mono; font.pixelSize: 16; font.letterSpacing: 1
     }
     Text {
-        visible: root.mediaBrowserVisible && panel.active && !panel.ready
+        visible: panel.root.mediaBrowserVisible && panel.active && !panel.ready
         anchors.centerIn: parent
         horizontalAlignment: Text.AlignHCenter
         text: panel.layoutSettled && !panel.loaded
               ? (panel.isVideos ? "No recordings in ~/Videos" : "No screenshots in ~/Pictures") + "\n\nEsc or click to close"
               : "Loading…"
-        color: root.ink
-        font.family: root.mono; font.pixelSize: 16; font.letterSpacing: 1
+        color: panel.root.ink
+        font.family: panel.root.mono; font.pixelSize: 16; font.letterSpacing: 1
     }
 
     // ── header ──
@@ -340,8 +341,8 @@ PanelWindow {
         anchors.bottomMargin: 22
         opacity: panel.reveal
         text: panel.isVideos ? "VIDEOS" : "SCREENSHOTS"
-        color: root.sumiHi
-        font.family: root.mono; font.pixelSize: 12; font.letterSpacing: 3; font.weight: Font.Medium
+        color: panel.root.sumiHi
+        font.family: panel.root.mono; font.pixelSize: 12; font.letterSpacing: 3; font.weight: Font.Medium
         horizontalAlignment: Text.AlignHCenter
     }
 
@@ -378,7 +379,7 @@ PanelWindow {
             if (event.key === Qt.Key_Escape) {
                 if (panel.confirmDelete) panel.confirmDelete = false
                 else if (panel.filterText) panel.filterText = ""
-                else root.mediaBrowserVisible = false
+                else panel.root.mediaBrowserVisible = false
                 event.accepted = true
             } else if (event.key === Qt.Key_Delete) {
                 if (panel.confirmDelete) panel.deleteFocused()
@@ -448,7 +449,7 @@ PanelWindow {
                     radius: 8
                     color: panel.frameBg
                     border.width: 1
-                    border.color: item.focused ? root.seal : root.sep
+                    border.color: item.focused ? panel.root.seal : panel.root.sep
                     Behavior on border.color { ColorAnimation { duration: 180 } }
 
                     ClippingRectangle {
@@ -483,7 +484,7 @@ PanelWindow {
                         // paper-wash dim; the preview peek lighter
                         Rectangle {
                             anchors.fill: parent
-                            color: root.paper
+                            color: panel.root.paper
                             opacity: item.focused ? 0 : (Math.abs(item.relIdx) === 1 ? 0.28 : 0.5)
                             Behavior on opacity { NumberAnimation { duration: 200 } }
                         }
@@ -493,7 +494,7 @@ PanelWindow {
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: item.focused ? panel.openSelected() : (panel.selFilt = index)
+                    onClicked: item.focused ? panel.openSelected() : (panel.selFilt = item.index)
                 }
             }
         }
@@ -515,7 +516,7 @@ PanelWindow {
             gradient: Gradient {
                 orientation: Gradient.Horizontal
                 GradientStop { position: 0.0;  color: "transparent" }
-                GradientStop { position: 0.5;  color: root.seal }
+                GradientStop { position: 0.5;  color: panel.root.seal }
                 GradientStop { position: 1.0;  color: "transparent" }
             }
         }
@@ -524,8 +525,8 @@ PanelWindow {
             anchors.horizontalCenter: parent.horizontalCenter
             width: panel.focusedW + 160
             text: (panel.isVideos ? "Videos · " : "Screenshots · ") + panel.currentLabel
-            color: root.ink
-            font.family: root.mono; font.pixelSize: 22; font.weight: Font.DemiBold
+            color: panel.root.ink
+            font.family: panel.root.mono; font.pixelSize: 22; font.weight: Font.DemiBold
             horizontalAlignment: Text.AlignHCenter; elide: Text.ElideRight
         }
 
@@ -533,8 +534,8 @@ PanelWindow {
             visible: panel.filterText.length > 0 && !panel.confirmDelete
             anchors.horizontalCenter: parent.horizontalCenter
             text: panel.filterText
-            color: root.seal; opacity: 0.95
-            font.family: root.mono; font.pixelSize: 14
+            color: panel.root.seal; opacity: 0.95
+            font.family: panel.root.mono; font.pixelSize: 14
             horizontalAlignment: Text.AlignHCenter
         }
 
@@ -544,8 +545,8 @@ PanelWindow {
             anchors.horizontalCenter: parent.horizontalCenter
             text: "Delete this " + (panel.isVideos ? "video" : "screenshot")
                   + "?   Del again to confirm   ·   Esc cancel"
-            color: root.seal
-            font.family: root.mono; font.pixelSize: 11; font.weight: Font.Medium
+            color: panel.root.seal
+            font.family: panel.root.mono; font.pixelSize: 11; font.weight: Font.Medium
             horizontalAlignment: Text.AlignHCenter
         }
 
@@ -554,7 +555,7 @@ PanelWindow {
             anchors.horizontalCenter: parent.horizontalCenter
             text: "← →  scroll navigate     Enter open     Del delete     Ctrl+C copy     Esc"
             color: panel.uiDim
-            font.family: root.mono; font.pixelSize: 11
+            font.family: panel.root.mono; font.pixelSize: 11
             horizontalAlignment: Text.AlignHCenter
         }
     }
