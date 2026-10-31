@@ -1,73 +1,79 @@
 ---
 name: rise-bar
-description: Instalar, configurar, desenvolver e diagnosticar a Quickshell Rise Bar no Omarchy, incluindo variantes V1/V2, widgets e integrações. Use para pedidos sobre Rise Bar ou Quickshell Rise; não para outras barras ou configuração geral do desktop.
+description: Install, configure, develop, and diagnose Quickshell Rise Bar on Omarchy, including V1/V2 variants, widgets, and integrations. Use for requests about Rise Bar or Quickshell Rise; not for other bars or general desktop configuration.
 ---
 
 # Rise Bar
 
-Cuide da Rise preservando a variante escolhida, as configurações salvas e os plugins do usuário. Responda no idioma do usuário.
+Maintain Rise while preserving the selected variant, saved settings, and the user's plugins. Respond in the user's language.
 
-## Localizar a instalação e o código
+## Locate the installation and source code
 
-O plugin é `io.github.guiestrela.quickshell-rise`, do repositório
+The plugin is `io.github.guiestrela.quickshell-rise`, from
 `https://github.com/guiestrela/quickshell-rise-review`.
 
-Identifique o checkout usado na tarefa e a instalação real antes de editar. A instalação padrão é
+Identify the checkout used for the task and the actual installation before editing. The default installation is
 `~/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise`.
-A skill pode estar instalada separadamente; não deduza o caminho do projeto a partir da pasta desta skill.
+The skill may be installed separately; do not infer the project path from this skill's directory.
 
-Leia `README.md` e os arquivos envolvidos no checkout. Alguns documentos e scripts mantêm caminhos legados em `~/.config/quickshell`; confirme o modo em uso antes de seguir esses procedimentos.
+Read `README.md` and the relevant files in the checkout. Some documents and scripts retain legacy paths under `~/.config/quickshell`; confirm the active installation mode before following those procedures.
 
-## Instalar ou atualizar
+## Install or update
 
-Leia [references/installation.md](references/installation.md) para instalar a barra com fontes, CAVA, coletores de uso de IA e hook de recuperação. Ela contém o comando completo de instalação. Se o pedido for apenas documentação, forneça ou edite as instruções sem executar a instalação.
+Read [references/installation.md](references/installation.md) to install the bar with fonts, CAVA, AI usage collectors, and the recovery hook. It contains the complete installation command. For documentation-only requests, provide or edit the instructions without running the installation.
 
-Para uma instalação existente, inspecione primeiro:
+For an existing installation, inspect it first:
 
 ```bash
 omarchy plugin list
 omarchy plugin validate "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise"
 ```
 
-Use `omarchy plugin update io.github.guiestrela.quickshell-rise` para atualizar pelo gerenciador, respeitando modificações locais. Não substitua toda a instalação pelo checkout para aplicar uma correção pequena. Compare os arquivos, preserve as diferenças locais, faça backup fora da árvore monitorada do plugin e aplique apenas o necessário. Reinicie com `omarchy restart shell` quando a alteração autorizada precisar disso; o reload pode manter módulos QML em cache.
+Use `omarchy plugin update io.github.guiestrela.quickshell-rise` to update through the manager while respecting local modifications. Do not replace the entire installation with the checkout to apply a small fix. Compare files, preserve local differences, respect the user's stated backup preference, and apply only what is necessary. When creating a backup, keep it outside the plugin's watched tree. Restart with `omarchy restart shell` when the authorized change requires it; a reload may retain cached QML modules.
 
-## Arquitetura que deve ser preservada
+## Preserve the architecture
 
-- `Bar.qml` é a entrada do plugin no processo existente `omarchy-shell`. Não inicie uma segunda barra com `qs -p` para testar a instalação ativa.
-- `versions/V1/core/StateService.qml`, `VariantHost.qml` e `IpcRouter.qml` controlam estado, carregamento e IPC. Somente a variante selecionada deve estar instanciada.
-- V1 fica em `versions/V1/`; V2 em `versions/V1/variants/V2/`. Cada `VariantRoot.qml` cria barras para as saídas válidas; `BarSlot.qml` organiza widgets. Lógica e apresentação ficam em `modules/` e `panels/`.
-- Antes de corrigir V1/V2, verifique se o arquivo de V2 contém implementação própria ou apenas importa o de V1. Corrija o comportamento compartilhado sem apagar diferenças visuais intencionais.
-- Serviços do Omarchy consultam `fontFamily`, `position`, `barSize` e `barHidden` na entrada da barra. Esses valores precisam continuar válidos durante carregamento e troca de variante.
-- Estado e preferências vivem fora do código: `~/.local/state/quickshell-rise/active-variant`, `~/.cache/quickshell_widgets` e `~/.cache/quickshell_widgets_v2`, além de caches específicos. Não apague esses arquivos para corrigir uma falha sem investigar sua função.
-- Preserve notificações, OSD, lock, idle, áudio, rede e os demais plugins habilitados. Não use `pkill quickshell`, não desabilite plugins em massa e não edite `/usr/share/omarchy/` para corrigir a Rise.
+- `Bar.qml` is the plugin entry point in the existing `omarchy-shell` process. Do not start a second bar with `qs -p` to test the active installation.
+- `versions/V1/core/StateService.qml`, `VariantHost.qml`, and `IpcRouter.qml` control state, loading, and IPC. Only the selected variant should be instantiated.
+- V1 is under `versions/V1/`; V2 is under `versions/V1/variants/V2/`. Each `VariantRoot.qml` creates bars for valid outputs; `BarSlot.qml` arranges widgets. Logic and presentation live in `modules/` and `panels/`.
+- Before fixing V1/V2, check whether the V2 file has its own implementation or only imports V1. Fix shared behavior without removing intentional visual differences.
+- Omarchy services read `fontFamily`, `position`, `barSize`, and `barHidden` from the bar entry point. These values must remain valid during loading and variant switching.
+- State and preferences live outside the code: `~/.local/state/quickshell-rise/active-variant`, `~/.cache/quickshell_widgets`, and `~/.cache/quickshell_widgets_v2`, plus integration-specific caches. Do not delete these files to fix a failure without investigating their purpose.
+- Preserve notifications, OSD, lock, idle, audio, networking, and other enabled plugins. Do not use `pkill quickshell`, disable plugins in bulk, or edit `/usr/share/omarchy/` to fix Rise.
 
-Para geometria, estilos, widgets ou painéis laterais da V2, leia [references/vertical-bar.md](references/vertical-bar.md).
+For V2 geometry, styles, widgets, or side panels, read [references/vertical-bar.md](references/vertical-bar.md).
 
-Consulte `docs/integrations.md`, `docs/usage.md` e `docs/fan-control.md` do checkout conforme a integração afetada. Não invoque serviços com contas reais para um teste que pode usar fixtures.
+Consult `docs/integrations.md`, `docs/usage.md`, and `docs/fan-control.md` in the checkout as appropriate for the affected integration. Do not invoke services with real accounts for a test that can use fixtures.
 
-## Diagnosticar crash ou travamento
+## Diagnose a crash or hang
 
-Distinga queda da barra, falha de um helper e queda do sistema. Colete o PID, a linha de comando e o horário com `pgrep -a quickshell`, `coredumpctl list` e `coredumpctl info <PID>`. Leia o journal pelo PID correto; o processo pode aparecer como `omarchy-shell` no journal mesmo sendo `quickshell` no executável.
+Distinguish a bar crash, a helper failure, and a system crash. Collect the PID, command line, and timestamp with `pgrep -a quickshell`, `coredumpctl list`, and `coredumpctl info <PID>`. Read the journal for the correct PID; the process may appear as `omarchy-shell` in the journal even though its executable is `quickshell`.
 
-Consulte também o log próprio do processo: `quickshell log --pid <PID> --tail 200 --no-color`. Nem todo aviso QML chega ao journal. Se o sandbox não enxergar o processo ou socket da sessão, isso não prova que o shell esteja parado; confirme no contexto da sessão antes de reiniciar.
+Also inspect the process's own log: `quickshell log --pid <PID> --tail 200 --no-color`. Not every QML warning reaches the journal. If the sandbox cannot see the session's process or socket, that does not prove the shell is stopped; verify in the session context before restarting.
 
-Confira memória/OOM e mensagens de GPU no período relevante. Um SIGABRT em `QGuiApplicationPrivate::createPlatformIntegration` vindo de um probe em `/tmp` pode ser falha de acesso à sessão gráfica antes de carregar QML; não o atribua à barra instalada sem evidência. Avisos de lint também não comprovam crash.
+Check memory/OOM and GPU messages for the relevant period. A SIGABRT in `QGuiApplicationPrivate::createPlatformIntegration` from a probe under `/tmp` may indicate failure to access the graphical session before QML loads; do not attribute it to the installed bar without evidence. Lint warnings do not prove a crash either.
 
-Use probes isolados com helpers simulados. `offscreen` serve para componentes sem dependência de layer shell; `PanelWindow` exige Wayland acessível. Verifique o socket antes de iniciar esses testes. Para testes headless, use runtime temporário, backend software e `QT_QPA_PLATFORMTHEME=''` para evitar dependência de GTK/DBus da sessão.
+Use isolated probes with simulated helpers. `offscreen` works for components without a layer-shell dependency; `PanelWindow` requires an accessible Wayland session. Check the socket before starting these tests. For headless tests, use a temporary runtime directory, a software backend, and `QT_QPA_PLATFORMTHEME=''` to avoid dependencies on the session's GTK/DBus environment.
 
-No QML, procure especialmente processos/timers sobrepostos, acesso a objetos destruídos, propriedades opcionais indefinidas e bindings inválidos. Atualizar o modelo de um Repeater pode destruir seu delegate: restaure bindings e capture os argumentos antes da chamada que atualiza o modelo. Não continue usando o delegate depois dessa chamada.
+In QML, look especially for overlapping processes/timers, access to destroyed objects, undefined optional properties, and invalid bindings. Updating a Repeater model may destroy its delegate: restore bindings and capture arguments before the call that updates the model. Do not continue using the delegate after that call.
 
-## Validar uma alteração
+## Review code and QML warnings
 
-Rode a partir do checkout os testes pertinentes. Para uma revisão ampla:
+For warning reviews, batch fixes, or differences between tests and the installation, read [references/code-review.md](references/code-review.md). Distinguish runtime errors, code warnings, and metadata limitations; a lower count does not prove a fix.
+
+Continue fixes within the already authorized scope without repeating confirmation requests. Group changes by shared behavior and validate before applying. If the user requests batches of approximately 100 warnings, use that size as a guide without artificially splitting a fix between V1/V2. Combine validated changes to avoid unnecessary restarts.
+
+## Validate a change
+
+Run the relevant tests from the checkout. For a broad review:
 
 ```bash
 bash tests/run-plugin-checks.sh
 ```
 
-O runner verifica sintaxe shell, QML, regressões de ciclo de vida/atualizações, contrato com o shell e testes JavaScript. ShellCheck é opcional e sua ausência deve ser informada. Esse comando não substitui testes de interação Wayland.
+The runner checks shell syntax, QML, lifecycle/update regressions, the shell integration contract, and JavaScript tests. ShellCheck is optional; report its absence. This command does not replace Wayland interaction tests. Do not edit the runner while it is executing; Bash may read new content at old offsets. Finish edits before final validation.
 
-Para mudanças em monitores ou seu ciclo de vida, use os testes com controlador inerte, conforme o caso:
+For monitor changes or monitor lifecycle changes, use the tests with an inert controller as appropriate:
 
 ```bash
 TMPDIR=/tmp python3 tests/test-display-integration.py
@@ -75,6 +81,6 @@ TMPDIR=/tmp python3 tests/test-display-explicit-apply-pointer.py
 TMPDIR=/tmp python3 tests/test-display-pointer.py
 ```
 
-Confira no teste os requisitos de sessão e as fronteiras simuladas antes de executá-lo. Não altere monitores, DNS, VPN, pareamento Bluetooth ou controles de ventoinha reais só para testar a interface. Se uma verificação estiver bloqueada pelo ambiente, relate isso sem declarar aprovação.
+Check each test's session requirements and simulated boundaries before running it. Do not change real monitors, DNS, VPN, Bluetooth pairing, or fan controls merely to test the interface. If the environment blocks a check, report that limitation without declaring it passed.
 
-Após aplicar uma correção na instalação, valide o plugin, consulte `omarchy-shell shell ping`, confira os novos logs e compare os plugins habilitados. Relate o que mudou, os testes executados, o backup e os limites da evidência; não prometa ausência de crashes futuros.
+After applying a fix to the installation, validate the plugin, run `omarchy-shell shell ping`, inspect fresh logs, and compare enabled plugins. Report what changed, the tests run, backup status, and the limits of the evidence; do not promise that future crashes are impossible.
