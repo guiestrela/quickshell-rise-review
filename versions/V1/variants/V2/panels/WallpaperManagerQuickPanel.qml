@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Window
 import QtQuick.Dialogs
@@ -9,16 +10,16 @@ import "../modules"
 PanelWindow {
     id: panel
     required property var root
-    screen: root.activePopupScreen
+    screen: panel.root.activePopupScreen
     color: "transparent"
     anchors { top: true; bottom: true; left: true; right: true }
     exclusionMode: ExclusionMode.Ignore
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "quickshell-rise-wallpaper-manager"
     WlrLayershell.keyboardFocus: visible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
-    readonly property int barBottom: root.v2BarHeight
+    readonly property int barBottom: panel.root.v2BarHeight
     readonly property int gap: 6
-    property real reveal: root.wallpaperManagerVisible ? 1 : 0
+    property real reveal: panel.root.wallpaperManagerVisible ? 1 : 0
     Behavior on reveal {
         NumberAnimation {
             duration: panel.root.wallpaperManagerVisible ? 160 : 120
@@ -36,14 +37,14 @@ PanelWindow {
     function dismiss() {
         if (!wallpaperDialog.busy) panel.root.wallpaperManagerVisible = false
     }
-    readonly property var profile: root.wallpaperProfileFor(root.wallpaperManagerDisplay)
+    readonly property var profile: panel.root.wallpaperProfileFor(panel.root.wallpaperManagerDisplay)
     readonly property string selectedSourcePath: String(profile.pinned || profile.folder || "")
     readonly property bool selectedWallpaperCanApply: {
-        var service = root.wallpaperManagerServiceApi
+        var service = panel.root.wallpaperManagerServiceApi
         var path = selectedWallpaperFile
         if (path === "" || !isMediaFileInFolder(path, profile.folder) || !service || service.scanInFlight)
             return false
-        var display = String(root.wallpaperManagerDisplay || "all")
+        var display = String(panel.root.wallpaperManagerDisplay || "all")
         var paths = display === "all" ? service.pool : service.poolFor(display)
         return paths && paths.indexOf(path) >= 0
     }
@@ -97,7 +98,7 @@ PanelWindow {
     readonly property string selectedWallpaperStatus: {
         if (selectedWallpaperError !== "") return selectedWallpaperError
         if (profile.folder === "") return "Choose a folder first."
-        var service = root.wallpaperManagerServiceApi
+        var service = panel.root.wallpaperManagerServiceApi
         if (selectedWallpaperFile === "")
             return service.scanInFlight ? "Scanning the selected folder…" : "No file selected."
         var name = selectedWallpaperFile.substring(selectedWallpaperFile.lastIndexOf("/") + 1)

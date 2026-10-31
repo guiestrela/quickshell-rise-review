@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import "../modules"
 import Quickshell
@@ -7,7 +8,7 @@ PanelWindow {
     id: storagePanel
     required property var root
 
-    screen: root.activePopupScreen
+    screen: storagePanel.root.activePopupScreen
 
     color: "transparent"
     anchors { top: true; bottom: true; left: true; right: true }
@@ -15,12 +16,12 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "omarchy-storage"
 
-    readonly property int barBottom: root.v2BarHeight
+    readonly property int barBottom: storagePanel.root.v2BarHeight
     readonly property int gap: 6
 
-    readonly property int pct: root.storagePercent
-    readonly property real usedGiB: root.storageUsedGiB
-    readonly property real totalGiB: root.storageTotalGiB
+    readonly property int pct: storagePanel.root.storagePercent
+    readonly property real usedGiB: storagePanel.root.storageUsedGiB
+    readonly property real totalGiB: storagePanel.root.storageTotalGiB
     readonly property real freeGiB: Math.max(0, totalGiB - usedGiB)
 
     function formatCapacity(bytes) {
@@ -48,15 +49,15 @@ PanelWindow {
         return "󰋊"
     }
 
-    property real reveal: root.storageVisible ? 1 : 0
+    property real reveal: storagePanel.root.storageVisible ? 1 : 0
     Behavior on reveal {
         NumberAnimation {
-            duration: root.storageVisible ? 160 : 120
-            easing.type: root.storageVisible ? Easing.OutCubic : Easing.InCubic
+            duration: storagePanel.root.storageVisible ? 160 : 120
+            easing.type: storagePanel.root.storageVisible ? Easing.OutCubic : Easing.InCubic
         }
     }
     visible: reveal > 0.001
-    WlrLayershell.keyboardFocus: root.storageVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: storagePanel.root.storageVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     component DriveRow: Item {
         id: driveRow
@@ -77,7 +78,7 @@ PanelWindow {
             anchors.left: parent.left
             anchors.top: parent.top
             width: 18
-            text: storagePanel.driveTypeIcon(drive.driveType)
+            text: storagePanel.driveTypeIcon(driveRow.drive.driveType)
             color: storagePanel.root.seal
             font.family: storagePanel.root.mono
             font.pixelSize: 15
@@ -91,7 +92,7 @@ PanelWindow {
             anchors.right: driveCapacity.left
             anchors.rightMargin: 10
             anchors.top: parent.top
-            text: drive.model
+            text: driveRow.drive.model
             color: storagePanel.root.ink
             font.family: storagePanel.root.mono
             font.pixelSize: 11
@@ -102,7 +103,7 @@ PanelWindow {
             id: driveCapacity
             anchors.right: parent.right
             anchors.top: parent.top
-            text: storagePanel.formatCapacity(drive.size)
+            text: storagePanel.formatCapacity(driveRow.drive.size)
             color: storagePanel.root.ink
             font.family: storagePanel.root.mono
             font.pixelSize: 11
@@ -116,10 +117,10 @@ PanelWindow {
             anchors.rightMargin: driveFree.visible ? 10 : 0
             anchors.top: driveModel.bottom
             anchors.topMargin: 3
-            text: drive.media
-                + (drive.fileSystems !== "" ? " · " + drive.fileSystems : "")
-                + " · " + drive.state
-                + (!showUsageDetails && drive.percent >= 0 ? " · " + drive.percent + "%" : "")
+            text: driveRow.drive.media
+                + (driveRow.drive.fileSystems !== "" ? " · " + driveRow.drive.fileSystems : "")
+                + " · " + driveRow.drive.state
+                + (!driveRow.showUsageDetails && driveRow.drive.percent >= 0 ? " · " + driveRow.drive.percent + "%" : "")
             color: storagePanel.root.sumiHi
             font.family: storagePanel.root.mono
             font.pixelSize: 9
@@ -131,8 +132,8 @@ PanelWindow {
             anchors.right: parent.right
             anchors.top: driveModel.bottom
             anchors.topMargin: 3
-            visible: drive.freeBytes >= 0 && !showUsageDetails
-            text: storagePanel.formatFree(drive.freeBytes)
+            visible: driveRow.drive.freeBytes >= 0 && !driveRow.showUsageDetails
+            text: storagePanel.formatFree(driveRow.drive.freeBytes)
             color: storagePanel.root.ink
             font.family: storagePanel.root.mono
             font.pixelSize: 9
@@ -146,7 +147,7 @@ PanelWindow {
             anchors.top: driveInfo.bottom
             anchors.topMargin: 7
             height: 16
-            visible: showUsageDetails
+            visible: driveRow.showUsageDetails
 
             UiText {
                 id: usageLabel
@@ -162,7 +163,7 @@ PanelWindow {
                 id: usageValue
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
-                text: drive.percent + "%"
+                text: driveRow.drive.percent + "%"
                 color: storagePanel.root.seal
                 font.family: storagePanel.root.mono
                 font.pixelSize: 10
@@ -179,7 +180,7 @@ PanelWindow {
                 color: storagePanel.root.fillActive
 
                 Rectangle {
-                    width: parent.width * Math.max(0, drive.percent) / 100
+                    width: parent.width * Math.max(0, driveRow.drive.percent) / 100
                     height: parent.height
                     radius: 4
                     color: storagePanel.root.seal
@@ -195,21 +196,22 @@ PanelWindow {
             anchors.top: driveUsage.bottom
             anchors.topMargin: 5
             height: 28
-            visible: showUsageDetails
+            visible: driveRow.showUsageDetails
 
             Repeater {
                 model: [
-                    { label: "USED", value: storagePanel.formatGiB(drive.usedBytes) },
-                    { label: "FREE", value: storagePanel.formatGiB(drive.freeBytes) },
-                    { label: "TOTAL", value: storagePanel.formatGiB(drive.totalBytes) }
+                    { label: "USED", value: storagePanel.formatGiB(driveRow.drive.usedBytes) },
+                    { label: "FREE", value: storagePanel.formatGiB(driveRow.drive.freeBytes) },
+                    { label: "TOTAL", value: storagePanel.formatGiB(driveRow.drive.totalBytes) }
                 ]
                 delegate: Item {
+                    id: metricCell
                     required property var modelData
                     width: driveUsage.width / 3
                     height: 28
                     UiText {
                         anchors.top: parent.top
-                        text: modelData.label
+                        text: metricCell.modelData.label
                         color: storagePanel.root.sumi
                         font.family: storagePanel.root.mono
                         font.pixelSize: 9
@@ -217,7 +219,7 @@ PanelWindow {
                     }
                     UiText {
                         anchors.bottom: parent.bottom
-                        text: modelData.value
+                        text: metricCell.modelData.value
                         color: storagePanel.root.ink
                         font.family: storagePanel.root.mono
                         font.pixelSize: 10
@@ -238,18 +240,18 @@ PanelWindow {
 
     MouseArea {
         anchors.fill: parent
-        onClicked: root.storageVisible = false
+        onClicked: storagePanel.root.storageVisible = false
     }
 
     Rectangle {
         id: card
         width: 340
         height: col.implicitHeight + 24
-        radius: reveal > 0.001 ? root.panelRadius : 0
+        radius: storagePanel.reveal > 0.001 ? storagePanel.root.panelRadius : 0
         color: "transparent"
-        border.color: root.panelBorder
+        border.color: storagePanel.root.panelBorder
         border.width: 0
-        PillShadow { theme: root }
+        PillShadow { theme: storagePanel.root }
         ConnectedPanelSurface {
             root: storagePanel.root
             ownerActive: storagePanel.root.storageVisible
@@ -258,16 +260,16 @@ PanelWindow {
         }
 
         SidePanelPositioner { root: storagePanel.root; target: parent; anchorName: "storage" }
-        x: Math.round(Math.max(6, Math.min(root.storageBarX - width / 2, parent.width - width - 6)))
-        y: root.barPosition === "bottom"
-            ? (parent.height - barBottom - gap - height) + 2 * (1 - storagePanel.reveal)
-            : (barBottom + gap) - 2 * (1 - storagePanel.reveal)
+        x: Math.round(Math.max(6, Math.min(storagePanel.root.storageBarX - width / 2, parent.width - width - 6)))
+        y: storagePanel.root.barPosition === "bottom"
+            ? (parent.height - storagePanel.barBottom - storagePanel.gap - height) + 2 * (1 - storagePanel.reveal)
+            : (storagePanel.barBottom + storagePanel.gap) - 2 * (1 - storagePanel.reveal)
         opacity: storagePanel.reveal
-        focus: root.storageVisible
+        focus: storagePanel.root.storageVisible
 
         Keys.onPressed: function(event) {
             if (event.key === Qt.Key_Escape) {
-                root.storageVisible = false
+                storagePanel.root.storageVisible = false
                 event.accepted = true
             }
         }
@@ -287,8 +289,8 @@ PanelWindow {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: "STORAGE"
-                    color: root.ink
-                    font.family: root.mono
+                    color: storagePanel.root.ink
+                    font.family: storagePanel.root.mono
                     font.pixelSize: 13
                     font.letterSpacing: 2
                     font.weight: Font.Medium
@@ -297,9 +299,9 @@ PanelWindow {
                     anchors.right: closeText.left
                     anchors.rightMargin: 16
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "DRIVES: " + root.storageDrives.length
-                    color: root.sumiHi
-                    font.family: root.mono
+                    text: "DRIVES: " + storagePanel.root.storageDrives.length
+                    color: storagePanel.root.sumiHi
+                    font.family: storagePanel.root.mono
                     font.pixelSize: 9
                     font.letterSpacing: 0.5
                 }
@@ -308,7 +310,7 @@ PanelWindow {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     text: "✕"
-                    color: closeMa.containsMouse ? root.seal : root.sumi
+                    color: closeMa.containsMouse ? storagePanel.root.seal : storagePanel.root.sumi
                     font.pixelSize: 12
                     Behavior on color { ColorAnimation { duration: 120 } }
                     MouseArea {
@@ -316,12 +318,12 @@ PanelWindow {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.storageVisible = false
+                        onClicked: storagePanel.root.storageVisible = false
                     }
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: storagePanel.root.sep }
 
             Item {
                 width: parent.width
@@ -331,8 +333,8 @@ PanelWindow {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: "ROOT"
-                    color: root.sumiHi
-                    font.family: root.mono
+                    color: storagePanel.root.sumiHi
+                    font.family: storagePanel.root.mono
                     font.pixelSize: 11
                     font.letterSpacing: 1
                 }
@@ -341,8 +343,8 @@ PanelWindow {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     text: storagePanel.pct + "%"
-                    color: root.seal
-                    font.family: root.mono
+                    color: storagePanel.root.seal
+                    font.family: storagePanel.root.mono
                     font.pixelSize: 11
                     font.weight: Font.Medium
                 }
@@ -354,12 +356,12 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     height: 8
                     radius: 4
-                    color: root.fillActive
+                    color: storagePanel.root.fillActive
                     Rectangle {
                         width: parent.width * storagePanel.pct / 100
                         height: parent.height
                         radius: 4
-                        color: root.seal
+                        color: storagePanel.root.seal
                         Behavior on width { NumberAnimation { duration: 300 } }
                     }
                 }
@@ -376,52 +378,53 @@ PanelWindow {
                         { label: "TOTAL", value: storagePanel.totalGiB.toFixed(1) + " GiB" }
                     ]
                     delegate: Item {
+                        id: summaryCell
                         required property var modelData
                         width: col.width / 3
                         height: 30
                         UiText {
                             anchors.top: parent.top
-                            text: modelData.label
-                            color: root.sumi
-                            font.family: root.mono
+                            text: summaryCell.modelData.label
+                            color: storagePanel.root.sumi
+                            font.family: storagePanel.root.mono
                             font.pixelSize: 9
                             font.letterSpacing: 1
                         }
                         UiText {
                             anchors.bottom: parent.bottom
-                            text: modelData.value
-                            color: root.ink
-                            font.family: root.mono
+                            text: summaryCell.modelData.value
+                            color: storagePanel.root.ink
+                            font.family: storagePanel.root.mono
                             font.pixelSize: 11
                         }
                     }
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: storagePanel.root.sep }
 
             Column {
                 width: parent.width
                 spacing: 0
-                visible: root.storageDrives.length > 0
+                visible: storagePanel.root.storageDrives.length > 0
 
                 Repeater {
-                    model: root.storageDrives
+                    model: storagePanel.root.storageDrives
                     delegate: DriveRow {
                         required property var modelData
                         required property int index
                         drive: modelData
-                        lastRow: index === root.storageDrives.length - 1
+                        lastRow: index === storagePanel.root.storageDrives.length - 1
                     }
                 }
             }
 
             UiText {
                 width: parent.width
-                visible: root.storageDrives.length === 0
-                text: root.storageInventoryAvailable ? "No physical drives found" : "Reading drive information…"
-                color: root.sumiHi
-                font.family: root.mono
+                visible: storagePanel.root.storageDrives.length === 0
+                text: storagePanel.root.storageInventoryAvailable ? "No physical drives found" : "Reading drive information…"
+                color: storagePanel.root.sumiHi
+                font.family: storagePanel.root.mono
                 font.pixelSize: 10
                 horizontalAlignment: Text.AlignHCenter
             }

@@ -82,6 +82,14 @@ check "weather radar lifecycle" python3 tests/test-weather-radar-lifecycle.py
 check "system panel bindings" python3 tests/test-system-panels-runtime.py
 check "energy panel bindings" python3 tests/test-energy-panels-runtime.py
 check "calendar and workspace panels" python3 tests/test-calendar-workspace-panels.py
+check "storage panel inventory" python3 tests/test-storage-panel-runtime.py
+check "thermal panel sensors" python3 tests/test-thermal-panel-runtime.py
+check "image carousel selection" python3 tests/test-image-carousel-runtime.py
+check "V1 notification history" python3 tests/test-notification-history-runtime.py
+check "V2 notification history" env RISE_NOTIFICATION_SOURCE=versions/V1/variants/V2 python3 tests/test-notification-history-runtime.py
+check "notification pointer actions" python3 tests/qr-notification-panel-click.py
+check "wallpaper panel controls" python3 tests/test-wallpaper-panel-runtime.py
+check "tray panel actions" python3 tests/test-tray-panel-runtime.py
 check "AI widget mouse actions" python3 tests/test-ai-widget-click.py
 
 check "JavaScript regressions" node --test tests/*.test.mjs tests/*.test.cjs tests/test-display-*.cjs

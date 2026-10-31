@@ -23,11 +23,16 @@ def extract(text, name):
 
 TEMPLATE = '''import QtQuick
 import QtTest
+import "NotificationActions.js" as NotificationActions
 Item {
  width:400; height:300
  Item {
   id:notifPanel
   property var root: ({_notifOmarchyShellBackend:true,notifVisible:true})
+  property var nativeBrowserClaims: ({})
+  property string pendingNotificationKey: ""
+  property var consumed: []
+  function consumeNotification(key) { consumed=consumed.concat([key]) }
   property string notificationActionError:""
   property bool notificationReplySeen:false
   property string notificationActionHelper:"/fixture/notification-crash-action.py"
@@ -41,6 +46,7 @@ Item {
    MouseArea { anchors.fill:parent; onClicked:notifPanel.openNotification(notifPanel.modelData) }
   }
  }
+ Item { id:browserOpenProc; property bool running:false }
  Item { id:notificationOpenProc; property var command:[]; property bool running:false }
  TestCase {
   name:"VARIANT_SelectedNotificationPointer"
@@ -49,6 +55,9 @@ Item {
    notifPanel.root=({_notifOmarchyShellBackend:true,notifVisible:true})
    notifPanel.notificationActionError=""
    notifPanel.dispatched=[]
+   notifPanel.nativeBrowserClaims=({})
+   notifPanel.pendingNotificationKey=""
+   notifPanel.consumed=[]
    notificationOpenProc.command=[];notificationOpenProc.running=false
   }
   function test_pointer_passes_selected_identity_not_invokeLast() {
@@ -94,12 +103,13 @@ Item {
 
 
 def main():
-    env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software', DISPLAY='')
+    env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software', QT_QPA_PLATFORMTHEME='', DISPLAY='')
     with tempfile.TemporaryDirectory(prefix='notif-pointer-') as directory:
+        (Path(directory) / 'NotificationActions.js').write_bytes((ROOT / 'integrations/NotificationActions.js').read_bytes())
         for variant, source in [('V1', ROOT / 'panels/NotificationPanel.qml'),
                                 ('V2', ROOT / 'variants/V2/panels/NotificationPanel.qml')]:
             text = source.read_text()
-            assert 'onClicked: notifPanel.openNotification(modelData)' in text
+            assert 'onClicked: notifPanel.openNotification(notificationRow.modelData)' in text
             functions = '\n'.join(extract(text, name) for name in
                                   ['openNotification', 'finishNotificationAction'])
             path = Path(directory) / ('tst_' + variant + '.qml')
@@ -107,7 +117,9 @@ def main():
             result = subprocess.run([RUNNER, '-input', str(path), '-o', '-,txt', '-v1'],
                                     capture_output=True, text=True, env=env, timeout=20)
             print(result.stdout + result.stderr)
-            if result.returncode or '7 passed, 0 failed' not in result.stdout:
+            if result.returncode or '7 passed, 0 failed' not in result.stdout or any(
+                    error in result.stdout + result.stderr for error in
+                    ['ReferenceError','TypeError','Binding loop','Unable to assign']):
                 return 1
     return 0
 

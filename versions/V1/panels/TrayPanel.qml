@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import Quickshell
 import "../modules"
 import Quickshell.Services.SystemTray
@@ -8,7 +9,7 @@ PanelWindow {
     id: trayPanel
     required property var root
 
-    screen: root.activePopupScreen
+    screen: trayPanel.root.activePopupScreen
 
     color: "transparent"
     anchors { top: true; bottom: true; left: true; right: true }
@@ -22,53 +23,53 @@ PanelWindow {
     readonly property int popupW: 328
     readonly property int maxListH: 320
 
-    property real reveal: root.trayVisible ? 1 : 0
+    property real reveal: trayPanel.root.trayVisible ? 1 : 0
     Behavior on reveal {
         NumberAnimation {
-            duration: root.trayVisible ? 160 : 120
-            easing.type: root.trayVisible ? Easing.OutCubic : Easing.InCubic
+            duration: trayPanel.root.trayVisible ? 160 : 120
+            easing.type: trayPanel.root.trayVisible ? Easing.OutCubic : Easing.InCubic
         }
     }
 
     visible: reveal > 0.001
-    WlrLayershell.keyboardFocus: root.trayVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: trayPanel.root.trayVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     // auto-close when there are no hidden (unpinned) items left to show
     readonly property int hiddenCount: {
         var n = 0, vals = SystemTray.items.values
         for (var i = 0; i < vals.length; i++)
-            if (root.trayPinned.indexOf(vals[i].id) < 0) n++
+            if (trayPanel.root.trayPinned.indexOf(vals[i].id) < 0) n++
         return n
     }
     readonly property int attentionCount: {
         var n = 0, vals = SystemTray.items.values
         for (var i = 0; i < vals.length; i++)
-            if (root.trayPinned.indexOf(vals[i].id) < 0 && vals[i].status === Status.NeedsAttention) n++
+            if (trayPanel.root.trayPinned.indexOf(vals[i].id) < 0 && vals[i].status === Status.NeedsAttention) n++
         return n
     }
-    onHiddenCountChanged: if (root.trayVisible && hiddenCount === 0) root.trayVisible = false
+    onHiddenCountChanged: if (trayPanel.root.trayVisible && hiddenCount === 0) trayPanel.root.trayVisible = false
 
     // click-outside-to-close: full-overlay dismiss area behind the card
-    MouseArea { anchors.fill: parent; onClicked: root.trayVisible = false }
+    MouseArea { anchors.fill: parent; onClicked: trayPanel.root.trayVisible = false }
 
     Rectangle {
         id: card
-        width: popupW
+        width: trayPanel.popupW
         height: col.implicitHeight + 24
-        radius: reveal > 0.001 ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
+        radius: trayPanel.reveal > 0.001 ? trayPanel.root.pillRadius : 0
+        color: trayPanel.root.bg
+        border.color: trayPanel.root.pillBorder
+        border.width: trayPanel.root.pillBorderW
+        PillShadow { theme: trayPanel.root }
 
-        x: Math.round(Math.max(6, Math.min(root.trayBarX, parent.width - width - 6)))
-        y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
+        x: Math.round(Math.max(6, Math.min(trayPanel.root.trayBarX, parent.width - width - 6)))
+        y: trayPanel.root.barPosition === "bottom" ? (parent.height - trayPanel.barBottom - trayPanel.gap - height) : (trayPanel.barBottom + trayPanel.gap)
         opacity: trayPanel.reveal
-        focus: root.trayVisible
+        focus: trayPanel.root.trayVisible
 
         Keys.onPressed: function(event) {
             if (event.key === Qt.Key_Escape) {
-                root.trayVisible = false
+                trayPanel.root.trayVisible = false
                 event.accepted = true
             }
         }
@@ -90,8 +91,8 @@ PanelWindow {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Tray Apps"
-                    color: root.ink
-                    font.family: root.mono
+                    color: trayPanel.root.ink
+                    font.family: trayPanel.root.mono
                     font.pixelSize: 13
                     font.letterSpacing: 2
                     font.weight: Font.Medium
@@ -103,8 +104,8 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     text: trayPanel.hiddenCount + (trayPanel.hiddenCount === 1 ? " APP" : " APPS")
                         + (trayPanel.attentionCount > 0 ? "  ·  " + trayPanel.attentionCount + " ATTENTION" : "")
-                    color: trayPanel.attentionCount > 0 ? root.seal : root.sumiHi
-                    font.family: root.mono
+                    color: trayPanel.attentionCount > 0 ? trayPanel.root.seal : trayPanel.root.sumiHi
+                    font.family: trayPanel.root.mono
                     font.pixelSize: 10
                 }
 
@@ -113,7 +114,7 @@ PanelWindow {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     text: "\u2715"
-                    color: closeMa.containsMouse ? root.seal : root.sumi
+                    color: closeMa.containsMouse ? trayPanel.root.seal : trayPanel.root.sumi
                     font.pixelSize: 12
                     Behavior on color { ColorAnimation { duration: 120 } }
 
@@ -123,12 +124,12 @@ PanelWindow {
                         anchors.margins: -6
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.trayVisible = false
+                        onClicked: trayPanel.root.trayVisible = false
                     }
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: trayPanel.root.sep }
 
             Item {
                 width: parent.width
@@ -155,8 +156,8 @@ PanelWindow {
                                 required property SystemTrayItem modelData
                                 required property int index
 
-                                readonly property string appName: root.trayDisplayName(modelData)
-                                readonly property string appDescription: root.trayDescription(modelData, appName)
+                                readonly property string appName: trayPanel.root.trayDisplayName(modelData)
+                                readonly property string appDescription: trayPanel.root.trayDescription(modelData, appName)
                                 readonly property bool needsAttention: modelData.status === Status.NeedsAttention
                                 readonly property string statusDescription: needsAttention
                                     ? "\u26a0 " + (appDescription !== "" ? appDescription : "Needs attention")
@@ -165,19 +166,19 @@ PanelWindow {
 
                                 width: trayRows.width
                                 height: visible ? 28 : 0
-                                visible: root.trayPinned.indexOf(modelData.id) < 0
+                                visible: trayPanel.root.trayPinned.indexOf(modelData.id) < 0
 
                                 function openAppMenu() {
                                     if (!modelData.hasMenu) return
                                     var gp = menuButton.mapToItem(null, 0, 0)
-                                    root.openTrayMenu(modelData.menu,
+                                    trayPanel.root.openTrayMenu(modelData.menu,
                                                       gp.x + menuButton.width / 2 - 110,
                                                       appName, modelData.icon)
                                 }
 
                                 function activateApp() {
                                     var item = modelData
-                                    root.trayVisible = false
+                                    trayPanel.root.trayVisible = false
                                     // Release the layer-shell keyboard focus before asking
                                     // the application to surface/focus its primary window.
                                     Qt.callLater(function() {
@@ -191,9 +192,9 @@ PanelWindow {
                                     anchors.verticalCenter: parent.verticalCenter
                                     width: appRow.cellWidth
                                     height: 28
-                                    radius: root.tileRadius
-                                    color: activateMa.containsMouse ? root.fillHover : root.fillIdle
-                                    border.color: activateMa.containsMouse ? root.seal : root.sep
+                                    radius: trayPanel.root.tileRadius
+                                    color: activateMa.containsMouse ? trayPanel.root.fillHover : trayPanel.root.fillIdle
+                                    border.color: activateMa.containsMouse ? trayPanel.root.seal : trayPanel.root.sep
                                     border.width: 1
                                     Behavior on color { ColorAnimation { duration: 120 } }
 
@@ -218,9 +219,9 @@ PanelWindow {
                                         anchors.rightMargin: 6
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: (appRow.needsAttention ? "\u26a0 " : "") + appRow.appName
-                                        color: appRow.needsAttention ? root.seal
-                                            : (activateMa.containsMouse ? root.seal : root.ink)
-                                        font.family: root.mono
+                                        color: appRow.needsAttention ? trayPanel.root.seal
+                                            : (activateMa.containsMouse ? trayPanel.root.seal : trayPanel.root.ink)
+                                        font.family: trayPanel.root.mono
                                         font.pixelSize: 11
                                         font.weight: Font.Medium
                                         elide: Text.ElideRight
@@ -259,17 +260,17 @@ PanelWindow {
                                     anchors.verticalCenter: parent.verticalCenter
                                     width: appRow.cellWidth
                                     height: 28
-                                    radius: root.tileRadius
-                                    color: pinMa.containsMouse ? root.fillHover : root.fillIdle
-                                    border.color: pinMa.containsMouse ? root.seal : root.sep
+                                    radius: trayPanel.root.tileRadius
+                                    color: pinMa.containsMouse ? trayPanel.root.fillHover : trayPanel.root.fillIdle
+                                    border.color: pinMa.containsMouse ? trayPanel.root.seal : trayPanel.root.sep
                                     border.width: 1
                                     Behavior on color { ColorAnimation { duration: 120 } }
 
                                     UiText {
                                         anchors.centerIn: parent
                                         text: "Pin"
-                                        color: pinMa.containsMouse ? root.seal : root.ink
-                                        font.family: root.mono
+                                        color: pinMa.containsMouse ? trayPanel.root.seal : trayPanel.root.ink
+                                        font.family: trayPanel.root.mono
                                         font.pixelSize: 11
                                     }
 
@@ -278,7 +279,7 @@ PanelWindow {
                                         anchors.fill: parent
                                         hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
-                                        onClicked: root.trayToggleHide(appRow.modelData)
+                                        onClicked: trayPanel.root.trayToggleHide(appRow.modelData)
                                     }
                                 }
 
@@ -289,13 +290,13 @@ PanelWindow {
                                     anchors.verticalCenter: parent.verticalCenter
                                     width: appRow.cellWidth
                                     height: 28
-                                    radius: root.tileRadius
+                                    radius: trayPanel.root.tileRadius
                                     color: appRow.modelData.hasMenu
-                                        ? (menuMa.containsMouse ? root.fillHover : root.fillIdle)
+                                        ? (menuMa.containsMouse ? trayPanel.root.fillHover : trayPanel.root.fillIdle)
                                         : "transparent"
                                     border.color: appRow.modelData.hasMenu
-                                        ? (menuMa.containsMouse ? root.seal : root.sep)
-                                        : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.10)
+                                        ? (menuMa.containsMouse ? trayPanel.root.seal : trayPanel.root.sep)
+                                        : Qt.rgba(trayPanel.root.ink.r, trayPanel.root.ink.g, trayPanel.root.ink.b, 0.10)
                                     border.width: 1
                                     opacity: appRow.modelData.hasMenu ? 1.0 : 0.42
                                     Behavior on color { ColorAnimation { duration: 120 } }
@@ -303,8 +304,8 @@ PanelWindow {
                                     UiText {
                                         anchors.centerIn: parent
                                         text: appRow.modelData.hasMenu ? "AppMenu" : "No Menu"
-                                        color: menuMa.containsMouse && appRow.modelData.hasMenu ? root.seal : root.ink
-                                        font.family: root.mono
+                                        color: menuMa.containsMouse && appRow.modelData.hasMenu ? trayPanel.root.seal : trayPanel.root.ink
+                                        font.family: trayPanel.root.mono
                                         font.pixelSize: 11
                                     }
 

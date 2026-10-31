@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import "../modules"
 import Quickshell
@@ -9,7 +10,7 @@ PanelWindow {
     id: notifPanel
     required property var root
 
-    screen: root.activePopupScreen
+    screen: notifPanel.root.activePopupScreen
 
     color: "transparent"
     anchors { top: true; bottom: true; left: true; right: true }
@@ -55,7 +56,7 @@ PanelWindow {
     // scrollable list height cap, clamped to the monitor
     readonly property int listCap: Math.max(120, Math.min(420, notifPanel.height - 220))
 
-    Binding { target: root; property: "notifCount"; value: notifPanel.unreadCount }
+    Binding { target: notifPanel.root; property: "notifCount"; value: notifPanel.unreadCount }
 
     // ── persistent cache (quickshell is the sole writer; write only on change) ──
     readonly property string cachePath: Quickshell.env("HOME") + "/.cache/qs-rise-notifications.json"
@@ -208,7 +209,7 @@ PanelWindow {
         notifPanel.dismissed = nd                // reassign → bindings update
         var id = parseInt(entry.id)              // normalize before it touches a shell
         if (entry.active && id > 0) {
-            if (root._notifOmarchyShellBackend)
+            if (notifPanel.root._notifOmarchyShellBackend)
                 notifPanel.runNotificationAction(["omarchy-shell", "notifications", "dismiss", String(entry.summary || "")])
             else
                 notifPanel.runNotificationAction(["makoctl", "dismiss", "-h", "-n", String(id)])
@@ -222,7 +223,7 @@ PanelWindow {
         for (var i = 0; i < notifPanel.recent.length; i++) nd[notifPanel.recent[i].key] = true
         notifPanel.dismissed = nd
         notifPanel.recent = []                   // clear own history; re-merged entries stay dismissed-filtered
-        if (root._notifOmarchyShellBackend) {
+        if (notifPanel.root._notifOmarchyShellBackend) {
             notifPanel.runNotificationAction(["omarchy-shell", "notifications", "dismissAll"])
             clearHistoryProc.running = false; clearHistoryProc.running = true
         } else {
@@ -280,7 +281,7 @@ PanelWindow {
         } else {
             notifPanel.notificationActionError = (result && typeof result.message === "string")
                 ? result.message : "This notification has no available application action."
-            root.notifVisible = true
+            notifPanel.root.notifVisible = true
         }
     }
     readonly property string notificationActionHelper: snapshotReader.replace("notification-snapshot.py", "notification-crash-action.py")
@@ -315,7 +316,7 @@ PanelWindow {
         if (result && result.ok === true) {
             notifPanel.consumeNotification(consumedKey)
             notifPanel.notificationActionError = ""
-            root.notifVisible = false
+            notifPanel.root.notifVisible = false
         } else {
             notifPanel.notificationActionError = (result && typeof result.message === "string")
                 ? result.message : "This notification action is unavailable."
@@ -323,7 +324,7 @@ PanelWindow {
     }
 
     function openNotification(entry) {
-        if (!root.notifVisible || notificationOpenProc.running || browserOpenProc.running) return
+        if (!notifPanel.root.notifVisible || notificationOpenProc.running || browserOpenProc.running) return
         notifPanel.notificationActionError = ""
         notifPanel.pendingNotificationKey = typeof entry.key === "string" ? entry.key : ""
         if (entry.backend === "omarchy") {
@@ -334,7 +335,7 @@ PanelWindow {
             if (NotificationActions.invokeDefault(NotificationActions.serviceFor(root), entry)) {
                 notifPanel.consumeNotification(notifPanel.pendingNotificationKey)
                 notifPanel.pendingNotificationKey = ""
-                root.notifVisible = false
+                notifPanel.root.notifVisible = false
                 return
             }
             delete notifPanel.nativeBrowserClaims[claim]
@@ -344,7 +345,7 @@ PanelWindow {
                 && entry.appName !== "omarchy-action" && entry.actionKind !== "omarchy-crash") {
             // Open a uniquely registered installed app, not a cached command.
             // Historical alerts cannot recover the original message.
-            root.notifVisible = false
+            notifPanel.root.notifVisible = false
             notifPanel.browserOpenReplySeen = false
             browserOpenProc.command = ["python3", notifPanel.appOpenHelper,
                 "--entry", JSON.stringify({backend: "omarchy", id: entry.id,
@@ -356,7 +357,7 @@ PanelWindow {
         if (entry.backend === "omarchy" && entry.appName === "Chromium") {
             // Drop exclusive keyboard focus before asking the browser to
             // activate its new tab. No window-address guessing or focus CLI.
-            root.notifVisible = false
+            notifPanel.root.notifVisible = false
             notifPanel.browserOpenReplySeen = false
             browserOpenProc.command = ["python3", notifPanel.browserOpenHelper,
                 "--entry", JSON.stringify({backend: "omarchy", id: entry.id,
@@ -365,7 +366,7 @@ PanelWindow {
             browserOpenProc.running = true
             return
         }
-        if (entry.backend === "omarchy" || root._notifOmarchyShellBackend
+        if (entry.backend === "omarchy" || notifPanel.root._notifOmarchyShellBackend
                 || entry.appName === "omarchy-action") {
             // Fixed screenshot/crash actions, never sender command execution.
             notifPanel.notificationReplySeen = false
@@ -380,7 +381,7 @@ PanelWindow {
         var id = parseInt(entry.id)
         if (entry.active && id > 0) {
             notifPanel.runNotificationAction(["makoctl", "invoke", "-n", String(id)])
-            root.notifVisible = false
+            notifPanel.root.notifVisible = false
         } else {
             notifPanel.notificationActionError = "This notification no longer has an active action."
         }
@@ -396,41 +397,41 @@ PanelWindow {
         onTriggered: notifPanel.poll()
     }
 
-    property real reveal: root.notifVisible ? 1 : 0
+    property real reveal: notifPanel.root.notifVisible ? 1 : 0
     Behavior on reveal {
         NumberAnimation {
-            duration: root.notifVisible ? 160 : 120
-            easing.type: root.notifVisible ? Easing.OutCubic : Easing.InCubic
+            duration: notifPanel.root.notifVisible ? 160 : 120
+            easing.type: notifPanel.root.notifVisible ? Easing.OutCubic : Easing.InCubic
         }
     }
     visible: reveal > 0.001
-    WlrLayershell.keyboardFocus: root.notifVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: notifPanel.root.notifVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     onVisibleChanged: { if (visible) notifPanel.poll() }
 
     MouseArea {
         anchors.fill: parent
-        onClicked: root.notifVisible = false
+        onClicked: notifPanel.root.notifVisible = false
     }
 
     Rectangle {
         id: card
         width: 320
         height: col.implicitHeight + 24
-        radius: reveal > 0.001 ? root.pillRadius : 0
-        color: root.bg
-        border.color: root.pillBorder
-        border.width: root.pillBorderW
-        PillShadow { theme: root }
+        radius: notifPanel.reveal > 0.001 ? notifPanel.root.pillRadius : 0
+        color: notifPanel.root.bg
+        border.color: notifPanel.root.pillBorder
+        border.width: notifPanel.root.pillBorderW
+        PillShadow { theme: notifPanel.root }
 
-        x: Math.round(Math.max(6, Math.min(root.notifBarX, parent.width - width - 6)))
-        y: root.barPosition === "bottom" ? (parent.height - barBottom - gap - height) : (barBottom + gap)
+        x: Math.round(Math.max(6, Math.min(notifPanel.root.notifBarX, parent.width - width - 6)))
+        y: notifPanel.root.barPosition === "bottom" ? (parent.height - notifPanel.barBottom - notifPanel.gap - height) : (notifPanel.barBottom + notifPanel.gap)
         opacity: notifPanel.reveal
-        focus: root.notifVisible
+        focus: notifPanel.root.notifVisible
 
         Keys.onPressed: function(event) {
             if (event.key === Qt.Key_Escape) {
-                root.notifVisible = false
+                notifPanel.root.notifVisible = false
                 event.accepted = true
             }
         }
@@ -451,8 +452,8 @@ PanelWindow {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: notifPanel.unreadCount > 0 ? "Notifications · " + notifPanel.unreadCount : "Notifications"
-                    color: root.ink
-                    font.family: root.mono
+                    color: notifPanel.root.ink
+                    font.family: notifPanel.root.mono
                     font.pixelSize: 13
                     font.letterSpacing: 2
                     font.weight: Font.Medium
@@ -461,7 +462,7 @@ PanelWindow {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     text: "✕"
-                    color: closeMa.containsMouse ? root.seal : root.sumi
+                    color: closeMa.containsMouse ? notifPanel.root.seal : notifPanel.root.sumi
                     font.pixelSize: 12
                     Behavior on color { ColorAnimation { duration: 120 } }
                     MouseArea {
@@ -469,20 +470,20 @@ PanelWindow {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.notifVisible = false
+                        onClicked: notifPanel.root.notifVisible = false
                     }
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: notifPanel.root.sep }
 
             // ── notification list (scrollable; each individually dismissable) ──
             UiText {
                 width: parent.width
                 visible: notifPanel.notificationActionError !== ""
                 text: notifPanel.notificationActionError
-                color: root.sumi
-                font.family: root.mono
+                color: notifPanel.root.sumi
+                font.family: notifPanel.root.mono
                 font.pixelSize: 11
                 wrapMode: Text.WordWrap
                 maximumLineCount: 3
@@ -506,12 +507,13 @@ PanelWindow {
                         model: notifPanel.pending
 
                         delegate: Rectangle {
+                            id: notificationRow
                             required property var modelData
                             width: listCol.width
                             height: entryCol.implicitHeight + 16
-                            radius: root.tileRadius
-                            color: entryMa.containsMouse ? root.fillHover : root.fillIdle
-                            border.color: entryMa.containsMouse ? root.seal : root.sep
+                            radius: notifPanel.root.tileRadius
+                            color: entryMa.containsMouse ? notifPanel.root.fillHover : notifPanel.root.fillIdle
+                            border.color: entryMa.containsMouse ? notifPanel.root.seal : notifPanel.root.sep
                             border.width: 1
                             Behavior on color { ColorAnimation { duration: 120 } }
 
@@ -524,27 +526,27 @@ PanelWindow {
                                 spacing: 3
 
                                 UiText {
-                                    text: modelData.appName || "App"
-                                    color: root.sumiHi
-                                    font.family: root.mono
+                                    text: notificationRow.modelData.appName || "App"
+                                    color: notifPanel.root.sumiHi
+                                    font.family: notifPanel.root.mono
                                     font.pixelSize: 10
                                     font.letterSpacing: 0.5
                                     width: parent.width
                                     elide: Text.ElideRight
                                 }
                                 UiText {
-                                    text: modelData.summary || ""
-                                    color: root.ink
-                                    font.family: root.mono
+                                    text: notificationRow.modelData.summary || ""
+                                    color: notifPanel.root.ink
+                                    font.family: notifPanel.root.mono
                                     font.pixelSize: 11
                                     width: parent.width
                                     elide: Text.ElideRight
                                     visible: text !== ""
                                 }
                                 UiText {
-                                    text: modelData.body || ""
-                                    color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.6)
-                                    font.family: root.mono
+                                    text: notificationRow.modelData.body || ""
+                                    color: Qt.rgba(notifPanel.root.ink.r, notifPanel.root.ink.g, notifPanel.root.ink.b, 0.6)
+                                    font.family: notifPanel.root.mono
                                     font.pixelSize: 10
                                     width: parent.width
                                     wrapMode: Text.WordWrap
@@ -558,10 +560,10 @@ PanelWindow {
                             MouseArea {
                                 id: entryMa
                                 anchors.fill: parent
-                                enabled: root.notifVisible && !notificationOpenProc.running && !browserOpenProc.running
+                                enabled: notifPanel.root.notifVisible && !notificationOpenProc.running && !browserOpenProc.running
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
-                                onClicked: notifPanel.openNotification(modelData)
+                                onClicked: notifPanel.openNotification(notificationRow.modelData)
                             }
 
                             // per-item dismiss ✕ (on top, top-right corner)
@@ -573,7 +575,7 @@ PanelWindow {
                                 UiText {
                                     anchors.centerIn: parent
                                     text: "✕"
-                                    color: xMa.containsMouse ? root.seal : Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.45)
+                                    color: xMa.containsMouse ? notifPanel.root.seal : Qt.rgba(notifPanel.root.ink.r, notifPanel.root.ink.g, notifPanel.root.ink.b, 0.45)
                                     font.pixelSize: 10
                                 }
                                 MouseArea {
@@ -581,7 +583,7 @@ PanelWindow {
                                     anchors.fill: parent
                                     hoverEnabled: true
                                     cursorShape: Qt.PointingHandCursor
-                                    onClicked: notifPanel.dismissOne(modelData)
+                                    onClicked: notifPanel.dismissOne(notificationRow.modelData)
                                 }
                             }
                         }
@@ -592,8 +594,8 @@ PanelWindow {
                         width: listCol.width
                         horizontalAlignment: Text.AlignHCenter
                         text: "No notifications"
-                        color: Qt.rgba(root.ink.r, root.ink.g, root.ink.b, 0.3)
-                        font.family: root.mono
+                        color: Qt.rgba(notifPanel.root.ink.r, notifPanel.root.ink.g, notifPanel.root.ink.b, 0.3)
+                        font.family: notifPanel.root.mono
                         font.pixelSize: 11
                     }
                 }
@@ -602,18 +604,18 @@ PanelWindow {
             // ── clear all ──
             Rectangle {
                 width: parent.width
-                height: 28; radius: root.tileRadius
+                height: 28; radius: notifPanel.root.tileRadius
                 visible: notifPanel.pending.length > 0
                 readonly property bool hovered: clearMa.containsMouse
-                color: hovered ? root.fillHover : root.fillIdle
-                border.color: hovered ? root.seal : root.sep
+                color: hovered ? notifPanel.root.fillHover : notifPanel.root.fillIdle
+                border.color: hovered ? notifPanel.root.seal : notifPanel.root.sep
                 border.width: 1
                 Behavior on color { ColorAnimation { duration: 120 } }
                 UiText {
                     anchors.centerIn: parent
                     text: "Clear all"
-                    color: clearMa.containsMouse ? root.seal : root.sumi
-                    font.family: root.mono; font.pixelSize: 11
+                    color: clearMa.containsMouse ? notifPanel.root.seal : notifPanel.root.sumi
+                    font.family: notifPanel.root.mono; font.pixelSize: 11
                 }
                 MouseArea {
                     id: clearMa

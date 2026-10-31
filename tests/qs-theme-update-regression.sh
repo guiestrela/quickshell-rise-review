@@ -254,7 +254,7 @@ test_theme_apply_exports_omarchy_path() {
 
   assert_contains 'property string omarchyInstallRoot:' "$theme" "theme install root property"
   assert_contains '/usr/share/omarchy' "$theme" "omarchy4 install root"
-  picker_count="$(grep -RFl '["env", "OMARCHY_PATH=" + root.omarchyInstallRoot, "omarchy-theme-set", name]' \
+  picker_count="$(grep -REl '\["env", "OMARCHY_PATH=" \+ (panel\.)?root\.omarchyInstallRoot, "omarchy-theme-set", name\]' \
     "$REPO_ROOT/versions/V1/panels/ImageCarouselPanel.qml" \
     "$REPO_ROOT/versions/V1/panels/ImageCarouselCarousel.qml" \
     "$REPO_ROOT/versions/V1/panels/ImageCarouselHearthstone.qml" | wc -l | tr -d '[:space:]')"

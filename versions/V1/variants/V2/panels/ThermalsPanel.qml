@@ -1,3 +1,4 @@
+pragma ComponentBehavior: Bound
 import QtQuick
 import "../modules"
 import Quickshell
@@ -7,7 +8,7 @@ PanelWindow {
     id: thermalPanel
     required property var root
 
-    screen: root.activePopupScreen
+    screen: thermalPanel.root.activePopupScreen
 
     color: "transparent"
     anchors { top: true; bottom: true; left: true; right: true }
@@ -15,7 +16,7 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "omarchy-thermals"
 
-    readonly property int barBottom: root.v2BarHeight
+    readonly property int barBottom: thermalPanel.root.v2BarHeight
     readonly property int gap: 6
 
     function status(value, maximum, critical) {
@@ -26,22 +27,23 @@ PanelWindow {
 
     function statusColor(value, maximum, critical) {
         var state = status(value, maximum, critical)
-        if (state === "HOT") return root.sealRaw
-        if (state === "WARM") return root.color03
-        return root.seal
+        if (state === "HOT") return thermalPanel.root.sealRaw
+        if (state === "WARM") return thermalPanel.root.color03
+        return thermalPanel.root.seal
     }
 
-    property real reveal: root.thermalVisible ? 1 : 0
+    property real reveal: thermalPanel.root.thermalVisible ? 1 : 0
     Behavior on reveal {
         NumberAnimation {
-            duration: root.thermalVisible ? 160 : 120
-            easing.type: root.thermalVisible ? Easing.OutCubic : Easing.InCubic
+            duration: thermalPanel.root.thermalVisible ? 160 : 120
+            easing.type: thermalPanel.root.thermalVisible ? Easing.OutCubic : Easing.InCubic
         }
     }
     visible: reveal > 0.001
-    WlrLayershell.keyboardFocus: root.thermalVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
+    WlrLayershell.keyboardFocus: thermalPanel.root.thermalVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     component ThermalRow: Item {
+        id: thermalRow
         required property string label
         required property int value
         property int maximum: 0
@@ -60,7 +62,7 @@ PanelWindow {
             anchors.right: sensorValue.left
             anchors.rightMargin: 8
             anchors.top: parent.top
-            text: label
+            text: thermalRow.label
             color: thermalPanel.root.sumiHi
             font.family: thermalPanel.root.mono
             font.pixelSize: 10
@@ -71,8 +73,8 @@ PanelWindow {
             id: sensorValue
             anchors.right: parent.right
             anchors.top: parent.top
-            text: value + "°C · " + thermalPanel.status(value, maximum, critical)
-            color: meterColor
+            text: thermalRow.value + "°C · " + thermalPanel.status(thermalRow.value, thermalRow.maximum, thermalRow.critical)
+            color: thermalRow.meterColor
             font.family: thermalPanel.root.mono
             font.pixelSize: 10
             font.weight: Font.Medium
@@ -89,7 +91,7 @@ PanelWindow {
             color: thermalPanel.root.fillActive
 
             Item {
-                width: parent.width * Math.max(0, Math.min(1, value / scaleMax))
+                width: parent.width * Math.max(0, Math.min(1, thermalRow.value / thermalRow.scaleMax))
                 height: parent.height
                 clip: true
                 Behavior on width { NumberAnimation { duration: 300 } }
@@ -114,7 +116,7 @@ PanelWindow {
             width: 48
             anchors.right: parent.right
             anchors.bottom: parent.bottom
-            text: scaleMax + "° limit"
+            text: thermalRow.scaleMax + "° limit"
             color: thermalPanel.root.sumi
             font.family: thermalPanel.root.mono
             font.pixelSize: 8
@@ -124,18 +126,18 @@ PanelWindow {
 
     MouseArea {
         anchors.fill: parent
-        onClicked: root.thermalVisible = false
+        onClicked: thermalPanel.root.thermalVisible = false
     }
 
     Rectangle {
         id: card
         width: 320
         height: col.implicitHeight + 24
-        radius: reveal > 0.001 ? root.panelRadius : 0
+        radius: thermalPanel.reveal > 0.001 ? thermalPanel.root.panelRadius : 0
         color: "transparent"
-        border.color: root.panelBorder
+        border.color: thermalPanel.root.panelBorder
         border.width: 0
-        PillShadow { theme: root }
+        PillShadow { theme: thermalPanel.root }
         ConnectedPanelSurface {
             root: thermalPanel.root
             ownerActive: thermalPanel.root.thermalVisible
@@ -144,16 +146,16 @@ PanelWindow {
         }
 
         SidePanelPositioner { root: thermalPanel.root; target: parent; anchorName: "thermal" }
-        x: Math.round(Math.max(6, Math.min(root.thermalBarX - width / 2, parent.width - width - 6)))
-        y: root.barPosition === "bottom"
-            ? (parent.height - barBottom - gap - height) + 2 * (1 - thermalPanel.reveal)
-            : (barBottom + gap) - 2 * (1 - thermalPanel.reveal)
+        x: Math.round(Math.max(6, Math.min(thermalPanel.root.thermalBarX - width / 2, parent.width - width - 6)))
+        y: thermalPanel.root.barPosition === "bottom"
+            ? (parent.height - thermalPanel.barBottom - thermalPanel.gap - height) + 2 * (1 - thermalPanel.reveal)
+            : (thermalPanel.barBottom + thermalPanel.gap) - 2 * (1 - thermalPanel.reveal)
         opacity: thermalPanel.reveal
-        focus: root.thermalVisible
+        focus: thermalPanel.root.thermalVisible
 
         Keys.onPressed: function(event) {
             if (event.key === Qt.Key_Escape) {
-                root.thermalVisible = false
+                thermalPanel.root.thermalVisible = false
                 event.accepted = true
             }
         }
@@ -173,8 +175,8 @@ PanelWindow {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: "THERMALS"
-                    color: root.ink
-                    font.family: root.mono
+                    color: thermalPanel.root.ink
+                    font.family: thermalPanel.root.mono
                     font.pixelSize: 13
                     font.letterSpacing: 2
                     font.weight: Font.Medium
@@ -183,7 +185,7 @@ PanelWindow {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
                     text: "✕"
-                    color: closeMa.containsMouse ? root.seal : root.sumi
+                    color: closeMa.containsMouse ? thermalPanel.root.seal : thermalPanel.root.sumi
                     font.pixelSize: 12
                     Behavior on color { ColorAnimation { duration: 120 } }
                     MouseArea {
@@ -191,12 +193,12 @@ PanelWindow {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: root.thermalVisible = false
+                        onClicked: thermalPanel.root.thermalVisible = false
                     }
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: thermalPanel.root.sep }
 
             Item {
                 width: parent.width
@@ -205,17 +207,17 @@ PanelWindow {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     text: "BAR SENSOR"
-                    color: root.sumiHi
-                    font.family: root.mono
+                    color: thermalPanel.root.sumiHi
+                    font.family: thermalPanel.root.mono
                     font.pixelSize: 9
                     font.letterSpacing: 1
                 }
                 UiText {
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    text: root.barTemperatureSourceLabel(root.barTemperatureSource)
-                    color: root.seal
-                    font.family: root.mono
+                    text: thermalPanel.root.barTemperatureSourceLabel(thermalPanel.root.barTemperatureSource)
+                    color: thermalPanel.root.seal
+                    font.family: thermalPanel.root.mono
                     font.pixelSize: 10
                     font.weight: Font.Medium
                 }
@@ -237,29 +239,30 @@ PanelWindow {
                     ]
 
                     delegate: Rectangle {
+                        id: sourceOption
                         required property var modelData
-                        readonly property bool selected: root.barTemperatureSource === modelData.id
-                        readonly property bool available: root.barTemperatureSourceAvailable(modelData.id)
+                        readonly property bool selected: thermalPanel.root.barTemperatureSource === modelData.id
+                        readonly property bool available: thermalPanel.root.barTemperatureSourceAvailable(modelData.id)
                         readonly property bool hovered: sourceMa.containsMouse && available
 
-                        width: root.evenW((sourceRow.width - sourceRow.spacing * 4) / 5)
+                        width: thermalPanel.root.evenW((sourceRow.width - sourceRow.spacing * 4) / 5)
                         height: sourceRow.height
-                        radius: root.panelButtonRadius
+                        radius: thermalPanel.root.panelButtonRadius
                         opacity: available ? 1 : 0.35
-                        color: selected ? root.fillActive
-                            : hovered ? root.fillHover
-                            : root.fillIdle
-                        border.color: (selected || hovered) ? root.seal : root.sep
+                        color: selected ? thermalPanel.root.fillActive
+                            : hovered ? thermalPanel.root.fillHover
+                            : thermalPanel.root.fillIdle
+                        border.color: (selected || hovered) ? thermalPanel.root.seal : thermalPanel.root.sep
                         border.width: 1
                         Behavior on color { ColorAnimation { duration: 120 } }
 
                         UiText {
                             anchors.centerIn: parent
-                            text: modelData.label
-                            color: (selected || hovered) ? root.seal : root.ink
-                            font.family: root.mono
+                            text: sourceOption.modelData.label
+                            color: (sourceOption.selected || sourceOption.hovered) ? thermalPanel.root.seal : thermalPanel.root.ink
+                            font.family: thermalPanel.root.mono
                             font.pixelSize: 9
-                            font.weight: selected ? Font.Medium : Font.Normal
+                            font.weight: sourceOption.selected ? Font.Medium : Font.Normal
                         }
 
                         MouseArea {
@@ -268,48 +271,48 @@ PanelWindow {
                             enabled: parent.available
                             hoverEnabled: true
                             cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                            onClicked: root.barTemperatureSource = parent.modelData.id
+                            onClicked: thermalPanel.root.barTemperatureSource = parent.modelData.id
                         }
                     }
                 }
             }
 
-            Rectangle { width: parent.width; height: 1; color: root.sep }
+            Rectangle { width: parent.width; height: 1; color: thermalPanel.root.sep }
 
             ThermalRow {
                 label: "CPU package"
-                value: root.cpuTemperatureC
-                maximum: root.cpuTemperatureMaxC
-                critical: root.cpuTemperatureCriticalC
+                value: thermalPanel.root.cpuTemperatureC
+                maximum: thermalPanel.root.cpuTemperatureMaxC
+                critical: thermalPanel.root.cpuTemperatureCriticalC
             }
             ThermalRow {
                 label: "Hottest CPU core"
-                value: root.cpuCoreMaxTemperatureC
-                maximum: root.cpuTemperatureMaxC
-                critical: root.cpuTemperatureCriticalC
+                value: thermalPanel.root.cpuCoreMaxTemperatureC
+                maximum: thermalPanel.root.cpuTemperatureMaxC
+                critical: thermalPanel.root.cpuTemperatureCriticalC
             }
             ThermalRow {
-                label: root.gpuName !== "" ? "GPU · " + root.gpuName : "GPU"
-                value: root.gpuTemperatureC
+                label: thermalPanel.root.gpuName !== "" ? "GPU · " + thermalPanel.root.gpuName : "GPU"
+                value: thermalPanel.root.gpuTemperatureC
             }
             ThermalRow {
                 label: "NVMe composite"
-                value: root.nvmeTemperatureC
-                maximum: root.nvmeTemperatureMaxC
-                critical: root.nvmeTemperatureCriticalC
+                value: thermalPanel.root.nvmeTemperatureC
+                maximum: thermalPanel.root.nvmeTemperatureMaxC
+                critical: thermalPanel.root.nvmeTemperatureCriticalC
             }
             ThermalRow {
                 label: "Memory sensor"
-                value: root.memoryTemperatureC
+                value: thermalPanel.root.memoryTemperatureC
             }
 
             UiText {
                 width: parent.width
-                visible: !root.cpuTemperatureAvailable && root.gpuTemperatureC <= 0
-                    && root.nvmeTemperatureC <= 0 && root.memoryTemperatureC <= 0
+                visible: !thermalPanel.root.cpuTemperatureAvailable && thermalPanel.root.gpuTemperatureC <= 0
+                    && thermalPanel.root.nvmeTemperatureC <= 0 && thermalPanel.root.memoryTemperatureC <= 0
                 text: "No temperature sensors available"
-                color: root.sumiHi
-                font.family: root.mono
+                color: thermalPanel.root.sumiHi
+                font.family: thermalPanel.root.mono
                 font.pixelSize: 10
                 horizontalAlignment: Text.AlignHCenter
             }
