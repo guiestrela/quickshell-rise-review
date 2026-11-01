@@ -99,7 +99,7 @@ PanelWindow {
         audioErrorNotified = true
         audioErrNotify.command = ["bash", "-c",
             "notify-send -a 'QS-Shell' 'Audio command failed' " +
-            volPanel.shq(action + " failed; audio backend unavailable.") +
+            volPanel.shq(action + " failed (exit " + exitCode + ").") +
             " 2>/dev/null || true"]
         audioErrNotify.running = false
         audioErrNotify.running = true
@@ -128,18 +128,39 @@ PanelWindow {
         micVolumeData.running = true
     }
 
-    function setMicVolume(value) {
-        micVolume = Math.max(0, Math.min(1, value))
-        micVolumeRunner.command = ["bash", "-c", "wpctl set-volume @DEFAULT_AUDIO_SOURCE@ " + micVolume.toFixed(3)]
-        micVolumeRunner.running = false
+    // Keep only the latest drag position while a command is in flight.
+    // Cancelling wpctl on every pointer event can report false failures and
+    // discard the final position when the pointer moves faster than it exits.
+    property real pendingOutputVolume: -1
+    property real pendingMicVolume: -1
+
+    function flushOutputVolume() {
+        if (outputVolumeRunner.running || pendingOutputVolume < 0) return
+        var level = pendingOutputVolume
+        pendingOutputVolume = -1
+        outputVolumeRunner.command = ["timeout", "4", "wpctl", "set-volume",
+                                      "@DEFAULT_AUDIO_SINK@", level.toFixed(3)]
+        outputVolumeRunner.running = true
+    }
+
+    function flushMicVolume() {
+        if (micVolumeRunner.running || pendingMicVolume < 0) return
+        var level = pendingMicVolume
+        pendingMicVolume = -1
+        micVolumeRunner.command = ["timeout", "4", "wpctl", "set-volume",
+                                   "@DEFAULT_AUDIO_SOURCE@", level.toFixed(3)]
         micVolumeRunner.running = true
     }
 
+    function setMicVolume(value) {
+        micVolume = Math.max(0, Math.min(1, value))
+        pendingMicVolume = micVolume
+        flushMicVolume()
+    }
+
     function setOutputVolume(value) {
-        var level = Math.max(0, Math.min(1, value))
-        outputVolumeRunner.command = ["bash", "-c", "wpctl set-volume @DEFAULT_AUDIO_SINK@ " + level.toFixed(3)]
-        outputVolumeRunner.running = false
-        outputVolumeRunner.running = true
+        pendingOutputVolume = Math.max(0, Math.min(1, value))
+        flushOutputVolume()
     }
 
     function setDefaultSink(dev) {
@@ -702,12 +723,18 @@ PanelWindow {
     Process {
         id: outputVolumeRunner
         running: false
-        onExited: function(code) { if (code !== 0) volPanel.notifyAudioError("Set volume", code) }
+        onExited: function(code) {
+            volPanel.notifyAudioError("Set volume", code)
+            volPanel.flushOutputVolume()
+        }
     }
     Process {
         id: micVolumeRunner
         running: false
-        onExited: function(code) { if (code !== 0) volPanel.notifyAudioError("Set mic volume", code) }
+        onExited: function(code) {
+            volPanel.notifyAudioError("Set mic volume", code)
+            volPanel.flushMicVolume()
+        }
     }
     Process {
         id: micVolumeData
