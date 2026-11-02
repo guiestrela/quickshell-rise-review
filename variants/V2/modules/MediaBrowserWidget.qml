@@ -1,4 +1,5 @@
 import QtQuick
+import "../../../shared/components" as CommonComponents
 
 // Combined screenshots/videos browser launcher.
 // Left-click = screenshots, right-click = videos. Sits left of the theme icon.
@@ -11,7 +12,7 @@ Item {
     implicitWidth: root.v2ActionIconCellWidth
     implicitHeight: 28
 
-    IconText {
+    CommonComponents.IconText {
         anchors.centerIn: parent
         text: "collections"
         font.pixelSize: 14
@@ -22,7 +23,7 @@ Item {
         Behavior on color { ColorAnimation { duration: 150 } }
     }
 
-    TooltipMixin {
+    CommonComponents.TooltipMixin {
         id: tip; root: rootMod.root; owner: rootMod
         text: "L: Screenshots  R: Videos"
     }

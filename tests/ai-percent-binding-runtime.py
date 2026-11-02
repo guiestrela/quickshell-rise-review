@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Exercise the exact percentage label binding from both production widgets."""
+from qml_fixture_source import qml_fixture_text
 import os
 from pathlib import Path
 import subprocess
 import tempfile
 repo=Path(__file__).resolve().parents[1]
 for v in ('variants/V1','variants/V2'):
-    text=(repo/v/'modules/ClaudeWidget.qml').read_text()
+    text=qml_fixture_text(repo/v/'modules/ClaudeWidget.qml')
     start=text.index('            text: rootMod.blocked')
     end=text.index('            color:',start)
     binding=text[start:end]

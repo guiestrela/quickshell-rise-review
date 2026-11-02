@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Exercise tray panels with fake apps; never access the session tray service."""
+from qml_fixture_source import qml_fixture_bytes, qml_fixture_source, qml_fixture_text
 import os
 from pathlib import Path
 import re
@@ -15,7 +16,7 @@ with tempfile.TemporaryDirectory(prefix='rise-tray-',dir='/tmp') as directory:
         folder=base/variant
         panels,modules=folder/'panels',folder/'modules'
         panels.mkdir(parents=True); modules.mkdir()
-        text=(repo/path/'panels/TrayPanel.qml').read_text()
+        text=qml_fixture_text(repo/path/'panels/TrayPanel.qml')
         text=re.sub(r'^import Quickshell(?:\.[A-Za-z.]+)?\n','',text,flags=re.M)
         text=text.replace('PanelWindow {','Rectangle {\n width:800; height:700\n property var screen',1)
         text=re.sub(r'^    (?:anchors \{ top:|exclusionMode:|WlrLayershell\.).*\n','',text,flags=re.M)
@@ -25,7 +26,7 @@ with tempfile.TemporaryDirectory(prefix='rise-tray-',dir='/tmp') as directory:
             text=text.replace('id: '+identity+'\n','id: '+identity+'; objectName: "'+identity+'"\n')
         (panels/'TrayPanel.qml').write_text(text)
         for name in ['UiText','PillShadow','SidePanelPositioner','TooltipMixin']:
-            (modules/f'{name}.qml').write_bytes((repo/path/'modules'/f'{name}.qml').read_bytes())
+            (modules/f'{name}.qml').write_bytes(qml_fixture_bytes(qml_fixture_source(repo/path/'modules'/f'{name}.qml')))
         (modules/'ConnectedPanelSurface.qml').write_text('import QtQuick\nItem { property var root; property bool ownerActive; property real targetX; property real reveal }')
         fields=set(re.findall(r'trayPanel\.root\.(\w+)',text))
         theme=[]

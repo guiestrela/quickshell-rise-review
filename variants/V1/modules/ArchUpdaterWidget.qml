@@ -1,7 +1,9 @@
 import QtQuick
+import "../../../shared/logic/ArchUpdaterWidgetLogic.js" as ArchUpdaterWidgetLogic
 import Quickshell
 import Quickshell.Io
-import "../IconMap.js" as IconMap
+import "../../../shared/logic/IconMap.js" as IconMap
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -57,18 +59,7 @@ Item {
         }
     }
 
-    function finishCheck() {
-        if (!checkFinished || !checkOutputReady) return
-        refreshWatchdog.stop()
-        if (checkTimedOut) {
-            root.archScanError = "Update check timed out. Previous results retained."
-        } else if (checkExitCode !== 0 || !parseOutput(checkStdout.text)) {
-            root.archScanError = "Update check failed. Previous results retained."
-        } else {
-            root.archScanError = ""
-        }
-        refreshing = false
-    }
+    function finishCheck() { return ArchUpdaterWidgetLogic.finishCheck(rootMod, {refreshWatchdog: refreshWatchdog, root: root, checkStdout: checkStdout}) }
 
     // safety: if the check ever hangs (AUR RPC stalls past the timeout), unstick
     // `refreshing` so future refreshes aren't blocked forever
@@ -113,49 +104,14 @@ Item {
         checkProc.running = true
     }
 
-    function parseOutput(text) {
-        var lines = text.trim().split("\n")
-        var updates = []
-        var sysCount = 0; var aCount = 0
-        var scan = null
-        for (var i = 0; i < lines.length; i++) {
-            var parts = lines[i].split("|")
-            if (parts.length >= 4) {
-                var src = parts[0]
-                if (src === "M") {
-                    scan = { id: parts[1] || "", checked: parseInt(parts[2] || "0"),
-                        hash: parts[3] || "", count: parseInt(parts[4] || "0") }
-                    continue
-                }
-                if (src !== "S" && src !== "A") continue
-                var entry = {name: parts[1], oldVer: parts[2], newVer: parts[3], source: src === "S" ? "system" : "aur"}
-                updates.push(entry)
-                if (src === "S") sysCount++
-                else if (src === "A") aCount++
-            }
-        }
-        // An empty successful scan still includes M metadata. Empty/malformed
-        // stdout is not evidence that the machine has no available updates.
-        if (!scan || !scan.id || !scan.hash || !isFinite(scan.checked)
-                || scan.checked <= 0 || !isFinite(scan.count) || scan.count !== sysCount)
-            return false
-        root.archScanId = scan.id
-        root.archScanCheckedEpoch = scan.checked
-        root.archScanHash = scan.hash
-        root.archScanSystemCount = scan.count
-        rootMod.systemCount = sysCount
-        rootMod.aurCount = aCount
-        rootMod.updateCount = sysCount + aCount
-        root.archUpdates = updates
-        return true
-    }
+    function parseOutput(text) { return ArchUpdaterWidgetLogic.parseOutput(rootMod, {root: root}, text) }
 
     Item {
         anchors.centerIn: parent
         width: 20
         height: 20
 
-        IconText {
+        CommonComponents.IconText {
             id: ic
             anchors.centerIn: parent
             text: rootMod.refreshing ? "\uE5D5" : IconMap.icon("package_2")
@@ -200,7 +156,7 @@ Item {
         return parts.join(" \u00B7 ") + "\nClick to view details"
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     MouseArea {
         id: mouse

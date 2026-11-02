@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell.Io
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -59,7 +60,7 @@ Item {
         anchors.centerIn: parent
         spacing: 5
 
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             visible: !rootMod.verticalCompact
             text: "PWR"
@@ -69,7 +70,7 @@ Item {
             font.letterSpacing: 0.5
         }
 
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.verticalCompact
             text: rootMod.profileIcon
@@ -80,7 +81,7 @@ Item {
             Behavior on color { ColorAnimation { duration: 200 } }
         }
 
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             visible: !rootMod.verticalCompact
             text: rootMod.shortName
@@ -113,7 +114,7 @@ Item {
         command: ["bash", "-c", "powerprofilesctl set balanced"]
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     MouseArea {
         anchors.fill: parent

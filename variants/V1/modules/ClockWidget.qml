@@ -1,5 +1,7 @@
 import QtQuick
+import "../../../shared/logic/ClockWidgetValuesLogic.js" as ClockWidgetValuesLogic
 import Quickshell.Io
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -7,7 +9,7 @@ Item {
 
     property date now: new Date()
 
-    function pad(n) { return n < 10 ? "0" + n : String(n) }
+    function pad(n) { return ClockWidgetValuesLogic.pad(rootMod, {}, n) }
 
     readonly property string timeStr: {
         if (rootMod.root.clock12h) {
@@ -33,7 +35,7 @@ Item {
         onTriggered: rootMod.now = new Date()
     }
 
-    UiText {
+    CommonComponents.UiText {
         id: label
         anchors.centerIn: parent
         text: rootMod.timeStr
@@ -43,7 +45,7 @@ Item {
         font.letterSpacing: 1
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     Process {
         id: tzRunner

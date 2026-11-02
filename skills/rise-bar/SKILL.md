@@ -35,13 +35,14 @@ Use `omarchy plugin update io.github.guiestrela.quickshell-rise` to update throu
 
 - `Bar.qml` is the plugin entry point in the existing `omarchy-shell` process. Do not start a second bar with `qs -p` to test the active installation.
 - `core/StateService.qml`, `VariantHost.qml`, and `IpcRouter.qml` control state, loading, and IPC. Only the selected variant should be instantiated.
-- V1 is under `variants/V1/`; V2 is under `variants/V2/`. Each `VariantRoot.qml` creates bars for valid outputs; `BarSlot.qml` arranges widgets. Logic and presentation live in `modules/` and `panels/`.
+- V1 is under `variants/V1/`; V2 is under `variants/V2/`. Each `VariantRoot.qml` creates bars for valid outputs; `BarSlot.qml` arranges widgets. Variant-specific presentation lives in `modules/` and `panels/`; shared behavior, services, controllers, components, panels, logic, and assets live under `shared/`.
+- Prefer the shared implementation when changing behavior used by both variants. Keep only real visual or composition differences in the V1/V2 wrappers, and preserve explicit namespace imports instead of recreating forwarding copies.
 - Before fixing V1/V2, check whether the V2 file has its own implementation or only imports V1. Fix shared behavior without removing intentional visual differences.
 - Omarchy services read `fontFamily`, `position`, `barSize`, and `barHidden` from the bar entry point. These values must remain valid during loading and variant switching.
 - State and preferences live outside the code: `~/.local/state/quickshell-rise/active-variant`, `~/.cache/quickshell_widgets`, and `~/.cache/quickshell_widgets_v2`, plus integration-specific caches. Do not delete these files to fix a failure without investigating their purpose.
 - Preserve notifications, OSD, lock, idle, audio, networking, and other enabled plugins. Do not use `pkill quickshell`, disable plugins in bulk, or edit `/usr/share/omarchy/` to fix Rise.
 
-For V2 geometry, styles, widgets, or side panels, read [references/vertical-bar.md](references/vertical-bar.md).
+For V2 geometry, styles, widgets, or side panels, read [references/vertical-bar.md](references/vertical-bar.md). For shared-component changes, also inspect `docs/shared-components-inventory.md` and `docs/shared-components-refactor-plan.md`.
 
 Consult `docs/integrations.md`, `docs/usage.md`, and `docs/fan-control.md` in the checkout as appropriate for the affected integration. Do not invoke services with real accounts for a test that can use fixtures.
 

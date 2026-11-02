@@ -1,3 +1,4 @@
+import { readQmlSource } from './qml-source.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync, writeFileSync, mkdtempSync, rmSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
@@ -8,7 +9,7 @@ const variant = process.argv.includes('--v2') ? 'v2' : 'v1';
 const unavailable = process.argv.includes('--unavailable');
 const scratch = mkdtempSync(join(process.env.TMPDIR, 'qr04n-pause-selector-'));
 try {
-  const fixture = readFileSync(join(project, `tests/qml/qr04n-${variant}-wiring.qml`), 'utf8');
+  const fixture = readQmlSource(join(project, `tests/qml/qr04n-${variant}-wiring.qml`), 'utf8');
   const marker = 'host.verify(host.panel.visible, "instantiated VPN panel remained hidden")';
   assert.equal(fixture.split(marker).length, 2);
   let qml = fixture.replace(marker, `${marker}\n                pauseCheck.start(); return;`);
@@ -88,7 +89,7 @@ try {
   assert.equal(run.error, undefined, output);
   assert.equal(run.status, 0, output);
   assert.match(output, /QR04N_PAUSE_SELECTOR_QML_PASS/, output);
-  const argv = readFileSync(log,'utf8').split('\n').filter(Boolean).map(line=>line.split('\0').filter(Boolean));
+  const argv = readQmlSource(log,'utf8').split('\n').filter(Boolean).map(line=>line.split('\0').filter(Boolean));
   assert.deepEqual(argv.filter(args=>args[0]==='pause'), unavailable ? [] :
     ['5m','15m','30m','1h','24h'].map(duration=>['pause',duration]));
   console.log(`QR04N_PAUSE_SELECTOR_RUNTIME_PASS ${variant}/${unavailable ? 'unavailable' : 'durations+busy'}: real panel handlers/controller; exact recording-stub argv; no real VPN`);

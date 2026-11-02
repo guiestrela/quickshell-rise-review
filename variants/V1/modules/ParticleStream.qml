@@ -4,6 +4,7 @@ import Quickshell.Io
 import Quickshell.Hyprland
 import Quickshell.Services.UPower
 import Quickshell.Services.Mpris
+import "../../../shared/services" as CommonServices
 
 Item {
     id: root
@@ -838,7 +839,7 @@ Item {
     // track change → swarm forms TITLE (left) and ARTIST - ALBUM (right).
     // Web players often publish transient metadata first, so debounce and dedupe
     // by title+artist+album rather than title alone.
-    MprisSelect { id: psSel }
+    CommonServices.MprisSelect { id: psSel }
     readonly property string psTrack: psSel.player ? (psSel.player.trackTitle || "") : ""
     property string lastAnnouncedTrack7: ""
     onPsTrackChanged: if (armed7 && reactorMode7) trackDebounce7.restart()
@@ -909,7 +910,7 @@ Item {
     onVox7Changed: if (armed7 && vox7 === "recording") pushText("VOXTYPE", "REC", 1, "short")
 
     // mute toggled (Pipewire pushes instantly)
-    AudioData { id: psAudio }
+    CommonServices.AudioData { id: psAudio }
     readonly property bool mute7: psAudio.muted === true
     onMute7Changed: {
         if (!armed7) return

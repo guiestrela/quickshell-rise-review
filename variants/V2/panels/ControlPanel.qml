@@ -1,9 +1,10 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "../../../shared/logic/ControlPanelLogic.js" as ControlPanelLogic
 import Quickshell
 import Quickshell.Wayland
 import "../modules"
-import "../../V1/modules" as Shared
+import "../../../shared/components" as Shared
 
 PanelWindow {
     id: ctrlPanel
@@ -28,31 +29,11 @@ PanelWindow {
     property string widgetColorMenuLabel: ""
     readonly property string barctlPath: Quickshell.env("HOME") + "/.config/quickshell/bin/qs-barctl"
 
-    function switchBar(version) {
-        if (version !== "v1" && version !== "v2") return
-        ctrlPanel.root.controlVisible = false
-        if (ctrlPanel.root.variantHost)
-            ctrlPanel.root.variantHost.requestSwitch(version)
-        else
-            Quickshell.execDetached([barctlPath, "switch", version])
-    }
+    function switchBar(version) { return ControlPanelLogic.switchBar(ctrlPanel, {Quickshell: Quickshell}, version) }
 
-    function reloadBar() {
-        ctrlPanel.root.controlVisible = false
-        Quickshell.reload(false)
-    }
+    function reloadBar() { return ControlPanelLogic.reloadBar(ctrlPanel, {Quickshell: Quickshell}) }
 
-    function runPowerAction(action) {
-        var commands = {
-            lock: ["omarchy", "system", "lock"],
-            suspend: ["systemctl", "--no-ask-password", "suspend"],
-            reboot: ["omarchy", "system", "reboot"],
-            shutdown: ["omarchy", "system", "shutdown"]
-        }
-        if (!commands[action]) return
-        Quickshell.execDetached(commands[action])
-        ctrlPanel.root.controlVisible = false
-    }
+    function runPowerAction(action) { return ControlPanelLogic.runPowerAction(ctrlPanel, {Quickshell: Quickshell}, action) }
 
     property real reveal: ctrlPanel.root.controlVisible ? 1 : 0
     Behavior on reveal {
@@ -125,7 +106,7 @@ PanelWindow {
         border.color: hovered ? ctrlPanel.root.seal : ctrlPanel.root.sep
         border.width: 1
 
-        UiText {
+        Shared.UiText {
             id: widgetLabel
             anchors.left: parent.left; anchors.leftMargin: 8
             anchors.right: stateArea.left; anchors.rightMargin: 4
@@ -145,7 +126,7 @@ PanelWindow {
             anchors.bottom: parent.bottom
             width: 88
 
-            IconText {
+            Shared.IconText {
                 id: colorChip
                 readonly property bool open:
                     ctrlPanel.widgetColorMenuGid === stateArea.parent.gid
@@ -167,7 +148,7 @@ PanelWindow {
                 }
             }
 
-            IconText {
+            Shared.IconText {
                 id: eyeGlyph
                 anchors.left: colorChip.right
                 anchors.verticalCenter: parent.verticalCenter
@@ -179,7 +160,7 @@ PanelWindow {
                 opacity: stateArea.parent.canHide ? 1 : 0.4
                 Behavior on color { ColorAnimation { duration: 120 } }
             }
-            UiText {
+            Shared.UiText {
                 id: modeLabel
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
@@ -291,13 +272,13 @@ PanelWindow {
             Item {
                 width: parent.width
                 height: 24
-                UiText {
+                Shared.UiText {
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                     text: "Control"
                     color: ctrlPanel.root.ink; font.family: ctrlPanel.root.mono; font.pixelSize: 13
                     font.letterSpacing: 2; font.weight: Font.Medium
                 }
-                UiText {
+                Shared.UiText {
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                     text: "✕"; color: closeMa.containsMouse ? ctrlPanel.root.seal : ctrlPanel.root.sumi; font.pixelSize: 12
                     Behavior on color { ColorAnimation { duration: 120 } }
@@ -308,7 +289,7 @@ PanelWindow {
             Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             // ── ACTIONS ──
-            UiText {
+            Shared.UiText {
                 text: "ACTIONS"
                 color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
@@ -379,7 +360,7 @@ PanelWindow {
             Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             // ── BAR COLOR: compact colors.toml palette ──
-            UiText {
+            Shared.UiText {
                 text: "BAR COLOR"
                 color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
@@ -407,7 +388,7 @@ PanelWindow {
                         Behavior on scale {
                             NumberAnimation { duration: 120; easing.type: Easing.OutCubic }
                         }
-                        UiText {
+                        Shared.UiText {
                             anchors.centerIn: parent
                             text: entryDelegate3.modelData === "foreground" ? "FG" : entryDelegate3.modelData.slice(-2)
                             color: ctrlPanel.root.paletteContrastColor(entryDelegate3.modelData)
@@ -438,7 +419,7 @@ PanelWindow {
             Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             // ── BAR FUNCTIONS (opens the fly-out sub-panel) ──
-            UiText {
+            Shared.UiText {
                 text: "BAR FUNCTIONS"
                 color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
@@ -452,7 +433,7 @@ PanelWindow {
             Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             // ── PICKER style (theme/wallpaper/screenshot/video picker visual) ──
-            UiText {
+            Shared.UiText {
                 text: "PICKER-STIL"
                 color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
@@ -490,7 +471,7 @@ PanelWindow {
                         border.color: (on || hovered) ? ctrlPanel.root.seal : ctrlPanel.root.sep
                         border.width: 1
                         Behavior on color { ColorAnimation { duration: 120 } }
-                        UiText {
+                        Shared.UiText {
                             anchors.centerIn: parent
                             text: pickTile.modelData.label
                             color: (pickTile.on || pickTile.hovered) ? ctrlPanel.root.seal : ctrlPanel.root.ink
@@ -542,7 +523,7 @@ PanelWindow {
                 width: parent.width
                 spacing: 8
 
-                UiText {
+                Shared.UiText {
                     text: "LAYOUT"
                     color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
                 }
@@ -573,7 +554,7 @@ PanelWindow {
                 Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
                 // ── WIDGETS: one tile per widget, two quiet interaction zones ──
-                UiText {
+                Shared.UiText {
                     text: "WIDGETS"
                     color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
                 }
@@ -624,7 +605,7 @@ PanelWindow {
                         Item {
                             width: parent.width
                             height: 18
-                            UiText {
+                            Shared.UiText {
                                 anchors.left: parent.left
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: ctrlPanel.widgetColorMenuLabel.toUpperCase() + " COLOR"
@@ -633,7 +614,7 @@ PanelWindow {
                                 font.pixelSize: 9
                                 font.letterSpacing: 0.7
                             }
-                            UiText {
+                            Shared.UiText {
                                 anchors.right: parent.right
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: ctrlPanel.root.widgetPaletteId(ctrlPanel.widgetColorMenuGid) === "inherit" ? "INHERIT" : "RESET"
@@ -676,7 +657,7 @@ PanelWindow {
                                     Behavior on scale {
                                         NumberAnimation { duration: 120; easing.type: Easing.OutCubic }
                                     }
-                                    UiText {
+                                    Shared.UiText {
                                         anchors.centerIn: parent
                                         text: entryDelegate4.modelData === "foreground" ? "F" : entryDelegate4.modelData.slice(-1)
                                         color: ctrlPanel.root.paletteContrastColor(entryDelegate4.modelData)
@@ -769,7 +750,7 @@ PanelWindow {
                                     color: selected ? ctrlPanel.root.fillActive : toneColorMa.containsMouse ? ctrlPanel.root.fillHover : "transparent"
                                     border.color: selected || toneColorMa.containsMouse ? ctrlPanel.root.seal : ctrlPanel.root.sep
                                     border.width: 1
-                                    UiText {
+                                    Shared.UiText {
                                         anchors.centerIn: parent
                                         text: entryDelegate6.modelData.label
                                         color: entryDelegate6.selected ? ctrlPanel.root.seal : ctrlPanel.root.ink
@@ -825,7 +806,7 @@ PanelWindow {
                                 border.color: (on || hovered) ? ctrlPanel.root.seal : ctrlPanel.root.sep
                                 border.width: 1
                                 Behavior on color { ColorAnimation { duration: 120 } }
-                                UiText {
+                                Shared.UiText {
                                     anchors.centerIn: parent
                                     text: wsmTile.modelData.label
                                     color: (wsmTile.on || wsmTile.hovered) ? ctrlPanel.root.seal : ctrlPanel.root.ink
@@ -867,7 +848,7 @@ PanelWindow {
                                 border.color: (on || hovered) ? ctrlPanel.root.seal : ctrlPanel.root.sep
                                 border.width: 1
                                 Behavior on color { ColorAnimation { duration: 120 } }
-                                UiText {
+                                Shared.UiText {
                                     anchors.centerIn: parent
                                     text: wssTile.modelData.label
                                     color: (wssTile.on || wssTile.hovered) ? ctrlPanel.root.seal : ctrlPanel.root.ink
@@ -883,7 +864,7 @@ PanelWindow {
                 Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
                 // ── BAR SHELL (full-width / floating / attached / winged notch) ──
-                UiText {
+                Shared.UiText {
                     text: "BAR STYLE"
                     color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
                 }
@@ -934,7 +915,7 @@ PanelWindow {
                 Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
                 // ── POSITION (bar on top or bottom edge) ──
-                UiText {
+                Shared.UiText {
                     text: "POSITION"
                     color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
                 }
@@ -952,7 +933,7 @@ PanelWindow {
                 Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
                 // ── LOGO (launcher text/icon variant) ──
-                UiText {
+                Shared.UiText {
                     text: "LOGO"
                     color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
                 }

@@ -1,10 +1,11 @@
+import { readQmlSource } from './qml-source.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 // Executes the production writer expression and loader body, not QML Process.
 for (const [variant, relative, offset] of [['V1','variants/V1/Theme.qml',35],['V2','variants/V2/Theme.qml',47]]) {
-  const source=readFileSync(new URL('../'+relative,import.meta.url),'utf8');
+  const source=readQmlSource(new URL('../'+relative,import.meta.url),'utf8');
   const expression=source.slice(source.indexOf('function saveWidgets()')).match(/var line =([\s\S]*?)widgetSaveProc.command/)[1];
   const loader=source.slice(source.indexOf('id: widgetLoadProc'));
   const body=loader.slice(loader.indexOf('var parts ='),loader.indexOf('theme._widgetsLoaded = true'));

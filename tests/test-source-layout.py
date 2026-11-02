@@ -9,15 +9,21 @@ for directory in ('core', 'shared', 'variants', 'tests/qml'):
     SOURCES.extend(p for p in (ROOT / directory).rglob('*') if p.suffix in ('.qml', '.js'))
 
 references = re.compile(
-    r'''(?:^\s*import\s+|Qt\.resolvedUrl\(\s*)["']([^"']+)["']''', re.MULTILINE
+    r'''(?:^\s*import\s+|Qt\.resolvedUrl\(\s*|^\s*source:\s*)["']([^"']+)["']''', re.MULTILINE
 )
 errors = []
 for source in SOURCES:
+    if source.is_relative_to(ROOT / 'variants') and re.fullmatch(
+            r'\s*import "[^"\n]+" as Shared\s+Shared\.\w+\s*\{\s*\}\s*', source.read_text()):
+        errors.append(f'{source.relative_to(ROOT)}: empty forwarding adapter; import the shared type directly')
     for match in references.finditer(source.read_text()):
         target = match[1]
         if ':' in target:
             continue
-        if not (source.parent / target).exists():
+        resolved = (source.parent / target).resolve()
+        if source.is_relative_to(ROOT / 'shared') and resolved.is_relative_to(ROOT / 'variants'):
+            errors.append(f'{source.relative_to(ROOT)}: shared code must not depend on a variant')
+        if not resolved.exists():
             errors.append(f'{source.relative_to(ROOT)}: missing {target}')
 
 for entry in ('Bar.qml', 'shell.qml'):

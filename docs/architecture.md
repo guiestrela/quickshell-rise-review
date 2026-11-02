@@ -82,7 +82,9 @@ This separation protects three operations:
 The runtime lives at the repository root. `Bar.qml` is the plugin entry point;
 `shell.qml` is the standalone development entry point. Both load the same
 `core/` lifecycle controller and sibling `variants/V1/` and `variants/V2/` trees.
-Shared integration helpers live under `shared/integrations/`.
+Shared integration helpers live under `shared/integrations/`. Shared JavaScript
+utilities (icons, power commands, palette, wallpaper profiles, and image picker
+models) live under `shared/logic/`; both variants import the same implementations.
 
 The legacy installer stages only `shell.qml`, `core/`, `shared/`, `variants/`, and `scripts/`
 as the runtime payload, keeping the installed `bar/shell.qml` path stable.
@@ -114,11 +116,23 @@ install.sh
 uninstall.sh
 ```
 
-The V1 and V2 directories retain their own `Theme.qml`, `BarSlot.qml`, modules, and panels. Some V2 modules intentionally wrap V1 implementations using explicit sibling imports.
-Keep those contracts intact; move additional code into `shared/` only after checking
-its theme and local type dependencies. Matching filenames alone do not imply
+The V1 and V2 directories retain their own `Theme.qml`, `BarSlot.qml`, modules, and panels. Shared controllers, data adapters, and selected panels now live under `shared/`;
+variants import those implementations directly. V2 no longer
+imports code from V1. Preserve the adapter contracts and check theme and local
+type dependencies before extracting additional components. Matching filenames alone do not imply
 interchangeable components.
 
 Read [Develop Quickshell Rise](development.md) for repository startup, regression suites, linting, and release checks.
 
 [Back to the project README](../README.md)
+
+Shared QML implementations now live under `shared/components/`, `shared/services/`,
+`shared/controllers/`, and `shared/panels/`. Consumers use explicit namespace
+imports directly. Empty forwarding adapters have been removed; the V2 Display
+Manager adapter remains because it defines a different header and surface.
+Direct imports do not create additional service instances or load the inactive variant. See the
+[refactor inventory](shared-components-inventory.md) for migrated components and
+remaining duplication.
+
+Common images, SVG icons, and the compiled logo shader live under
+`shared/assets/`. Variant-only assets remain in their own variant directory.

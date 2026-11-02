@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory(prefix='vpn-selection-process-', dir=os.environ['TMPDIR']) as directory:
     temp = Path(directory)
     for name in ['NordVpnController.qml', 'NordVpnProtocol.js']:
-        shutil.copyfile(ROOT / 'variants/V1/modules' / name, temp / name)
+        shutil.copyfile(ROOT / 'shared/controllers' / name, temp / name)
     cli = temp / 'fixture-cli'
     cli.write_text('''#!/usr/bin/env python3
 import sys

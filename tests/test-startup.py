@@ -1,18 +1,19 @@
+from qml_fixture_source import qml_fixture_text
 from pathlib import Path
 import os,json,subprocess,re
 b=Path(__file__).resolve().parent.parent
 home=b/'startup-home'; (home/'.cache/quickshell-rise').mkdir(parents=True,exist_ok=True)
 fixture_scope={'__file__':str(b/'tests/test-per-display-runtime.py')}
-exec((b/'tests/test-per-display-runtime.py').read_text().split('variants=sys.argv')[0],fixture_scope)
+exec(qml_fixture_text(b/'tests/test-per-display-runtime.py').split('variants=sys.argv')[0],fixture_scope)
 settings={'folder':'','perDisplayConfig':True,'displayConfig':{'all':{'folder':''},'DP-1':{'folder':str(fixture_scope['A']),'recursive':False,'mode':'shuffle','scaling':'actual'},'DP-2':{'folder':str(fixture_scope['B']),'recursive':True,'mode':'shuffle','scaling':'zoom'}}}
 (home/'.cache/quickshell-rise/wallpaper-manager.json').write_text(json.dumps(settings))
 for v,sub in [('V1','variants/V1'),('V2','variants/V2')]:
  vr=b/sub
- src=(vr/'Theme.qml').read_text()
+ src=qml_fixture_text(vr/'Theme.qml')
  start=src.index('    // Optional wallpaper-manager folder.')
  end=src.index('    function setCurrentThemeName(',start)
  block=src[start:end].replace('id: wallpaperManagerService; theme: theme','id: wallpaperManagerService; theme: theme; allowWallpaperEffects: false')
- q='import QtQuick\nimport Quickshell\nimport Quickshell.Io\nimport "'+os.path.relpath(vr/'modules',b)+'"\nimport "'+os.path.relpath(vr/'modules/WallpaperProfile.js',b)+'" as WallpaperProfile\nItem {\n id: theme\n property var variantHost: null\n property string currentBackgroundsPath: ""\n function popupOpened(name) {}\n'+block+'''
+ q='import "shared/services"\nimport QtQuick\nimport Quickshell\nimport Quickshell.Io\nimport "'+os.path.relpath(vr/'modules',b)+'"\nimport "'+os.path.relpath(b/'shared/logic/WallpaperProfile.js',b)+'" as WallpaperProfile\nItem {\n id: theme\n property var variantHost: null\n property string currentBackgroundsPath: ""\n function popupOpened(name) {}\n'+block+'''
  property int ticks:0
  Timer {interval:100;running:true;repeat:true
  onTriggered: {

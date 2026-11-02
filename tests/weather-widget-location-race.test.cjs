@@ -1,10 +1,11 @@
+const { readQmlSource } = require('./qml-source.cjs');
 const fs=require('node:fs'),path=require('node:path'),vm=require('node:vm'),assert=require('node:assert/strict');
 const root=path.resolve(__dirname,'..');
 function block(src,needle){ const start=src.indexOf(needle); assert.ok(start>=0,needle); const open=src.indexOf('{',start); let depth=1,i=open+1;for(;depth && i<src.length;i++){if(src[i]==='{')depth++;if(src[i]==='}')depth--;}return src.slice(open+1,i-1); }
 for(const variant of ['variants/V1','variants/V2']){
- const source=fs.readFileSync(path.join(root,variant,'modules/WeatherWidget.qml'),'utf8');
+ const source=readQmlSource(path.join(root,variant,'modules/WeatherWidget.qml'),'utf8');
  const c={rootMod:{locationSettings:{name:'A',latitude:0,longitude:0},locationGeneration:1,requestSettings:{name:'A',latitude:0,longitude:0},requestGeneration:1,weatherLoaded:false,weatherUnavailable:false,weatherIcon:'·',weatherPlace:'',weatherTemp:'',refreshPending:false,glyphForCode:(code)=>String(code),isNight:()=>false},weatherProc:{running:true},WeatherData:{},Qt:{callLater:f=>f()}};
- vm.createContext(c);vm.createContext(c.WeatherData);vm.runInContext(fs.readFileSync(path.join(root,'shared/integrations/WeatherData.js'),'utf8').replace(/^\.pragma library\s*/,''),c.WeatherData);
+ vm.createContext(c);vm.createContext(c.WeatherData);vm.runInContext(readQmlSource(path.join(root,'shared/integrations/WeatherData.js'),'utf8').replace(/^\.pragma library\s*/,''),c.WeatherData);
  c.rootMod.locationSettings={name:'B',latitude:1,longitude:1};c.rootMod.locationGeneration=2;
  // Delayed complete stdout from A after a location change: actual QML JS callback.
  const finish=vm.runInContext('(function(){'+block(source,'onStreamFinished:')+'})',c);

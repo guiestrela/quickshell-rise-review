@@ -1,5 +1,6 @@
+const { readQmlSource } = require('./qml-source.cjs');
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
-const src=fs.readFileSync(path.join(__dirname,'../variants/V1/modules/DisplayManagerController.qml'),'utf8');
+const src=readQmlSource(path.join(__dirname,'../shared/controllers/DisplayManagerController.qml'),'utf8');
 function method(name){let start=src.indexOf('    function '+name+'('),open=src.indexOf('{',start),depth=1,i=open+1;for(;depth;i++){if(src[i]==='{')depth++;if(src[i]==='}')depth--;}return src.slice(start,i);}
 const a={name:'A',width:1000,height:1000,x:0,y:0,scale:1,transform:0,refreshRate:60,disabled:false,mirrorOf:'none'},b={...a,name:'B',disabled:true};
 const c={monitors:[a,b],drafts:{A:{...a,x:1000}},positions:{},savedDisplayStates:{B:{...b,disabled:false}},displayStateReady:true,busy:false,loading:false,rollbackPending:false,error:'',calls:[]};c.monitor=n=>c.monitors.find(m=>m.name===n);c.safeMonitor=n=>/^[A-Za-z0-9_.:-]{1,64}$/.test(n);c.applyMonitor=(...args)=>{c.calls.push(args);return true};vm.createContext(c);

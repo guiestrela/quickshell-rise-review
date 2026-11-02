@@ -1,9 +1,10 @@
+import { readQmlSource } from './qml-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-for(const rel of ['variants/V1/panels/VolumePanel.qml','variants/V2/panels/VolumePanel.qml']) {
- const qml=fs.readFileSync(rel,'utf8');
+for(const rel of ['shared/panels/VolumePanel.qml','shared/panels/VolumePanel.qml']) {
+ const qml=readQmlSource(rel,'utf8');
  function fn(name){const start=qml.indexOf('    function '+name+'(');assert.ok(start>=0,name);let at=qml.indexOf('{',start),depth=1,end=at+1;for(;depth;end++){if(qml[end]==='{')depth++;if(qml[end]==='}')depth--;}return qml.slice(start,end);}
  test(rel+' source list excludes monitors and handles bad data',()=>{
   const c=vm.createContext({});vm.runInContext(fn('parseInputDevices'),c);

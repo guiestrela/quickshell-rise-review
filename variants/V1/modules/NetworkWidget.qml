@@ -1,7 +1,9 @@
 import QtQuick
+import "../../../shared/logic/NetworkWidgetLogic.js" as NetworkWidgetLogic
 import Quickshell
 import Quickshell.Io
-import "../IconMap.js" as IconMap
+import "../../../shared/logic/IconMap.js" as IconMap
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -29,11 +31,7 @@ Item {
     property var  ulHistory: []
     readonly property int maxSamples: 30
 
-    function formatSpeed(bps) {
-        var mb = bps / 1048576
-        var s = mb < 10 ? mb.toFixed(2) : mb.toFixed(1)
-        return s.padStart(5) + "M"  // always 6 chars: " 0.00M" … "100.0M"
-    }
+    function formatSpeed(bps) { return NetworkWidgetLogic.formatSpeed(rootMod, {}, bps) }
 
     function updateSpeeds(rx, tx, now) {
         if (prevRx >= 0 && prevMs > 0) {
@@ -87,7 +85,7 @@ Item {
         spacing: 5
 
         // ── label ──
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             visible: !rootMod.verticalCompact
             text: "NET"
@@ -174,7 +172,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.mode === "ethernet" && !rootMod.verticalCompact
             spacing: 0
-            UiText {
+            CommonComponents.UiText {
                 width: 54; height: 11
                 verticalAlignment: Text.AlignVCenter
                 horizontalAlignment: Text.AlignRight
@@ -183,7 +181,7 @@ Item {
                 font.family: rootMod.root.mono
                 font.pixelSize: 10
             }
-            UiText {
+            CommonComponents.UiText {
                 width: 54; height: 11
                 verticalAlignment: Text.AlignVCenter
                 horizontalAlignment: Text.AlignRight
@@ -195,7 +193,7 @@ Item {
         }
 
         // ── wifi: icon ──
-        IconText {
+        CommonComponents.IconText {
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.mode === "wifi"
             text: IconMap.icon(rootMod.wifiIconName)
@@ -204,7 +202,7 @@ Item {
             Behavior on color { ColorAnimation { duration: 160 } }
         }
 
-        IconText {
+        CommonComponents.IconText {
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.verticalCompact && rootMod.mode !== "wifi"
             text: IconMap.icon(rootMod.mode === "ethernet" ? "lan" : "signal_wifi_off")
@@ -216,7 +214,7 @@ Item {
         }
 
         // ── wifi: ssid ──
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.mode === "wifi" && !rootMod.verticalCompact
             text: rootMod.ssid
@@ -288,7 +286,7 @@ Item {
         onTriggered: { netProc.running = false; netProc.running = true }
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     Process { id: clickRunner; command: ["bash", "-c", rootMod.root.launchWifiCmd] }
 

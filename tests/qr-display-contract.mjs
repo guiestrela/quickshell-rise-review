@@ -1,13 +1,14 @@
+import { readQmlSource } from './qml-source.mjs';
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
 
 const repo = path.resolve(import.meta.dirname, "..");
 const variants = [
-  { id: "V1", dir: "variants/V1", panel: "variants/V1/panels/DisplayManagerPanel.qml", slot: "G18", tile: "Tile" },
-  { id: "V2", dir: "variants/V2", panel: "variants/V1/panels/DisplayManagerPanel.qml", slot: "G21", tile: "WidgetStateTile" },
+  { id: "V1", dir: "variants/V1", panel: "shared/panels/DisplayManagerPanel.qml", slot: "G18", tile: "Tile" },
+  { id: "V2", dir: "variants/V2", panel: "shared/panels/DisplayManagerPanel.qml", slot: "G21", tile: "WidgetStateTile" },
 ];
-const read = (relative) => readFileSync(path.join(repo, relative), "utf8");
+const read = (relative) => readQmlSource(path.join(repo, relative), "utf8");
 const controls = [
   "display-monitor-list", "display-resolution", "display-refresh",
   "display-mirror", "display-rotation", "display-scale",
@@ -27,10 +28,10 @@ for (const variant of variants) {
   if (variant.id === "V2") {
     const entry = read(prefix + "VariantRoot.qml");
     const wrapper = read(prefix + "panels/DisplayManagerPanel.qml");
-    assert.ok(/(?<!\.)\bDisplayManagerPanel\s*\{/.test(entry) && wrapper.includes('import "../../V1/panels" as Shared') && wrapper.includes("Shared.DisplayManagerPanel"), "V2 native-style wrapper must retain the shared panel controls");
+    assert.ok(/(?<!\.)\bDisplayManagerPanel\s*\{/.test(entry) && wrapper.includes('import "../../../shared/panels" as Shared') && wrapper.includes("Shared.DisplayManagerPanel"), "V2 native-style wrapper must retain the shared panel controls");
   }
   assert.match(theme, /onModDisplayManagerChanged:\s*if \(_widgetsLoaded\) saveWidgets\(\)/, `${variant.id} toggle persistence hook`);
-  if (variant.id === "V2") assert.match(read(prefix+"modules/DisplayManagerController.qml"), /Shared\.DisplayManagerController/, "V2 shared controller wrapper must be resolved");
+  assert.match(theme, /CommonControllers\.DisplayManagerController/, "variant must instantiate the common controller directly");
   assert.ok(theme.includes("keyboardPopupVisible: imagePickerVisible || mediaBrowserVisible || wallpaperManagerVisible || displayManagerVisible"), `${variant.id} keyboard popup focus contract`);
   assert.ok(theme.includes("onDisplayManagerAutoWorkspacesChanged"), `${variant.id} workspace preference persistence hook`);
   assert.match(theme, /property bool modDisplayManager\s*:\s*false/, `${variant.id} visibility setting`);
@@ -45,6 +46,6 @@ for (const variant of variants) {
   assert.ok(panel.includes("displayManagerControllerApi"), `${variant.id} production controller wiring`);
   assert.ok(read(prefix + "VariantRoot.qml").includes("DisplayManagerPanel"), `${variant.id} panel instantiated`);
 }
-assert.ok(existsSync(path.join(repo, "variants/V1/modules/DisplayManagerController.qml")), "shared controller missing");
+assert.ok(existsSync(path.join(repo, "shared/controllers/DisplayManagerController.qml")), "shared controller missing");
 assert.ok(existsSync(path.join(repo, "scripts/rise-display-manager-apply")), "safe apply helper missing");
 console.log("QR_DISPLAY_CONTRACT_PASS V1/V2");

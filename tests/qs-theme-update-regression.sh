@@ -24,6 +24,12 @@ assert_eq() {
 
 assert_contains() {
   local needle="$1" file="$2" msg="$3"
+  if [[ $file == *.qml ]]; then
+    local contents
+    contents="$(python3 "$REPO_ROOT/tests/qml-fixture-source.py" "$file")"
+    [[ $contents == *"$needle"* ]] || fail "$msg: missing '$needle'"
+    return
+  fi
   grep -Fq -- "$needle" "$file" || fail "$msg: missing '$needle'"
 }
 
@@ -237,7 +243,7 @@ test_default_current_file_uses_legacy_path() {
 }
 
 test_palette_alias_contract_is_present() {
-  local p="$REPO_ROOT/variants/V1/Palette.js"
+  local p="$REPO_ROOT/shared/logic/Palette.js"
   assert_contains 'keys: ["background", "bg"]' "$p" "palette background alias"
   assert_contains 'keys: ["foreground", "fg"]' "$p" "palette foreground alias"
   assert_contains 'keys: ["color1", "red"]' "$p" "palette red alias"
@@ -248,16 +254,21 @@ test_palette_alias_contract_is_present() {
 
 test_theme_apply_exports_omarchy_path() {
   local theme="$REPO_ROOT/variants/V1/Theme.qml"
-  local updater="$REPO_ROOT/variants/V1/panels/ArchUpdaterPanel.qml"
+  local updater="$REPO_ROOT/shared/panels/ArchUpdaterPanel.qml"
   local postboot="$REPO_ROOT/contrib/post-boot.d/quickshell-rise"
   local picker_count
 
   assert_contains 'property string omarchyInstallRoot:' "$theme" "theme install root property"
   assert_contains '/usr/share/omarchy' "$theme" "omarchy4 install root"
-  picker_count="$(grep -REl '\["env", "OMARCHY_PATH=" \+ (panel\.)?root\.omarchyInstallRoot, "omarchy-theme-set", name\]' \
-    "$REPO_ROOT/variants/V1/panels/ImageCarouselPanel.qml" \
-    "$REPO_ROOT/variants/V1/panels/ImageCarouselCarousel.qml" \
-    "$REPO_ROOT/variants/V1/panels/ImageCarouselHearthstone.qml" | wc -l | tr -d '[:space:]')"
+  picker_count=0
+  local picker
+  for picker in ImageCarouselPanel ImageCarouselCarousel ImageCarouselHearthstone; do
+    local content
+    content="$(python3 "$REPO_ROOT/tests/qml-fixture-source.py" "$REPO_ROOT/shared/panels/$picker.qml")"
+    if [[ $content == *'"OMARCHY_PATH=" + panel.root.omarchyInstallRoot, "omarchy-theme-set", name'* ]]; then
+      picker_count=$((picker_count + 1))
+    fi
+  done
   assert_eq 3 "$picker_count" "all image pickers pass OMARCHY_PATH to omarchy-theme-set"
   assert_contains 'OMARCHY_PATH=' "$updater" "theme reapply passes OMARCHY_PATH"
   assert_contains 'export OMARCHY_PATH=/usr/share/omarchy' "$postboot" "post-boot omarchy4 export"
@@ -287,9 +298,9 @@ test_image_picker_entry_contract_is_centralized() {
 
   local picker
   for picker in \
-    "$REPO_ROOT/variants/V1/panels/ImageCarouselPanel.qml" \
-    "$REPO_ROOT/variants/V1/panels/ImageCarouselCarousel.qml" \
-    "$REPO_ROOT/variants/V1/panels/ImageCarouselHearthstone.qml"; do
+    "$REPO_ROOT/shared/panels/ImageCarouselPanel.qml" \
+    "$REPO_ROOT/shared/panels/ImageCarouselCarousel.qml" \
+    "$REPO_ROOT/shared/panels/ImageCarouselHearthstone.qml"; do
     assert_contains 'Component.onCompleted: panel.syncOpen()' "$picker" \
       "lazy image picker reconciles already-open state after creation"
   done
@@ -302,9 +313,9 @@ test_image_picker_entry_contract_is_centralized() {
 test_wallpaper_source_contract_is_shared() {
   local theme="$REPO_ROOT/variants/V1/Theme.qml"
   local pickers=(
-    "$REPO_ROOT/variants/V1/panels/ImageCarouselPanel.qml"
-    "$REPO_ROOT/variants/V1/panels/ImageCarouselCarousel.qml"
-    "$REPO_ROOT/variants/V1/panels/ImageCarouselHearthstone.qml"
+    "$REPO_ROOT/shared/panels/ImageCarouselPanel.qml"
+    "$REPO_ROOT/shared/panels/ImageCarouselCarousel.qml"
+    "$REPO_ROOT/shared/panels/ImageCarouselHearthstone.qml"
   )
   local picker
   local dollar='$'

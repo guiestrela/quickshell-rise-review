@@ -1,4 +1,6 @@
 import QtQuick
+import "../../../shared/logic/WallpaperManagerQuickWidgetLogic.js" as WallpaperManagerQuickWidgetLogic
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: control
@@ -10,13 +12,9 @@ Item {
     implicitHeight: 28
     readonly property color contentColor: root.widgetContentColor("G20", root.widgetIconColor)
     readonly property string tooltipText: "Wallpaper manager · click to open · middle-click for next on all displays"
-    function handleButton(button) {
-        tip.hide()
-        if (button === Qt.MiddleButton) control.root.wallpaperManagerServiceApi.nextAll()
-        else control.root.toggleWallpaperManager(control.screen, control)
-    }
+    function handleButton(button) { return WallpaperManagerQuickWidgetLogic.handleButton(control, {tip: tip, Qt: Qt}, button) }
 
-    IconText {
+    CommonComponents.IconText {
         anchors.centerIn: parent
         text: "wallpaper"
         color: control.root.wallpaperManagerVisible
@@ -25,7 +23,7 @@ Item {
         font.pixelSize: 14
         Behavior on color { ColorAnimation { duration: 150 } }
     }
-    TooltipMixin { id: tip; root: control.root; owner: control; text: control.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: control.root; owner: control; text: control.tooltipText }
     MouseArea {
         id: clickArea
         anchors.fill: parent

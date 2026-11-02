@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell.Io
-import "../IconMap.js" as IconMap
+import "../../../shared/logic/IconMap.js" as IconMap
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -43,7 +44,7 @@ Item {
         anchors.centerIn: parent
         spacing: 5
 
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             visible: !rootMod.verticalCompact
             text: "BT"
@@ -53,7 +54,7 @@ Item {
             font.letterSpacing: 0.5
         }
 
-        IconText {
+        CommonComponents.IconText {
             anchors.verticalCenter: parent.verticalCenter
             text: IconMap.icon(rootMod.iconN)
             color: rootMod.connected
@@ -63,7 +64,7 @@ Item {
             Behavior on color { ColorAnimation { duration: 200 } }
         }
 
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.root.barVertical !== true && rootMod.connected
             text: String(rootMod.numConnected)
@@ -105,7 +106,7 @@ Item {
         onTriggered: { btProc.result = ""; btProc.running = false; btProc.running = true }
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     Process { id: clickRunner; command: ["bash", "-c", rootMod.root.launchBtCmd] }
 

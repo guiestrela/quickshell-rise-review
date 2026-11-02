@@ -1,17 +1,18 @@
+import { readQmlSource } from './qml-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const adapter = new URL('../variants/V1/modules/NordVpnProtocol.js', import.meta.url);
+const adapter = new URL('../shared/controllers/NordVpnProtocol.js', import.meta.url);
 function normalize(settings) {
   assert.ok(existsSync(adapter), 'NordVPN protocol adapter must exist');
   const context = vm.createContext({});
-  vm.runInContext(readFileSync(adapter, 'utf8').replace(/^\.pragma library\s*/, ''), context);
+  vm.runInContext(readQmlSource(adapter, 'utf8').replace(/^\.pragma library\s*/, ''), context);
   return JSON.parse(JSON.stringify(context.normalizeSettings(settings)));
 }
 function action(settings) {
-  const source = readFileSync(new URL('../variants/V1/modules/NordVpnController.qml', import.meta.url), 'utf8');
+  const source = readQmlSource(new URL('../shared/controllers/NordVpnController.qml', import.meta.url), 'utf8');
   const start = source.indexOf('function setVpnSetting(');
   const end = source.indexOf('\n    function _runAction(', start);
   const calls = [];
@@ -69,7 +70,7 @@ test('technology and transport choices use NordVPN 6 commands, never removed set
 
 test('read-only daemon fallback restores confirmed selection without allowing incompatible writes', () => {
   const context = vm.createContext({});
-  vm.runInContext(readFileSync(adapter, 'utf8'), context);
+  vm.runInContext(readQmlSource(adapter, 'utf8'), context);
   assert.equal(typeof context.applyDaemonSelection, 'function', 'daemon readback adapter must exist');
   const unknown = normalize({ protocol: 'VPN_PROTOCOL_UNSPECIFIED' });
   const result = JSON.parse(JSON.stringify(context.applyDaemonSelection(unknown, { schema: 1, technology: 'NORDLYNX', protocol: 'UDP' })));
@@ -86,7 +87,7 @@ test('read-only daemon fallback restores confirmed selection without allowing in
 });
 
 test('daemon fallback rejects malformed replies and never overrides a native known selection', () => {
-  const context = vm.createContext({}); vm.runInContext(readFileSync(adapter, 'utf8'), context);
+  const context = vm.createContext({}); vm.runInContext(readQmlSource(adapter, 'utf8'), context);
   assert.equal(typeof context.applyDaemonSelection, 'function');
   const unknown = normalize({ protocol: 'VPN_PROTOCOL_UNSPECIFIED' });
   for (const reply of [null, {}, {schema:2,technology:'NORDLYNX',protocol:'UDP'}, {schema:1,technology:'INVALID',protocol:'UDP'}, {schema:1,technology:'OPENVPN',protocol:''}]) {

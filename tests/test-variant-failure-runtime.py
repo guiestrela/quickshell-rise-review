@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Exercise real VariantHost timers with inert variants and no shell services."""
+from qml_fixture_source import copy_qml_fixture
 import os
 from pathlib import Path
 import shutil
@@ -10,7 +11,7 @@ repo = Path(__file__).resolve().parents[1]
 runner = shutil.which('qmltestrunner') or '/usr/lib/qt6/bin/qmltestrunner'
 with tempfile.TemporaryDirectory(prefix='rise-variant-failure-', dir='/tmp') as directory:
     temp = Path(directory)
-    shutil.copy2(repo / 'core/VariantHost.qml', temp / 'VariantHost.qml')
+    copy_qml_fixture(repo / 'core/VariantHost.qml', temp / 'VariantHost.qml')
     (temp / 'Variant.qml').write_text('''import QtQuick
 Item {
     required property var variantHost

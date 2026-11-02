@@ -1,9 +1,10 @@
+import { readQmlSource } from './qml-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const source = fs.readFileSync('variants/V1/BarSlot.qml', 'utf8');
+const source = readQmlSource('variants/V1/BarSlot.qml', 'utf8');
 const expression = name => source.match(new RegExp(`readonly property real ${name}: ([^\\n]+)`))[1];
 const visibility = source.match(/function groupVisibleAtStage\(gid, stage\) \{([\s\S]*?)\n        \}/)[1];
 

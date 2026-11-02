@@ -1,3 +1,4 @@
+import { readQmlSource } from './qml-source.mjs';
 import assert from "node:assert/strict";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
@@ -19,7 +20,7 @@ try {
   assert.equal(run.error, undefined, `Quickshell runner error: ${run.error}`);
   assert.equal(run.status, 0, `Quickshell rc ${run.status}; output:\n${output}`);
   assert.match(output, /QR04N_V2_WIRING_QML_PASS real widget\/panel\/controller/, `missing runtime marker:\n${output}`);
-  const lines = readFileSync(argvLog).toString("utf8").split("\n").filter(Boolean);
+  const lines = readQmlSource(argvLog).toString("utf8").split("\n").filter(Boolean);
   const argv = lines.map(line => line.split("\0").filter(Boolean));
   const actionArgv = argv.filter(args => ["connect", "disconnect", "pause", "set"].includes(args[0]));
   assert.deepEqual(actionArgv, [
@@ -43,7 +44,7 @@ try {
   assert.equal(unavailable.error, undefined, `unavailable harness runner error: ${unavailable.error}`);
   assert.equal(unavailable.status, 0, `unavailable harness rc ${unavailable.status}; output:\n${unavailableOutput}`);
   assert.match(unavailableOutput, /QR04N_V2_UNAVAILABLE_QML_PASS/, `missing unavailable marker:\n${unavailableOutput}`);
-  const unavailableArgv = readFileSync(unavailableLog).toString("utf8").split("\n").filter(Boolean).map(line => line.split("\0").filter(Boolean));
+  const unavailableArgv = readQmlSource(unavailableLog).toString("utf8").split("\n").filter(Boolean).map(line => line.split("\0").filter(Boolean));
   assert.deepEqual(unavailableArgv.slice(0, 2), [["status"], ["settings"]]);
   assert.equal(unavailableArgv.some(args => ["connect", "disconnect", "pause", "set"].includes(args[0])), false, "unavailable case emitted a mutating CLI call");
   console.log("QR04N_V2_UNAVAILABLE_PASS");

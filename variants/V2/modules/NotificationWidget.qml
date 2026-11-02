@@ -1,4 +1,5 @@
 import QtQuick
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -12,7 +13,7 @@ Item {
     implicitWidth: 26
     implicitHeight: 28
 
-    IconText {
+    CommonComponents.IconText {
         id: bellIcon
         anchors.centerIn: parent
         text: "\uE7F4"   // notifications (bell)
@@ -45,7 +46,7 @@ Item {
         }
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     MouseArea {
         anchors.fill: parent

@@ -1,3 +1,4 @@
+import { readQmlSource } from './qml-source.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync,writeFileSync,mkdtempSync,rmSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
@@ -7,7 +8,7 @@ const project=fileURLToPath(new URL('..',import.meta.url));
 const variant=process.argv.includes('--v2')?'v2':'v1';
 const scratch=mkdtempSync(join(process.env.TMPDIR,'qr04n-ux-'));
 try {
- let qml=readFileSync(join(project,`tests/qml/qr04n-${variant}-wiring.qml`),'utf8');
+ let qml=readQmlSource(join(project,`tests/qml/qr04n-${variant}-wiring.qml`),'utf8');
  const marker='host.verify(host.panel.visible, "instantiated VPN panel remained hidden")';
  assert.equal(qml.split(marker).length,2);
  qml=qml.replace(marker,marker+'; uxCheck.start(); return;');
@@ -52,7 +53,7 @@ try {
  const log=join(scratch,'argv.bin'); const shell=join(scratch,'shell.qml'); writeFileSync(shell,qml);
  const run=spawnSync('qs',['-n','-p',shell],{encoding:'utf8',timeout:16000,env:{...process.env,DISPLAY:undefined,QT_QPA_PLATFORM:'wayland',QR04N_ARGV_LOG:log}});
  const output=(run.stdout||'')+(run.stderr||''); assert.equal(run.error,undefined,output);assert.equal(run.status,0,output);assert.match(output,/QR04N_UX_RUNTIME_QML_PASS/,output);
- const argv=readFileSync(log,'utf8').split('\n').filter(Boolean).map(x=>x.split('\0').filter(Boolean));
+ const argv=readQmlSource(log,'utf8').split('\n').filter(Boolean).map(x=>x.split('\0').filter(Boolean));
  assert.deepEqual(argv.filter(x=>['set','connect','disconnect','pause'].includes(x[0])),[['set','autoconnect','enabled','Canada'],['set','autoconnect','disabled'],['connect','United_States']]);
  console.log('QR04N_UX_RUNTIME_PASS '+variant+' selection inert; exact Auto-connect argv; Unknown/injection refused; recording stub only');
 } finally {rmSync(scratch,{recursive:true,force:true});}

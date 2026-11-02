@@ -1,9 +1,10 @@
+import { readQmlSource } from './qml-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const source = readFileSync(new URL('../variants/V1/modules/NordVpnController.qml', import.meta.url), 'utf8');
+const source = readQmlSource(new URL('../shared/controllers/NordVpnController.qml', import.meta.url), 'utf8');
 const start = source.indexOf('function setVpnSetting(');
 const end = source.indexOf('\n    function _runAction(', start);
 const setSetting = source.slice(start, end).trim();

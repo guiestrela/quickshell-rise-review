@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""V2 visual tree/renderer in hidden normal Window; inert root/controller.
+"""V2 visual tree/renderer in an offscreen normal Window; inert root/controller.
 Only the layer-shell wrapper is adapted. This is not live-bar pixel acceptance.
 """
+from qml_fixture_source import qml_fixture_source, qml_fixture_text
 import os
 from pathlib import Path
 import re
@@ -9,15 +10,20 @@ import subprocess
 import tempfile
 
 REPO = Path(__file__).resolve().parents[1]
-FILES = ['variants/V1/panels/DisplayManagerPanel.qml',
+FILES = ['shared/panels/DisplayManagerPanel.qml',
          'variants/V2/panels/DisplayManagerPanel.qml',
          'variants/V2/modules/ConnectedPanelSurface.qml',
          'variants/V2/modules/AiPanelSurface.qml',
-         'variants/V2/modules/UiText.qml']
-env = dict(os.environ, QT_QPA_PLATFORM='wayland')
+         'variants/V2/modules/SidePanelPositioner.qml',
+         'shared/components/UiText.qml']
+env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QPA_PLATFORMTHEME='', QT_QUICK_BACKEND='software')
 env.pop('DISPLAY', None)
+env.pop('WAYLAND_DISPLAY', None)
 with tempfile.TemporaryDirectory(prefix='display-v2-style-', dir=os.environ['TMPDIR']) as work:
     folder = Path(work)
+    runtime = folder / "runtime"
+    runtime.mkdir(mode=0o700)
+    env["XDG_RUNTIME_DIR"] = str(runtime)
     for rel in FILES:
         dest = folder / rel
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -30,13 +36,16 @@ with tempfile.TemporaryDirectory(prefix='display-v2-style-', dir=os.environ['TMP
             data = re.sub(r'    anchors \{[^}]*\}', '', data, count=1)
             data = re.sub(r'^    (?:WlrLayershell\..*|exclusionMode:.*|margins\..*|screen:.*)\n', '', data, flags=re.M)
         dest.write_text(data)
-    fixture = (REPO / 'tests/qml/qr-display-panel-runtime.qml').read_text()
-    fixture = fixture.replace('import "../panels"', 'import "variants/V2/panels"')
+    fixture = qml_fixture_text(qml_fixture_source(REPO / 'tests/qml/qr-display-panel-runtime.qml'))
+    fixture = fixture.replace('import "../../shared/panels"', 'import "variants/V2/panels"')
     fixture = fixture.replace('property bool displayManagerVisible: false', 'property bool displayManagerVisible: true')
     fixture = fixture.replace('property color bg: "#202020"', '''property color bg: "#202020"
         property color paper: "#202020"
         property color sumi: "#808080"
         property color fillHover: "#404040"
+        property bool barVertical: false
+        property real verticalBarWidth: 40
+        function verticalAnchorY(name) { return 200 }
         property int v2BarHeight: 36
         property int panelRadius: 6
         property color panelOuterBorderColor: "#706050"
@@ -44,14 +53,14 @@ with tempfile.TemporaryDirectory(prefix='display-v2-style-', dir=os.environ['TMP
         property real panelInsetReveal: 1
         property real lastInset: -1
         function setPanelInsetX(x) { lastInset = x }''')
-    fixture = fixture.replace('id: productionPanel', 'id: productionPanel\n        visible: false\n        width: 1440\n        height: 900')
+    fixture = fixture.replace('id: productionPanel', 'id: productionPanel\n        visible: true\n        width: 1440\n        height: 900')
     fixture = fixture.replace('Component.onCompleted: console.log("DISPLAY_PANEL_INSTANCE_CREATED")', 'Component.onCompleted: { contentItem.width = width; contentItem.height = height; console.log("DISPLAY_PANEL_INSTANCE_CREATED") }')
     start = fixture.index('    Timer {')
     fixture = fixture[:start] + '''    Timer {
         interval: 450; running: true
         onTriggered: {
-            if (!productionPanel.connectedStyle || productionPanel.visible || fakeController.refreshCount !== 0)
-                throw new Error("native style hidden fixture state")
+            if (!productionPanel.connectedStyle || !productionPanel.visible || fakeController.refreshCount !== 1)
+                throw new Error("native style offscreen fixture state")
             var card = productionPanel.surfaceHost
             function find(item, name) {
                 if (item.objectName === name) return item
@@ -64,7 +73,7 @@ with tempfile.TemporaryDirectory(prefix='display-v2-style-', dir=os.environ['TMP
             var column = find(card, "display-save").parent.parent
             var footer = column.children[column.children.length-1]
             if (footer.mapToItem(card,0,footer.height).y > card.height-16+1)
-                throw new Error("V2 footer clipped")
+                throw new Error("V2 footer clipped: bottom="+footer.mapToItem(card,0,footer.height).y+" card="+card.height+" column="+column.implicitHeight+" footer="+footer.height+" width="+card.width)
             if (!title || !close || !refresh || !title.visible || title.font.pixelSize !== 13 || title.font.letterSpacing !== 2 || title.parent.height !== 24 || !refresh.visible)
                 throw new Error("NordVPN-reference header/refresh contract")
             var apply = find(card, "display-position-apply")
@@ -88,7 +97,7 @@ with tempfile.TemporaryDirectory(prefix='display-v2-style-', dir=os.environ['TMP
                 Qt.callLater(function() {
                     if (Math.abs(surface.resolvedTargetX - (card.x + surface.centerX)) > 1 || Math.abs(fakeRoot.lastInset - surface.resolvedTargetX) > 1)
                         { console.error("EDGE_DIAG", surface.resolvedTargetX, card.x, surface.centerX, fakeRoot.lastInset, surface.hostWidth, surface.hostGeometryCoversTarget); Qt.quit(); return }
-                    console.log("DISPLAY_V2_NATIVE_STYLE_PASS hidden normal Window; native renderer; caret/inset/top/bottom/edge; no monitor actions")
+                    console.log("DISPLAY_V2_NATIVE_STYLE_PASS offscreen normal Window; native renderer; caret/inset/top/bottom/edge; no monitor actions")
                     Qt.quit()
                 })
             })
@@ -106,4 +115,5 @@ with tempfile.TemporaryDirectory(prefix='display-v2-style-', dir=os.environ['TMP
     print(output)
     assert result.returncode == 0, 'runtime failed'
     assert 'DISPLAY_V2_NATIVE_STYLE_PASS' in output, 'native style sentinel missing'
-    assert not any(x in output for x in ['ReferenceError', 'TypeError', 'ERROR:', 'Unable to assign']), 'runtime binding error'
+    assert not any(x in output for x in ['ReferenceError', 'TypeError', 'Unable to assign']), 'runtime binding error'
+    assert not re.search(r'(?m)^\s*ERROR\b', output), 'runtime error'

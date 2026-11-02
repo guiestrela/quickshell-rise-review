@@ -1,5 +1,6 @@
+const { readQmlSource } = require('./qml-source.cjs');
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
-const src=fs.readFileSync(path.join(__dirname,'../variants/V1/panels/DisplayManagerPanel.qml'),'utf8');
+const src=readQmlSource(path.join(__dirname,'../shared/panels/DisplayManagerPanel.qml'),'utf8');
 const brightness=src.split('\n').find(l=>l.includes('objectName: "display-brightness"'));
 const text=src.split('\n').find(l=>l.includes('objectName: "display-text-size"'));
 assert.ok(brightness.includes('onPressedChanged: if (!pressed) panel.controller.setBrightness(value)'), 'Brightness must keep its original immediate-on-release/keyboard handler');

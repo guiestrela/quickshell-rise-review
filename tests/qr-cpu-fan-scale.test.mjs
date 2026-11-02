@@ -1,9 +1,10 @@
+import { readQmlSource } from './qml-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 test('recent RPM scale shows small fluctuations without capacity claim',()=>{
- const q=fs.readFileSync('variants/V1/modules/FanRpmHistory.qml','utf8');
+ const q=readQmlSource('shared/components/FanRpmHistory.qml','utf8');
  const a=q.indexOf('    function recentScale('),b=q.indexOf('    function acceptSample(',a);assert.ok(a>=0);
  const c=vm.createContext({});vm.runInContext(q.slice(a,b),c);
  const points=[2571,2547,2566,2586];const fractions=points.map(x=>c.recentScale(points,x).fraction);

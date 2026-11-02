@@ -1,10 +1,11 @@
+import { readQmlSource } from './qml-source.mjs';
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 const dir = dirname(fileURLToPath(import.meta.url));
-const qml = readFileSync(resolve(dir, "../variants/V1/panels/NordVPNPanel.qml"), "utf8");
+const qml = readQmlSource(resolve(dir, "../shared/panels/NordVPNPanel.qml"), "utf8");
 assert.match(qml, /required property var root/);
 assert.match(qml, /required property var controller/);
 assert.match(qml, /root\.vpnVisible/);

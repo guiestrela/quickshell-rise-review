@@ -1,7 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Wayland
-import "../../variants/V1/panels" as Panels
+import "../../shared/panels" as Panels
 
 ShellRoot {
     id: shell

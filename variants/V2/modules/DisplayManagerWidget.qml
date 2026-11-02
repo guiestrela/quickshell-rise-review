@@ -1,4 +1,5 @@
 import QtQuick
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: control
@@ -17,7 +18,7 @@ Item {
         font.family: control.root.mono
         font.pixelSize: 14
     }
-    TooltipMixin { id: tip; root: control.root; owner: control; text: control.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: control.root; owner: control; text: control.tooltipText }
     MouseArea {
         anchors.fill: parent
         hoverEnabled: true

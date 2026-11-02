@@ -1,9 +1,10 @@
+const { readQmlSource } = require('./qml-source.cjs');
 const vm=require('node:vm'),assert=require('node:assert/strict');
 const context={monitors:[{name:'DP-1',width:2560,height:1440,x:0,y:560,scale:1,transform:0,refreshRate:155,mirrorOf:'none'},{name:'DP-2',width:2560,height:1440,x:2560,y:0,scale:1,transform:1,refreshRate:155,mirrorOf:'none'}],selectedMonitor:'DP-1',busy:false,loading:false,rollbackPending:false,mirrorReturnStates:{},calls:[],error:''};
 context.monitor=n=>context.monitors.find(m=>m.name===n);
 context.applyMonitor=(...args)=>{context.calls.push(args);return true};
 vm.createContext(context);
-const source=require('node:fs').readFileSync(require('node:path').join(__dirname,'../variants/V1/modules/DisplayManagerController.qml'),'utf8');
+const source=readQmlSource(require('node:path').join(__dirname,'../shared/controllers/DisplayManagerController.qml'),'utf8');
 vm.runInContext(source.slice(source.indexOf('    function toggleMirror('),source.indexOf('    function enableMonitor(')),context);
 assert.equal(context.toggleMirror(),true);assert.equal(context.calls[0][6],'DP-2');
 context.monitors[0]={...context.monitors[0],mirrorOf:'DP-2',x:2560,y:0,refreshRate:59.951};

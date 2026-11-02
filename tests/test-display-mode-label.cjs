@@ -1,5 +1,6 @@
+const { readQmlSource } = require('./qml-source.cjs');
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
-const src=fs.readFileSync(path.join(__dirname,'../variants/V1/panels/DisplayManagerPanel.qml'),'utf8');
+const src=readQmlSource(path.join(__dirname,'../shared/panels/DisplayManagerPanel.qml'),'utf8');
 const live={name:'DP-1',width:2560,height:1440,refreshRate:154.998,availableModes:['2560x1440@155.00Hz','1920x1080@60.00Hz']};
 const legacyOptions=['preferred',...live.availableModes];
 // Prove the production selector resolves a real mode, not the legacy fallback.

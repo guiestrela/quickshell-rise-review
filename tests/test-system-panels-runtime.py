@@ -4,6 +4,7 @@
 Offscreen mode checks bindings and keyboard behavior. --native additionally
 loads hidden PanelWindows on Wayland; neither mode invokes hardware helpers.
 """
+from qml_fixture_source import qml_fixture_bytes, qml_fixture_source, qml_fixture_text
 import json
 import os
 from pathlib import Path
@@ -26,7 +27,7 @@ with tempfile.TemporaryDirectory(prefix='rise-system-panels-', dir='/tmp') as di
         panels.mkdir()
         texts = []
         for name in ['CpuPanel', 'GpuPanel', 'MemoryPanel']:
-            text = (repo / path / 'panels' / f'{name}.qml').read_text()
+            text = qml_fixture_text(repo / path / 'panels' / f'{name}.qml')
             texts.append(text)
             if not native:
                 text = re.sub(r'^import Quickshell(?:\.[A-Za-z.]+)?\n', '', text, flags=re.M)
@@ -36,7 +37,7 @@ with tempfile.TemporaryDirectory(prefix='rise-system-panels-', dir='/tmp') as di
             text = text.replace('id: card\n', 'id: card; objectName: "card"\n')
             (panels / f'{name}.qml').write_text(text)
         for name in ['UiText', 'IconText', 'PillShadow', 'SidePanelPositioner']:
-            (modules / f'{name}.qml').write_bytes((repo / path / 'modules' / f'{name}.qml').read_bytes())
+            (modules / f'{name}.qml').write_bytes(qml_fixture_bytes(qml_fixture_source(repo / path / 'modules' / f'{name}.qml')))
         (modules / 'FanControl.qml').write_text('''import QtQuick
 Item { objectName: "fanControl"; property var theme; property bool active; implicitHeight: 42; height: 42 }
 ''')

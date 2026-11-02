@@ -1,3 +1,4 @@
+import { readQmlSource } from './qml-source.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync, writeFileSync, mkdtempSync, rmSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
@@ -7,7 +8,7 @@ const project = resolve(fileURLToPath(new URL('..', import.meta.url)));
 const variant = process.argv.includes('--v2') ? 'v2' : 'v1';
 const scratch = mkdtempSync(join(process.env.TMPDIR, 'qr04n-dns-'));
 try {
-  const fixture = readFileSync(join(project, `tests/qml/qr04n-${variant}-wiring.qml`), 'utf8');
+  const fixture = readQmlSource(join(project, `tests/qml/qr04n-${variant}-wiring.qml`), 'utf8');
   const marker = `console.log("QR04N_${variant.toUpperCase()}_WIRING_QML_PASS real widget/panel/controller; stub-only argv; invalid inputs rejected")\n            Qt.exit(0)`;
   const sequence = `host.verify(!host.controller.setDnsServers("1.1.1.256"), "invalid IPv4 was accepted");
             host.verify(!host.controller.setDnsServers("1.1.1.1, 2.2.2.2, 3.3.3.3, 4.4.4.4"), "more than 3 DNS servers accepted");
@@ -40,7 +41,7 @@ try {
   assert.equal(run.error, undefined, output);
   assert.equal(run.status, 0, output);
   assert.match(output, new RegExp(`QR04N_${variant.toUpperCase()}_DNS_QML_PASS`), output);
-  const argv = readFileSync(log,'utf8').split('\n').filter(Boolean).map(line=>line.split('\0').filter(Boolean));
+  const argv = readQmlSource(log,'utf8').split('\n').filter(Boolean).map(line=>line.split('\0').filter(Boolean));
   const dnsArgv = argv.filter(args=>args[0]==='set' && args[1]==='dns');
   assert.deepEqual(dnsArgv, [['set','dns','1.1.1.1','8.8.8.8'], ['set','dns','off']]);
   console.log(`QR04N_DNS_RUNTIME_PASS ${variant}: validation/busy/reset; exact argv; invalid requests generated no Process`);

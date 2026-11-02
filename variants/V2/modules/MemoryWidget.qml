@@ -1,4 +1,5 @@
 import QtQuick
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -72,7 +73,7 @@ Item {
             }
         }
 
-        UiText {
+        CommonComponents.UiText {
             visible: !rootMod.root.iconOnly("G4")
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.usedLabel
@@ -82,7 +83,7 @@ Item {
         }
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     MouseArea {
         anchors.fill: parent

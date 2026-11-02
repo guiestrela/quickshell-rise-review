@@ -1,5 +1,7 @@
 import QtQuick
+import "../../../shared/logic/BatteryWidgetLogic.js" as BatteryWidgetLogic
 import Quickshell.Services.UPower
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -24,12 +26,7 @@ Item {
     readonly property real timeToEmpty: dev ? dev.timeToEmpty : 0
     readonly property real timeToFull:  dev ? dev.timeToFull  : 0
     readonly property string timeText:  charging ? fmtDuration(timeToFull) : fmtDuration(timeToEmpty)
-    function fmtDuration(s) {
-        if (!s || s <= 0) return ""
-        var h = Math.floor(s / 3600)
-        var m = Math.floor((s % 3600) / 60)
-        return h > 0 ? (h + "h " + m + "m") : (m + "m")
-    }
+    function fmtDuration(s) { return BatteryWidgetLogic.fmtDuration(rootMod, {}, s) }
 
     readonly property string statusText:
         full ? "Full"
@@ -65,7 +62,7 @@ Item {
         anchors.centerIn: parent
         spacing: 5
 
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             visible: !rootMod.verticalCompact
             text: "BAT"
@@ -189,7 +186,7 @@ Item {
             }
         }
 
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.percent + "%"
             color: rootMod.battColor
@@ -199,7 +196,7 @@ Item {
         }
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     MouseArea {
         anchors.fill: parent

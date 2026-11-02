@@ -1,3 +1,4 @@
+import { readQmlSource } from './qml-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -5,7 +6,7 @@ import vm from 'node:vm';
 function fn(qml,name){const start=qml.indexOf(`function ${name}(`);assert.ok(start>=0,`${name} missing`);let open=qml.indexOf('{',start),depth=0;for(let i=open;i<qml.length;i++){if(qml[i]==='{')depth++;if(qml[i]==='}'&&--depth===0)return qml.slice(start,i+1)}assert.fail('function incomplete')}
 for(const variant of ['variants/V1','variants/V2']){
  test(`${variant}: left-click accordion toggles one device and preserves main connection button`,()=>{
-  const qml=readFileSync(new URL(`../${variant}/panels/BluetoothPanel.qml`,import.meta.url),'utf8');
+  const qml=readQmlSource(new URL(`../shared/panels/BluetoothPanel.qml`,import.meta.url),'utf8');
   const panel={expandedDeviceKey:'',actionBusy:false,cancelForgetDevice(){},trustError:''};
   const ctx={btPanel:panel,connProc:{running:false}};
   panel.deviceActionKey=vm.runInNewContext(`(${fn(qml,'deviceActionKey')})`,ctx);
@@ -19,7 +20,7 @@ for(const variant of ['variants/V1','variants/V2']){
   assert.match(qml,/id: deviceActions/);
  });
  test(`${variant}: Trust reserves one operation and rejects unknown/already-trusted identities`,()=>{
-  const qml=readFileSync(new URL(`../${variant}/panels/BluetoothPanel.qml`,import.meta.url),'utf8');
+  const qml=readQmlSource(new URL(`../shared/panels/BluetoothPanel.qml`,import.meta.url),'utf8');
   const device={mac:'AA:BB:CC:DD:EE:FF',adapterId:'hci0',dbusPath:'/org/bluez/hci0/dev_AA_BB_CC_DD_EE_FF',name:'Synthetic'};
   const live={...device,trusted:false,adapter:{adapterId:'hci0'}};
   const panel={trustPending:false,trustError:'',trustTarget:null};

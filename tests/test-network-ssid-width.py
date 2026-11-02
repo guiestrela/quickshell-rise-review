@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Exercise the production V2 SSID label with inert state and real Qt text layout."""
+from qml_fixture_source import qml_fixture_text
 import os
 from pathlib import Path
 import subprocess
 import tempfile
 
 repo = Path(__file__).resolve().parents[1]
-source = (repo / 'variants/V2/modules/NetworkWidget.qml').read_text()
+source = qml_fixture_text(repo / 'variants/V2/modules/NetworkWidget.qml')
 
 
 def block(type_name, identity):

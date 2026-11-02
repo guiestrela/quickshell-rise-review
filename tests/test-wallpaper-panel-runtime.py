@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Exercise production wallpaper controls with inert service and file chooser."""
+from qml_fixture_source import qml_fixture_bytes, qml_fixture_text
 import os
 from pathlib import Path
 import re
@@ -17,13 +18,26 @@ with tempfile.TemporaryDirectory(prefix='rise-wallpanel-', dir='/tmp') as direct
         panels, modules = folder / 'panels', folder / 'modules'
         panels.mkdir(parents=True)
         modules.mkdir()
+        logic = base / 'shared' / 'logic'
+        logic.mkdir(parents=True, exist_ok=True)
+        (logic / 'WallpaperManagerQuickPanelLogic.js').write_bytes(
+            (repo / 'shared' / 'logic' / 'WallpaperManagerQuickPanelLogic.js').read_bytes()
+        )
+        controllers = base / 'shared' / 'controllers'
+        controllers.mkdir(parents=True, exist_ok=True)
+        (controllers / 'WallpaperExternalPicker.qml').write_bytes(
+            (repo / 'shared' / 'controllers' / 'WallpaperExternalPicker.qml').read_bytes()
+        )
         text = (source / 'panels/WallpaperManagerQuickPanel.qml').read_text()
+        text = text.replace('../../../shared/logic', '../../shared/logic')
+        text = text.replace('import "../../../shared/controllers" as CommonControllers',
+                            'import "../modules" as CommonControllers')
         text = re.sub(r'^import Quickshell(?:\.[A-Za-z.]+)?\n','',text,flags=re.M)
         text = text.replace('PanelWindow {','Rectangle {\n width:1000; height:900\n property var screen',1)
         text = re.sub(r'^    (?:anchors \{ top:|exclusionMode:|WlrLayershell\.).*\n','',text,flags=re.M)
         (panels/'WallpaperManagerQuickPanel.qml').write_text(text)
-        (modules/'PillShadow.qml').write_bytes((source/'modules/PillShadow.qml').read_bytes())
-        (modules/'SidePanelPositioner.qml').write_bytes((source/'modules/SidePanelPositioner.qml').read_bytes())
+        (modules/'PillShadow.qml').write_bytes(qml_fixture_bytes(source/'modules/PillShadow.qml'))
+        (modules/'SidePanelPositioner.qml').write_bytes(qml_fixture_bytes(source/'modules/SidePanelPositioner.qml'))
         (modules/'ConnectedPanelSurface.qml').write_text('import QtQuick\nItem { property var root; property bool ownerActive; property real targetX; property real reveal }')
         (modules/'WallpaperExternalPicker.qml').write_text('''import QtQuick
 Item {

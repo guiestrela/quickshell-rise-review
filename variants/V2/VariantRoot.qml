@@ -10,7 +10,7 @@ import Quickshell.Io
 import Quickshell.Wayland
 import QtQuick
 import "panels"
-import "../V1/panels" as RisePanels
+import "../../shared/panels" as CommonPanels
 
 Item {
     id: root
@@ -277,10 +277,10 @@ Item {
     TrayMenu { root: theme }
 
     // Picker variants: only the selected pickerStyle is instantiated.
-    LazyLoader { active: theme.pickerStyle === "tanzaku" || theme.pickerStyle === "";  ImageCarouselPanel       { root: theme } }
-    LazyLoader { active: theme.pickerStyle === "hearthstone";                           ImageCarouselHearthstone { root: theme } }
-    LazyLoader { active: theme.pickerStyle === "carousel";                              ImageCarouselCarousel    { root: theme } }
-    LazyLoader { active: theme.mediaBrowserVisible && (theme.pickerStyle === "tanzaku" || theme.pickerStyle === "");  MediaBrowserPanel        { root: theme } }
-    LazyLoader { active: theme.mediaBrowserVisible && theme.pickerStyle === "hearthstone";                             MediaBrowserHearthstone  { root: theme } }
-    LazyLoader { active: theme.mediaBrowserVisible && theme.pickerStyle === "carousel";                                MediaBrowserCarousel     { root: theme } }
+    LazyLoader { active: theme.pickerStyle === "tanzaku" || theme.pickerStyle === "";  CommonPanels.ImageCarouselPanel       { root: theme } }
+    LazyLoader { active: theme.pickerStyle === "hearthstone";                           CommonPanels.ImageCarouselHearthstone { root: theme } }
+    LazyLoader { active: theme.pickerStyle === "carousel";                              CommonPanels.ImageCarouselCarousel    { root: theme } }
+    LazyLoader { active: theme.mediaBrowserVisible && (theme.pickerStyle === "tanzaku" || theme.pickerStyle === "");  CommonPanels.MediaBrowserPanel        { root: theme } }
+    LazyLoader { active: theme.mediaBrowserVisible && theme.pickerStyle === "hearthstone";                             CommonPanels.MediaBrowserHearthstone  { root: theme } }
+    LazyLoader { active: theme.mediaBrowserVisible && theme.pickerStyle === "carousel";                                CommonPanels.MediaBrowserCarousel     { root: theme } }
 }

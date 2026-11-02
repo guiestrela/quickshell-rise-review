@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Exercise concurrent checker processes with a locked repository seam."""
+from qml_fixture_source import qml_fixture_text
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import os
@@ -13,7 +14,7 @@ class ParallelChecks(unittest.TestCase):
     def test_updating_property_exists_in_both_themes(self):
         for theme in ['variants/V1/Theme.qml', 'variants/V2/Theme.qml']:
             with self.subTest(theme=theme):
-                self.assertRegex((ROOT / theme).read_text(), r'property bool archRefreshing:\s*false',
+                self.assertRegex(qml_fixture_text(ROOT / theme), r'property bool archRefreshing:\s*false',
                                  'Widget cannot publish the updating state to its Theme')
 
     def test_concurrent_scans_have_separate_repository_databases(self):

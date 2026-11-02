@@ -10,9 +10,10 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
 import "modules"
-import "modules/NordVpnLayout.js" as NordVpnLayout
-import "modules/WallpaperLayout.js" as WallpaperLayout
+import "../../shared/logic/NordVpnLayout.js" as NordVpnLayout
+import "../../shared/logic/WallpaperLayout.js" as WallpaperLayout
 import "modules/V1Defaults.js" as V1Defaults
+import "../../shared/components" as CommonComponents
 
 PanelWindow {
     id: barSlot
@@ -156,7 +157,10 @@ PanelWindow {
         migrated = WallpaperLayout.migrateV1Order(l, c, r)
         if (migrated) { l = migrated.left; c = migrated.center; r = migrated.right }
         if (r.indexOf("G18") < 0 && r.length + 1 === rightModel.count) r.push("G18")
-        if (l.concat(c, r).indexOf("G19") < 0 && l.length + 1 === leftModel.count) l.push("G19")
+        if (l.concat(c, r).indexOf("G19") < 0 && l.length + 1 === leftModel.count - 2) l.push("G19")
+        // Append optional feature slots without moving any existing widget.
+        if (l.concat(c,r).indexOf("G20") < 0) l.push("G20")
+        if (l.concat(c,r).indexOf("G21") < 0) l.push("G21")
         // F12: only apply a cache that is a valid permutation of all registry ids (correct region
         // sizes, every id known, no duplicate, none missing) — a corrupt cache would otherwise
         // duplicate one widget and silently drop another. On reject, keep the default order.
@@ -314,6 +318,8 @@ PanelWindow {
     }
     Component { id: compMem;    MemoryWidget { root: barSlot.root } }
     Component { id: compCpu;    CpuWidget    { root: barSlot.root } }
+    Component { id: compTemperature; CpuTemperatureWidget { root: barSlot.root } }
+    Component { id: compStorage; StorageWidget { root: barSlot.root } }
     Component { id: compGpu;    GpuWidget    { root: barSlot.root } }
     Component { id: compVol;    AudioWidget  { root: barSlot.root } }
     Component { id: compClaude; ClaudeWidget { root: barSlot.root } }
@@ -405,7 +411,7 @@ PanelWindow {
                     opacity: g8.showDate ? 1 : 0
                     Behavior on width   { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
                     Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-                    UiText {
+                    CommonComponents.UiText {
                         id: dateLabel
                         anchors.verticalCenter: parent.verticalCenter
                         text: {
@@ -500,7 +506,7 @@ PanelWindow {
         "G8": compCenter,
         "G9": compMpris, "G10": compQuick, "G11": compNetwork,
         "G12": compBattery, "G13": compBrightness, "G14": compPower, "G15": compBluetooth,
-        "G16": compNordVpn, "G17": compWallpapers, "G18": compDisplayManager, "G19": compGpu
+        "G16": compNordVpn, "G17": compWallpapers, "G18": compDisplayManager, "G19": compGpu, "G20": compTemperature, "G21": compStorage
     })
 
     // ───────────────────── reusable region row of slots ─────────────────────
@@ -677,7 +683,7 @@ PanelWindow {
         }
 
         // ── split state (positional, per within-region gap) ──
-        property var leftSplits:  [true, true, true, true, true, true, true]   // gaps in leftModel
+        property var leftSplits:  [true, true, true, true, true, true, true, false, false]   // gaps in leftModel
         property var rightSplits: [true, true, true, true, true, true, true, true]   // gaps in rightModel
         property var boundarySplits: [true, true]   // [left↔center, center↔right]
 
@@ -741,7 +747,8 @@ PanelWindow {
             var p = str.split("|")
             if (p.length !== 3) return
             if (p[0].length === leftSplits.length)     leftSplits     = _s2b(p[0], leftSplits.length)
-            else if (p[0].length === leftSplits.length - 1) leftSplits = _s2b(p[0], leftSplits.length - 1).concat([true])
+            else if (p[0].length === leftSplits.length - 2) leftSplits = _s2b(p[0], leftSplits.length - 2).concat([false, false])
+            else if (p[0].length === leftSplits.length - 3) leftSplits = _s2b(p[0], leftSplits.length - 3).concat([true, false, false])
             if (p[1].length === rightSplits.length)    rightSplits    = _s2b(p[1], rightSplits.length)
             else if (p[1].length === rightSplits.length - 1) rightSplits = _s2b(p[1], rightSplits.length - 1).concat([false])
             else if (p[1].length === rightSplits.length - 2) rightSplits = _s2b(p[1], rightSplits.length - 2).concat([false, false])
@@ -877,7 +884,7 @@ PanelWindow {
             id: leftModel
             ListElement { gid: "G1" } ListElement { gid: "G2" } ListElement { gid: "G3" }
             ListElement { gid: "G4" } ListElement { gid: "G5" } ListElement { gid: "G6" }
-            ListElement { gid: "G7" } ListElement { gid: "G19" }
+            ListElement { gid: "G7" } ListElement { gid: "G19" } ListElement { gid: "G20" } ListElement { gid: "G21" }
         }
         ListModel { id: centerModel; ListElement { gid: "G8" } }
         ListModel {
@@ -945,6 +952,8 @@ PanelWindow {
                 memory:       island.groupX("G4",  0.5),
                 cpu:          island.groupX("G5",  0.5),
                 gpu:          island.groupX("G19", 0.5),
+                thermal:      island.groupX("G20", 0.5),
+                storage:      island.groupX("G21", 0.5),
                 ai:           island.groupX("G7",  0.5),
                 workspace:    island.groupX("G2",  0.5),
                 arch:         island.groupX("G3",  0.5),

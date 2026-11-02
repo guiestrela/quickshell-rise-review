@@ -1,8 +1,9 @@
+from qml_fixture_source import qml_fixture_text
 from pathlib import Path
 import os,subprocess
 b=Path(__file__).resolve().parent.parent
 for v,sub,gid in [('V1','variants/V1','G17'),('V2','variants/V2','G20')]:
- vr=b/sub;s=(vr/'BarSlot.qml').read_text()
+ vr=b/sub;s=qml_fixture_text(vr/'BarSlot.qml')
  a=s.index('id: compQuick');z=s.index('id: compNetwork',a)
  assert 'WallpaperManagerQuickWidget' not in s[a:z],v+' STILL_IN_QUICK_TOOLS'
  a=s.index('id: compWallpapers');z=s.index('Component',a)

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Exercise real Qt FileView persistence with controller methods and inert dispatch."""
+from qml_fixture_source import qml_fixture_text
 import json
 import os
 from pathlib import Path
@@ -13,7 +14,7 @@ with tempfile.TemporaryDirectory(prefix='display-position-', dir=os.environ['TMP
     root = Path(folder)
     home = root / 'home'
     (home / '.cache/quickshell-rise').mkdir(parents=True)
-    production = (repo / 'variants/V1/modules/DisplayManagerController.qml').read_text()
+    production = qml_fixture_text(repo / 'shared/controllers/DisplayManagerController.qml')
     start = production.index('    function command(args) {')
     end = production.index('    function applyMonitor(', start)
     # Replace only external dispatch in the scratch copy; production methods and FileView stay real.
@@ -81,6 +82,6 @@ Scope {
         assert result.returncode == 0 and 'POSITION_RUNTIME_PASS' in output and 'POSITION_RUNTIME_FAIL' not in output, output
         assert not any(s in output for s in ['ReferenceError', 'TypeError', 'Cannot assign']), output
         if mode == 'capture':
-            saved = json.loads((home / '.cache/quickshell-rise/display-return-states.json').read_text())
+            saved = json.loads(qml_fixture_text(home / '.cache/quickshell-rise/display-return-states.json'))
             assert saved['DP-2']['x'] == 2579 and saved['DP-2']['y'] == -50
         print(next(line[line.index('POSITION_RUNTIME_PASS'):] for line in output.splitlines() if 'POSITION_RUNTIME_PASS' in line))

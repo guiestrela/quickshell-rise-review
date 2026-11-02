@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -37,7 +38,7 @@ Item {
         anchors.centerIn: parent
         spacing: rootMod.verticalCompact ? 4 : 5
 
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             visible: !rootMod.verticalCompact
             text: "GPU"
@@ -110,7 +111,7 @@ Item {
             }
         }
 
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.root.barVertical !== true && (!rootMod.verticalCompact)
             text: String(Math.min(100, rootMod.percent)).padStart(2, '0') + "%"
@@ -127,7 +128,7 @@ Item {
 
             Image {
                 anchors.fill: parent
-                source: Qt.resolvedUrl("../assets/gpu-card.svg")
+                source: Qt.resolvedUrl("../../../shared/assets/gpu-card.svg")
                 sourceSize: Qt.size(54, 39)
                 fillMode: Image.PreserveAspectFit
                 smooth: true
@@ -137,12 +138,12 @@ Item {
                 layer.textureSize: Qt.size(54, 39)
                 layer.effect: ShaderEffect {
                     property color tintColor: rootMod.contentColor
-                    fragmentShader: Qt.resolvedUrl("../shaders/logo-tint.frag.qsb")
+                    fragmentShader: Qt.resolvedUrl("../../../shared/assets/logo-tint.frag.qsb")
                 }
             }
         }
 
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.root.barVertical !== true && (rootMod.verticalCompact)
             text: String(Math.min(100, rootMod.percent)).padStart(2, '0') + "%"
@@ -152,7 +153,7 @@ Item {
         }
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     MouseArea {
         anchors.fill: parent

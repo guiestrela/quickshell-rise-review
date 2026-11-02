@@ -1,4 +1,5 @@
 import QtQuick
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -8,7 +9,7 @@ Item {
     implicitWidth: 22
     implicitHeight: 28
 
-    IconText {
+    CommonComponents.IconText {
         anchors.centerIn: parent
         text: "palette"
         font.pixelSize: 14
@@ -19,7 +20,7 @@ Item {
         Behavior on color { ColorAnimation { duration: 150 } }
     }
 
-    TooltipMixin {
+    CommonComponents.TooltipMixin {
         id: tip; root: rootMod.root; owner: rootMod
         text: "L: Theme  R: Wallpaper  M: Next"
     }

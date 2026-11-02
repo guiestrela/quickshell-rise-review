@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Render the real selection delegates with QtTest; never run a VPN command."""
+from qml_fixture_source import qml_fixture_text
 import os
 from pathlib import Path
 import re
@@ -23,7 +24,7 @@ def rectangle(source, marker):
 with tempfile.TemporaryDirectory(prefix='vpn-selection-ui-', dir=os.environ['TMPDIR']) as directory:
     temp = Path(directory)
     for variant, relative in [('V1', 'variants/V1/panels/NordVPNPanel.qml'), ('V2', 'variants/V2/panels/NordVPNPanel.qml')]:
-        source = (ROOT / relative).read_text()
+        source = qml_fixture_text(ROOT / relative)
         tech = rectangle(source, 'id: technologyMouse;')
         udp = rectangle(source, 'id: protocolMouse;')
         tcp = rectangle(source, 'id: tcpProtocolMouse;')

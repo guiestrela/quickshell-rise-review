@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell.Io
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -29,7 +30,7 @@ Item {
         spacing: 5
 
         // pulsing record dot
-        IconText {
+        CommonComponents.IconText {
             id: dot
             anchors.verticalCenter: parent.verticalCenter
             text: "\uE061"   // fiber_manual_record
@@ -47,7 +48,7 @@ Item {
         }
 
         // timer
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.elapsedStr
             color: rootMod.root.seal
@@ -62,7 +63,7 @@ Item {
         onExited: rootMod.root.refreshRecordingStatus()
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     MouseArea {
         anchors.fill: parent

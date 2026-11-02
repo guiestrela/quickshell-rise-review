@@ -1,7 +1,9 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "../../../shared/logic/NetworkWidgetLogic.js" as NetworkWidgetLogic
 import Quickshell.Io
-import "../IconMap.js" as IconMap
+import "../../../shared/logic/IconMap.js" as IconMap
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -26,11 +28,7 @@ Item {
     property real dlRate:   0
     property real ulRate:   0
 
-    function formatSpeed(bps) {
-        var mb = bps / 1048576
-        var s = mb < 10 ? mb.toFixed(2) : mb.toFixed(1)
-        return s.padStart(5) + "M"  // always 6 chars: " 0.00M" … "100.0M"
-    }
+    function formatSpeed(bps) { return NetworkWidgetLogic.formatSpeed(rootMod, {}, bps) }
 
     function formatBarRate(bps) {
         var value = Math.max(0, Number(bps) || 0)
@@ -103,7 +101,7 @@ Item {
         spacing: 4
 
         // ── wifi: icon ──
-        IconText {
+        CommonComponents.IconText {
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.mode === "wifi"
             text: IconMap.icon(rootMod.wifiIconName)
@@ -112,7 +110,7 @@ Item {
             Behavior on color { ColorAnimation { duration: 160 } }
         }
 
-        IconText {
+        CommonComponents.IconText {
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.mode !== "wifi"
             text: IconMap.icon(rootMod.mode === "ethernet" ? "lan" : "signal_wifi_off")
@@ -123,7 +121,7 @@ Item {
             Behavior on color { ColorAnimation { duration: 160 } }
         }
 
-        UiText {
+        CommonComponents.UiText {
             id: wifiSsidLabel
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.mode === "wifi" && !rootMod.root.iconOnly("G11")
@@ -145,7 +143,7 @@ Item {
             readonly property real rxLevel: rootMod.trafficLevel(rootMod.dlRate)
             readonly property real txLevel: rootMod.trafficLevel(rootMod.ulRate)
 
-            UiText {
+            CommonComponents.UiText {
                 x: 0; y: 0
                 width: 8; height: 8
                 text: "RX"
@@ -186,7 +184,7 @@ Item {
                     }
                 }
             }
-            UiText {
+            CommonComponents.UiText {
                 x: 8; y: 13
                 width: 8; height: 8
                 text: "TX"
@@ -261,7 +259,7 @@ Item {
         onTriggered: { netProc.running = false; netProc.running = true }
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     Process { id: clickRunner; command: ["bash", "-c", rootMod.root.launchWifiCmd] }
 

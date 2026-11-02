@@ -1,8 +1,10 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "../../../shared/logic/ControlPanelLogic.js" as ControlPanelLogic
 import Quickshell
 import Quickshell.Wayland
 import "../modules"
+import "../../../shared/components" as CommonComponents
 
 PanelWindow {
     id: ctrlPanel
@@ -26,31 +28,11 @@ PanelWindow {
     property bool compactOpen: false
     readonly property string barctlPath: Quickshell.env("HOME") + "/.config/quickshell/bin/qs-barctl"
 
-    function switchBar(version) {
-        if (version !== "v1" && version !== "v2") return
-        ctrlPanel.root.controlVisible = false
-        if (ctrlPanel.root.variantHost)
-            ctrlPanel.root.variantHost.requestSwitch(version)
-        else
-            Quickshell.execDetached([barctlPath, "switch", version])
-    }
+    function switchBar(version) { return ControlPanelLogic.switchBar(ctrlPanel, {Quickshell: Quickshell}, version) }
 
-    function reloadBar() {
-        ctrlPanel.root.controlVisible = false
-        Quickshell.reload(false)
-    }
+    function reloadBar() { return ControlPanelLogic.reloadBar(ctrlPanel, {Quickshell: Quickshell}) }
 
-    function runPowerAction(action) {
-        var commands = {
-            lock: ["omarchy", "system", "lock"],
-            suspend: ["systemctl", "--no-ask-password", "suspend"],
-            reboot: ["omarchy", "system", "reboot"],
-            shutdown: ["omarchy", "system", "shutdown"]
-        }
-        if (!commands[action]) return
-        Quickshell.execDetached(commands[action])
-        ctrlPanel.root.controlVisible = false
-    }
+    function runPowerAction(action) { return ControlPanelLogic.runPowerAction(ctrlPanel, {Quickshell: Quickshell}, action) }
 
     property real reveal: ctrlPanel.root.controlVisible ? 1 : 0
     Behavior on reveal {
@@ -99,7 +81,7 @@ PanelWindow {
         signal toggled()
 
         height: 20
-        UiText {
+        CommonComponents.UiText {
             id: toggleText
             anchors.left: parent.left
             anchors.verticalCenter: parent.verticalCenter
@@ -173,13 +155,13 @@ PanelWindow {
             Item {
                 width: parent.width
                 height: 24
-                UiText {
+                CommonComponents.UiText {
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                     text: "Control"
                     color: ctrlPanel.root.ink; font.family: ctrlPanel.root.mono; font.pixelSize: 13
                     font.letterSpacing: 2; font.weight: Font.Medium
                 }
-                UiText {
+                CommonComponents.UiText {
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                     text: "✕"; color: closeMa.containsMouse ? ctrlPanel.root.seal : ctrlPanel.root.sumi; font.pixelSize: 12
                     Behavior on color { ColorAnimation { duration: 120 } }
@@ -190,7 +172,7 @@ PanelWindow {
             Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             // ── ACTIONS ──
-            UiText {
+            CommonComponents.UiText {
                 text: "ACTIONS"
                 color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
@@ -261,7 +243,7 @@ PanelWindow {
             Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             // ── BAR COLOR: compact colors.toml palette ──
-            UiText {
+            CommonComponents.UiText {
                 text: "BAR COLOR"
                 color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
@@ -289,7 +271,7 @@ PanelWindow {
                         Behavior on scale {
                             NumberAnimation { duration: 120; easing.type: Easing.OutCubic }
                         }
-                        UiText {
+                        CommonComponents.UiText {
                             anchors.centerIn: parent
                             text: entryDelegate3.modelData === "foreground" ? "FG" : entryDelegate3.modelData.slice(-2)
                             color: ctrlPanel.root.paletteContrastColor(entryDelegate3.modelData)
@@ -320,7 +302,7 @@ PanelWindow {
             Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             // ── SPLITS (opens the fly-out sub-panel) ──
-            UiText {
+            CommonComponents.UiText {
                 text: "SPLITS"
                 color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
@@ -335,7 +317,7 @@ PanelWindow {
             Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             // ── BAR FUNCTIONS (opens the fly-out sub-panel) ──
-            UiText {
+            CommonComponents.UiText {
                 text: "BAR FUNCTIONS"
                 color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
@@ -349,7 +331,7 @@ PanelWindow {
             Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             // ── PICKER style (theme/wallpaper/screenshot/video picker visual) ──
-            UiText {
+            CommonComponents.UiText {
                 text: "PICKER-STIL"
                 color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
@@ -387,7 +369,7 @@ PanelWindow {
                         border.color: (on || hovered) ? ctrlPanel.root.seal : ctrlPanel.root.sep
                         border.width: 1
                         Behavior on color { ColorAnimation { duration: 120 } }
-                        UiText {
+                        CommonComponents.UiText {
                             anchors.centerIn: parent
                             text: pickTile.modelData.label
                             color: (pickTile.on || pickTile.hovered) ? ctrlPanel.root.seal : ctrlPanel.root.ink
@@ -433,7 +415,7 @@ PanelWindow {
             anchors.fill: parent
             anchors.margins: 12
             spacing: 8
-            UiText {
+            CommonComponents.UiText {
                 text: "SPLITS"
                 color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
@@ -444,7 +426,7 @@ PanelWindow {
             Tile { width: parent.width; label: "Default layout"; accent: ctrlPanel.root.seal;   onActivated: { if (ctrlPanel.root.fnDefaultLayout) ctrlPanel.root.fnDefaultLayout() } }
 
             Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
-            UiText {
+            CommonComponents.UiText {
                 text: "GAP ANIM"
                 color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
@@ -471,7 +453,7 @@ PanelWindow {
                         border.color: (on || hovered) ? ctrlPanel.root.seal : ctrlPanel.root.sep
                         border.width: 1
                         Behavior on color { ColorAnimation { duration: 120 } }
-                        UiText {
+                        CommonComponents.UiText {
                             anchors.centerIn: parent
                             text: ctrlPanel.root.barAnim === animTile.modelData.alt ? animTile.modelData.label + " 2"
                                                                           : animTile.modelData.label
@@ -540,7 +522,7 @@ PanelWindow {
             spacing: 8
 
             // ── WIDGETS toggle grid (moved here from the main card) ──
-            UiText {
+            CommonComponents.UiText {
                 text: "WIDGETS"
                 color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
@@ -562,6 +544,8 @@ PanelWindow {
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Status";      active: ctrlPanel.root.modStatus;  onActivated: ctrlPanel.root.modStatus = !ctrlPanel.root.modStatus }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "CPU";         active: ctrlPanel.root.modCpu;     onActivated: ctrlPanel.root.modCpu = !ctrlPanel.root.modCpu }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "GPU";         active: ctrlPanel.root.modGpu;     onActivated: ctrlPanel.root.modGpu = !ctrlPanel.root.modGpu }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Temperature"; active: ctrlPanel.root.modCpuTemperature; onActivated: ctrlPanel.root.modCpuTemperature = !ctrlPanel.root.modCpuTemperature }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Storage"; active: ctrlPanel.root.modStorage; onActivated: ctrlPanel.root.modStorage = !ctrlPanel.root.modStorage }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Volume";      active: ctrlPanel.root.modVolume;  onActivated: ctrlPanel.root.modVolume = !ctrlPanel.root.modVolume }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Now playing"; active: ctrlPanel.root.modMpris;   onActivated: ctrlPanel.root.modMpris = !ctrlPanel.root.modMpris }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Battery";     visible: ctrlPanel.root.hasBattery; active: true; enabled: false }
@@ -588,6 +572,8 @@ PanelWindow {
                 CompactToggle { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Power";      active: ctrlPanel.root.compactPower;      onToggled: ctrlPanel.root.compactPower = !ctrlPanel.root.compactPower }
                 CompactToggle { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "CPU";        active: ctrlPanel.root.compactCpu;        onToggled: ctrlPanel.root.compactCpu = !ctrlPanel.root.compactCpu }
                 CompactToggle { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "GPU";        active: ctrlPanel.root.compactGpu;        onToggled: ctrlPanel.root.compactGpu = !ctrlPanel.root.compactGpu }
+                CompactToggle { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Temperature"; active: ctrlPanel.root.compactTemperature; onToggled: ctrlPanel.root.compactTemperature = !ctrlPanel.root.compactTemperature }
+                CompactToggle { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Storage"; active: ctrlPanel.root.compactStorage; onToggled: ctrlPanel.root.compactStorage = !ctrlPanel.root.compactStorage }
                 CompactToggle { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Memory";     active: ctrlPanel.root.compactMemory;     onToggled: ctrlPanel.root.compactMemory = !ctrlPanel.root.compactMemory }
                 CompactToggle { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Volume";     active: ctrlPanel.root.compactVolume;     onToggled: ctrlPanel.root.compactVolume = !ctrlPanel.root.compactVolume }
                 CompactToggle { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Now playing"; active: ctrlPanel.root.compactMpris;      onToggled: ctrlPanel.root.compactMpris = !ctrlPanel.root.compactMpris }
@@ -631,7 +617,7 @@ PanelWindow {
                             border.color: (on || hovered) ? ctrlPanel.root.seal : ctrlPanel.root.sep
                             border.width: 1
                             Behavior on color { ColorAnimation { duration: 120 } }
-                            UiText {
+                            CommonComponents.UiText {
                                 anchors.centerIn: parent
                                 text: wsmTile.modelData.label
                                 color: (wsmTile.on || wsmTile.hovered) ? ctrlPanel.root.seal : ctrlPanel.root.ink
@@ -666,7 +652,7 @@ PanelWindow {
                             border.color: (on || hovered) ? ctrlPanel.root.seal : ctrlPanel.root.sep
                             border.width: 1
                             Behavior on color { ColorAnimation { duration: 120 } }
-                            UiText {
+                            CommonComponents.UiText {
                                 anchors.centerIn: parent
                                 text: wssTile.modelData.label
                                 color: (wssTile.on || wssTile.hovered) ? ctrlPanel.root.seal : ctrlPanel.root.ink
@@ -682,16 +668,16 @@ PanelWindow {
             Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             // ── STYLE (bar pill style; paint-only, width-invariant) ──
-            UiText {
+            CommonComponents.UiText {
                 text: "STYLE"
                 color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
             Row {
                 width: parent.width; spacing: 4
                 // independent toggles: each highlights when ON, click flips it (Border+Frost+Shadow combinable)
-                BarStylePreview { width: (wwCol.width - 8) / 3; theme: ctrlPanel.root; mode: "islands"; label: "Border"; selected: ctrlPanel.root.styleBorder; outline: ctrlPanel.root.styleBorder; onChosen: ctrlPanel.root.styleBorder = !ctrlPanel.root.styleBorder }
-                BarStylePreview { width: (wwCol.width - 8) / 3; theme: ctrlPanel.root; mode: "islands"; label: "Frost"; selected: ctrlPanel.root.styleFrost; frost: ctrlPanel.root.styleFrost; onChosen: ctrlPanel.root.styleFrost = !ctrlPanel.root.styleFrost }
-                BarStylePreview { width: (wwCol.width - 8) / 3; theme: ctrlPanel.root; mode: "islands"; label: "Shadow"; selected: ctrlPanel.root.styleShadow; shadow: ctrlPanel.root.styleShadow; onChosen: ctrlPanel.root.styleShadow = !ctrlPanel.root.styleShadow }
+                CommonComponents.BarStylePreview { width: (wwCol.width - 8) / 3; theme: ctrlPanel.root; mode: "islands"; label: "Border"; selected: ctrlPanel.root.styleBorder; outline: ctrlPanel.root.styleBorder; onChosen: ctrlPanel.root.styleBorder = !ctrlPanel.root.styleBorder }
+                CommonComponents.BarStylePreview { width: (wwCol.width - 8) / 3; theme: ctrlPanel.root; mode: "islands"; label: "Frost"; selected: ctrlPanel.root.styleFrost; frost: ctrlPanel.root.styleFrost; onChosen: ctrlPanel.root.styleFrost = !ctrlPanel.root.styleFrost }
+                CommonComponents.BarStylePreview { width: (wwCol.width - 8) / 3; theme: ctrlPanel.root; mode: "islands"; label: "Shadow"; selected: ctrlPanel.root.styleShadow; shadow: ctrlPanel.root.styleShadow; onChosen: ctrlPanel.root.styleShadow = !ctrlPanel.root.styleShadow }
             }
             Row {
                 width: parent.width; spacing: 4
@@ -702,7 +688,7 @@ PanelWindow {
             Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             // ── POSITION (bar on top or bottom edge) ──
-            UiText {
+            CommonComponents.UiText {
                 text: "POSITION"
                 color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }
@@ -721,7 +707,7 @@ PanelWindow {
             Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 
             // ── LOGO (launcher text/icon variant) ──
-            UiText {
+            CommonComponents.UiText {
                 text: "LOGO"
                 color: ctrlPanel.root.sumiHi; font.family: ctrlPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
             }

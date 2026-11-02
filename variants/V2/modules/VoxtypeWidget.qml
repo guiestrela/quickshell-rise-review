@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell.Io
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -23,7 +24,7 @@ Item {
 
     readonly property string tooltipText: hint !== "" ? hint : (voiceState === "recording" ? "Voxtype recording" : "Voxtype transcribing")
 
-    IconText {
+    CommonComponents.IconText {
         id: ico
         anchors.centerIn: parent
         text: rootMod.displayIcon
@@ -45,7 +46,7 @@ Item {
     Process { id: modelProc;  command: ["bash", "-c", "omarchy-voxtype-model"] }
     Process { id: configProc; command: ["bash", "-c", "omarchy-voxtype-config"] }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     MouseArea {
         anchors.fill: parent

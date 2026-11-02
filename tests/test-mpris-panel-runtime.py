@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Exercise production media panel with an inert player and spectrum worker."""
+from qml_fixture_source import qml_fixture_bytes, qml_fixture_source, qml_fixture_text
 import os
 from pathlib import Path
 import re
@@ -15,7 +16,7 @@ with tempfile.TemporaryDirectory(prefix='rise-mpris-', dir='/tmp') as directory:
     panels.mkdir()
     modules.mkdir()
     source = repo / os.environ.get('RISE_MPRIS_SOURCE','variants/V1')
-    text = (source / 'panels/MprisPanel.qml').read_text()
+    text = qml_fixture_text(source / 'panels/MprisPanel.qml')
     text = re.sub(r'^import Quickshell(?:\.[A-Za-z.]+)?\n', '', text, flags=re.M)
     text = text.replace('PanelWindow {', 'Rectangle {\n    width: 800; height: 700\n    property var screen', 1)
     text = re.sub(r'^    (?:anchors \{ top:|exclusionMode:|WlrLayershell\.).*\n', '', text, flags=re.M)
@@ -42,9 +43,13 @@ Item {
  }
 }
 ''')
+    spectrum = qml_fixture_text(repo / 'shared/services/MprisSpectrum.qml')
+    spectrum = re.sub(r'^import Quickshell(?:\.[A-Za-z.]+)?\n', '', spectrum, flags=re.M)
+    spectrum = spectrum.replace('Process {', 'InertProcess {')
+    (panels / 'MprisSpectrum.qml').write_text(spectrum)
     (panels / 'MprisPanel.qml').write_text(text)
     for name in ['UiText', 'IconText', 'PillShadow', 'SidePanelPositioner']:
-        (modules / f'{name}.qml').write_bytes((source / 'modules' / f'{name}.qml').read_bytes())
+        (modules / f'{name}.qml').write_bytes(qml_fixture_bytes(qml_fixture_source(source / 'modules' / f'{name}.qml')))
     (modules / 'ConnectedPanelSurface.qml').write_text('''import QtQuick
 Item { property var root; property bool ownerActive; property real targetX; property real reveal }
 ''')

@@ -2,6 +2,7 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Effects
 import Quickshell
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -15,7 +16,7 @@ Item {
     readonly property bool hyprlandLogo: !logoIconMode && rootMod.root.launcherLogoText === "hyprland"
     readonly property bool archTextLogo: !logoIconMode && rootMod.root.launcherLogoText === "arch"
     readonly property bool omacomTextLogo: !logoIconMode && rootMod.root.launcherLogoText === "omacom"
-    readonly property url logoSource: omacomTextLogo ? Qt.resolvedUrl("../assets/omacom-text.png") : hyprlandLogo ? Qt.resolvedUrl("../assets/bob3.png") : Qt.resolvedUrl("../assets/bob2.png")
+    readonly property url logoSource: omacomTextLogo ? Qt.resolvedUrl("../../../shared/assets/omacom-text.png") : hyprlandLogo ? Qt.resolvedUrl("../../../shared/assets/bob3.png") : Qt.resolvedUrl("../../../shared/assets/bob2.png")
     readonly property real logoAspect: omacomTextLogo ? (550 / 112) : archTextLogo ? (86 / 17) : hyprlandLogo ? (948 / 154) : (656 / 192)
     readonly property real logoHeight: logoIconMode ? 18 : hyprlandLogo ? 16 : omacomTextLogo ? 14 : archTextLogo ? 17 : 20
     readonly property real logoPadding: logoIconMode ? 8 : hyprlandLogo ? 10 : omacomTextLogo ? 12 : archTextLogo ? 8 : 12
@@ -131,7 +132,7 @@ Item {
             width: parent.width
             height: parent.height
 
-            UiText {
+            CommonComponents.UiText {
                 id: archBrandLogo
                 anchors.left: parent.left
                 anchors.leftMargin: rootMod.archWordLeftPad
@@ -153,7 +154,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 width: rootMod.archWordArchWidth
                 height: rootMod.archWordHeight
-                source: Qt.resolvedUrl("../assets/arch-header-arch.png")
+                source: Qt.resolvedUrl("../../../shared/assets/arch-header-arch.png")
                 fillMode: Image.PreserveAspectFit
                 cache: false
                 smooth: true
@@ -163,7 +164,7 @@ Item {
                 layer.textureSize: Qt.size(Math.max(1, Math.round(width * 3)), Math.max(1, Math.round(height * 3)))
                 layer.effect: ShaderEffect {
                     property color tintColor: rootMod.archBrandTextColor
-                    fragmentShader: Qt.resolvedUrl("../shaders/logo-tint.frag.qsb")
+                    fragmentShader: Qt.resolvedUrl("../../../shared/assets/logo-tint.frag.qsb")
                 }
             }
 
@@ -173,7 +174,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 width: rootMod.archWordLinuxWidth
                 height: rootMod.archWordHeight
-                source: Qt.resolvedUrl("../assets/arch-header-linux.png")
+                source: Qt.resolvedUrl("../../../shared/assets/arch-header-linux.png")
                 fillMode: Image.PreserveAspectFit
                 cache: false
                 smooth: true
@@ -183,7 +184,7 @@ Item {
                 layer.textureSize: Qt.size(Math.max(1, Math.round(width * 3)), Math.max(1, Math.round(height * 3)))
                 layer.effect: ShaderEffect {
                     property color tintColor: rootMod.root.seal
-                    fragmentShader: Qt.resolvedUrl("../shaders/logo-tint.frag.qsb")
+                    fragmentShader: Qt.resolvedUrl("../../../shared/assets/logo-tint.frag.qsb")
                 }
             }
         }
@@ -204,7 +205,7 @@ Item {
             layer.textureSize: Qt.size(Math.max(1, Math.round(width * 3)), Math.max(1, Math.round(height * 3)))   // supersample → crisp
             layer.effect: ShaderEffect {
                 property color tintColor: rootMod.root.seal
-                fragmentShader: Qt.resolvedUrl("../shaders/logo-tint.frag.qsb")
+                fragmentShader: Qt.resolvedUrl("../../../shared/assets/logo-tint.frag.qsb")
             }
         }
     }
@@ -216,7 +217,7 @@ Item {
         width: rootMod.logoIconSlotWidth
         height: rootMod.root.pillH
 
-        UiText {
+        CommonComponents.UiText {
             id: logoIcon
             anchors.centerIn: parent
             anchors.horizontalCenterOffset: rootMod.root.launcherLogoIconXOffset(rootMod.root.launcherLogoIcon)
@@ -230,7 +231,7 @@ Item {
         }
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     MouseArea {
         id: ma

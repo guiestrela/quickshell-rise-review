@@ -1,8 +1,10 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "../../../shared/logic/ClaudeWidgetLogic.js" as ClaudeWidgetLogic
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
+import "../../../shared/components" as CommonComponents
 
 // Combined AI-usage pill (Claude Code + OpenAI Codex + OpenCode + GitHub Copilot). The bar
 // shows ONE tool (root.aiTool) as a themed-tinted SVG with a bottom-up usage fill; the tooltip
@@ -19,9 +21,9 @@ Item {
     readonly property bool isCopilot: root.aiTool === "copilot"
     readonly property bool isLogo: isCodex || isOpenCode || isCopilot
     readonly property url  logoSource: Qt.resolvedUrl(
-        isCopilot  ? "../assets/copilot-white.svg"
-      : isOpenCode ? "../assets/opencode-mark.svg"
-      : "../assets/codex.svg")
+        isCopilot  ? "../../../shared/assets/copilot-white.svg"
+      : isOpenCode ? "../../../shared/assets/opencode-mark.svg"
+      : "../../../shared/assets/codex.svg")
     readonly property var  logoSourceSize: isOpenCode ? Qt.size(20, 12) : Qt.size(56, 56)
     readonly property int  codexMarkSize: 14
     readonly property int  ocMarkW: 20
@@ -246,7 +248,7 @@ Item {
                 implicitWidth: glyphBase.implicitWidth
                 implicitHeight: glyphBase.implicitHeight
 
-                UiText {
+                CommonComponents.UiText {
                     id: glyphBase
                     text: String.fromCodePoint(0xF167A)
                     renderType: Text.QtRendering
@@ -262,7 +264,7 @@ Item {
                         ? Math.min(parent.height, Math.max(parent.height * rootMod.pct5hStep / 100, parent.height * 0.25))
                         : 0
                     Behavior on height { NumberAnimation { duration: 600; easing.type: Easing.OutCubic } }
-                    UiText {
+                    CommonComponents.UiText {
                         anchors.bottom: parent.bottom
                         text: String.fromCodePoint(0xF167A)
                         renderType: Text.QtRendering
@@ -294,7 +296,7 @@ Item {
                     layer.smooth: !rootMod.isCodex
                     layer.effect: ShaderEffect {
                         property color tintColor: rootMod.root.ink
-                        fragmentShader: Qt.resolvedUrl("../shaders/logo-tint.frag.qsb")
+                        fragmentShader: Qt.resolvedUrl("../../../shared/assets/logo-tint.frag.qsb")
                     }
                 }
                 Item {
@@ -317,7 +319,7 @@ Item {
                         layer.smooth: !rootMod.isCodex
                         layer.effect: ShaderEffect {
                             property color tintColor: rootMod.root.seal
-                            fragmentShader: Qt.resolvedUrl("../shaders/logo-tint.frag.qsb")
+                            fragmentShader: Qt.resolvedUrl("../../../shared/assets/logo-tint.frag.qsb")
                         }
                     }
                 }
@@ -328,7 +330,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             implicitWidth: rootMod.verticalCompact ? 0 : usageLabel.implicitWidth
             implicitHeight: usageLabel.implicitHeight
-            UiText {
+            CommonComponents.UiText {
                 id: usageLabel
                 anchors.centerIn: parent
                 visible: !rootMod.verticalCompact
@@ -345,16 +347,9 @@ Item {
         }
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
-    function openSelectedAgent() {
-        var command = root.aiTool === "codex" ? "codex"
-                    : root.aiTool === "opencode" ? "opencode"
-                    : root.aiTool === "copilot" ? "copilot" : "claude"
-        launchAgent.command = ["bash", "-lc", "omarchy-launch-floating-terminal-with-presentation " + command]
-        launchAgent.running = false
-        launchAgent.running = true
-    }
+    function openSelectedAgent() { return ClaudeWidgetLogic.openSelectedAgent(rootMod, {root: root, launchAgent: launchAgent}) }
 
     Process { id: launchAgent }
 

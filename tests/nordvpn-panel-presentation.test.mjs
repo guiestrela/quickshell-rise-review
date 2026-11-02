@@ -1,3 +1,4 @@
+import { readQmlSource } from './qml-source.mjs';
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -5,13 +6,13 @@ import { dirname, resolve } from "node:path";
 
 const project = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 for (const [variant, path] of [
-  ["V1", "variants/V1/panels/NordVPNPanel.qml"],
-  ["V2", "variants/V2/panels/NordVPNPanel.qml"],
+  ["V1", "shared/panels/NordVPNPanel.qml"],
+  ["V2", "shared/panels/NordVPNPanel.qml"],
 ]) {
-  const qml = readFileSync(resolve(project, path), "utf8");
+  const qml = readQmlSource(resolve(project, path), "utf8");
   assert.match(qml, /width:\s*Math\.min\(300, parent\.width - 16\)/, `${variant}: panel is capped at Network's 300px width`);
   assert.match(qml, /objectName:\s*"nordvpn-panel-card"/, `${variant}: card is discoverable in isolated UI test`);
-  assert.match(qml, variant === "V1" ? /radius: vpnPanel\.root\.tileRadius/ : /radius: vpnPanel\.root\.panelButtonRadius/,
+  assert.match(readQmlSource(resolve(project, `variants/${variant}/panels/NordVPNPanel.qml`), "utf8"), variant === "V1" ? /buttonRadius: panel\.root\.tileRadius/ : /buttonRadius: panel\.root\.panelButtonRadius/,
     `${variant}: panel buttons keep native Network radius token`);
   // Compare actual action controls, not merely the presence of a radius token.
   for (const id of ["countryApplyMouse", "autoConnectApplyMouse"]) {

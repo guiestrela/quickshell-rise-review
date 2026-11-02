@@ -1,3 +1,4 @@
+import { readQmlSource } from './qml-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -7,8 +8,8 @@ import vm from 'node:vm';
 
 const repo = dirname(dirname(fileURLToPath(import.meta.url)));
 const variants = [
-  ['V1', 'variants/V1/panels/BluetoothPanel.qml'],
-  ['V2', 'variants/V2/panels/BluetoothPanel.qml'],
+  ['V1', 'shared/panels/BluetoothPanel.qml'],
+  ['V2', 'shared/panels/BluetoothPanel.qml'],
 ];
 const selectedDevice = {
   name: 'Synthetic paired device', paired: true, connected: false,
@@ -30,7 +31,7 @@ function extractFunction(source, name) {
 
 for (const [variant, relativePath] of variants) {
   test(`${variant}: only a validated paired selection reaches confirmation and removal`, () => {
-    const qml = readFileSync(join(repo, relativePath), 'utf8');
+    const qml = readQmlSource(join(repo, relativePath), 'utf8');
     const ctx = {
       forgetTarget: null, forgetError: '', forgetNotice: '',
       forgetReadbackPending: false, forgetCommandAdapter: '', forgetCommandDevice: '',

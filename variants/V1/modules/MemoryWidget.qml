@@ -1,4 +1,5 @@
 import QtQuick
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -35,7 +36,7 @@ Item {
         anchors.horizontalCenterOffset: rootMod.verticalCompact ? -1 : 0
         spacing: rootMod.verticalCompact ? 4 : 5
 
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             visible: !rootMod.verticalCompact
             text: "MEM"
@@ -94,7 +95,7 @@ Item {
             spacing: 0
             anchors.verticalCenter: parent.verticalCenter
 
-            UiText {
+            CommonComponents.UiText {
                 text: rootMod.usedLabel
                 color: rootMod.root.seal
                 font.family: rootMod.root.mono
@@ -152,7 +153,7 @@ Item {
             }
         }
 
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.root.barVertical !== true && rootMod.verticalCompact
             text: rootMod.usedLabel
@@ -162,7 +163,7 @@ Item {
         }
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     MouseArea {
         anchors.fill: parent

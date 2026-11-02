@@ -4,6 +4,7 @@
 --native checks hidden PanelWindows only; it never reads account state or
 executes calendar commands, even during Component.onCompleted.
 """
+from qml_fixture_source import qml_fixture_bytes, qml_fixture_source, qml_fixture_text
 import json
 import os
 from pathlib import Path
@@ -24,10 +25,10 @@ with tempfile.TemporaryDirectory(prefix='rise-calendar-workspace-', dir='/tmp') 
         panels.mkdir(parents=True)
         modules.mkdir()
         model = repo / 'shared/integrations/google-calendar/CalendarModel.js'
-        (folder / 'CalendarModel.js').write_bytes(model.read_bytes())
+        (folder / 'CalendarModel.js').write_bytes(qml_fixture_bytes(qml_fixture_source(model)))
         texts = []
         for name in ['CalendarPopup','WorkspacePanel']:
-            text = (repo / path / 'panels' / f'{name}.qml').read_text()
+            text = qml_fixture_text(repo / path / 'panels' / f'{name}.qml')
             texts.append(text)
             text = text.replace('import Quickshell.Hyprland','import "."')
             text = text.replace('Hyprland.workspaces','FixtureHyprland.workspaces').replace(
@@ -45,7 +46,7 @@ with tempfile.TemporaryDirectory(prefix='rise-calendar-workspace-', dir='/tmp') 
                 text = text.replace('id: '+identity+'\n','id: '+identity+'; objectName: "'+identity+'"\n')
             (panels / f'{name}.qml').write_text(text)
         for name in ['UiText','PillShadow','SidePanelPositioner']:
-            (modules / f'{name}.qml').write_bytes((repo / path / 'modules' / f'{name}.qml').read_bytes())
+            (modules / f'{name}.qml').write_bytes(qml_fixture_bytes(qml_fixture_source(repo / path / 'modules' / f'{name}.qml')))
         (modules / 'ConnectedPanelSurface.qml').write_text('''import QtQuick
 Item { property var root; property bool ownerActive; property real targetX; property real reveal }
 ''')

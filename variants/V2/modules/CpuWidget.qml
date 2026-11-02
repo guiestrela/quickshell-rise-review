@@ -1,4 +1,5 @@
 import QtQuick
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -20,7 +21,7 @@ Item {
         anchors.centerIn: parent
         spacing: 4
 
-        IconText {
+        CommonComponents.IconText {
             anchors.verticalCenter: parent.verticalCenter
             text: "planner_review"
             color: rootMod.contentColor
@@ -29,7 +30,7 @@ Item {
             fill: 1
         }
 
-        UiText {
+        CommonComponents.UiText {
             visible: !rootMod.root.iconOnly("G5")
             anchors.verticalCenter: parent.verticalCenter
             text: String(Math.min(100, rootMod.percent)).padStart(2, '0') + "%"
@@ -39,7 +40,7 @@ Item {
         }
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     MouseArea {
         anchors.fill: parent

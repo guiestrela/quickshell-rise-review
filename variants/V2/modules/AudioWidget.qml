@@ -1,11 +1,14 @@
 import QtQuick
+import "../../../shared/logic/AudioWidgetLogic.js" as AudioWidgetLogic
 import Quickshell.Io
+import "../../../shared/services" as CommonServices
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
     required property var root
 
-    AudioData { id: audio; poll: true }
+    CommonServices.AudioData { id: audio; poll: true }
     readonly property int    volume:   audio.volume
     readonly property bool   muted:    audio.muted
     readonly property string volumeIcon: "graphic_eq"
@@ -26,7 +29,7 @@ Item {
         anchors.centerIn: parent
         spacing: 4
 
-        IconText {
+        CommonComponents.IconText {
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.volumeIcon
             color: rootMod.muted
@@ -38,7 +41,7 @@ Item {
             Behavior on color { ColorAnimation { duration: 160 } }
         }
 
-        UiText {
+        CommonComponents.UiText {
             visible: !rootMod.root.iconOnly("G6")
             anchors.verticalCenter: parent.verticalCenter
             text: String(rootMod.volume).padStart(2, '0') + "%"
@@ -52,7 +55,7 @@ Item {
 
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     property bool audioErrorNotified: false
     property int pendingVolumeSteps: 0
@@ -62,35 +65,13 @@ Item {
         "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle || " +
         "pamixer -t"
 
-    function volumeCommand(steps) {
-        var amount = Math.min(100, Math.abs(steps) * 5)
-        var up = steps > 0
-        return "wpctl set-volume " + (up ? "-l 1.0 " : "") + "@DEFAULT_AUDIO_SINK@ " + amount + "%" + (up ? "+" : "-") + " || " +
-            "pamixer " + (up ? "--increase " : "--decrease ") + amount
-    }
+    function volumeCommand(steps) { return AudioWidgetLogic.volumeCommand(rootMod, {}, steps) }
 
-    function runPendingVolumeCommand() {
-        if (volumeRunner.running || pendingVolumeSteps === 0) return
-        var steps = pendingVolumeSteps
-        pendingVolumeSteps = 0
-        volumeRunner.action = steps > 0 ? "Volume up" : "Volume down"
-        volumeRunner.command = ["bash", "-c", volumeCommand(steps)]
-        volumeRunner.running = true
-    }
+    function runPendingVolumeCommand() { return AudioWidgetLogic.runPendingVolumeCommand(rootMod, {volumeRunner: volumeRunner}) }
 
-    function queueVolumeStep(step) {
-        pendingVolumeSteps += step
-        runPendingVolumeCommand()
-    }
+    function queueVolumeStep(step) { return AudioWidgetLogic.queueVolumeStep(rootMod, {}, step) }
 
-    function notifyAudioError(action, exitCode) {
-        if (exitCode === 0 || audioErrorNotified) return
-        audioErrorNotified = true
-        audioErrNotify.command = ["bash", "-c",
-            "notify-send -a 'QS-Shell' 'Audio command failed' '" + action + " failed; audio backend unavailable.' 2>/dev/null || true"]
-        audioErrNotify.running = false
-        audioErrNotify.running = true
-    }
+    function notifyAudioError(action, exitCode) { return AudioWidgetLogic.notifyAudioError(rootMod, {audioErrNotify: audioErrNotify}, action, exitCode) }
 
     Process { id: audioErrNotify }
     Process {

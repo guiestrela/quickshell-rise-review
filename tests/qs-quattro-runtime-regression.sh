@@ -14,14 +14,14 @@ V1_THEME="$REPO_ROOT/variants/V1/Theme.qml"
 V2_THEME="$REPO_ROOT/variants/V2/Theme.qml"
 V2_BAR_SLOT="$REPO_ROOT/variants/V2/BarSlot.qml"
 V2_CONNECTED_PANEL_SURFACE="$REPO_ROOT/variants/V2/modules/ConnectedPanelSurface.qml"
-V1_PALETTE="$REPO_ROOT/variants/V1/Palette.js"
+V1_PALETTE="$REPO_ROOT/shared/logic/Palette.js"
 V1_CONTROL_PANEL="$REPO_ROOT/variants/V1/panels/ControlPanel.qml"
-V1_ARCH_UPDATER="$REPO_ROOT/variants/V1/panels/ArchUpdaterPanel.qml"
-V1_BLUETOOTH_PANEL="$REPO_ROOT/variants/V1/panels/BluetoothPanel.qml"
+V1_ARCH_UPDATER="$REPO_ROOT/shared/panels/ArchUpdaterPanel.qml"
+V1_BLUETOOTH_PANEL="$REPO_ROOT/shared/panels/BluetoothPanel.qml"
 V1_MPRIS_WIDGET="$REPO_ROOT/variants/V1/modules/MprisWidget.qml"
 V1_MPRIS_PANEL="$REPO_ROOT/variants/V1/panels/MprisPanel.qml"
-V2_ARCH_UPDATER="$REPO_ROOT/variants/V2/panels/ArchUpdaterPanel.qml"
-V2_BLUETOOTH_PANEL="$REPO_ROOT/variants/V2/panels/BluetoothPanel.qml"
+V2_ARCH_UPDATER="$REPO_ROOT/shared/panels/ArchUpdaterPanel.qml"
+V2_BLUETOOTH_PANEL="$REPO_ROOT/shared/panels/BluetoothPanel.qml"
 V2_MPRIS_WIDGET="$REPO_ROOT/variants/V2/modules/MprisWidget.qml"
 V2_MPRIS_PANEL="$REPO_ROOT/variants/V2/panels/MprisPanel.qml"
 WORK="$(mktemp -d /tmp/qs-quattro-runtime-test.XXXXXX)"
@@ -58,6 +58,12 @@ assert_no_file() {
 
 assert_contains() {
   local needle="$1" file="$2" message="$3"
+  if [[ $file == *.qml ]]; then
+    local contents
+    contents="$(python3 "$REPO_ROOT/tests/qml-fixture-source.py" "$file")"
+    [[ $contents == *"$needle"* ]] || fail "$message: missing '$needle'"
+    return
+  fi
   grep -Fq -- "$needle" "$file" || fail "$message: missing '$needle'"
 }
 

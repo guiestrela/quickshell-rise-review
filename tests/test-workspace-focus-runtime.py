@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Production workspace delegates with fake Hyprland state and inert navigation."""
+from qml_fixture_source import qml_fixture_text
 import os
 from pathlib import Path
 import subprocess
@@ -14,7 +15,7 @@ with tempfile.TemporaryDirectory(prefix='rise-workspace-focus-', dir='/tmp') as 
         folder = temp / variant
         folder.mkdir()
         for name in ['WorkspaceWidget', 'PillShadow']:
-            source = (repo / path / 'modules' / f'{name}.qml').read_text()
+            source = qml_fixture_text(repo / path / 'modules' / f'{name}.qml')
             source = source.replace('import Quickshell.Hyprland', 'import "."')
             source = source.replace('id: wsCell\n', 'id: wsCell; objectName: "workspace-" + wsId\n')
             (folder / f'{name}.qml').write_text(source)

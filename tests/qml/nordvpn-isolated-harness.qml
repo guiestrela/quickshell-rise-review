@@ -1,7 +1,8 @@
 import QtQuick
 import QtQuick.Window
 import "../../variants/V1/modules"
-import "../../variants/V1/modules/NordVpnLayout.js" as NordVpnLayout
+import "../../shared/logic/NordVpnLayout.js" as NordVpnLayout
+import "../../shared/services" as CommonServices
 
 Window {
     id: harness
@@ -25,13 +26,13 @@ Window {
     ListModel { id: dragLeft; ListElement { gid: "G19"; extra: true } }
     ListModel { id: dragRight; ListElement { gid: "G11"; extra: false } }
 
-    NordVpnStatus {
+    CommonServices.NordVpnStatus {
         id: vpnStatus
         pollingEnabled: true
         refreshInterval: 5000
         command: ["node", "tests/fixtures/nordvpn-cli-stub.mjs", "status"]
     }
-    NordVpnStatus {
+    CommonServices.NordVpnStatus {
         id: disabledStatus
         pollingEnabled: false
         refreshInterval: 5000

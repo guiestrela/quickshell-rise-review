@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Production renderer + real MP4/GIF decoders, synthetic lock signals only."""
+from qml_fixture_source import qml_fixture_bytes, qml_fixture_text
 import os,re,json,subprocess,tempfile
 from pathlib import Path
 R=Path(__file__).resolve().parents[1]
@@ -7,9 +8,9 @@ MEDIA=Path(os.environ['RISE_ANIMATION_TEST_MEDIA'])
 with tempfile.TemporaryDirectory(prefix='resume-render-',dir=os.environ['TMPDIR']) as directory:
  t=Path(directory)
  # A distinct URL with identical content isolates MP4 -> MP4 source changes.
- second_video=t/'second.mp4';second_video.write_bytes((MEDIA/'moving.mp4').read_bytes())
- for i,rel in enumerate(['variants/V1/modules/WallpaperManagerService.qml','variants/V2/modules/WallpaperManagerService.qml'],1):
-  src=(R/rel).read_text();a=src.index('            PanelWindow {');b=src.index('\n            }\n        }\n    }',a)+14
+ second_video=t/'second.mp4';second_video.write_bytes(qml_fixture_bytes(MEDIA/'moving.mp4'))
+ for i,rel in enumerate(['shared/services/WallpaperManagerService.qml','shared/services/WallpaperManagerService.qml'],1):
+  src=qml_fixture_text(R/rel);a=src.index('            PanelWindow {');b=src.index('\n            }\n        }\n    }',a)+14
   renderer=src[a:b].replace('PanelWindow {','Rectangle {',1)
   renderer=renderer.replace('                id: wallpaperWindow','                id: wallpaperWindow\n                required property var manager\n                property int frameCount:0\n                width:320; height:180',1)
   renderer=re.sub(r'^\s*(?:screen:|anchors \{ top: true; bottom: true; left: true; right: true \}|exclusionMode:|WlrLayershell\.).*\n','',renderer,flags=re.M)

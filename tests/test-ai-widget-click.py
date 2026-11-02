@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Real Qt mouse events against production AI handlers; agent commands stay inert."""
+from qml_fixture_source import qml_fixture_text
 import os
 from pathlib import Path
 import subprocess
@@ -22,7 +23,7 @@ with tempfile.TemporaryDirectory(prefix='rise-ai-click-', dir='/tmp') as directo
     runtime = temp / 'runtime'
     runtime.mkdir(mode=0o700)
     for variant, path in [('V1', 'variants/V1'), ('V2', 'variants/V2')]:
-        source = (repo / path / 'modules/ClaudeWidget.qml').read_text()
+        source = qml_fixture_text(repo / path / 'modules/ClaudeWidget.qml')
         action = block(source, source.index('    function openSelectedAgent()'))
         mouse = block(source, source.rfind('    MouseArea {'))
         mouse = mouse.replace('MouseArea {', 'MouseArea { id: clickArea', 1)

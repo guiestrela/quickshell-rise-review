@@ -6,7 +6,7 @@ import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const project = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const helperPath = resolve(project, "variants/V1/modules/NordVpnLayout.js");
+const helperPath = resolve(project, "shared/logic/NordVpnLayout.js");
 assert.ok(existsSync(helperPath), "shared slot migration/reorder helper is not implemented");
 const source = readFileSync(helperPath, "utf8").replace(/^\.pragma library\s*/m, "");
 const sandbox = {};

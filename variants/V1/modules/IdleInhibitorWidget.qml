@@ -1,4 +1,5 @@
 import QtQuick
+import "../../../shared/components" as CommonComponents
 
 // True idle inhibitor (Waybar-style). Toggles root.idleInhibited, which drives
 // the Quickshell.Wayland.IdleInhibitor attached to the bar window in BarSlot.qml.
@@ -14,7 +15,7 @@ Item {
     readonly property bool on: rootMod.root.idleInhibited
     readonly property string tooltipText: on ? "Idle inhibited: ON" : "Idle inhibited: OFF"
 
-    UiText {
+    CommonComponents.UiText {
         anchors.centerIn: parent
         // 󰛨 U+F06E8 = activated / 󰛩 U+F06E9 = deactivated
         text: rootMod.on ? String.fromCodePoint(0xF06E8) : String.fromCodePoint(0xF06E9)
@@ -27,7 +28,7 @@ Item {
         Behavior on color { ColorAnimation { duration: 150 } }
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     MouseArea {
         anchors.fill: parent

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Verify V2 startup and reset defaults against the approved bar snapshot."""
+from qml_fixture_source import qml_fixture_text
 import json
 from pathlib import Path
 import re
@@ -21,7 +22,7 @@ def function(source, name):
 
 class V2DefaultLayoutTest(unittest.TestCase):
     def test_startup_models_match_approved_snapshot(self):
-        source = SOURCE.read_text()
+        source = qml_fixture_text(SOURCE)
         regions = []
         for name in ['leftModel', 'centerModel', 'rightModel']:
             start = re.search(r'ListModel\s*\{\s*id: ' + name + r'\b', source)
@@ -35,7 +36,7 @@ class V2DefaultLayoutTest(unittest.TestCase):
         self.assertEqual('|'.join(regions), EXPECTED)
 
     def test_default_layout_reset_matches_approved_snapshot(self):
-        source = SOURCE.read_text()
+        source = qml_fixture_text(SOURCE)
         program = '''
 const model = () => ({rows:[],clear(){this.rows=[]},append(row){this.rows.push(row)}});
 const leftModel=model(), centerModel=model(), rightModel=model();

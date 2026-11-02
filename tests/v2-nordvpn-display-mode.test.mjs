@@ -1,10 +1,11 @@
+import { readQmlSource } from './qml-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const panel = readFileSync(new URL('../variants/V2/panels/ControlPanel.qml', import.meta.url), 'utf8');
-const theme = readFileSync(new URL('../variants/V2/Theme.qml', import.meta.url), 'utf8');
+const panel = readQmlSource(new URL('../variants/V2/panels/ControlPanel.qml', import.meta.url), 'utf8');
+const theme = readQmlSource(new URL('../variants/V2/Theme.qml', import.meta.url), 'utf8');
 function body(marker) {
   let i = theme.indexOf(marker);
   assert.ok(i >= 0, marker);

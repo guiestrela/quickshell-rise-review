@@ -1,16 +1,19 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "../../../shared/logic/MprisWidgetLogic.js" as MprisWidgetLogic
 import QtQuick.Effects
 import Quickshell
 import Quickshell.Io
 import Quickshell.Services.Mpris
+import "../../../shared/components" as CommonComponents
+import "../../../shared/services" as CommonServices
 
 Item {
     id: rootMod
     required property var root
 
     // shared player selection (ghost-filtering) — see MprisSelect.qml
-    MprisSelect { id: sel }
+    CommonServices.MprisSelect { id: sel }
     readonly property var  player:  sel.player
     readonly property bool active:  sel.active
     readonly property bool playing: sel.playing
@@ -31,11 +34,7 @@ Item {
     readonly property int museBands: 24
     property var museLevels: []
 
-    function resetMuseLevels() {
-        var rest = []
-        for (var i = 0; i < museBands; i++) rest.push(0.04)
-        museLevels = rest
-    }
+    function resetMuseLevels() { return MprisWidgetLogic.resetMuseLevels(rootMod, {}) }
 
     Component.onCompleted: resetMuseLevels()
 
@@ -131,7 +130,7 @@ Item {
     }
 
     // ── idle: a single music-note, clickable to open the no-song panel ──
-    IconText {
+    CommonComponents.IconText {
         id: idleNote
         anchors.centerIn: parent
         visible: !rootMod.active || (rootMod.root.barVertical && !rootMod.fullMode)
@@ -153,7 +152,7 @@ Item {
         spacing: 4
 
         // ── prev ──
-        IconText {
+        CommonComponents.IconText {
             anchors.verticalCenter: parent.verticalCenter
             text: ""
             font.pixelSize: 13
@@ -168,7 +167,7 @@ Item {
         }
 
         // ── play / pause ──
-        IconText {
+        CommonComponents.IconText {
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.playing ? "" : ""
             font.pixelSize: 13
@@ -180,7 +179,7 @@ Item {
         }
 
         // ── next ──
-        IconText {
+        CommonComponents.IconText {
             anchors.verticalCenter: parent.verticalCenter
             text: ""
             font.pixelSize: 13
@@ -515,7 +514,7 @@ Item {
         ? (player.trackArtist ? player.trackArtist + " — " + player.trackTitle : player.trackTitle)
         : ""
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     MouseArea {
         anchors.fill: parent

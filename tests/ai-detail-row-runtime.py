@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Exercise the production detail row with the real UiText renderer."""
+from qml_fixture_source import qml_fixture_text
 from pathlib import Path
 import os
 import subprocess
 import tempfile
 repo = Path(__file__).resolve().parents[1]
 for variant in ('variants/V1', 'variants/V2'):
-    source = (repo / variant / 'panels/AiUsagePanel.qml').read_text()
+    source = qml_fixture_text(repo / variant / 'panels/AiUsagePanel.qml')
     start = source.index('    component DetailRow:')
     end = source.index('\n    // ── compact', start)
     component = source[start:end]

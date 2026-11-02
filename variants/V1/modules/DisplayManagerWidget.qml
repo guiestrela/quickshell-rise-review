@@ -1,4 +1,5 @@
 import QtQuick
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: control
@@ -22,7 +23,7 @@ Item {
         border.width: control.root.pillBorderW
         PillShadow { theme: control.root }
     }
-    IconText {
+    CommonComponents.IconText {
         id: icon
         objectName: "display-widget-icon"
         anchors.centerIn: parent
@@ -31,7 +32,7 @@ Item {
         font.pixelSize: 14
         Behavior on color { ColorAnimation { duration: 150 } }
     }
-    TooltipMixin { id: tip; root: control.root; owner: control; text: control.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: control.root; owner: control; text: control.tooltipText }
     MouseArea {
         anchors.fill: parent
         hoverEnabled: true

@@ -1,3 +1,4 @@
+import { readQmlSource } from './qml-source.mjs';
 import assert from 'node:assert/strict';
 import {readFileSync, writeFileSync, mkdtempSync, rmSync} from 'node:fs';
 import {spawnSync} from 'node:child_process';
@@ -8,7 +9,7 @@ const variant = process.argv.includes('--v2') ? 'v2' : 'v1';
 const scenario = process.argv.includes('--unavailable') ? 'unavailable' : 'busy';
 const scratch = mkdtempSync(join(process.env.TMPDIR, 'qr04n-dns-guard-'));
 try {
-  const fixture = readFileSync(join(project, `tests/qml/qr04n-${variant}-wiring.qml`), 'utf8');
+  const fixture = readQmlSource(join(project, `tests/qml/qr04n-${variant}-wiring.qml`), 'utf8');
   let qml = fixture;
   if (scenario === 'busy') {
     const marker = 'host.verify(host.controller.vpnBusy, "accepted action did not expose busy state")';
@@ -29,7 +30,7 @@ try {
   assert.equal(run.status, 0, output);
   const expected = scenario === 'unavailable' ? `QR04N_${variant.toUpperCase()}_UNAVAILABLE_QML_PASS` : `QR04N_${variant.toUpperCase()}_WIRING_QML_PASS`;
   assert.match(output, new RegExp(expected), output);
-  const argv = readFileSync(log,'utf8').split('\n').filter(Boolean).map(line=>line.split('\0').filter(Boolean));
+  const argv = readQmlSource(log,'utf8').split('\n').filter(Boolean).map(line=>line.split('\0').filter(Boolean));
   assert.deepEqual(argv.filter(args=>args[0]==='set' && args[1]==='dns'), [], 'guarded DNS operation reached CLI stub');
   console.log(`QR04N_DNS_GUARD_PASS ${variant}/${scenario}: rejected; no DNS mutation argv`);
 } finally { rmSync(scratch,{recursive:true,force:true}); }

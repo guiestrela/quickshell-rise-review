@@ -1,3 +1,4 @@
+import { readQmlSource } from './qml-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -7,8 +8,8 @@ import vm from 'node:vm';
 
 const repo = dirname(dirname(fileURLToPath(import.meta.url)));
 const variants = [
-  ['V1', 'variants/V1/panels/BluetoothPanel.qml'],
-  ['V2', 'variants/V2/panels/BluetoothPanel.qml'],
+  ['V1', 'shared/panels/BluetoothPanel.qml'],
+  ['V2', 'shared/panels/BluetoothPanel.qml'],
 ];
 
 function extractFunction(source, name) {
@@ -25,7 +26,7 @@ function extractFunction(source, name) {
 
 for (const [variant, relativePath] of variants) {
   test(`${variant}: Bluetooth battery is shown only for connected devices with valid live data`, () => {
-    const qml = readFileSync(join(repo, relativePath), 'utf8');
+    const qml = readQmlSource(join(repo, relativePath), 'utf8');
     assert.match(qml, /import Quickshell\.Bluetooth/);
     assert.match(qml, /text:\s*"\\uE1A4"/);
     assert.match(qml, /batteryPercentForDevice\(/);

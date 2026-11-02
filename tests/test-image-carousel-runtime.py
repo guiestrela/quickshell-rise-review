@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Exercise production image pickers with inert workers and fictitious paths."""
+from qml_fixture_source import qml_fixture_bytes, qml_fixture_source, qml_fixture_text
 import os
 from pathlib import Path
 import re
@@ -17,7 +18,8 @@ with tempfile.TemporaryDirectory(prefix='rise-picker-', dir='/tmp') as directory
     ]:
         folder = base / (variant+style)
         folder.mkdir()
-        text = (repo / source / ('panels/'+component+'.qml')).read_text()
+        text = qml_fixture_text(qml_fixture_source(repo / source / ('panels/'+component+'.qml')))
+        text = text.replace('../../../shared/logic/ImagePickerModel.js', 'ImagePickerModel.js').replace('../logic/ImagePickerModel.js', 'ImagePickerModel.js')
         text = re.sub(r'^import Quickshell(?:\.[A-Za-z.]+)?\n', '', text, flags=re.M)
         text = text.replace('PanelWindow {', 'Rectangle {\n width:1200; height:900\n property var screen', 1)
         text = re.sub(r'^    (?:anchors \{ top:|exclusionMode:|WlrLayershell\.).*\n', '', text, flags=re.M)
@@ -27,7 +29,7 @@ with tempfile.TemporaryDirectory(prefix='rise-picker-', dir='/tmp') as directory
         for identity in ['applyThemeProc','applyBgProc']:
             text = text.replace('id: '+identity+';', 'id: '+identity+'; objectName: "'+identity+'";')
         (folder / (component+'.qml')).write_text(text)
-        (folder / 'ImagePickerModel.js').write_bytes((repo/source/'panels/ImagePickerModel.js').read_bytes())
+        (folder / 'ImagePickerModel.js').write_bytes(qml_fixture_bytes(repo/'shared/logic/ImagePickerModel.js'))
         (folder/'InertProcess.qml').write_text('''import QtQuick
 QtObject { property var command: []; property bool running: false; property var stdout; property var stderr; property bool stdinEnabled; function write(value) {} function closeWriteChannel() {} signal exited(int exitCode); signal started() }
 ''')

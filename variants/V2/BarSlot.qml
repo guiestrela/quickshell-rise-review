@@ -10,8 +10,9 @@ import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
 import "modules"
-import "../V1/modules/NordVpnLayout.js" as NordVpnLayout
-import "../V1/modules/WallpaperLayout.js" as WallpaperLayout
+import "../../shared/logic/NordVpnLayout.js" as NordVpnLayout
+import "../../shared/logic/WallpaperLayout.js" as WallpaperLayout
+import "../../shared/components" as CommonComponents
 
 PanelWindow {
     id: barSlot
@@ -1125,7 +1126,7 @@ PanelWindow {
                     opacity: g8.showDate ? 1 : 0
                     Behavior on width   { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
                     Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-                    UiText {
+                    CommonComponents.UiText {
                         id: dateLabel
                         anchors.verticalCenter: parent.verticalCenter
                         text: {

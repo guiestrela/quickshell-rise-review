@@ -1,8 +1,9 @@
+import { readQmlSource } from './qml-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-const read=p=>fs.readFileSync('variants/V1/'+p,'utf8');
+const read=p=>readQmlSource('variants/V1/'+p,'utf8');
 test('GPU compact mode is wired to UI, persistence and reset',()=>{
  const q=read('Theme.qml'),w=read('modules/GpuWidget.qml'),c=read('panels/ControlPanel.qml');
  assert.match(w,/readonly property bool verticalCompact: root.barVertical === true \|\| root.compactGpu/);

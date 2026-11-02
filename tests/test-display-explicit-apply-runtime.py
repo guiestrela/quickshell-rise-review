@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Real QML Process + real detached guard, private fake compositor. No live display actions."""
+from qml_fixture_source import copy_qml_fixture
 import os,json,re,subprocess,tempfile,shutil
 from pathlib import Path
 repo=Path(__file__).resolve().parents[1]
 assert os.environ.get('WAYLAND_DISPLAY') and os.environ.get('XDG_RUNTIME_DIR')
 with tempfile.TemporaryDirectory(prefix='explicit-apply-',dir=os.environ['TMPDIR']) as directory:
  root=Path(directory);scripts=root/'scripts';scripts.mkdir();runtime=root/'runtime';runtime.mkdir(mode=0o700);home=root/'home';(home/'.cache/quickshell-rise').mkdir(parents=True)
- for name in ['rise-display-manager-apply','rise-display-manager-guard']:shutil.copy2(repo/'scripts'/name,scripts/name)
- shutil.copy2(repo/'variants/V1/modules/DisplayManagerController.qml',root/'Controller.qml')
+ for name in ['rise-display-manager-apply','rise-display-manager-guard']:copy_qml_fixture(repo/'scripts'/name, scripts/name)
+ copy_qml_fixture(repo/'shared/controllers/DisplayManagerController.qml', root/'Controller.qml')
  baseline=[dict(id=i,name=name,width=1000,height=1000,refreshRate=60,x=i*1000,y=0,scale=1,transform=0,disabled=False,mirrorOf='none') for i,name in enumerate(['A','B'])]
  (root/'state.json').write_text(json.dumps(baseline));(root/'effects.json').write_text(json.dumps({'eval':0,'brightness':0,'font':0,'percent':70}))
  cli=root/'hyprctl';cli.write_text('''#!/usr/bin/python3

@@ -1,4 +1,6 @@
 import QtQuick
+import "../../../shared/logic/NordVPNWidgetLogic.js" as NordVPNWidgetLogic
+import "../../../shared/components" as CommonComponents
 
 // NordVPN pill: shield glyph (Material Design, verified present in the theme
 // font JetBrainsMono Nerd Font) + short state label. nordVpnStatusText and
@@ -46,18 +48,14 @@ Item {
     implicitHeight: 28
     property alias testClickHandler: widgetClick
 
-    function activate() {
-        var point = nordVpnWidget.mapToItem(null, nordVpnWidget.width / 2, 0)
-        root.setPanelAnchor("vpn", point.x, root.activePopupScreenName)
-        root.vpnVisible = true
-    }
+    function activate() { return NordVPNWidgetLogic.activate(nordVpnWidget, {root: root}) }
 
     Row {
         id: row
         anchors.centerIn: parent
         spacing: 4
 
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             text: nordVpnWidget.shieldGlyph
             color: nordVpnWidget.iconColor
@@ -88,5 +86,5 @@ Item {
         onClicked: nordVpnWidget.activate()
     }
 
-    TooltipMixin { id: tip; root: nordVpnWidget.root; owner: nordVpnWidget; text: nordVpnWidget.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: nordVpnWidget.root; owner: nordVpnWidget; text: nordVpnWidget.tooltipText }
 }

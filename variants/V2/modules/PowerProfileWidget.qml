@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell.Io
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -42,7 +43,7 @@ Item {
         anchors.centerIn: parent
         spacing: 4
 
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.profileIcon
             renderType: Text.QtRendering
@@ -76,7 +77,7 @@ Item {
         command: ["bash", "-c", "powerprofilesctl set balanced"]
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     MouseArea {
         anchors.fill: parent

@@ -1,3 +1,4 @@
+const { readQmlSource } = require('./qml-source.cjs');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
 const vm = require('node:vm');
@@ -5,7 +6,7 @@ const path = require('node:path');
 const root = path.resolve(__dirname, '..');
 const helper = path.join(root, 'shared/integrations/WeatherData.js');
 assert.ok(fs.existsSync(helper), 'Weather widget must use the configured location/provider, not only the failing wttr endpoint');
-const ctx = {}; vm.createContext(ctx); vm.runInContext(fs.readFileSync(helper, 'utf8').replace(/^\.pragma library\s*/, ''), ctx);
+const ctx = {}; vm.createContext(ctx); vm.runInContext(readQmlSource(helper, 'utf8').replace(/^\.pragma library\s*/, ''), ctx);
 const settings = { name: 'Fixture city', latitude: -10, longitude: -40 };
 const url = new URL(ctx.weatherUrl(settings));
 assert.equal(url.hostname, 'api.open-meteo.com');
@@ -24,7 +25,7 @@ assert.throws(()=>ctx.normalize({current:{temperature_2m:20}},settings));
 assert.throws(()=>ctx.normalize({current:{temperature_2m:null,weather_code:0}},settings));
 const wttr={current_condition:[{weatherCode:'113',temp_C:'20'}]}; assert.equal(ctx.normalize(wttr,{}),wttr);
 for (const variant of ['variants/V1','variants/V2']) {
- const src=fs.readFileSync(path.join(root,variant,'modules/WeatherWidget.qml'),'utf8');
+ const src=readQmlSource(path.join(root,variant,'modules/WeatherWidget.qml'),'utf8');
  assert.match(src,/WeatherData\.weatherUrl\(rootMod\.requestSettings\)/);
  assert.match(src,/WeatherData\.normalize\(JSON\.parse\(txt\), rootMod\.requestSettings\)/);
  assert.match(src,/\.cache\/quickshell-rise\/weather-location/);

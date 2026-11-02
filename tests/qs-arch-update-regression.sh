@@ -633,8 +633,8 @@ test_blacklist_fetch_service_has_bounded_retries() {
 test_arch_panel_refresh_updates_freshness_clock() {
   local panel refresh frontend="$REPO_ROOT/core/qs-system-update.sh"
   for panel in \
-    "$REPO_ROOT/variants/V1/panels/ArchUpdaterPanel.qml" \
-    "$REPO_ROOT/variants/V2/panels/ArchUpdaterPanel.qml"; do
+    "$REPO_ROOT/shared/panels/ArchUpdaterPanel.qml" \
+    "$REPO_ROOT/shared/panels/ArchUpdaterPanel.qml"; do
     assert_contains "function onArchScanCheckedEpochChanged()" "$panel" "arch panel does not refresh its freshness clock after package scan"
     assert_contains "archPanel.nowEpoch = Math.floor(Date.now() / 1000)" "$panel" "arch panel freshness clock update is missing"
     assert_contains 'command: [archPanel.packageFrontendScript, "--probe", archPanel.packageApplyScript]' "$panel" "arch panel does not use the side-effect-free backend probe"

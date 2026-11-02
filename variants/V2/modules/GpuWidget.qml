@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -34,7 +35,7 @@ Item {
 
             Image {
                 anchors.fill: parent
-                source: Qt.resolvedUrl("../assets/gpu-card.svg")
+                source: Qt.resolvedUrl("../../../shared/assets/gpu-card.svg")
                 sourceSize: Qt.size(54, 39)
                 fillMode: Image.PreserveAspectFit
                 smooth: true
@@ -44,12 +45,12 @@ Item {
                 layer.textureSize: Qt.size(54, 39)
                 layer.effect: ShaderEffect {
                     property color tintColor: rootMod.contentColor
-                    fragmentShader: Qt.resolvedUrl("../shaders/logo-tint.frag.qsb")
+                    fragmentShader: Qt.resolvedUrl("../../../shared/assets/logo-tint.frag.qsb")
                 }
             }
         }
 
-        UiText {
+        CommonComponents.UiText {
             visible: !rootMod.root.iconOnly("G17")
             anchors.verticalCenter: parent.verticalCenter
             text: String(Math.min(100, rootMod.percent)).padStart(2, "0") + "%"
@@ -59,7 +60,7 @@ Item {
         }
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     MouseArea {
         anchors.fill: parent

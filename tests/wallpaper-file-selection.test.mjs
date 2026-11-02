@@ -1,3 +1,4 @@
+import { readQmlSource } from './qml-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -6,6 +7,13 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const repo = dirname(dirname(fileURLToPath(import.meta.url)));
+const wallpaperLogicContext = vm.createContext({});
+vm.runInContext(
+  readFileSync(join(repo, 'shared/logic/WallpaperManagerQuickPanelLogic.js'), 'utf8')
+    .replace(/^\.pragma library\s*/m, ''),
+  wallpaperLogicContext,
+);
+const wallpaperLogic = wallpaperLogicContext;
 const variants = [
   ['V1', 'variants/V1/panels/WallpaperManagerQuickPanel.qml'],
   ['V2', 'variants/V2/panels/WallpaperManagerQuickPanel.qml'],
@@ -45,7 +53,7 @@ function extractFunction(source, name) {
 
 for (const [variant, relativePath] of variants) {
   test(`${variant}: confirmed chooser results apply only to their target outputs`, () => {
-    const qml = readFileSync(join(repo, relativePath), 'utf8');
+    const qml = readQmlSource(join(repo, relativePath), 'utf8');
     const calls = [];
     const current = { 'DP-1': '/old/first.png', 'DP-2': '/old/second.png' };
     const profiles = { 'DP-1': { folder: '/old', pinned: '' }, 'DP-2': { folder: '/old', pinned: '' } };
@@ -54,6 +62,8 @@ for (const [variant, relativePath] of variants) {
       wallpaperManagerServiceApi: {
         scanInFlight: false, scanJobs: [], scanErrors: {},
         liveScreens: [{ name: 'DP-1' }, { name: 'DP-2' }],
+        pool: ['/home/guiestrela/Wallpapers/horizontalLive/clip.mp4'],
+        poolFor: () => ['/home/guiestrela/Wallpapers/horizontalLive/clip.mp4'],
         pathFor: name => current[name] || '',
       },
       wallpaperProfileFor: name => profiles[name] || {},
@@ -92,13 +102,13 @@ for (const [variant, relativePath] of variants) {
     assert.equal(calls.length, before, 'no writes when no displays are connected');
   });
   test(`${variant}: stage a media file, then apply only to the selected display`, () => {
-    const qml = readFileSync(join(repo, relativePath), 'utf8');
+    const qml = readQmlSource(join(repo, relativePath), 'utf8');
     const fileDialog = extractBlock(qml, 'WallpaperExternalPicker {');
     assert.match(fileDialog, /currentFolder:\s*panel\.profile\.folder === "" \? "file:\/\/\/home"/);
     assert.match(fileDialog, /if \(targetDisplay !== panel\.root\.wallpaperManagerDisplay\) return/,
       'ignore a picker result when its target display is no longer selected');
     assert.match(fileDialog, /panel\.applyWallpaperSelection\(selectionKind, selectionKind === "folder" \? selectedFolder : selectedFile, targetDisplay\)/);
-    const helper = readFileSync(join(repo, 'scripts/rise-wallpaper-picker'), 'utf8');
+    const helper = readQmlSource(join(repo, 'scripts/rise-wallpaper-picker'), 'utf8');
     for (const pattern of mediaPatterns) assert.ok(helper.includes(`'${pattern.slice(1)}'`), `file filter must include ${pattern}`);
     assert.match(helper, /if response != confirm:\s*return 1/, 'cancel must not emit a selection');
     assert.match(helper, /dialog\.add_button\('Apply selection', confirm\)/, 'explicit confirmation is required');
@@ -108,7 +118,8 @@ for (const [variant, relativePath] of variants) {
     assert.match(chooseButton, /wallpaperDialog\.currentFolder = folder === "" \? "file:\/\/\/home" : panel\.folderPickerSelectionUrl\(folder\)/);
     assert.match(chooseButton, /wallpaperDialog\.open\(\)/);
     assert.doesNotMatch(chooseButton, /setWallpaperProfile|applyWallpaperSelection/, 'opening the chooser must not apply anything');
-    assert.ok(qml.includes('var paths = display === "all" ? service.pool : service.poolFor(display)'), 'validate against the selected output pool');
+    const wallpaperLogicSource = readFileSync(join(repo, 'shared/logic/WallpaperManagerQuickPanelLogic.js'), 'utf8');
+    assert.ok(wallpaperLogicSource.includes('var paths = display === "all" ? service.pool : service.poolFor(display)'), 'validate against the selected output pool');
 
     const localPathFromFileUrl = vm.runInNewContext(`(${extractFunction(qml, 'localPathFromFileUrl')})`);
     const isMediaFileInFolder = vm.runInNewContext(`(${extractFunction(qml, 'isMediaFileInFolder')})`);
@@ -147,6 +158,7 @@ for (const [variant, relativePath] of variants) {
     panel.root.wallpaperManagerServiceApi = {
       scanInFlight: false,
       liveScreens: [{ name: 'DP-1' }, { name: 'DP-2' }],
+      pool: [selectedPath], poolFor: () => [selectedPath],
       pathFor: (name) => currentByOutput[name] || '',
     };
     panel.root.setWallpaperProfile = (patch, output) => {
@@ -156,8 +168,7 @@ for (const [variant, relativePath] of variants) {
     panel.root.wallpaperProfileFor = () => savedProfile;
     panel.currentWallpaperMatches = vm.runInNewContext(`(${extractFunction(qml, 'currentWallpaperMatches')})`, { panel });
     panel.verifySelectedWallpaperApplication = vm.runInNewContext(`(${extractFunction(qml, 'verifySelectedWallpaperApplication')})`, { panel });
-    const applySelectedWallpaper = vm.runInNewContext(`(${extractFunction(qml, 'applySelectedWallpaper')})`, { panel });
-    assert.equal(applySelectedWallpaper(), true);
+    assert.equal(wallpaperLogic.applySelectedWallpaper(panel, {}), true);
     assert.deepEqual(JSON.parse(JSON.stringify(calls)), [{
       patch: { mode: 'single', pinned: '/home/guiestrela/Wallpapers/horizontalLive/clip.mp4' },
       output: 'DP-2',
@@ -183,6 +194,7 @@ for (const [variant, relativePath] of variants) {
         wallpaperManagerServiceApi: {
           scanInFlight: false,
           liveScreens: [{ name: 'DP-1' }, { name: 'DP-2' }],
+          pool: [selectedPath], poolFor: () => [selectedPath],
           pathFor: (name) => allCurrentByOutput[name] || '',
         },
         setWallpaperProfile: (patch, output) => {
@@ -194,8 +206,9 @@ for (const [variant, relativePath] of variants) {
     };
     allPanel.currentWallpaperMatches = vm.runInNewContext(`(${extractFunction(qml, 'currentWallpaperMatches')})`, { panel: allPanel });
     allPanel.verifySelectedWallpaperApplication = vm.runInNewContext(`(${extractFunction(qml, 'verifySelectedWallpaperApplication')})`, { panel: allPanel });
-    const applyAll = vm.runInNewContext(`(${extractFunction(qml, 'applySelectedWallpaper')})`, { panel: allPanel });
-    assert.equal(applyAll(), true);
+    allPanel.profile = { folder: '/home/guiestrela/Wallpapers/horizontalLive' };
+    allPanel.isMediaFileInFolder = isMediaFileInFolder;
+    assert.equal(wallpaperLogic.applySelectedWallpaper(allPanel, {}), true);
     assert.deepEqual(JSON.parse(JSON.stringify(allCalls)), [{
       patch: { mode: 'single', pinned: '/home/guiestrela/Wallpapers/horizontalLive/clip.mp4' },
       output: 'all',
@@ -211,6 +224,7 @@ for (const [variant, relativePath] of variants) {
     const pendingService = {
       scanInFlight: false,
       liveScreens: [{ name: 'DP-1' }],
+      pool: ['/fixture/A/chosen.mp4'], poolFor: () => ['/fixture/A/chosen.mp4'],
       pathFor: (name) => pendingCurrentByOutput[name] || '',
     };
     const pendingPanel = {
@@ -234,8 +248,9 @@ for (const [variant, relativePath] of variants) {
     };
     pendingPanel.currentWallpaperMatches = vm.runInNewContext(`(${extractFunction(qml, 'currentWallpaperMatches')})`, { panel: pendingPanel });
     pendingPanel.verifySelectedWallpaperApplication = vm.runInNewContext(`(${extractFunction(qml, 'verifySelectedWallpaperApplication')})`, { panel: pendingPanel });
-    const applyPending = vm.runInNewContext(`(${extractFunction(qml, 'applySelectedWallpaper')})`, { panel: pendingPanel });
-    assert.equal(applyPending(), true);
+    pendingPanel.profile = { folder: '/fixture/A' };
+    pendingPanel.isMediaFileInFolder = isMediaFileInFolder;
+    assert.equal(wallpaperLogic.applySelectedWallpaper(pendingPanel, {}), true);
     assert.equal(pendingPanel.selectedWallpaperApplying, true);
     assert.equal(pendingPanel.selectedWallpaperApplied, false, 'do not say Applied before the scanner confirms the current path');
     pendingService.scanInFlight = false;
@@ -251,12 +266,18 @@ for (const [variant, relativePath] of variants) {
       selectedWallpaperError: '',
       root: {
         wallpaperManagerDisplay: 'DP-1',
+        wallpaperManagerServiceApi: {
+          scanInFlight: false,
+          pool: ['/fixture/A/chosen.mp4'],
+          poolFor: () => ['/fixture/A/chosen.mp4'],
+        },
         setWallpaperProfile: () => {},
         wallpaperProfileFor: () => ({ folder: '/fixture/A', pinned: '' }),
       },
     };
-    const rejectUnpinned = vm.runInNewContext(`(${extractFunction(qml, 'applySelectedWallpaper')})`, { panel: rejectedPanel });
-    assert.equal(rejectUnpinned(), false, 'do not report success when profile readback discarded the pin');
+    rejectedPanel.profile = { folder: '/fixture/A' };
+    rejectedPanel.isMediaFileInFolder = isMediaFileInFolder;
+    assert.equal(wallpaperLogic.applySelectedWallpaper(rejectedPanel, {}), false, 'do not report success when profile readback discarded the pin');
     assert.equal(rejectedPanel.selectedWallpaperApplied, false);
     assert.notEqual(rejectedPanel.selectedWallpaperError, '');
   });

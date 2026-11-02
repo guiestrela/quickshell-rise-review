@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Production hover event/timer checks; translated widget, no live actions."""
+from qml_fixture_source import qml_fixture_bytes, qml_fixture_source
 import os, re, subprocess, tempfile
 from pathlib import Path
 repo = Path(__file__).resolve().parents[1]
@@ -8,9 +9,9 @@ for variant in ['V1', 'V2']:
     with tempfile.TemporaryDirectory(prefix='display-hover-', dir=os.environ['TMPDIR']) as work:
         folder = Path(work)
         for name in ['DisplayManagerWidget.qml', 'TooltipMixin.qml']:
-            (folder / name).write_bytes((source / name).read_bytes())
+            (folder / name).write_bytes(qml_fixture_bytes(qml_fixture_source(source / name)))
         for name in ['IconText.qml', 'PillShadow.qml']:
-            (folder / name).write_bytes((repo / 'variants/V1/modules' / name).read_bytes())
+            (folder / name).write_bytes(qml_fixture_bytes(qml_fixture_source(repo / 'variants/V1/modules' / name)))
         (folder / 'shell.qml').write_text('''import QtQuick
 import Quickshell
 ShellRoot {

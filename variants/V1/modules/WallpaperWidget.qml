@@ -1,4 +1,7 @@
 import QtQuick
+import "../../../shared/logic/WallpaperWidgetValuesLogic.js" as WallpaperWidgetValuesLogic
+import "../../../shared/logic/WallpaperWidgetLogic.js" as WallpaperWidgetLogic
+import "../../../shared/components" as CommonComponents
 
 // Rise-only control: uses the existing wallpaper owner and picker.
 Item {
@@ -12,11 +15,8 @@ Item {
     implicitWidth: root.modWallpapers ? buttons.implicitWidth + 16 : 0
     implicitHeight: 28
 
-    function openPicker() { rootMod.root.toggleImagePicker("wallpaper", rootMod.screen) }
-    function nextWallpaper() {
-        if (rootMod.configured) rootMod.root.shuffleWallpapers()
-        else rootMod.openPicker()
-    }
+    function openPicker() { return WallpaperWidgetValuesLogic.openPicker(rootMod, {}) }
+    function nextWallpaper() { return WallpaperWidgetLogic.nextWallpaper(rootMod, {}) }
 
     Rectangle {
         anchors.verticalCenter: parent.verticalCenter
@@ -32,7 +32,7 @@ Item {
         id: buttons
         anchors.centerIn: parent
         spacing: 4
-        UiText {
+        CommonComponents.UiText {
             id: openLabel
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.configured ? "WALL" : "WALL +"
@@ -45,7 +45,7 @@ Item {
                 onClicked: rootMod.openPicker()
             }
         }
-        UiText {
+        CommonComponents.UiText {
             id: nextLabel
             anchors.verticalCenter: parent.verticalCenter
             text: "›"
@@ -58,5 +58,5 @@ Item {
             }
         }
     }
-    TooltipMixin { root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 }

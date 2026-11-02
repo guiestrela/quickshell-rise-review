@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell.Io
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -14,7 +15,7 @@ Item {
 
     readonly property string tooltipText: "Notifications silenced"
 
-    IconText {
+    CommonComponents.IconText {
         anchors.centerIn: parent
         text: "\uE7F6"   // notifications_off
         color: rootMod.root.seal
@@ -27,7 +28,7 @@ Item {
         onExited: rootMod.root.refreshStatusIndicators()
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     MouseArea {
         anchors.fill: parent

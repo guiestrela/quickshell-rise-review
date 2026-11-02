@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 
 const project = dirname(dirname(fileURLToPath(import.meta.url)));
-for (const [variant, path] of [['V1', 'variants/V1/modules/WallpaperProfile.js'], ['V2', 'variants/V2/modules/WallpaperProfile.js']]) {
+for (const [variant, path] of [['V1', 'shared/logic/WallpaperProfile.js'], ['V2', 'shared/logic/WallpaperProfile.js']]) {
   test(`${variant}: updates retain scaling and recursion settings`, () => {
     const source = readFileSync(join(project, path), 'utf8').replace(/^\.pragma library\s*\n/, '');
     const context = vm.createContext({});

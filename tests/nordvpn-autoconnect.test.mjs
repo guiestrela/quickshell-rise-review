@@ -1,9 +1,10 @@
+import { readQmlSource } from './qml-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const source = readFileSync('variants/V1/modules/NordVpnController.qml', 'utf8');
+const source = readQmlSource('shared/controllers/NordVpnController.qml', 'utf8');
 const method = source.slice(source.indexOf('    function setAutoConnect('), source.indexOf('    function connectVpn('));
 function fixture(overrides = {}) {
   const calls = [];
@@ -30,8 +31,8 @@ test('Invalid country and busy controller cannot change auto-connect', () => {
 });
 
 test('Both panels apply the toggle directly and omit the unsupported virtual-location setting', () => {
-  for (const path of ['variants/V1/panels/NordVPNPanel.qml', 'variants/V2/panels/NordVPNPanel.qml']) {
-    const panel = readFileSync(path, 'utf8');
+  for (const path of ['shared/panels/NordVPNPanel.qml', 'shared/panels/NordVPNPanel.qml']) {
+    const panel = readQmlSource(path, 'utf8');
     assert.match(panel, /onClicked: vpnPanel\.controller.setAutoConnect\(!vpnPanel.autoConnectEnabled, vpnPanel.autoCountryTarget\)/);
     assert.doesNotMatch(panel, /autoConnectEnabled = !/);
     assert.doesNotMatch(panel, /virtual-location/);

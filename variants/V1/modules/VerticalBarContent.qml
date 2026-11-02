@@ -1,5 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "../../../shared/logic/VerticalBarContentValuesLogic.js" as VerticalBarContentValuesLogic
+import "../../../shared/logic/VerticalBarContentLogic.js" as VerticalBarContentLogic
 import QtQml.Models
 import Quickshell
 
@@ -72,31 +74,12 @@ Item {
         G8: ["calendar", "weather"], G9: ["mpris"], G10: ["quickActions"],
         G11: ["network"], G12: ["battery"], G13: ["brightness"], G14: ["power"],
         G15: ["bluetooth"], G16: ["vpn"], G17: ["wallpaperManager"],
-        G18: ["displayManager"], G19: ["gpu"]
+        G18: ["displayManager"], G19: ["gpu"], G20: ["thermal"], G21: ["storage"]
     })
-    function cells() {
-        void(revision)
-        var out = []
-        for (var r = 0; r < models.length; r++) {
-            for (var i = 0; i < models[r].count; i++) {
-                var gid = models[r].get(i).gid
-                if (gid || rail.root.barUnlocked) out.push({gid: gid, region: r, index: i})
-            }
-        }
-        return out
-    }
+    function cells() { return VerticalBarContentLogic.cells(rail, {models: models}) }
     readonly property var regionColumns: [topRegion, centerRegion, bottomRegion]
-    function regionHeight(region) {
-        return regionColumns[region].implicitHeight
-    }
-    function regionStart(region) {
-        if (region === 0) return 0
-        var bottom = stack.height - regionHeight(2)
-        if (region === 2) return bottom
-        var centerHeight = regionHeight(1)
-        return Math.max(regionHeight(0) + 12,
-            Math.min((stack.height - centerHeight) / 2, bottom - centerHeight - 12))
-    }
+    function regionHeight(region) { return VerticalBarContentValuesLogic.regionHeight(rail, {}, region) }
+    function regionStart(region) { return VerticalBarContentLogic.regionStart(rail, {stack: stack}, region) }
     function publishAnchors() {
         var values = {}
         var xs = {}
@@ -387,14 +370,7 @@ Item {
             rail.root.verticalAnchorsByScreen = next
         }
     }
-    function layoutSnapshot() {
-        var out = []
-        for (var i = 0; i < items.count; i++) {
-            var cell = items.objectAt(i)
-            if (cell && cell.visible) out.push({gid: cell.gid, region: cell.modelData.region, y: cell.mapToItem(stack, 0, 0).y, height: cell.height})
-        }
-        return out
-    }
+    function layoutSnapshot() { return VerticalBarContentLogic.layoutSnapshot(rail, {items: items, stack: stack}) }
     Component.onCompleted: layoutTimer.restart()
     onHeightChanged: anchorTimer.restart()
 }

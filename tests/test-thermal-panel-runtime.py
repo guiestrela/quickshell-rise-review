@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Exercise thermal display and source selection with fictitious sensors."""
+from qml_fixture_source import qml_fixture_bytes, qml_fixture_source, qml_fixture_text
 import os
 from pathlib import Path
 import re
@@ -15,7 +16,8 @@ with tempfile.TemporaryDirectory(prefix='rise-thermal-', dir='/tmp') as director
     panels.mkdir()
     modules.mkdir()
     source = repo / 'variants/V2'
-    text = (source / 'panels/ThermalsPanel.qml').read_text()
+    text = qml_fixture_text(repo / 'shared/panels/ThermalsPanel.qml')
+    text = text.replace('import QtQuick\n', 'import QtQuick\nimport "../modules"\n', 1)
     text = re.sub(r'^import Quickshell(?:\.[A-Za-z.]+)?\n', '', text, flags=re.M)
     text = text.replace('PanelWindow {', 'Rectangle {\n    width: 800; height: 700\n    property var screen', 1)
     text = re.sub(r'^    (?:anchors \{ top:|exclusionMode:|WlrLayershell\.).*\n', '', text, flags=re.M)
@@ -24,7 +26,7 @@ with tempfile.TemporaryDirectory(prefix='rise-thermal-', dir='/tmp') as director
     text = text.replace('id: thermalRow\n', 'id: thermalRow; objectName: "sensor-" + label\n')
     (panels / 'ThermalsPanel.qml').write_text(text)
     for name in ['UiText', 'PillShadow', 'SidePanelPositioner']:
-        (modules / f'{name}.qml').write_bytes((source / 'modules' / f'{name}.qml').read_bytes())
+        (modules / f'{name}.qml').write_bytes(qml_fixture_bytes(qml_fixture_source(source / 'modules' / f'{name}.qml')))
     (modules / 'ConnectedPanelSurface.qml').write_text('''import QtQuick
 Item { property var root; property bool ownerActive; property real targetX; property real reveal }
 ''')
@@ -61,7 +63,7 @@ import "panels"
 Item {
  width:800; height:700
  QtObject { id: theme; THEME }
- ThermalsPanel { id: panel; root: theme }
+ ThermalsPanel { id: panel; root: theme; barBottom: 35; gap: 8; frameRadius: 8; frameColor: "#222222"; frameBorderColor: "#555555"; frameBorderWidth: 1; buttonRadius: 6 }
  TestCase {
   name: "ThermalsPanel"; when: windowShown
   function test_sensors_selection_and_close() {

@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Instantiate V2 widget hidden; assert its icon uses V1's 14px size."""
+from qml_fixture_source import qml_fixture_bytes, qml_fixture_source
 import os, re, subprocess, tempfile
 from pathlib import Path
 repo = Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory(prefix='display-v2-icon-', dir=os.environ['TMPDIR']) as work:
     folder = Path(work)
-    (folder/'DisplayManagerWidget.qml').write_bytes((repo/'variants/V2/modules/DisplayManagerWidget.qml').read_bytes())
-    (folder/'TooltipMixin.qml').write_bytes((repo/'variants/V2/modules/TooltipMixin.qml').read_bytes())
+    (folder/'DisplayManagerWidget.qml').write_bytes(qml_fixture_bytes(qml_fixture_source(repo/'variants/V2/modules/DisplayManagerWidget.qml')))
+    (folder/'TooltipMixin.qml').write_bytes(qml_fixture_bytes(qml_fixture_source(repo/'shared/components/TooltipMixin.qml')))
     (folder/'shell.qml').write_text('''import QtQuick
 import Quickshell
 ShellRoot {

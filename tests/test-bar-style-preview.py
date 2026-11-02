@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Render style cards with inert colors, without loading the installed bar."""
+from qml_fixture_source import copy_qml_fixture, qml_fixture_bytes
 from pathlib import Path
 import os
 import shutil
@@ -9,7 +10,7 @@ import tempfile
 repo = Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory(prefix='rise-style-preview-', dir='/tmp') as directory:
     root = Path(directory)
-    shutil.copy2(repo / 'variants/V1/modules/BarStylePreview.qml', root)
+    copy_qml_fixture(repo / 'shared/components/BarStylePreview.qml', root)
     (root / 'runtime').mkdir(mode=0o700)
     (root / 'shell.qml').write_text('''import QtQuick
 import QtQuick.Window
@@ -63,8 +64,8 @@ ShellRoot {
     print(output, end='')
     if result.returncode or 'BAR_STYLE_PREVIEW_PASS' not in output or 'WARN scene:' in output:
         raise SystemExit(result.returncode or 1)
-    if (root / 'preview.png').read_bytes()[:8] != b'\x89PNG\r\n\x1a\n':
+    if qml_fixture_bytes(root / 'preview.png')[:8] != b'\x89PNG\r\n\x1a\n':
         raise SystemExit('Preview capture is not a PNG')
     capture = os.environ.get('RISE_STYLE_PREVIEW_CAPTURE')
     if capture:
-        shutil.copy2(root / 'preview.png', capture)
+        copy_qml_fixture(root / 'preview.png', capture)

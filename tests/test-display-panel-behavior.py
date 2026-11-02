@@ -3,6 +3,7 @@
 Shared panel is instantiated under V1/V2 token fixtures. Method dispatch is not
 physical pointer, complete Theme, or compositor visual acceptance.
 """
+from qml_fixture_source import qml_fixture_bytes, qml_fixture_text
 import os
 from pathlib import Path
 import re
@@ -10,14 +11,14 @@ import subprocess
 import tempfile
 
 repo = Path(__file__).resolve().parents[1]
-source = repo / "variants/V1/panels/DisplayManagerPanel.qml"
-base = (repo / "tests/qml/qr-display-panel-runtime.qml").read_text()
+source = repo / "shared/panels/DisplayManagerPanel.qml"
+base = qml_fixture_text(repo / "tests/qml/qr-display-panel-runtime.qml")
 for variant in ("V1", "V2"):
     with tempfile.TemporaryDirectory(prefix="display-ui-", dir=os.environ["TMPDIR"]) as directory:
         folder = Path(directory)
         (folder / "panels").mkdir()
-        (folder / "panels/DisplayManagerPanel.qml").write_bytes(source.read_bytes())
-        fixture = base.replace('import "../panels"', 'import "panels"')
+        (folder / "panels/DisplayManagerPanel.qml").write_bytes(qml_fixture_bytes(source))
+        fixture = base.replace('import "../../shared/panels"', 'import "panels"')
         fixture = fixture.replace('property color bg: "#202020"', 'property color bg: "#202020"\n property color paper: "#202020"\n property color muted: "#aaaaaa"\n property color fillHover: "#404040"\n property color pillBorder: "#505050"\n property real pillBorderW: 1\n property real pillRadius: 12')
         fixture = fixture.replace('property var monitors: []', 'property var monitors: [{ name: "DP-1", width: 2560, height: 1440, x: 0, y: 0, scale: 1, transform: 0, refreshRate: 59.95, mirrorOf: "none", availableModes: ["2560x1440@59.95Hz"] }, { name: "DP-2", width: 1920, height: 1080, x: 2560, y: 0, scale: 1, transform: 0, refreshRate: 60, mirrorOf: "none", availableModes: ["1920x1080@60.00Hz"] }]\n property var positions: ({})\n property var calls: []')
         fixture = fixture.replace('property string selectedMonitor: ""', 'property string selectedMonitor: "DP-1"')

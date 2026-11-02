@@ -1,3 +1,4 @@
+import { readQmlSource } from './qml-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -30,7 +31,7 @@ function extractFunction(source, name) {
 
 for (const [variant, relativePath] of variants) {
   test(`${variant}: unified chooser opens the configured folder before selecting files or directories`, () => {
-    const qml = readFileSync(join(repo, relativePath), 'utf8');
+    const qml = readQmlSource(join(repo, relativePath), 'utf8');
     assert.match(qml, /WallpaperExternalPicker\s*\{/);
     assert.match(qml, /currentFolder:\s*panel\.profile\.folder === "" \? "file:\/\/\/home" : panel\.folderPickerSelectionUrl\(panel\.profile\.folder\)/);
     assert.doesNotMatch(qml, /(?:FolderDialog|FileDialog)\s*\{/, 'keep toolkit chooser lifecycles outside the shell');
@@ -49,7 +50,7 @@ for (const [variant, relativePath] of variants) {
       });
       assert.deepEqual(calls, [{ folder: folder ? selectionUrl(folder) : 'file:///home', display: 'DP-2' }]);
     }
-    const helper = readFileSync(join(repo, 'scripts/rise-wallpaper-picker'), 'utf8');
+    const helper = readQmlSource(join(repo, 'scripts/rise-wallpaper-picker'), 'utf8');
     assert.match(helper, /os\.path\.isdir\(info\.filename\) or Path\(info\.filename\)\.suffix\.lower\(\) in EXTENSIONS/,
       'filter must retain directories even when they only contain media files');
     assert.match(helper, /chooser\.get_filename\(\) or chooser\.get_current_folder\(\)/,

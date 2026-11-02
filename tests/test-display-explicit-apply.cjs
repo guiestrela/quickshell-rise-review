@@ -1,5 +1,6 @@
+const { readQmlSource } = require('./qml-source.cjs');
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
-const src=fs.readFileSync(path.join(__dirname,'../variants/V1/modules/DisplayManagerController.qml'),'utf8');
+const src=readQmlSource(path.join(__dirname,'../shared/controllers/DisplayManagerController.qml'),'utf8');
 function body(name){let start=src.indexOf('    function '+name+'(');assert.ok(start>=0,'Missing draft method '+name);let open=src.indexOf('{',start),depth=1,i=open+1;for(;depth&&i<src.length;i++){if(src[i]==='{')depth++;if(src[i]==='}')depth--;}return src.slice(start,i);}
 const a={name:'A',x:0,y:0,width:1000,height:1000,refreshRate:60,scale:1,transform:0,disabled:false,mirrorOf:'none'},b={...a,name:'B',x:1000};
 const c={monitors:[a,b],drafts:{},draftBrightness:{},draftTextSizeIndex:-1,textSizeStops:[9,10,11,12,14,16,20],busy:false,loading:false,workspaceLoading:false,workspaceCommitPending:false,rollbackPending:false,rollbackToken:'',rollbackSeconds:0,extraQueue:[],savedDisplayStates:{},displayStateReady:true,displayStateSaved:false,helperPath:'/inert/helper',error:'',calls:[],savedWrites:0};c.safeMonitor=n=>typeof n==='string'&&/^[A-Za-z0-9_.:-]{1,64}$/.test(n);c.monitor=n=>c.monitors.find(m=>m.name===n);c.command=args=>{c.calls.push(args);return true};c.displayStateFile={setText:()=>{c.savedWrites++;c.displayStateSaved=true}};vm.createContext(c);

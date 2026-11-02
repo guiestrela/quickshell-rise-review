@@ -2,14 +2,15 @@
 """QtTest pointer events against production visual tree in inert normal Window.
 Layer-shell wrapper is replaced only in this fixture; not a live bar action.
 """
+from qml_fixture_source import qml_fixture_text
 import os
 from pathlib import Path
 import re
 import subprocess
 import tempfile
 repo=Path(__file__).resolve().parents[1]
-source=(repo/'variants/V1/panels/DisplayManagerPanel.qml').read_text()
-base=(repo/'tests/qml/qr-display-panel-runtime.qml').read_text()
+source=qml_fixture_text(repo/'shared/panels/DisplayManagerPanel.qml')
+base=qml_fixture_text(repo/'tests/qml/qr-display-panel-runtime.qml')
 with tempfile.TemporaryDirectory(prefix='display-pointer-',dir=os.environ['TMPDIR']) as directory:
  folder=Path(directory); (folder/'panels').mkdir()
  visual=source.replace('import Quickshell\n','').replace('import Quickshell.Wayland\n','').replace('import QtQuick\n','import QtQuick\nimport QtQuick.Window\n').replace('PanelWindow {','Window {',1)
@@ -17,7 +18,7 @@ with tempfile.TemporaryDirectory(prefix='display-pointer-',dir=os.environ['TMPDI
  visual=re.sub(r'^    (?:WlrLayershell\..*|exclusionMode:.*|margins\..*)\n','',visual,flags=re.M)
  visual=visual.replace('    id: panel', '    id: panel\n    width: 520\n    height: 900',1)
  (folder/'panels/DisplayManagerPanel.qml').write_text(visual)
- fixture=base.replace('import Quickshell\n','').replace('import Quickshell.Wayland\n','').replace('ShellRoot {','Item {').replace('property bool displayManagerVisible: false','property bool displayManagerVisible: true').replace('Quickshell.screens.length ? Quickshell.screens[0] : null','Qt.application.screens[0]').replace('import "../../variants/V1/panels" as Panels','import "panels" as Panels\nimport QtTest')
+ fixture=base.replace('import Quickshell\n','').replace('import Quickshell.Wayland\n','').replace('ShellRoot {','Item {').replace('property bool displayManagerVisible: false','property bool displayManagerVisible: true').replace('Quickshell.screens.length ? Quickshell.screens[0] : null','Qt.application.screens[0]').replace('import "../../shared/panels" as Panels','import "panels" as Panels\nimport QtTest')
  fixture=fixture.replace('property color bg: "#202020"','property color bg: "#202020"\n property color paper: "#202020"\n property color fillHover: "#404040"\n property color sumi: "#808080"\n property int pillRadius: 6\n property color pillBorder: "#606060"\n property real pillBorderW: 1\n property real panelRadius: 6\n property real v2BarHeight: 30')
  fixture=fixture.replace('property var monitors: []','property var monitors: [{name:"DP-1",width:2560,height:1440,x:0,y:0,scale:1,transform:0,refreshRate:59.95,mirrorOf:"none"},{name:"DP-2",width:1920,height:1080,x:2560,y:0,scale:1,transform:0,refreshRate:60,mirrorOf:"none"}]\n property var calls: []\n property var positions: ({})')
  fixture=fixture.replace('property string selectedMonitor: ""','property string selectedMonitor: "DP-1"')
@@ -29,7 +30,7 @@ with tempfile.TemporaryDirectory(prefix='display-pointer-',dir=os.environ['TMPDI
  fixture=fixture.replace('function setPosition() { }','function setPosition(name,x,y) { var next=Object.assign({},positions); next[name]={x:x,y:y}; positions=next }')
  fixture=fixture.replace('drafts = copy; return true', 'drafts = copy; var m = copy[name]; calls.push([name,m.mode || (m.width+"x"+m.height+"@"+Number(m.refreshRate).toFixed(3)),m.x,m.y,m.scale,m.transform,m.mirrorOf]); return true')
  fixture=fixture.replace('id: productionPanel; root: fakeRoot','id: productionPanel; root: fakeRoot; visible: true')
- controllerSource=(repo/'variants/V1/modules/DisplayManagerController.qml').read_text()
+ controllerSource=qml_fixture_text(repo/'shared/controllers/DisplayManagerController.qml')
  toggleCode=controllerSource[controllerSource.index('    function toggleMirror('):controllerSource.index('    function enableMonitor(')]
  fixture=fixture.replace('function applyMonitor(name,mode,x,y,scale,transform,mirror)', 'property var mirrorReturnStates: ({})\n'+toggleCode+'\nfunction applyMonitor(name,mode,x,y,scale,transform,mirror)')
  start=fixture.index('    Timer {')

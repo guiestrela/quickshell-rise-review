@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Radar lifecycle with inert image URLs and Process; never access map services."""
+from qml_fixture_source import qml_fixture_bytes, qml_fixture_source, qml_fixture_text
 import os
 from pathlib import Path
 import subprocess
@@ -13,12 +14,12 @@ with tempfile.TemporaryDirectory(prefix='rise-radar-lifecycle-', dir='/tmp') as 
     for variant, path in [('V1', 'variants/V1'), ('V2', 'variants/V2')]:
         folder = temp / variant
         folder.mkdir()
-        source = (repo / path / 'modules/WeatherRadar.qml').read_text()
+        source = qml_fixture_text(repo / path / 'modules/WeatherRadar.qml')
         source = source.replace('import Quickshell\n', '').replace('import Quickshell.Io', 'import "."')
         source = source.replace('id: metadata\n', 'id: metadata; objectName: "metadata"\n')
         source = source.replace('Image {', 'InertImage {')
         (folder / 'WeatherRadar.qml').write_text(source)
-        (folder / 'UiText.qml').write_bytes((repo / path / 'modules/UiText.qml').read_bytes())
+        (folder / 'UiText.qml').write_bytes(qml_fixture_bytes(qml_fixture_source(repo / path / 'modules/UiText.qml')))
         (folder / 'InertImage.qml').write_text('''import QtQuick
 Item { property string source: ""; property bool asynchronous; property bool cache; property int fillMode }
 ''')

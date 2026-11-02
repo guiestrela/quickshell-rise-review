@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+from qml_fixture_source import qml_fixture_text
 import os
 from pathlib import Path
 import subprocess
@@ -6,7 +7,7 @@ import tempfile
 
 base = Path(__file__).resolve().parents[1]
 for variant in ('variants/V1', 'variants/V2'):
-    source = (base / variant / 'panels/AiUsagePanel.qml').read_text()
+    source = qml_fixture_text(base / variant / 'panels/AiUsagePanel.qml')
     assert 'function applyAuthStatus(states)' in source, 'Missing login-based tab filter'
     start = source.index('    function applyAuthStatus(states)')
     end = source.index('\n    Process {', start)

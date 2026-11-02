@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Pointer regression for the exact production handlers, with an inert executor."""
+from qml_fixture_source import qml_fixture_bytes, qml_fixture_text
 import os
 from pathlib import Path
 import subprocess
@@ -105,10 +106,10 @@ Item {
 def main():
     env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software', QT_QPA_PLATFORMTHEME='', DISPLAY='')
     with tempfile.TemporaryDirectory(prefix='notif-pointer-') as directory:
-        (Path(directory) / 'NotificationActions.js').write_bytes((ROOT.parents[1] / 'shared/integrations/NotificationActions.js').read_bytes())
-        for variant, source in [('V1', ROOT / 'panels/NotificationPanel.qml'),
-                                ('V2', ROOT.parent / 'V2/panels/NotificationPanel.qml')]:
-            text = source.read_text()
+        (Path(directory) / 'NotificationActions.js').write_bytes(qml_fixture_bytes(ROOT.parents[1] / 'shared/integrations/NotificationActions.js'))
+        for variant, source in [('V1', ROOT.parents[1] / 'shared/panels/NotificationPanel.qml'),
+                                ('V2', ROOT.parents[1] / 'shared/panels/NotificationPanel.qml')]:
+            text = qml_fixture_text(source)
             assert 'onClicked: notifPanel.openNotification(notificationRow.modelData)' in text
             functions = '\n'.join(extract(text, name) for name in
                                   ['openNotification', 'finishNotificationAction'])

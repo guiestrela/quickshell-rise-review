@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Actual Qt pointer/keyboard on new production QR controls; native command is inert."""
+from qml_fixture_source import qml_fixture_bytes, qml_fixture_source, qml_fixture_text
 import json
 import os
 from pathlib import Path
@@ -31,9 +32,9 @@ QtObject {
  onRunningChanged: if(running) done.start()
 }
 ''')
-    (tmp/'UiText.qml').write_bytes((REPO/'variants/V1/modules/UiText.qml').read_bytes())
-    for variant,rel in enumerate(['variants/V1/panels/NetworkPanel.qml','variants/V2/panels/NetworkPanel.qml'],1):
-        source=(REPO/rel).read_text()
+    (tmp/'UiText.qml').write_bytes(qml_fixture_bytes(qml_fixture_source(REPO/'shared/components/UiText.qml')))
+    for variant,rel in enumerate(['shared/panels/NetworkPanel.qml','shared/panels/NetworkPanel.qml'],1):
+        source=qml_fixture_text(REPO/rel)
         assert source.index('objectName: "wifi-qr-button"')>source.index('id: speedFooter')
         assert source.index('objectName: "wifi-qr-button"')<source.index('// ── wifi radio toggle ──')
         logic=source[source.index('    property bool wifiQrOpening:'):source.index('    function resetWifiAction()',source.index('    property bool wifiQrOpening:'))] if '    function resetWifiAction()' in source else ''

@@ -1,3 +1,4 @@
+import { readQmlSource } from './qml-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -6,7 +7,7 @@ import { fileURLToPath } from 'node:url';
 const base = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 for (const variant of ['V1', 'V2']) {
   test(`${variant || 'V1'}: serviço resolve modo e escala para cada monitor e Single compartilha uma imagem`, () => {
-    const source = readFileSync(resolve(base, `variants/${variant}/modules/WallpaperManagerService.qml`), 'utf8');
+    const source = readQmlSource(resolve(base, `shared/services/WallpaperManagerService.qml`), 'utf8');
     assert.match(source, /wallpaperProfileFor\(/);
     assert.match(source, /mode\s*===\s*"single"/);
     assert.match(source, /scaling/);
@@ -15,7 +16,7 @@ for (const variant of ['V1', 'V2']) {
   });
 
   test(`${variant || 'V1'}: serviço único passa recursão ao scanner sem alterar legado`, () => {
-    const source = readFileSync(resolve(base, `variants/${variant}/modules/WallpaperManagerService.qml`), 'utf8');
+    const source = readQmlSource(resolve(base, `shared/services/WallpaperManagerService.qml`), 'utf8');
     assert.match(source, /theme\.wallpaperRecursive\s*===\s*false/);
     assert.match(source, /\.push\("--flat"\)/);
     assert.match(source, /function scanFolder\(\)/);

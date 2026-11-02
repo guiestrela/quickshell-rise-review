@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Run real V1 pill QML with only AI Process/detection boundaries inert."""
+from qml_fixture_source import copy_qml_fixture, qml_fixture_source, qml_fixture_text
 from pathlib import Path
 import os
 import shutil
@@ -13,16 +14,18 @@ with tempfile.TemporaryDirectory(dir=os.environ.get('TMPDIR')) as temp:
     qml_modules = root / 'modules'
     qml_modules.mkdir()
     for name in ('ClaudeWidget.qml', 'NordVPNWidget.qml', 'UiText.qml', 'PillShadow.qml', 'TooltipMixin.qml'):
-        shutil.copy2(modules / name, qml_modules / name)
-    for name in ('assets', 'shaders'):
-        shutil.copytree(repo / 'variants/V1' / name, root / name)
+        copy_qml_fixture(qml_fixture_source(modules / name), qml_modules / name)
+    shutil.copytree(repo / 'shared/assets', root / 'assets')
+    for name in ('ClaudeWidget.qml', 'NordVPNWidget.qml'):
+        copied = qml_modules / name
+        copied.write_text(qml_fixture_text(copied).replace('../../../shared/assets/', '../assets/'))
 
     vpn_path = qml_modules / 'NordVPNWidget.qml'
-    vpn_path.write_text(vpn_path.read_text().replace(
+    vpn_path.write_text(qml_fixture_text(vpn_path).replace(
         'id: label\n', 'id: label; objectName: "vpnLabel"\n'))
 
     claude_path = qml_modules / 'ClaudeWidget.qml'
-    claude = claude_path.read_text()
+    claude = qml_fixture_text(claude_path)
     start = claude.index('    // ── process detection ──')
     end = claude.index('    // ── background pill ──', start)
     claude = claude[:start] + '    // Inert harness: omit all four external process probes.\n\n' + claude[end:]

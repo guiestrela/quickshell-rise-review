@@ -1,8 +1,9 @@
+from qml_fixture_source import qml_fixture_text
 from pathlib import Path
 import subprocess,os,json,re
 b=Path(__file__).resolve().parent.parent
 scope={'__file__':str(b/'tests/test-per-display-runtime.py')}
-exec((b/'tests/test-per-display-runtime.py').read_text().split('variants=sys.argv')[0],scope)
+exec(qml_fixture_text(b/'tests/test-per-display-runtime.py').split('variants=sys.argv')[0],scope)
 q=scope['qml'];q=q[:q.index('    Timer {')]+'''    Timer {
         interval: 40; running: true; repeat: true
         onTriggered: {
@@ -25,8 +26,8 @@ q=scope['qml'];q=q[:q.index('    Timer {')]+'''    Timer {
 for v in ['V1','V2']:
     root=b/'variants'/v
     settings={'perDisplayConfig':False,'displayConfig':{'all':{'folder':str(scope['A']),'recursive':True,'mode':'shuffle'}}}
-    text='import "'+str((root/'modules').relative_to(b))+'" as Service\n'+q
-    for k,val in {'PROFILE':json.dumps(str((root/'modules/WallpaperProfile.js').relative_to(b))),'WIDGET_MODULE':json.dumps(str((root/'modules').relative_to(b))),'SERVICE_MODULE':'Service','SETTINGS':'('+json.dumps(settings)+')','PANEL_URL':json.dumps((b/'variants/V1/panels/WallpaperManagerQuickPanel.qml').as_uri()),'THEME_FUNCTIONS':'\n'.join(scope['extract']((root/'Theme.qml').read_text(),n) for n in ['setWallpaperProfile','setWallpaperPerDisplay','nextWallpaper'])}.items():text=text.replace(k,val)
+    text='import "shared/services" as Service\n'+q
+    for k,val in {'THEME_FOLDER':json.dumps(str(scope['D'])),'PROFILE':json.dumps(str((root.parent.parent/'shared/logic/WallpaperProfile.js').relative_to(b))),'WIDGET_MODULE':json.dumps(str((root/'modules').relative_to(b))),'SERVICE_MODULE':'Service','SETTINGS':'('+json.dumps(settings)+')','PANEL_URL':json.dumps((b/'variants/V1/panels/WallpaperManagerQuickPanel.qml').as_uri()),'THEME_FUNCTIONS':'\n'.join(scope['extract'](qml_fixture_text(root/'Theme.qml'),n) for n in ['setWallpaperProfile','setWallpaperPerDisplay','nextWallpaper'])}.items():text=text.replace(k,val)
     probe=b/f'shared-probe-{v}.qml';probe.write_text(text)
     env=os.environ.copy();env.pop('DISPLAY',None);env.update(QT_QPA_PLATFORM='wayland',QT_QUICK_BACKEND='software',NO_COLOR='1',XDG_RUNTIME_DIR='/run/user/1000',WAYLAND_DISPLAY='wayland-1')
     r=subprocess.run(['qs','-n','-p',str(probe)],capture_output=True,text=True,env=env,timeout=10)

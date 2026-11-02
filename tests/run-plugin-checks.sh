@@ -80,8 +80,14 @@ check "source layout and local imports" python3 tests/test-source-layout.py
 check "variant failure and retry" python3 tests/test-variant-failure-runtime.py
 check "network SSID width" python3 tests/test-network-ssid-width.py
 check "weather radar lifecycle" python3 tests/test-weather-radar-lifecycle.py
+check "shared telemetry and V1/V2 widget parity" python3 tests/test-shared-telemetry-widgets.py
+check "V1 new widgets layout" node --test tests/v1-new-widgets-layout.test.mjs
+check "shared theme behavior" node --test tests/shared-theme-behavior.test.mjs
+check "shared overlay contracts" node --test tests/shared-overlay-contracts.test.mjs
 check "system panel bindings" python3 tests/test-system-panels-runtime.py
 check "energy panel bindings" python3 tests/test-energy-panels-runtime.py
+check "connectivity panel bindings and styles" python3 tests/test-connectivity-panels-runtime.py
+check "updater panel backend and styles" python3 tests/test-updater-panel-runtime.py
 check "calendar and workspace panels" python3 tests/test-calendar-workspace-panels.py
 check "storage panel inventory" python3 tests/test-storage-panel-runtime.py
 check "thermal panel sensors" python3 tests/test-thermal-panel-runtime.py

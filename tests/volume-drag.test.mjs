@@ -1,3 +1,4 @@
+import { readQmlSource } from './qml-source.mjs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -5,7 +6,7 @@ import vm from 'node:vm';
 
 for (const variant of ['variants/V1', 'variants/V2']) {
   test(`${variant}: drag serializes commands and applies final position`, () => {
-    const source = readFileSync(`${variant}/panels/VolumePanel.qml`, 'utf8');
+    const source = readQmlSource(`shared/panels/VolumePanel.qml`, 'utf8');
     const code = source.slice(source.indexOf('    function flushOutputVolume()'),
                               source.indexOf('    function setDefaultSink(dev)'));
     const commands = [];

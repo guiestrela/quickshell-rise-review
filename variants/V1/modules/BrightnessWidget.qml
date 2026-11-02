@@ -1,7 +1,10 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "../../../shared/logic/BrightnessWidgetValuesLogic.js" as BrightnessWidgetValuesLogic
+import "../../../shared/logic/BrightnessWidgetLogic.js" as BrightnessWidgetLogic
 import Quickshell.Io
-import "../OmarchyPower.js" as OmarchyPower
+import "../../../shared/logic/OmarchyPower.js" as OmarchyPower
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -23,25 +26,11 @@ Item {
 
     Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
 
-    function refreshBrightness() {
-        briProc.running = false
-        briProc.running = true
-    }
+    function refreshBrightness() { return BrightnessWidgetValuesLogic.refreshBrightness(rootMod, {briProc: briProc}) }
 
-    function runBrightnessStep(up) {
-        var runner = up ? briUp : briDown
-        if (runner.running) return
-        runner.running = true
-    }
+    function runBrightnessStep(up) { return BrightnessWidgetLogic.runBrightnessStep(rootMod, {briUp: briUp, briDown: briDown}, up) }
 
-    function notifyBrightnessError(action, exitCode) {
-        if (exitCode === 0 || brightnessErrorNotified) return
-        brightnessErrorNotified = true
-        brightnessErrNotify.command = ["bash", "-c",
-            "notify-send -a 'QS-Shell' 'Brightness command failed' '" + action + " failed; brightness backend unavailable.' 2>/dev/null || true"]
-        brightnessErrNotify.running = false
-        brightnessErrNotify.running = true
-    }
+    function notifyBrightnessError(action, exitCode) { return BrightnessWidgetValuesLogic.notifyBrightnessError(rootMod, {brightnessErrNotify: brightnessErrNotify}, action, exitCode) }
 
     Rectangle {
         x: 0; anchors.verticalCenter: parent.verticalCenter
@@ -59,7 +48,7 @@ Item {
         anchors.centerIn: parent
         spacing: 5
 
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             visible: !rootMod.verticalCompact
             text: "BRI"
@@ -114,7 +103,7 @@ Item {
             }
         }
 
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.percent + "%"
             color: rootMod.percent >= 100
@@ -178,7 +167,7 @@ Item {
         }
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     MouseArea {
         anchors.fill: parent

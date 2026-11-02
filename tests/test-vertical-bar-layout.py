@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Exercise the real vertical layout and side-panel bindings with inert widget boundaries."""
+from qml_fixture_source import copy_qml_fixture
 from pathlib import Path
 import os
 import shutil
@@ -12,7 +13,7 @@ with tempfile.TemporaryDirectory(prefix='rise-vertical-', dir='/tmp') as directo
     base = Path(directory)
     (base / 'runtime').mkdir(mode=0o700)
     for name in ['VerticalBarContent.qml', 'SidePanelPositioner.qml', 'AiPanelSurface.qml', 'WorkspaceWidget.qml']:
-        shutil.copy2(repo / 'variants/V2/modules' / name, base)
+        copy_qml_fixture(repo / 'variants/V2/modules' / name, base)
     for name in ['ArchUpdaterWidget', 'TrayWidget', 'NotificationWidget', 'IdleInhibitorWidget', 'MediaBrowserWidget', 'ThemeDisplayWidget']:
         (base / (name + '.qml')).write_text('import QtQuick\nItem { property var root; property var screen; implicitWidth: 30; implicitHeight: 28 }\n')
     (base / 'WeatherWidget.qml').write_text('import QtQuick\nItem { property var root; property bool weatherLoaded: true; property string weatherTempStr: "25°C"; implicitWidth: 32; implicitHeight: 28 }\n')

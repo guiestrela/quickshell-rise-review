@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Test the production Copilot header geometry using real Qt text metrics."""
+from qml_fixture_source import qml_fixture_text
 import os
 from pathlib import Path
 import subprocess
@@ -7,7 +8,7 @@ import tempfile
 
 repo = Path(__file__).resolve().parents[1]
 for variant in ('variants/V1', 'variants/V2'):
-    source = (repo / variant / 'panels/AiUsagePanel.qml').read_text()
+    source = qml_fixture_text(repo / variant / 'panels/AiUsagePanel.qml')
     start = source.index('                Item {', source.index('// ── GitHub Copilot'))
     end = source.index('                UiText {\n                    visible:', start)
     header = source[start:end].replace('UiText {', 'Text {')

@@ -1,3 +1,4 @@
+import { readQmlSource } from './qml-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -10,7 +11,7 @@ for (const [variant, relative] of [
   ['V1', 'variants/V1/panels/WallpaperManagerQuickPanel.qml'],
   ['V2', 'variants/V2/panels/WallpaperManagerQuickPanel.qml'],
 ]) {
-  const panel = readFileSync(join(project, relative), 'utf8');
+  const panel = readQmlSource(join(project, relative), 'utf8');
   test(`${variant}: wallpaper panel exposes Displays and Shuffling tabs`, () => {
     assert.match(panel, /PanelWindow\s*\{/);
     assert.match(panel, /\{key:\s*"displays",\s*label:\s*"Displays"\}/);

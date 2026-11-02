@@ -55,7 +55,7 @@ p.write_text(json.dumps(data));print(json.dumps(data))
     shell.write_text('''import QtQuick
 import Quickshell
 import Quickshell.Io
-import "variants/V1/modules" as Modules
+import "shared/controllers" as Modules
 import "variants/V1" as VariantOne
 import "variants/V2" as VariantTwo
 Scope {

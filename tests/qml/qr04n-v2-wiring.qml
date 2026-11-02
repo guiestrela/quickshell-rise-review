@@ -89,7 +89,7 @@ Window {
 
     Component.onCompleted: {
         try {
-            var controllerUrl = Qt.resolvedUrl("../../variants/V2/modules/NordVpnController.qml")
+            var controllerUrl = Qt.resolvedUrl("../../shared/controllers/NordVpnController.qml")
             controller = createAt(controllerUrl, { "cli": "/home/guiestrela/Work/omarchy/quickshell-rise-review/tests/fixtures/nordvpn-cli-recording-stub.sh", "refreshInterval": 60000, "enabled": true })
             widget = createAt(Qt.resolvedUrl("../../variants/V2/modules/NordVPNWidget.qml"), { "root": host, "width": 150, "height": 28 })
             panel = createAt(Qt.resolvedUrl("../../variants/V2/panels/NordVPNPanel.qml"), { "root": host, "controller": controller })

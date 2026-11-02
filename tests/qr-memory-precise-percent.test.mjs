@@ -1,3 +1,4 @@
+import { readQmlSource } from './qml-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -12,7 +13,7 @@ const variants = [
 
 for (const [variant, relativePath] of variants) {
   test(`${variant} top-bar memory usage shows one decimal place`, () => {
-    const qml = fs.readFileSync(path.join(root, relativePath), 'utf8');
+    const qml = readQmlSource(path.join(root, relativePath), 'utf8');
     const match = qml.match(/readonly property string usedLabel:\s*([^\n]+)/);
     assert.ok(match, 'memory widget must define its usage label');
     assert.match(match[1], /usedGiB\.toFixed\(1\)\s*\+\s*"G"/);

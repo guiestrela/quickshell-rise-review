@@ -1,8 +1,10 @@
+from qml_fixture_source import qml_fixture_text
 from pathlib import Path
 import json, os, subprocess, re, struct, zlib, sys
 base=Path(__file__).resolve().parent.parent
 fixtures=base/'tests/fixtures'
 A=fixtures/'folder A'; B=fixtures/'folder B'; C=fixtures/'folder C'
+D=fixtures/'theme empty'; D.mkdir(parents=True,exist_ok=True)
 def png():
     chunk=lambda kind,data: struct.pack('>I',len(data))+kind+data+struct.pack('>I',zlib.crc32(kind+data)&0xffffffff)
     return b'\x89PNG\r\n\x1a\n'+chunk(b'IHDR',struct.pack('>IIBBBBB',1,1,8,2,0,0,0))+chunk(b'IDAT',zlib.compress(b'\x00\xff\x00\x00'))+chunk(b'IEND',b'')
@@ -24,6 +26,7 @@ import WIDGET_MODULE as WallpaperWidgetModule
 Scope {
     QtObject {
         id: stub
+        property string currentBackgroundsPath: THEME_FOLDER
         property bool modWallpapers: true
         property bool modQuick: false
         property var activePopupScreen: Quickshell.screens[0]
@@ -59,6 +62,9 @@ Scope {
         property color pillShadow: "#000000"
         property int v2BarHeight: 40
         property string barPosition: "top"
+        property bool barVertical: false
+        property real verticalBarWidth: 40
+        function verticalAnchorY(name) { return 150 }
         property real wallpaperManagerAnchorX: 150
         property real wallpaperManagerAnchorY: 32
         property color pill: "#222222"
@@ -136,7 +142,7 @@ Scope {
                     require(s.pathFor("DP-1").startsWith(FOLDER_A+"/"),"A pool mixed");
                     require(s.pathFor("DP-2").startsWith(FOLDER_B+"/"),"B pool mixed");
                     priorB=s.pathFor("DP-2");
-                    input.text=FOLDER_C; input.textEdited();input.accepted();
+                    require(panelInstance.applyWallpaperSelection("folder",panelInstance.folderPickerSelectionUrl(FOLDER_C),"DP-1"),"folder selection rejected");
                     stage=1;return;
                 }
                 if(stage===1) {
@@ -160,14 +166,15 @@ Scope {
                     require(s.pathFor("DP-1")===priorA && s.countFor("DP-1")===2,"B clear modified A");
                     let restored=JSON.parse(stub.saved);
                     require(WallpaperProfile.configFor(restored,"DP-1","/home/test").folder===FOLDER_C,"persist A lost");
-                    require(WallpaperProfile.configFor(restored,"DP-2","/home/test").folder==="","persist B lost");
-                    input.text="/unsubmitted";input.textEdited();
+                    require(WallpaperProfile.configFor(restored,"DP-2","/home/test").folder===THEME_FOLDER,"persist B theme reset lost");
+                    let unchanged=JSON.stringify(stub.wallpaperManagerSettings);
+                    require(input.textEdited===undefined,"folder display should remain read-only");
                     find(panelInstance,"wallpaper-display-DP-1").activated();
-                    input.editingFinished();
+                    require(JSON.stringify(stub.wallpaperManagerSettings)===unchanged,"switching monitor changed a profile");
                     stage=4;return;
                 }
                 if(stage===4) {
-                    require(stub.wallpaperProfileFor("DP-1").folder===FOLDER_C,"unsaved B draft wrote to A");
+                    require(stub.wallpaperProfileFor("DP-1").folder===FOLDER_C,"monitor switch changed A profile");
                     require(input.text===FOLDER_C,"A field did not restore");
                     let candidate=FOLDER_C+"/new.png";
                     let before=JSON.stringify(stub.wallpaperManagerSettings);
@@ -197,12 +204,12 @@ settings={'perDisplayConfig':True,'displayConfig':{'all':{'folder':''},'DP-1':{'
 variants=sys.argv[1:] or ['V1','V2']
 for variant in variants:
     root=base/'variants'/variant
-    theme=(root/'Theme.qml').read_text()
-    q='import "'+str((root/'modules').relative_to(base))+'" as Service\nimport "'+str((root/'modules').relative_to(base))+'" as WallpaperWidgetModule\n'+qml
-    replacements={'PROFILE':json.dumps(str((root/'modules/WallpaperProfile.js').relative_to(base))),'WIDGET_MODULE':json.dumps(str((root/'modules').relative_to(base))),'SERVICE_MODULE':'Service','SETTINGS':'('+json.dumps(settings)+')',
+    theme=qml_fixture_text(root/'Theme.qml')
+    q='import "shared/services" as Service\nimport "'+str((root/'modules').relative_to(base))+'" as WallpaperWidgetModule\n'+qml
+    replacements={'PROFILE':json.dumps(str((root.parent.parent/'shared/logic/WallpaperProfile.js').relative_to(base))),'WIDGET_MODULE':json.dumps(str((root/'modules').relative_to(base))),'SERVICE_MODULE':'Service','SETTINGS':'('+json.dumps(settings)+')',
       'PANEL_URL':json.dumps((root/'panels/WallpaperManagerQuickPanel.qml').as_uri()),
       'THEME_FUNCTIONS':'\n'.join(extract(theme,n) for n in ['setWallpaperProfile','setWallpaperPerDisplay','nextWallpaper']),
-      'FOLDER_A':json.dumps(str(A)),'FOLDER_B':json.dumps(str(B)),'FOLDER_C':json.dumps(str(C))}
+      'THEME_FOLDER':json.dumps(str(D)),'FOLDER_A':json.dumps(str(A)),'FOLDER_B':json.dumps(str(B)),'FOLDER_C':json.dumps(str(C))}
     for k,v in replacements.items(): q=q.replace(k,v)
     probe=base/f'per-display-probe-{variant}.qml';probe.write_text(q)
     env=os.environ.copy();env.pop('DISPLAY',None);env.update(QT_QPA_PLATFORM='wayland',QT_QUICK_BACKEND='software',NO_COLOR='1',XDG_RUNTIME_DIR='/run/user/1000',WAYLAND_DISPLAY='wayland-1')

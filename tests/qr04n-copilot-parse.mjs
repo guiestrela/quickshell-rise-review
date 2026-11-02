@@ -1,3 +1,4 @@
+import { readQmlSource } from './qml-source.mjs';
 // Compile-free regression for the Copilot branch of the AI usage cache parse.
 // Extracts the real functions out of a Theme.qml and runs them against a cache
 // fixture, so the widget's view of Copilot is pinned without needing a live bar.
@@ -12,7 +13,7 @@ if (!themePath || !cachePath) {
   process.exit(2);
 }
 
-const src = readFileSync(themePath, "utf8");
+const src = readQmlSource(themePath, "utf8");
 
 // Pull one top-level `function name(...) { ... }` out of the QML source.
 function grab(name) {
@@ -37,7 +38,7 @@ for (const name of NAMES) {
   theme[name] = new Function("theme", `${body}; return ${name};`)(theme);
 }
 
-const live = JSON.parse(readFileSync(cachePath, "utf8"));
+const live = JSON.parse(readQmlSource(cachePath, "utf8"));
 
 // ── the live cache: Copilot is a monthly window, not 5h/7d ──
 theme.aiApplyCopilotCache(live, true);

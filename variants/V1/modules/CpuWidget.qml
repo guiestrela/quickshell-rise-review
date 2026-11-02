@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -35,7 +36,7 @@ Item {
         anchors.centerIn: parent
         spacing: rootMod.verticalCompact ? 4 : 5
 
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             visible: !rootMod.verticalCompact
             text: "CPU"
@@ -108,7 +109,7 @@ Item {
             }
         }
 
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.root.barVertical !== true && (!rootMod.verticalCompact)
             text: String(Math.min(100, rootMod.percent)).padStart(2, '0') + "%"
@@ -117,7 +118,7 @@ Item {
             font.pixelSize: 12
         }
 
-        IconText {
+        CommonComponents.IconText {
             id: compactCpuGlyph
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.verticalCompact
@@ -128,7 +129,7 @@ Item {
             fill: 1
         }
 
-        UiText {
+        CommonComponents.UiText {
             anchors.verticalCenter: parent.verticalCenter
             visible: rootMod.root.barVertical !== true && (rootMod.verticalCompact)
             text: String(Math.min(100, rootMod.percent)).padStart(2, '0') + "%"
@@ -138,7 +139,7 @@ Item {
         }
     }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     MouseArea {
         anchors.fill: parent

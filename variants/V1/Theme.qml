@@ -1,13 +1,23 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "../../shared/logic/ThemeValues.js" as ThemeValues
+import "../../shared/logic/ThemeWallpaper.js" as ThemeWallpaper
+import "../../shared/logic/ThemeIntegrations.js" as ThemeIntegrations
+import "../../shared/logic/ThemePalette.js" as ThemePalette
+import "../../shared/logic/ThemePanels.js" as ThemePanels
+import "../../shared/logic/ThemeAiUsage.js" as ThemeAiUsage
+import "../../shared/logic/ThemeLauncher.js" as ThemeLauncher
+import "../../shared/logic/ThemeTray.js" as ThemeTray
 import Quickshell
 import Quickshell.Io
 import Quickshell.Hyprland
 import Quickshell.Services.UPower
-import "Palette.js" as Palette
+import "../../shared/logic/Palette.js" as Palette
 import "modules"
-import "modules/WallpaperProfile.js" as WallpaperProfile
+import "../../shared/logic/WallpaperProfile.js" as WallpaperProfile
 import "modules/V1Defaults.js" as V1Defaults
+import "../../shared/controllers" as CommonControllers
+import "../../shared/services" as CommonServices
 
 Item {
     id: theme
@@ -40,18 +50,7 @@ Item {
     readonly property bool wallpaperWakeAvailable: variantHost ? variantHost.wallpaperWakeAvailable : false
     readonly property bool wallpaperSessionLocked: variantHost ? variantHost.wallpaperSessionLocked : false
     readonly property bool wallpaperScreensaverShowing: variantHost ? variantHost.wallpaperScreensaverShowing : false
-    function setWallpaperShuffleSettings(patch) {
-        var next = Object.assign({}, wallpaperManagerSettings)
-        if (patch.intervalSec !== undefined) {
-            var value = Number(patch.intervalSec)
-            if (!isFinite(value) || Math.floor(value) !== value || value < 0 || value > 86400) return
-            next.intervalSec = value
-        }
-        if (patch.shuffleOnWake === true || patch.shuffleOnWake === false) next.shuffleOnWake = patch.shuffleOnWake
-        if (JSON.stringify(next) === JSON.stringify(wallpaperManagerSettings)) return
-        wallpaperManagerSettings = next
-        saveWallpaperProfile()
-    }
+    function setWallpaperShuffleSettings(patch) { return ThemeWallpaper.setWallpaperShuffleSettings(theme, {}, patch) }
     property string currentThemeName: ""
     readonly property string userBackgroundsPath: currentThemeName === ""
         ? ""
@@ -63,7 +62,7 @@ Item {
         return paths
     }
 
-    WallpaperManagerService { id: wallpaperManagerService; theme: theme }
+    CommonServices.WallpaperManagerService { id: wallpaperManagerService; theme: theme }
     readonly property var wallpaperManagerServiceApi: wallpaperManagerService
     property var wallpaperManagerSettings: ({ folder: wallpaperManagerFolder, recursive: true,
         perDisplayConfig: false, displayConfig: { all: { folder: wallpaperManagerFolder,
@@ -75,25 +74,9 @@ Item {
     property real wallpaperManagerAnchorX: 0
     property real wallpaperManagerAnchorY: 0
     onWallpaperManagerVisibleChanged: popupOpened("wallpaperManagerVisible")
-    function wallpaperProfileFor(name) {
-        return WallpaperProfile.configFor(wallpaperManagerSettings, name, String(Quickshell.env("HOME") || ""))
-    }
-    function setWallpaperProfile(patch, outputName) {
-        var name = String(outputName || wallpaperManagerDisplay)
-        wallpaperManagerSettings = WallpaperProfile.updateDisplay(wallpaperManagerSettings, name, patch,
-            String(Quickshell.env("HOME") || ""))
-        if (!wallpaperManagerSettings.perDisplayConfig && patch.folder !== undefined)
-            wallpaperManagerFolder = wallpaperManagerSettings.displayConfig.all.folder
-        saveWallpaperProfile()
-        wallpaperManagerService.scanFolder(name)
-    }
-    function setWallpaperPerDisplay(enabled) {
-        var next = Object.assign({}, wallpaperManagerSettings, { perDisplayConfig: enabled === true })
-        wallpaperManagerSettings = next
-        wallpaperManagerDisplay = enabled && wallpaperOutputs.length > 0 ? String(wallpaperOutputs[0].name) : "all"
-        saveWallpaperProfile()
-        wallpaperManagerService.scanFolder()
-    }
+    function wallpaperProfileFor(name) { return ThemeIntegrations.wallpaperProfileFor(theme, {WallpaperProfile: WallpaperProfile, Quickshell: Quickshell}, name) }
+    function setWallpaperProfile(patch, outputName) { return ThemeWallpaper.setWallpaperProfile(theme, {WallpaperProfile: WallpaperProfile, Quickshell: Quickshell, wallpaperManagerService: wallpaperManagerService}, patch, outputName) }
+    function setWallpaperPerDisplay(enabled) { return ThemeWallpaper.setWallpaperPerDisplay(theme, {wallpaperManagerService: wallpaperManagerService}, enabled) }
     FileView {
         id: wallpaperProfileFile
         path: Quickshell.env("HOME") + "/.cache/quickshell-rise/wallpaper-manager.json"
@@ -118,13 +101,10 @@ Item {
             if (exitCode === 0) wallpaperProfileFile.setText(JSON.stringify(theme.wallpaperManagerSettings, null, 2) + "\n")
         }
     }
-    function saveWallpaperProfile() {
-        wallpaperProfileDirectory.running = false
-        wallpaperProfileDirectory.running = true
-    }
-    function shuffleWallpapers() { wallpaperManagerService.shuffleAll(false) }
-    function nextWallpaper(outputName) { wallpaperManagerService.nextFor(String(outputName || wallpaperManagerDisplay)) }
-    function pinWallpaper(path) { wallpaperManagerService.pinAll(path) }
+    function saveWallpaperProfile() { return ThemeWallpaper.saveWallpaperProfile(theme, {wallpaperProfileDirectory: wallpaperProfileDirectory}) }
+    function shuffleWallpapers() { return ThemeValues.shuffleWallpapers(theme, {wallpaperManagerService: wallpaperManagerService}) }
+    function nextWallpaper(outputName) { return ThemeWallpaper.nextWallpaper(theme, {wallpaperManagerService: wallpaperManagerService}, outputName) }
+    function pinWallpaper(path) { return ThemeValues.pinWallpaper(theme, {wallpaperManagerService: wallpaperManagerService}, path) }
 
     FileView {
         id: wallpaperFolderFile
@@ -146,26 +126,11 @@ Item {
             theme.wallpaperFolderWritePending = false
         }
     }
-    function setWallpaperManagerFolder(path) {
-        var value = String(path || "").trim().replace(/\/+$/, "")
-        if (value === ".." || value.indexOf("\n") >= 0 || value.indexOf("\r") >= 0) return
-        wallpaperManagerFolder = value
-        pendingWallpaperFolder = value
-        wallpaperFolderWritePending = true
-        if (!wallpaperFolderDirectoryProc.running) wallpaperFolderDirectoryProc.running = true
-    }
+    function setWallpaperManagerFolder(path) { return ThemeWallpaper.setWallpaperManagerFolder(theme, {wallpaperFolderDirectoryProc: wallpaperFolderDirectoryProc}, path) }
 
-    function setCurrentThemeName(rawName) {
-        var name = String(rawName || "").trim()
-        if (name === "." || name === ".." || name.indexOf("/") >= 0 || name.indexOf("\\") >= 0)
-            name = ""
-        currentThemeName = name
-    }
+    function setCurrentThemeName(rawName) { return ThemeIntegrations.setCurrentThemeName(theme, {}, rawName) }
 
-    function reloadCurrentThemeFiles() {
-        if (!omarchyCurrentRootResolved) return
-        themeReloadDebounce.restart()
-    }
+    function reloadCurrentThemeFiles() { return ThemeIntegrations.reloadCurrentThemeFiles(theme, {themeReloadDebounce: themeReloadDebounce}) }
 
     property color paper:   "#181616"
     property color ink:     "#c5c9c5"
@@ -194,62 +159,20 @@ Item {
     // previous boolean name.
     readonly property bool useThemeAccent: barColorIsAccent
 
-    function paletteColor(id) {
-        if (id === "color02") return color02
-        if (id === "color03") return color03
-        if (id === "color04") return color04
-        if (id === "color05") return color05
-        if (id === "color06") return color06
-        if (id === "color07") return color07
-        if (id === "foreground") return foregroundSoft
-        if (id === "accent") return accentHint
-        return color01
-    }
-    function normalizedPaletteId(id) {
-        if (id === "red" || id === "accent") return "color01"
-        return paletteColorValid(id) ? id : "color01"
-    }
+    function paletteColor(id) { return ThemePalette.paletteColor(theme, {}, id) }
+    function normalizedPaletteId(id) { return ThemePalette.normalizedPaletteId(theme, {}, id) }
     readonly property color seal: paletteColor(barColor)
     readonly property var barColorOptions: [
         "color01", "color02", "color03", "color04",
         "color05", "color06", "color07", "foreground"
     ]
-    function paletteColorValid(id) {
-        return id === "color01" || id === "color02" || id === "color03"
-            || id === "color04" || id === "color05" || id === "color06"
-            || id === "color07" || id === "foreground"
-    }
-    function barColorValid(id) {
-        return paletteColorValid(id) || id === "red" || id === "accent"
-    }
-    function barColorLabel(id) {
-        if (id === "color01" || id === "red" || id === "accent") return "Color 01"
-        if (id === "color02") return "Color 02"
-        if (id === "color03") return "Color 03"
-        if (id === "color04") return "Color 04"
-        if (id === "color05") return "Color 05"
-        if (id === "color06") return "Color 06"
-        if (id === "color07") return "Color 07"
-        if (id === "foreground") return "Foreground"
-        return "Color 01"
-    }
-    function _linearColorChannel(v) {
-        return v <= 0.04045 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
-    }
-    function _relativeLuminance(c) {
-        return 0.2126 * _linearColorChannel(c.r)
-             + 0.7152 * _linearColorChannel(c.g)
-             + 0.0722 * _linearColorChannel(c.b)
-    }
-    function _contrastRatio(a, b) {
-        var la = _relativeLuminance(a)
-        var lb = _relativeLuminance(b)
-        return (Math.max(la, lb) + 0.05) / (Math.min(la, lb) + 0.05)
-    }
-    function paletteContrastColor(id) {
-        var fill = paletteColor(id)
-        return _contrastRatio(fill, paper) >= _contrastRatio(fill, ink) ? paper : ink
-    }
+    function paletteColorValid(id) { return ThemePalette.paletteColorValid(theme, {}, id) }
+    function barColorValid(id) { return ThemePalette.barColorValid(theme, {}, id) }
+    function barColorLabel(id) { return ThemePalette.barColorLabel(theme, {}, id) }
+    function _linearColorChannel(v) { return ThemePalette._linearColorChannel(theme, {}, v) }
+    function _relativeLuminance(c) { return ThemePalette._relativeLuminance(theme, {}, c) }
+    function _contrastRatio(a, b) { return ThemePalette._contrastRatio(theme, {}, a, b) }
+    function paletteContrastColor(id) { return ThemePalette.paletteContrastColor(theme, {}, id) }
 
     readonly property string mono:  "JetBrainsMono Nerd Font"
 
@@ -283,7 +206,7 @@ Item {
     // not on a dark interactive-looking box.
     readonly property color frameWeak:        Qt.rgba(ink.r, ink.g, ink.b, 0.05)
     readonly property color fillPrimaryHover: Qt.lighter(seal, 1.15)                // solid-seal button hover
-    function evenW(w) { return 2 * Math.round(w / 2) }  // even px width -> integer-centered native text (crisp)
+    function evenW(w) { return ThemeValues.evenW(theme, {}, w) }  // even px width -> integer-centered native text (crisp)
 
     // ── Multi-monitor popup routing ─────────────────────────────
     // Bars exist per screen, but panels remain singletons. The bar under the
@@ -296,7 +219,7 @@ Item {
     property var barLayoutControllers: ({})
     property bool _barLayoutSyncing: false
 
-    readonly property bool anyPopupVisible: calendarVisible || cpuVisible || gpuVisible || aiUsageVisible
+    readonly property bool anyPopupVisible: calendarVisible || cpuVisible || gpuVisible || thermalVisible || storageVisible || aiUsageVisible
         || memVisible || volVisible || controlVisible || networkVisible || bluetoothVisible
         || batteryVisible || brightnessVisible || mprisVisible || weatherVisible
         || workspaceVisible || vpnVisible || imagePickerVisible || mediaBrowserVisible || notifVisible
@@ -304,58 +227,15 @@ Item {
         || wallpaperManagerVisible || displayManagerVisible
     readonly property bool keyboardPopupVisible: imagePickerVisible || mediaBrowserVisible || wallpaperManagerVisible || displayManagerVisible
 
-    function registerBarLayoutController(screenName, controller) {
-        if (!screenName || !controller) return
+    function registerBarLayoutController(screenName, controller) { return ThemePanels.registerBarLayoutController(theme, {}, screenName, controller) }
 
-        var next = {}
-        for (var screen in barLayoutControllers) next[screen] = barLayoutControllers[screen]
-        next[screenName] = controller
-        barLayoutControllers = next
-    }
+    function unregisterBarLayoutController(screenName, controller) { return ThemePanels.unregisterBarLayoutController(theme, {}, screenName, controller) }
 
-    function unregisterBarLayoutController(screenName, controller) {
-        if (!screenName) return
-        if (controller && barLayoutControllers[screenName] !== controller) return
+    function barLayoutControllerScreenValid(screenName) { return ThemeIntegrations.barLayoutControllerScreenValid(theme, {Quickshell: Quickshell}, screenName) }
 
-        var next = {}
-        for (var screen in barLayoutControllers) {
-            if (screen !== screenName) next[screen] = barLayoutControllers[screen]
-        }
-        barLayoutControllers = next
-    }
+    function barLayoutControllerKeys() { return ThemeIntegrations.barLayoutControllerKeys(theme, {}) }
 
-    function barLayoutControllerScreenValid(screenName) {
-        if (!screenName) return false
-
-        for (var i = 0; i < Quickshell.screens.length; i++) {
-            var screen = Quickshell.screens[i]
-            if (screen.name === screenName && screen.width > 0 && screen.height > 0) return true
-        }
-        return false
-    }
-
-    function barLayoutControllerKeys() {
-        var keys = []
-        for (var screen in barLayoutControllers) {
-            if (barLayoutControllerScreenValid(screen)) keys.push(screen)
-        }
-        keys.sort()
-        return keys
-    }
-
-    function applyToBarLayoutControllers(actionName) {
-        var keys = barLayoutControllerKeys()
-
-        _barLayoutSyncing = true
-        try {
-            for (var i = 0; i < keys.length; i++) {
-                var controller = barLayoutControllers[keys[i]]
-                if (controller && controller[actionName]) controller[actionName]()
-            }
-        } finally {
-            _barLayoutSyncing = false
-        }
-    }
+    function applyToBarLayoutControllers(actionName) { return ThemePanels.applyToBarLayoutControllers(theme, {}, actionName) }
 
     function syncBarSplits(sourceScreenName, serialized) {
         if (_barLayoutSyncing || !serialized) return
@@ -373,21 +253,7 @@ Item {
         }
     }
 
-    function syncBarOrder(sourceScreenName, serialized) {
-        if (_barLayoutSyncing || !serialized) return
-
-        _barLayoutSyncing = true
-        try {
-            var keys = barLayoutControllerKeys()
-            for (var i = 0; i < keys.length; i++) {
-                if (keys[i] === sourceScreenName) continue
-                var controller = barLayoutControllers[keys[i]]
-                if (controller && controller.applyOrder) controller.applyOrder(serialized)
-            }
-        } finally {
-            _barLayoutSyncing = false
-        }
-    }
+    function syncBarOrder(sourceScreenName, serialized) { return ThemePanels.syncBarOrder(theme, {}, sourceScreenName, serialized) }
 
     function splitAllBars() {
         applyToBarLayoutControllers("splitAll")
@@ -409,6 +275,8 @@ Item {
                    || compactBrightness !== defaults.compactBrightness
                    || compactCpu !== defaults.compactCpu
                    || compactGpu !== defaults.compactGpu
+                   || compactTemperature !== defaults.compactTemperature
+                   || compactStorage !== defaults.compactStorage
                    || compactMemory !== defaults.compactMemory
                    || compactVolume !== defaults.compactVolume
                    || compactBluetooth !== defaults.compactBluetooth
@@ -422,6 +290,8 @@ Item {
         compactBrightness = defaults.compactBrightness
         compactCpu = defaults.compactCpu
         compactGpu = defaults.compactGpu
+        compactTemperature = defaults.compactTemperature
+        compactStorage = defaults.compactStorage
         compactMemory = defaults.compactMemory
         compactVolume = defaults.compactVolume
         compactBluetooth = defaults.compactBluetooth
@@ -433,58 +303,11 @@ Item {
         if (changed && _widgetsLoaded) saveWidgets()
     }
 
-    function activatePopupScreen(screen) {
-        if (!screen || screen.name === "") return
+    function activatePopupScreen(screen) { return ThemePanels.activatePopupScreen(theme, {}, screen) }
 
-        activePopupScreen = screen
-        activePopupScreenName = screen.name
-        applyActiveBarAnchors()
-    }
+    function activateFocusedPopupScreen() { return ThemePanels.activateFocusedPopupScreen(theme, {Hyprland: Hyprland, Quickshell: Quickshell}) }
 
-    function activateFocusedPopupScreen() {
-        var monitor = Hyprland.focusedMonitor
-        var targetName = monitor ? monitor.name : ""
-
-        for (var i = 0; i < Quickshell.screens.length; i++) {
-            var candidate = Quickshell.screens[i]
-            if (candidate.name === targetName
-                    && candidate.width > 0
-                    && candidate.height > 0) {
-                activatePopupScreen(candidate)
-                return true
-            }
-        }
-
-        if (activePopupScreenName !== "") return true
-
-        for (var j = 0; j < Quickshell.screens.length; j++) {
-            var fallback = Quickshell.screens[j]
-            if (fallback.name !== ""
-                    && fallback.width > 0
-                    && fallback.height > 0) {
-                activatePopupScreen(fallback)
-                return true
-            }
-        }
-
-        return false
-    }
-
-    function activatePopupScreenByName(screenName) {
-        if (screenName) {
-            for (var i = 0; i < Quickshell.screens.length; i++) {
-                var candidate = Quickshell.screens[i]
-                if (candidate.name === screenName
-                        && candidate.width > 0
-                        && candidate.height > 0) {
-                    activatePopupScreen(candidate)
-                    return true
-                }
-            }
-        }
-
-        return activateFocusedPopupScreen()
-    }
+    function activatePopupScreenByName(screenName) { return ThemePanels.activatePopupScreenByName(theme, {Quickshell: Quickshell}, screenName) }
 
     Connections {
         target: Hyprland
@@ -500,9 +323,7 @@ Item {
         }
     }
 
-    function isActivePopupScreenName(screenName) {
-        return activePopupScreenName !== "" && screenName === activePopupScreenName
-    }
+    function isActivePopupScreenName(screenName) { return ThemePanels.isActivePopupScreenName(theme, {}, screenName) }
 
     function applyAnchor(name, x) {
         if (name === "tray") trayBarX = x
@@ -515,6 +336,8 @@ Item {
         else if (name === "memory") memoryBarX = x
         else if (name === "cpu") cpuBarX = x
         else if (name === "gpu") gpuBarX = x
+        else if (name === "thermal") thermalBarX = x
+        else if (name === "storage") storageBarX = x
         else if (name === "ai") aiBarX = x
         else if (name === "workspace") workspaceBarX = x
         else if (name === "arch") archBarX = x
@@ -527,46 +350,19 @@ Item {
         else if (name === "trayMenu") trayMenuX = x
     }
 
-    function applyActiveBarAnchors() {
-        var anchors = activePopupScreenName ? barAnchorsByScreen[activePopupScreenName] : null
-        if (!anchors) return
+    function applyActiveBarAnchors() { return ThemePanels.applyActiveBarAnchors(theme, {}) }
 
-        for (var name in anchors) applyAnchor(name, anchors[name])
-    }
+    function publishBarAnchors(screenName, anchors) { return ThemePanels.publishBarAnchors(theme, {}, screenName, anchors) }
 
-    function publishBarAnchors(screenName, anchors) {
-        if (!screenName || !anchors) return
-
-        var next = {}
-        for (var screen in barAnchorsByScreen) next[screen] = barAnchorsByScreen[screen]
-        next[screenName] = anchors
-        barAnchorsByScreen = next
-
-        if (screenName === activePopupScreenName) applyActiveBarAnchors()
-    }
-
-    function setPanelAnchor(name, x, screenName) {
-        var targetScreen = screenName || activePopupScreenName
-        if (targetScreen) {
-            var next = {}
-            for (var screen in barAnchorsByScreen) next[screen] = barAnchorsByScreen[screen]
-
-            var current = next[targetScreen] || {}
-            var anchors = {}
-            for (var key in current) anchors[key] = current[key]
-            anchors[name] = x
-            next[targetScreen] = anchors
-            barAnchorsByScreen = next
-        }
-
-        if (!targetScreen || targetScreen === activePopupScreenName) applyAnchor(name, x)
-    }
+    function setPanelAnchor(name, x, screenName) { return ThemePanels.setPanelAnchor(theme, {}, name, x, screenName) }
 
     function closePopups(except) {
         _closingPopups = true
         if (except !== "calendarVisible") calendarVisible = false
         if (except !== "cpuVisible") cpuVisible = false
         if (except !== "gpuVisible") gpuVisible = false
+        if (except !== "thermalVisible") thermalVisible = false
+        if (except !== "storageVisible") storageVisible = false
         if (except !== "aiUsageVisible") aiUsageVisible = false
         if (except !== "memVisible") memVisible = false
         if (except !== "volVisible") volVisible = false
@@ -596,44 +392,13 @@ Item {
         if (!_closingPopups && theme[prop]) closePopups(prop)
     }
 
-    function openImagePicker(mode, screen) {
-        if (imagePickerVisible && imagePickerMode !== mode)
-            imagePickerVisible = false
-        if (screen && screen.name !== "") activatePopupScreen(screen)
-        else activateFocusedPopupScreen()
-        mediaBrowserVisible = false
-        imagePickerMode = mode
-        imagePickerVisible = true
-    }
+    function openImagePicker(mode, screen) { return ThemeValues.openImagePicker(theme, {}, mode, screen) }
 
-    function toggleWallpaperManager(screen, anchorItem) {
-        if (wallpaperManagerVisible) { wallpaperManagerVisible = false; return }
-        if (screen && screen.name !== "") activatePopupScreen(screen)
-        else activateFocusedPopupScreen()
-        wallpaperManagerDisplay = wallpaperManagerSettings.perDisplayConfig && activePopupScreen
-            ? String(activePopupScreen.name) : "all"
-        var point = anchorItem ? anchorItem.mapToGlobal(anchorItem.width / 2, anchorItem.height) : null
-        wallpaperManagerAnchorX = point ? point.x - activePopupScreen.x : activePopupScreen.width / 2
-        wallpaperManagerAnchorY = point ? point.y - activePopupScreen.y : 32
-        closePopups("wallpaperManagerVisible")
-        wallpaperManagerVisible = true
-    }
+    function toggleWallpaperManager(screen, anchorItem) { return ThemeWallpaper.toggleWallpaperManager(theme, {}, screen, anchorItem) }
 
-    function toggleImagePicker(mode, screen) {
-        if (imagePickerVisible && imagePickerMode === mode) {
-            imagePickerVisible = false
-            return
-        }
+    function toggleImagePicker(mode, screen) { return ThemeValues.toggleImagePicker(theme, {}, mode, screen) }
 
-        openImagePicker(mode, screen)
-    }
-
-    function openMediaBrowser(mode) {
-        activateFocusedPopupScreen()
-        imagePickerVisible = false
-        mediaBrowserMode = mode
-        mediaBrowserVisible = true
-    }
+    function openMediaBrowser(mode) { return ThemeValues.openMediaBrowser(theme, {}, mode) }
 
     // ── pill/card border (default, non-borderless mode) ──
     // A premium "inactive window border" look: the surface tone (paper) nudged a
@@ -686,29 +451,12 @@ Item {
     property bool tooltipShown: false
     property var tooltipOwner: null   // the widget currently owning the tooltip
 
-    function showTooltip(text, x, topY, bottomY, owner) {
-        if (!text) return;
-        tooltipText = text;
-        tooltipX = x;
-        tooltipTopY = topY;
-        tooltipBottomY = bottomY;
-        tooltipY = (topY + bottomY) / 2;
-        tooltipOwner = owner !== undefined ? owner : null;
-        tooltipShown = true;
-    }
+    function showTooltip(text, x, topY, bottomY, owner) { return ThemePanels.showTooltip(theme, {}, text, x, topY, bottomY, owner) }
 
     // hide only if the caller owns the current tooltip (owner match is stable
     // even when the tooltip text changes, e.g. a live timer). A null/undefined
     // owner force-hides. Legacy string args fall back to a text match.
-    function hideTooltip(owner) {
-        if (owner === undefined || owner === null) {
-            tooltipShown = false; tooltipOwner = null;
-        } else if (typeof owner === "object") {
-            if (tooltipOwner === owner) { tooltipShown = false; tooltipOwner = null; }
-        } else if (tooltipText === owner) {
-            tooltipShown = false; tooltipOwner = null;
-        }
-    }
+    function hideTooltip(owner) { return ThemePanels.hideTooltip(theme, {}, owner) }
 
     // safety net: if the owning widget disappears while its tooltip is shown
     // (e.g. ScreenRecord stops mid-hover, or a slot widget gets disabled), force-hide.
@@ -763,12 +511,7 @@ Item {
         return String(d.getFullYear());
     }
 
-    function openCalendar() {
-        calendarMonthOffset = 0;
-        calendarTick++;
-        selectedDay = (new Date()).getDate();
-        calendarVisible = true;
-    }
+    function openCalendar() { return ThemePanels.openCalendar(theme, {}) }
 
     // ── CPU panel state ──
     property bool cpuVisible: false
@@ -850,187 +593,35 @@ Item {
 
     // F15: clamp an external 0..1 utilization to a 0–100 int (a negative/over-range value would
     // otherwise produce wrong text and negative/overwide usage bars)
-    function aiPct(v) { return Math.max(0, Math.min(100, Math.round((parseFloat(v) || 0) * 100))) }
+    function aiPct(v) { return ThemeValues.aiPct(theme, {}, v) }
 
-    function aiWindowLabel(minutes) {
-        if (minutes === 300) return "5h"
-        if (minutes === 10080) return "Weekly"
-        if (minutes > 0 && minutes % 1440 === 0) return (minutes / 1440) + "d"
-        if (minutes > 0 && minutes % 60 === 0) return (minutes / 60) + "h"
-        return minutes > 0 ? minutes + "m" : "window"
-    }
+    function aiWindowLabel(minutes) { return ThemeAiUsage.aiWindowLabel(theme, {}, minutes) }
 
-    function aiResetCodexUsage() {
-        aiCxHas = false; aiCxFresh = false
-        aiCxPct5h = 0; aiCxPct7d = 0
-        aiCxPlan = ""; aiCxTokens = ""; aiCxRate = ""; aiCxToday = 0
-        aiCxReset5hTs = 0; aiCxReset7dTs = 0
-        aiCxBuckets = []; aiCxWindows = []
-        aiCxPrimaryPct = 0; aiCxPrimaryLabel = ""; aiCxPrimaryResetTs = 0
-        aiCxQuotaPct = 0; aiCxQuotaLabel = ""
-        aiCxLimitStatus = ""; aiCxLimitReachedType = ""
-    }
+    function aiResetCodexUsage() { return ThemeValues.aiResetCodexUsage(theme, {}) }
 
-    function aiCodexWindowFromCache(w) {
-        w = w || {}
-        var minutes = parseInt(w.minutes) || 0
-        return {
-            kind: String(w.kind || ""),
-            minutes: minutes,
-            label: String(w.label || theme.aiWindowLabel(minutes)),
-            pct: theme.aiPct(w.utilization),
-            resetTs: parseInt(w.reset) || 0
-        }
-    }
+    function aiCodexWindowFromCache(w) { return ThemeAiUsage.aiCodexWindowFromCache(theme, {}, w) }
 
-    function aiCodexWindowsFromArray(arr) {
-        var out = []
-        if (!arr || arr.length === undefined) return out
-        for (var i = 0; i < arr.length; i++) {
-            out.push(theme.aiCodexWindowFromCache(arr[i]))
-        }
-        return out
-    }
+    function aiCodexWindowsFromArray(arr) { return ThemeAiUsage.aiCodexWindowsFromArray(theme, {}, arr) }
 
-    function aiCodexLegacyWindowsFromCache(d) {
-        var out = []
-        if (!d) return out
-        var has5 = d["5h-utilization"] !== undefined && String(d["5h-utilization"]) !== ""
-        var has7 = d["7d-utilization"] !== undefined && String(d["7d-utilization"]) !== ""
-        if (has5 || parseInt(d["5h-reset"]) > 0)
-            out.push({ kind: "primary", minutes: 300, label: "5h", pct: theme.aiPct(d["5h-utilization"]), resetTs: parseInt(d["5h-reset"]) || 0 })
-        if (has7 || parseInt(d["7d-reset"]) > 0)
-            out.push({ kind: "secondary", minutes: 10080, label: "Weekly", pct: theme.aiPct(d["7d-utilization"]), resetTs: parseInt(d["7d-reset"]) || 0 })
-        return out
-    }
+    function aiCodexLegacyWindowsFromCache(d) { return ThemeAiUsage.aiCodexLegacyWindowsFromCache(theme, {}, d) }
 
-    function aiCodexBucketsFromCache(d) {
-        var buckets = []
-        if (d && parseInt(d.schemaVersion) === 3 && d.buckets && d.buckets.length !== undefined) {
-            for (var i = 0; i < d.buckets.length; i++) {
-                var b = d.buckets[i] || {}
-                var windows = theme.aiCodexWindowsFromArray(b.windows)
-                if (windows.length === 0) continue
-                buckets.push({
-                    id: String(b.id || ""),
-                    label: String(b.label || b.id || "Codex"),
-                    isGeneral: b.isGeneral === true,
-                    windows: windows,
-                    plan: String(b.plan || ""),
-                    rateLimitReachedType: String(b.rateLimitReachedType || "")
-                })
-            }
-        } else if (d && parseInt(d.schemaVersion) === 2 && d.windows && d.windows.length !== undefined) {
-            var win2 = theme.aiCodexWindowsFromArray(d.windows)
-            if (win2.length > 0)
-                buckets.push({ id: "codex", label: "Codex", isGeneral: true, windows: win2, plan: String(d._plan || "") })
-        } else {
-            var legacy = theme.aiCodexLegacyWindowsFromCache(d)
-            if (legacy.length > 0)
-                buckets.push({ id: "codex", label: "Codex", isGeneral: true, windows: legacy, plan: String((d && d._plan) || "") })
-        }
-        return buckets
-    }
+    function aiCodexBucketsFromCache(d) { return ThemeAiUsage.aiCodexBucketsFromCache(theme, {}, d) }
 
-    function aiCodexGeneralBucket(buckets) {
-        for (var i = 0; i < buckets.length; i++) {
-            if (buckets[i].isGeneral === true || buckets[i].id === "codex") return buckets[i]
-        }
-        return { windows: [] }
-    }
+    function aiCodexGeneralBucket(buckets) { return ThemeAiUsage.aiCodexGeneralBucket(theme, {}, buckets) }
 
-    function aiPlanLabel(plan) {
-        var p = String(plan || "").toLowerCase()
-        if (p === "prolite") return "Pro Lite"
-        if (p === "pro") return "Pro"
-        if (p === "plus") return "Plus"
-        if (p === "team" || p === "business") return "Business"
-        if (p === "enterprise") return "Enterprise"
-        if (p === "edu") return "Edu"
-        if (p === "free") return "Free"
-        return String(plan || "")
-    }
+    function aiPlanLabel(plan) { return ThemeAiUsage.aiPlanLabel(theme, {}, plan) }
 
-    function aiApplyCodexCache(d, ageOk) {
-        var buckets = theme.aiCodexBucketsFromCache(d)
-        var general = theme.aiCodexGeneralBucket(buckets)
-        var windows = general.windows || []
-        theme.aiCxHas = windows.length > 0
-        theme.aiCxFresh = ageOk && d._source !== "stale"
-        theme.aiCxBuckets = buckets
-        theme.aiCxWindows = windows
-        theme.aiCxPlan = theme.aiPlanLabel(d._plan || general.plan || "")
-        theme.aiCxPct5h = 0; theme.aiCxPct7d = 0
-        theme.aiCxReset5hTs = 0; theme.aiCxReset7dTs = 0
-        theme.aiCxQuotaPct = 0
-        theme.aiCxQuotaLabel = ""
-        theme.aiCxLimitStatus = String(d.status || "")
-        theme.aiCxLimitReachedType = String(d._limit_reached_type || general.rateLimitReachedType || "")
-        for (var i = 0; i < windows.length; i++) {
-            var w = windows[i]
-            if (i === 0) {
-                theme.aiCxPrimaryPct = w.pct
-                theme.aiCxPrimaryLabel = w.label
-                theme.aiCxPrimaryResetTs = w.resetTs
-            }
-            if (w.minutes === 300) { theme.aiCxPct5h = w.pct; theme.aiCxReset5hTs = w.resetTs }
-            else if (w.minutes === 10080) { theme.aiCxPct7d = w.pct; theme.aiCxReset7dTs = w.resetTs }
-            if (w.pct > theme.aiCxQuotaPct) {
-                theme.aiCxQuotaPct = w.pct
-                theme.aiCxQuotaLabel = String(general.label || "Codex") + " " + String(w.label || "window")
-            }
-        }
-        if (windows.length === 0) {
-            theme.aiCxPrimaryPct = 0
-            theme.aiCxPrimaryLabel = ""
-            theme.aiCxPrimaryResetTs = 0
-        }
-        var cxRateH = Math.round((d["_rate_per_hour"] || 0) / 1000)
-        theme.aiCxRate = cxRateH > 0 ? cxRateH + "k tok/h" : ""
-        theme.aiCxToday = parseInt(d._today_tokens) || 0
-        theme.aiCxTokens = ""
-    }
+    function aiApplyCodexCache(d, ageOk) { return ThemeAiUsage.aiApplyCodexCache(theme, {}, d, ageOk) }
 
-    function aiCodexStatusLabel(status, reachedType) {
-        if (status === "rejected")
-            return reachedType ? "reached (" + reachedType + ")" : "reached"
-        if (status === "allowed_warning") return "warning"
-        if (status === "allowed") return "ok (not reached)"
-        return "unknown"
-    }
+    function aiCodexStatusLabel(status, reachedType) { return ThemeAiUsage.aiCodexStatusLabel(theme, {}, status, reachedType) }
 
-    function aiFmtReset(ts) {
-        void aiClockTick
-        var now = Date.now() / 1000
-        if (!(ts > now)) return ""
-        var mins = Math.round((ts - now) / 60)
-        if (mins < 60) return mins + "m"
-        var h = Math.floor(mins / 60), m = mins % 60
-        if (h < 24) return h + "h " + m + "m"
-        var d = Math.floor(h / 24); return d + "d " + (h % 24) + "h"
-    }
+    function aiFmtReset(ts) { return ThemeAiUsage.aiFmtReset(theme, {aiClockTick: aiClockTick}, ts) }
 
-    function aiPad2(n) { return n < 10 ? "0" + n : "" + n }
+    function aiPad2(n) { return ThemeValues.aiPad2(theme, {}, n) }
 
-    function aiFmtResetClock(ts) {
-        void aiClockTick
-        if (!(ts > Date.now() / 1000)) return ""
-        var d = new Date(ts * 1000)
-        var now = new Date()
-        var day0 = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-        var resetDay0 = new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime()
-        var dayDelta = Math.round((resetDay0 - day0) / 86400000)
-        var time = aiPad2(d.getHours()) + ":" + aiPad2(d.getMinutes())
-        if (dayDelta <= 0) return time
-        var days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
-        return days[d.getDay()] + " " + time
-    }
+    function aiFmtResetClock(ts) { return ThemeAiUsage.aiFmtResetClock(theme, {aiClockTick: aiClockTick}, ts) }
 
-    function aiFmtResetDetail(ts) {
-        var rel = aiFmtReset(ts)
-        var clock = aiFmtResetClock(ts)
-        return rel && clock ? rel + " • " + clock : (rel || clock)
-    }
+    function aiFmtResetDetail(ts) { return ThemeAiUsage.aiFmtResetDetail(theme, {}, ts) }
 
     Process {
         id: aiReadClaude
@@ -1084,45 +675,11 @@ Item {
         }
     }
 
-    function aiResetCopilotUsage() {
-        aiCpHas = false; aiCpFresh = false
-        aiCpPct = 0; aiCpLabel = ""
-        aiCpResetTs = 0; aiCpPlan = ""; aiCpSku = ""
-        aiCpUnlimited = false
-        aiCpCreditsUsed = 0; aiCpCreditsEntitlement = 0
-        aiCpLimitReachedType = ""; aiCpStatus = ""
-    }
+    function aiResetCopilotUsage() { return ThemeValues.aiResetCopilotUsage(theme, {}) }
 
     // Copilot writes the same schemaVersion-3 bucket/window shape as Codex, so the
     // generic window normalizer is reused instead of re-deriving percentages.
-    function aiApplyCopilotCache(d, ageOk) {
-        if (!d) { theme.aiResetCopilotUsage(); return }
-        var windows = theme.aiCodexWindowsFromArray(d.windows)
-        if (windows.length === 0) windows = theme.aiCodexWindowsFromArray((d.buckets || [])[0] ? ((d.buckets || [])[0]).windows : [])
-        theme.aiCpHas = windows.length > 0
-        theme.aiCpFresh = ageOk && d._source !== "stale"
-        theme.aiCpPlan = String(d._plan || "")
-        theme.aiCpSku = String(d._sku || "")
-        theme.aiCpUnlimited = d._unlimited === true
-        theme.aiCpCreditsUsed = parseInt(d._credits_used) || 0
-        theme.aiCpCreditsEntitlement = parseInt(d._credits_entitlement) || 0
-        theme.aiCpLimitReachedType = String(d._limit_reached_type || "")
-        theme.aiCpStatus = String(d.status || "")
-        if (windows.length === 0) {
-            theme.aiCpPct = 0; theme.aiCpLabel = ""; theme.aiCpResetTs = 0
-            return
-        }
-        // Copilot reports exactly one window; take the widest as the headline one.
-        var best = windows[0]
-        for (var i = 1; i < windows.length; i++) {
-            if (windows[i].minutes > best.minutes) best = windows[i]
-        }
-        theme.aiCpPct = best.pct
-        if (!theme.aiCpUnlimited && theme.aiCpCreditsEntitlement > 0)
-            theme.aiCpPct = Math.max(0, Math.min(100, Math.round(theme.aiCpCreditsUsed / theme.aiCpCreditsEntitlement * 100)))
-        theme.aiCpLabel = best.label
-        theme.aiCpResetTs = best.resetTs
-    }
+    function aiApplyCopilotCache(d, ageOk) { return ThemeAiUsage.aiApplyCopilotCache(theme, {}, d, ageOk) }
 
     Process {
         id: aiReadOpenCode
@@ -1175,22 +732,7 @@ Item {
         }
     }
 
-    function refreshAiUsage(selectedOnly) {
-        aiClockTick++
-        var only = selectedOnly === true
-        if (!only || aiTool === "claude") {
-            aiReadClaude.running = false; aiReadClaude.running = true
-        }
-        if (!only || aiTool === "codex") {
-            aiReadCodex.running = false;  aiReadCodex.running = true
-        }
-        if (!only || aiTool === "opencode") {
-            aiReadOpenCode.running = false; aiReadOpenCode.running = true
-        }
-        if (!only || aiTool === "copilot") {
-            aiReadCopilot.running = false; aiReadCopilot.running = true
-        }
-    }
+    function refreshAiUsage(selectedOnly) { return ThemeValues.refreshAiUsage(theme, {aiReadClaude: aiReadClaude, aiReadCodex: aiReadCodex, aiReadOpenCode: aiReadOpenCode, aiReadCopilot: aiReadCopilot}, selectedOnly) }
 
     Timer {
         // 30s normally; 5s while the AI panel is open (responsive when looked at)
@@ -1199,203 +741,91 @@ Item {
         onTriggered: theme.refreshAiUsage(theme.aiUsageVisible)
     }
 
-    // ── Central system telemetry ──
-    // One ShellRoot-level sampler feeds all monitor BarSlots. This replaces
-    // per-widget bash/awk polling for CPU and memory, so adding monitors does not
-    // multiply these status process chains.
-    property int systemCpuPercent: 0
-    property var systemCpuHistory: []
-    readonly property int systemCpuMaxSamples: 30
-    property real _systemCpuPrevIdle: -1
-    property real _systemCpuPrevTotal: -1
-
-    property int systemMemTotalMiB: 0
-    property int systemMemAvailMiB: 0
-    property int systemMemFreeMiB: 0
-    property int systemMemBuffersMiB: 0
-    property int systemMemCachedMiB: 0
-    readonly property int systemMemUsedMiB: Math.max(0, systemMemTotalMiB - systemMemAvailMiB)
-    readonly property int systemMemPercent: systemMemTotalMiB > 0
-        ? Math.max(0, Math.min(100, Math.round(systemMemUsedMiB / systemMemTotalMiB * 100)))
-        : 0
-    readonly property real systemMemUsedGiB: systemMemUsedMiB / 1024
-    readonly property real systemMemTotalGiB: systemMemTotalMiB / 1024
-
-    property int systemCpuUserPercent: 0
-    property int systemCpuSystemPercent: 0
-    property int systemCpuIoWaitPercent: 0
-    property real _systemCpuPrevUser: -1
-    property real _systemCpuPrevSystem: -1
-    property real _systemCpuPrevIoWait: -1
-    property string cpuModelName: ""
-    property int cpuCoreCount: 0
-    property int cpuThreadCount: 0
-    property int cpuClockMHz: 0
-    property int cpuTemperatureC: 0
-    property int cpuMaxClockMHz: 0
-    property string cpuEnergyPreference: ""
-    property string cpuScalingGovernor: ""
-    property int cpuThrottleCount: 0
-    property real systemLoad1: 0
-    property real systemLoad5: 0
-    property real systemLoad15: 0
-    property string kernelRelease: ""
-    property var cpuTopProcesses: []
-
-    function parseSystemCpu(text) {
-        var lines = String(text || "").split("\n")
-        if (lines.length === 0 || lines[0].indexOf("cpu ") !== 0) return
-        var parts = lines[0].trim().split(/\s+/)
-        if (parts.length < 8) return
-
-        function field(index) {
-            var value = parseFloat(parts[index])
-            return isNaN(value) ? 0 : value
-        }
-        var user = field(1) + field(2)
-        var system = field(3) + field(6) + field(7) + field(8)
-        var ioWait = field(5)
-        var idle = field(4) + ioWait
-        var total = 0
-        for (var i = 1; i < parts.length; i++) {
-            var v = parseFloat(parts[i])
-            if (!isNaN(v)) total += v
-        }
-        if (isNaN(idle) || isNaN(total) || total <= 0) return
-
-        if (_systemCpuPrevTotal >= 0 && total > _systemCpuPrevTotal) {
-            var totalDelta = total - _systemCpuPrevTotal
-            var idleDelta = idle - _systemCpuPrevIdle
-            var busy = totalDelta > 0 ? Math.round((totalDelta - idleDelta) / totalDelta * 100) : 0
-            systemCpuPercent = Math.max(0, Math.min(100, busy))
-            var h = systemCpuHistory.slice()
-            h.push(systemCpuPercent / 100)
-            if (h.length > systemCpuMaxSamples) h.shift()
-            systemCpuHistory = h
-            systemCpuUserPercent = Math.max(0, Math.min(100,
-                Math.round((user - _systemCpuPrevUser) / totalDelta * 100)))
-            systemCpuSystemPercent = Math.max(0, Math.min(100,
-                Math.round((system - _systemCpuPrevSystem) / totalDelta * 100)))
-            systemCpuIoWaitPercent = Math.max(0, Math.min(100,
-                Math.round((ioWait - _systemCpuPrevIoWait) / totalDelta * 100)))
-        }
-
-        _systemCpuPrevIdle = idle
-        _systemCpuPrevTotal = total
-        _systemCpuPrevUser = user
-        _systemCpuPrevSystem = system
-        _systemCpuPrevIoWait = ioWait
-    }
-
-    function parseCpuInfo(text) {
-        var blocks = String(text || "").trim().split(/\n\s*\n/)
-        var model = ""
-        var threads = 0
-        var cores = {}
-        var fallbackCores = 0
-
-        for (var i = 0; i < blocks.length; i++) {
-            var lines = blocks[i].split("\n")
-            var physical = "0"
-            var core = ""
-            var processorFound = false
-            for (var j = 0; j < lines.length; j++) {
-                var splitAt = lines[j].indexOf(":")
-                if (splitAt < 0) continue
-                var key = lines[j].slice(0, splitAt).trim()
-                var value = lines[j].slice(splitAt + 1).trim()
-                if (key === "processor") processorFound = true
-                else if ((key === "model name" || key === "Hardware") && model === "") model = value
-                else if (key === "physical id") physical = value
-                else if (key === "core id") core = value
-                else if (key === "cpu cores" && fallbackCores === 0) fallbackCores = parseInt(value) || 0
-            }
-            if (processorFound) threads++
-            if (core !== "") cores[physical + ":" + core] = true
-        }
-
-        cpuModelName = model.replace(/\(R\)|\(TM\)/g, "")
-            .replace(/\s+CPU\s+@\s+.*$/, "").replace(/\s+/g, " ").trim()
-        cpuThreadCount = threads
-        var coreKeys = Object.keys(cores)
-        cpuCoreCount = coreKeys.length > 0 ? coreKeys.length : fallbackCores
-    }
-
-    function parseSystemLoad(text) {
-        var fields = String(text || "").trim().split(/\s+/)
-        if (fields.length < 3) return
-        systemLoad1 = parseFloat(fields[0]) || 0
-        systemLoad5 = parseFloat(fields[1]) || 0
-        systemLoad15 = parseFloat(fields[2]) || 0
-    }
-
-    function parseCpuDetail(text) {
-        var fields = String(text || "").trim().split("|")
-        cpuTemperatureC = Math.max(0, parseInt(fields[5]) || 0)
-        if (fields.length < 5) return
-        cpuClockMHz = Math.max(0, parseInt(fields[0]) || 0)
-        cpuMaxClockMHz = Math.max(0, parseInt(fields[1]) || 0)
-        cpuEnergyPreference = String(fields[2] || "").trim()
-        cpuScalingGovernor = String(fields[3] || "").trim()
-        cpuThrottleCount = Math.max(0, parseInt(fields[4]) || 0)
-    }
-
-    function parseCpuTopProcesses(text) {
-        var lines = String(text || "").split("\n")
-        var processes = []
-        for (var i = 0; i < lines.length && processes.length < 3; i++) {
-            var match = lines[i].trim().match(/^(.*\S)\s+([0-9]+(?:[.,][0-9]+)?)$/)
-            if (!match || match[1] === "ps") continue
-            var percent = parseFloat(match[2].replace(",", "."))
-            if (isNaN(percent)) continue
-            processes.push({ name: match[1], percent: percent })
-        }
-        cpuTopProcesses = processes
-    }
-
-    function parseSystemMem(text) {
-        var total = 0, avail = 0, free = 0, buffers = 0, cached = 0
-        var lines = String(text || "").split("\n")
-        for (var i = 0; i < lines.length; i++) {
-            var parts = lines[i].trim().split(/\s+/)
-            if (parts.length < 2) continue
-            var value = parseInt(parts[1])
-            if (isNaN(value)) continue
-            if (parts[0] === "MemTotal:") total = value
-            else if (parts[0] === "MemAvailable:") avail = value
-            else if (parts[0] === "MemFree:") free = value
-            else if (parts[0] === "Buffers:") buffers = value
-            else if (parts[0] === "Cached:") cached = value
-        }
-        if (total <= 0) return
-        systemMemTotalMiB = Math.round(total / 1024)
-        systemMemAvailMiB = Math.round(avail / 1024)
-        systemMemFreeMiB = Math.round(free / 1024)
-        systemMemBuffersMiB = Math.round(buffers / 1024)
-        systemMemCachedMiB = Math.round(cached / 1024)
-    }
-
-    FileView {
-        id: systemCpuFile
-        path: "/proc/stat"
-        onLoaded: theme.parseSystemCpu(systemCpuFile.text())
-    }
-
-    FileView {
-        id: systemMemFile
-        path: "/proc/meminfo"
-        onLoaded: theme.parseSystemMem(systemMemFile.text())
-    }
-
-    Timer {
-        interval: (theme.modCpu || theme.cpuVisible || theme.modMemory || theme.memVisible) ? 2000 : 10000
-        running: true; repeat: true; triggeredOnStart: true
-        onTriggered: {
-            systemCpuFile.reload()
-            systemLoadFile.reload()
-            systemMemFile.reload()
-        }
-    }
+    CommonServices.SystemTelemetry { id: systemTelemetry; owner: theme; cpuDetailsInBar: true }
+    property alias systemCpuHistory: systemTelemetry.systemCpuHistory
+    readonly property alias systemCpuMaxSamples: systemTelemetry.systemCpuMaxSamples
+    property alias gpuHistory: systemTelemetry.gpuHistory
+    property alias systemCpuPercent: systemTelemetry.systemCpuPercent
+    property alias systemCpuUserPercent: systemTelemetry.systemCpuUserPercent
+    property alias systemCpuSystemPercent: systemTelemetry.systemCpuSystemPercent
+    property alias systemCpuIoWaitPercent: systemTelemetry.systemCpuIoWaitPercent
+    property alias _systemCpuPrevIdle: systemTelemetry._systemCpuPrevIdle
+    property alias _systemCpuPrevTotal: systemTelemetry._systemCpuPrevTotal
+    property alias _systemCpuPrevUser: systemTelemetry._systemCpuPrevUser
+    property alias _systemCpuPrevSystem: systemTelemetry._systemCpuPrevSystem
+    property alias _systemCpuPrevIoWait: systemTelemetry._systemCpuPrevIoWait
+    property alias cpuModelName: systemTelemetry.cpuModelName
+    property alias cpuCoreCount: systemTelemetry.cpuCoreCount
+    property alias cpuThreadCount: systemTelemetry.cpuThreadCount
+    property alias cpuClockMHz: systemTelemetry.cpuClockMHz
+    property alias cpuMaxClockMHz: systemTelemetry.cpuMaxClockMHz
+    property alias cpuEnergyPreference: systemTelemetry.cpuEnergyPreference
+    property alias cpuScalingGovernor: systemTelemetry.cpuScalingGovernor
+    property alias cpuThrottleCount: systemTelemetry.cpuThrottleCount
+    property alias systemLoad1: systemTelemetry.systemLoad1
+    property alias systemLoad5: systemTelemetry.systemLoad5
+    property alias systemLoad15: systemTelemetry.systemLoad15
+    property alias kernelRelease: systemTelemetry.kernelRelease
+    property alias cpuTopProcesses: systemTelemetry.cpuTopProcesses
+    property alias systemMemTotalMiB: systemTelemetry.systemMemTotalMiB
+    property alias systemMemAvailMiB: systemTelemetry.systemMemAvailMiB
+    property alias systemMemFreeMiB: systemTelemetry.systemMemFreeMiB
+    property alias systemMemBuffersMiB: systemTelemetry.systemMemBuffersMiB
+    property alias systemMemCachedMiB: systemTelemetry.systemMemCachedMiB
+    property alias memoryType: systemTelemetry.memoryType
+    property alias memorySpeedMTs: systemTelemetry.memorySpeedMTs
+    readonly property alias systemMemUsedMiB: systemTelemetry.systemMemUsedMiB
+    readonly property alias systemMemPercent: systemTelemetry.systemMemPercent
+    readonly property alias systemMemUsedGiB: systemTelemetry.systemMemUsedGiB
+    readonly property alias systemMemTotalGiB: systemTelemetry.systemMemTotalGiB
+    property alias gpuBackend: systemTelemetry.gpuBackend
+    property alias gpuName: systemTelemetry.gpuName
+    property alias gpuDriverVersion: systemTelemetry.gpuDriverVersion
+    property alias gpuPercent: systemTelemetry.gpuPercent
+    property alias gpuTemperatureC: systemTelemetry.gpuTemperatureC
+    property alias gpuMemoryUsedMiB: systemTelemetry.gpuMemoryUsedMiB
+    property alias gpuMemoryTotalMiB: systemTelemetry.gpuMemoryTotalMiB
+    property alias gpuClockMHz: systemTelemetry.gpuClockMHz
+    property alias gpuPowerW: systemTelemetry.gpuPowerW
+    property alias gpuPowerLimitW: systemTelemetry.gpuPowerLimitW
+    property alias gpuPerformanceState: systemTelemetry.gpuPerformanceState
+    property alias gpuFanPercent: systemTelemetry.gpuFanPercent
+    property alias gpuFanRpm: systemTelemetry.gpuFanRpm
+    readonly property alias gpuAvailable: systemTelemetry.gpuAvailable
+    property alias cpuTemperatureC: systemTelemetry.cpuTemperatureC
+    property alias cpuCoreMaxTemperatureC: systemTelemetry.cpuCoreMaxTemperatureC
+    property alias cpuTemperatureMaxC: systemTelemetry.cpuTemperatureMaxC
+    property alias cpuTemperatureCriticalC: systemTelemetry.cpuTemperatureCriticalC
+    property alias nvmeTemperatureC: systemTelemetry.nvmeTemperatureC
+    property alias nvmeTemperatureMaxC: systemTelemetry.nvmeTemperatureMaxC
+    property alias nvmeTemperatureCriticalC: systemTelemetry.nvmeTemperatureCriticalC
+    property alias memoryTemperatureC: systemTelemetry.memoryTemperatureC
+    readonly property alias cpuTemperatureAvailable: systemTelemetry.cpuTemperatureAvailable
+    property alias barTemperatureSource: systemTelemetry.barTemperatureSource
+    readonly property alias barTemperatureC: systemTelemetry.barTemperatureC
+    readonly property alias barTemperatureAvailable: systemTelemetry.barTemperatureAvailable
+    property alias storagePercent: systemTelemetry.storagePercent
+    property alias storageUsedBytes: systemTelemetry.storageUsedBytes
+    property alias storageTotalBytes: systemTelemetry.storageTotalBytes
+    property alias storageAvailable: systemTelemetry.storageAvailable
+    readonly property alias storageUsedGiB: systemTelemetry.storageUsedGiB
+    readonly property alias storageTotalGiB: systemTelemetry.storageTotalGiB
+    property alias storageDrives: systemTelemetry.storageDrives
+    property alias storageInventoryAvailable: systemTelemetry.storageInventoryAvailable
+    function barTemperatureSourceValid(source) { return ThemeValues.barTemperatureSourceValid(theme, {systemTelemetry: systemTelemetry}, source) }
+    function barTemperatureSourceLabel(source) { return ThemeValues.barTemperatureSourceLabel(theme, {systemTelemetry: systemTelemetry}, source) }
+    function barTemperatureSourceAvailable(source) { return ThemeValues.barTemperatureSourceAvailable(theme, {systemTelemetry: systemTelemetry}, source) }
+    function parseSystemCpu(text) { return ThemeValues.parseSystemCpu(theme, {systemTelemetry: systemTelemetry}, text) }
+    function parseCpuInfo(text) { return ThemeValues.parseCpuInfo(theme, {systemTelemetry: systemTelemetry}, text) }
+    function parseSystemLoad(text) { return ThemeValues.parseSystemLoad(theme, {systemTelemetry: systemTelemetry}, text) }
+    function parseCpuDetail(text) { return ThemeValues.parseCpuDetail(theme, {systemTelemetry: systemTelemetry}, text) }
+    function parseCpuTopProcesses(text) { return ThemeValues.parseCpuTopProcesses(theme, {systemTelemetry: systemTelemetry}, text) }
+    function parseSystemMem(text) { return ThemeValues.parseSystemMem(theme, {systemTelemetry: systemTelemetry}, text) }
+    function parseMemoryHardware(text) { return ThemeValues.parseMemoryHardware(theme, {systemTelemetry: systemTelemetry}, text) }
+    function parseGpuTelemetry(text) { return ThemeValues.parseGpuTelemetry(theme, {systemTelemetry: systemTelemetry}, text) }
+    function parseThermalTelemetry(text) { return ThemeValues.parseThermalTelemetry(theme, {systemTelemetry: systemTelemetry}, text) }
+    function parseStorageInventory(text) { return ThemeValues.parseStorageInventory(theme, {systemTelemetry: systemTelemetry}, text) }
+    function parseStorageTelemetry(text) { return ThemeValues.parseStorageTelemetry(theme, {systemTelemetry: systemTelemetry}, text) }
 
     // ── Memory panel state ──
     property bool memVisible: false
@@ -1496,154 +926,26 @@ Item {
 
     Process { id: splitSaveProc }   // command is set imperatively in saveSplits()
 
-    property string gpuBackend: ""
-    property string gpuName: ""
-    property string gpuDriverVersion: ""
-    property int gpuPercent: 0
-    property var gpuHistory: []
-    property int gpuTemperatureC: 0
-    property int gpuMemoryUsedMiB: 0
-    property int gpuMemoryTotalMiB: 0
-    property int gpuClockMHz: 0
-    property real gpuPowerW: 0
-    property real gpuPowerLimitW: 0
-    property string gpuPerformanceState: ""
-    property int gpuFanPercent: 0
-    property int gpuFanRpm: -1
-    readonly property bool gpuAvailable: gpuBackend !== ""
-
-    function parseGpuTelemetry(text) {
-        var fields = String(text || "").trim().split("|")
-        if (fields.length < 12 || fields[0] === "none") {
-            gpuBackend = ""
-            gpuName = ""
-            gpuDriverVersion = ""
-            gpuPercent = 0
-            gpuHistory = []
-            gpuTemperatureC = 0
-            gpuMemoryUsedMiB = 0
-            gpuMemoryTotalMiB = 0
-            gpuClockMHz = 0
-            gpuPowerW = 0
-            gpuPowerLimitW = 0
-            gpuPerformanceState = ""
-            gpuFanPercent = 0
-            gpuFanRpm = -1
-            return
-        }
-
-        function clean(value) { return String(value || "").trim() }
-        function number(value) {
-            var parsed = parseFloat(clean(value))
-            return isNaN(parsed) ? 0 : parsed
-        }
-
-        var rpm = clean(fields[12])
-        gpuFanRpm = /^\d+$/.test(rpm) ? Number(rpm) : -1
-        gpuBackend = clean(fields[0])
-        gpuName = clean(fields[1])
-        gpuDriverVersion = clean(fields[2])
-        gpuPercent = Math.max(0, Math.min(100, Math.round(number(fields[3]))))
-        var history = gpuHistory.slice(-29)
-        history.push(gpuPercent / 100)
-        gpuHistory = history
-        gpuTemperatureC = Math.max(0, Math.round(number(fields[4])))
-        gpuMemoryUsedMiB = Math.max(0, Math.round(number(fields[5])))
-        gpuMemoryTotalMiB = Math.max(0, Math.round(number(fields[6])))
-        gpuClockMHz = Math.max(0, Math.round(number(fields[7])))
-        gpuPowerW = Math.max(0, number(fields[8]))
-        gpuPowerLimitW = Math.max(0, number(fields[9]))
-        gpuPerformanceState = clean(fields[10])
-        gpuFanPercent = Math.max(0, Math.min(100, Math.round(number(fields[11]))))
-    }
-
-    Process {
-        id: gpuTelemetryProc
-        command: ["bash", "-c",
-            "if command -v nvidia-smi >/dev/null 2>&1; then "
-            + "IFS=, read -r name driver util temp used total clock power limit pstate fan < <(nvidia-smi --query-gpu=name,driver_version,utilization.gpu,temperature.gpu,memory.used,memory.total,clocks.current.graphics,power.draw,power.limit,pstate,fan.speed --format=csv,noheader,nounits 2>/dev/null | head -n1); "
-            + "if [[ $util =~ ^[[:space:]]*[0-9]+[[:space:]]*$ && $temp =~ ^[[:space:]]*[0-9]+[[:space:]]*$ && $used =~ ^[[:space:]]*[0-9]+[[:space:]]*$ && $total =~ ^[[:space:]]*[0-9]+[[:space:]]*$ ]]; then "
-            + "printf 'nvidia|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\\n' \"$name\" \"$driver\" \"$util\" \"$temp\" \"$used\" \"$total\" \"$clock\" \"$power\" \"$limit\" \"$pstate\" \"$fan\"; exit 0; fi; "
-            + "fi; "
-            + "for busy in /sys/class/drm/card*/device/gpu_busy_percent; do "
-            + "[[ -r $busy ]] || continue; read -r util < \"$busy\"; temp=0; "
-            + "for sensor in \"${busy%/gpu_busy_percent}\"/hwmon/hwmon*/temp1_input; do "
-            + "[[ -r $sensor ]] || continue; read -r raw < \"$sensor\"; temp=$((raw / 1000)); break; done; "
-            + "rpm=''; for sensor in \"${busy%/gpu_busy_percent}\"/hwmon/hwmon*/fan1_input; do "
-            + "[[ -r $sensor ]] || continue; read -r raw < \"$sensor\"; [[ $raw =~ ^[0-9]+$ ]] && rpm=$raw; break; done; "
-            + "printf 'sysfs|GPU||%s|%s|0|0|0|0|0||0|%s\\n' \"$util\" \"$temp\" \"$rpm\"; exit 0; done; "
-            + "printf 'none|||||||||||\\n'"]
-        stdout: StdioCollector { onStreamFinished: theme.parseGpuTelemetry(this.text) }
-    }
-
-    Timer {
-        interval: theme.gpuVisible ? 500 : 1000
-        repeat: true; triggeredOnStart: true
-        running: theme.modGpu || theme.gpuVisible
-        onTriggered: if (!gpuTelemetryProc.running) gpuTelemetryProc.running = true
-    }
-
-    FileView {
-        id: systemCpuInfoFile
-        path: "/proc/cpuinfo"
-        onLoaded: theme.parseCpuInfo(systemCpuInfoFile.text())
-    }
-
-    FileView {
-        id: systemLoadFile
-        path: "/proc/loadavg"
-        onLoaded: theme.parseSystemLoad(systemLoadFile.text())
-    }
-
-    FileView {
-        id: kernelReleaseFile
-        path: "/proc/sys/kernel/osrelease"
-        onLoaded: theme.kernelRelease = String(kernelReleaseFile.text() || "").trim()
-    }
-
-    Process {
-        id: cpuDetailProc
-        command: ["bash", "-c",
-            "sum=0; count=0; max=0; epp=''; governor=''; throttle=0; "
-            + "for f in /sys/devices/system/cpu/cpu[0-9]*/cpufreq/scaling_cur_freq; do [[ -r $f ]] || continue; IFS= read -r v < \"$f\"; "
-            + "[[ $v =~ ^[0-9]+$ ]] || continue; sum=$((sum + v)); count=$((count + 1)); done; "
-            + "(( count > 0 )) && avg=$((sum / count / 1000)) || avg=0; "
-            + "f=/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_max_freq; [[ -r $f ]] && { IFS= read -r v < \"$f\"; [[ $v =~ ^[0-9]+$ ]] && max=$((v / 1000)); }; "
-            + "f=/sys/devices/system/cpu/cpu0/cpufreq/energy_performance_preference; [[ -r $f ]] && IFS= read -r epp < \"$f\"; "
-            + "f=/sys/devices/system/cpu/cpu0/cpufreq/scaling_governor; [[ -r $f ]] && IFS= read -r governor < \"$f\"; "
-            + "f=/sys/devices/system/cpu/cpu0/thermal_throttle/package_throttle_count; [[ -r $f ]] && { IFS= read -r v < \"$f\"; [[ $v =~ ^[0-9]+$ ]] && throttle=$v; }; "
-            + "temp=0; for d in /sys/class/hwmon/hwmon*; do [[ -r $d/name ]] || continue; read -r name < \"$d/name\"; "
-            + "case $name in coretemp|k10temp|zenpower|cpu_thermal) "
-            + "for input in \"$d\"/temp*_input; do [[ -r $input ]] || continue; label=''; "
-            + "[[ -r ${input%_input}_label ]] && IFS= read -r label < \"${input%_input}_label\"; "
-            + "case $label in 'Package id '*|Tctl|Tdie|'CPU Package'|CPU) read -r raw < \"$input\"; "
-            + "[[ $raw =~ ^[0-9]+$ ]] && (( raw / 1000 > temp )) && temp=$((raw / 1000));; esac; done;; esac; done; "
-            + "printf '%s|%s|%s|%s|%s|%s\\n' \"$avg\" \"$max\" \"$epp\" \"$governor\" \"$throttle\" \"$temp\""]
-        stdout: StdioCollector { onStreamFinished: theme.parseCpuDetail(this.text) }
-    }
-
-    Process {
-        id: cpuTopProcessesProc
-        command: ["ps", "-eo", "comm=,%cpu=", "--sort=-%cpu"]
-        stdout: StdioCollector { onStreamFinished: theme.parseCpuTopProcesses(this.text) }
-    }
-
-    Timer {
-        interval: 2500; repeat: true; triggeredOnStart: true
-        running: theme.modCpu || theme.cpuVisible
-        onTriggered: if (!cpuDetailProc.running) cpuDetailProc.running = true
-    }
-    Timer {
-        interval: 3000; repeat: true; triggeredOnStart: true
-        running: theme.cpuVisible
-        onTriggered: if (!cpuTopProcessesProc.running) cpuTopProcessesProc.running = true
-    }
-
     // ── module enable flags (controlled by ControlPanel) ──
     property bool modStatus:     true
     property bool modMemory:     true
     property bool modCpu:        true
     property bool modGpu:        true
+    onModCpuTemperatureChanged: if (_widgetsLoaded) saveWidgets()
+    onModStorageChanged: if (_widgetsLoaded) saveWidgets()
+    onCompactTemperatureChanged: if (_widgetsLoaded) saveWidgets()
+    onCompactStorageChanged: if (_widgetsLoaded) saveWidgets()
+    onBarTemperatureSourceChanged: if (_widgetsLoaded) saveWidgets()
+    property bool modCpuTemperature: false
+    property bool modStorage: false
+    property bool compactTemperature: false
+    property bool compactStorage: false
+    property bool thermalVisible: false
+    property bool storageVisible: false
+    property real thermalBarX: 0
+    property real storageBarX: 0
+    onThermalVisibleChanged: popupOpened("thermalVisible")
+    onStorageVisibleChanged: popupOpened("storageVisible")
     property bool modVolume:     true
     property bool modWeather:    true
     property bool modNetwork:    true
@@ -1655,17 +957,8 @@ Item {
     property real displayManagerBarX: 0
     property real displayManagerBarY: 35
     readonly property var displayManagerControllerApi: displayManagerController
-    function toggleDisplayManager(screen, anchorItem) {
-        if (!screen || !screen.name) return
-        activatePopupScreen(screen)
-        var point = anchorItem ? anchorItem.mapToItem(null, anchorItem.width / 2, anchorItem.height) : null
-        displayManagerBarX = point ? point.x : screen.width / 2
-        displayManagerBarY = point ? Math.max(0, point.y) : 35
-        var next = !displayManagerVisible
-        if (next) closePopups("displayManagerVisible")
-        displayManagerVisible = next
-    }
-    DisplayManagerController { id: displayManagerController; theme: theme }
+    function toggleDisplayManager(screen, anchorItem) { return ThemePanels.toggleDisplayManager(theme, {}, screen, anchorItem) }
+    CommonControllers.DisplayManagerController { id: displayManagerController; theme: theme }
     readonly property var nordVpnStatusController: nordVpnController
     property string nordVpnStatus: "Unknown"
     readonly property string vpnState: nordVpnController.vpnState
@@ -1675,13 +968,13 @@ Item {
     readonly property bool vpnBusy: nordVpnController.vpnBusy
     readonly property string vpnActionMessage: nordVpnController.vpnActionMessage
     readonly property string vpnMessage: nordVpnController.vpnMessage
-    function refreshNordVpnStatus() { nordVpnController.refresh() }
+    function refreshNordVpnStatus() { return ThemeValues.refreshNordVpnStatus(theme, {nordVpnController: nordVpnController}) }
     function connectVpn() { return nordVpnController.connectVpn() }
     function disconnectVpn() { return nordVpnController.disconnectVpn() }
     function connectVpnCountry(country) { return nordVpnController.connectVpnCountry(country) }
     function pauseVpn(duration) { return nordVpnController.pauseVpn(duration) }
     function setVpnSetting(key) { return nordVpnController.setVpnSetting(key) }
-    NordVpnController {
+    CommonControllers.NordVpnController {
         id: nordVpnController
         enabled: theme.modNordVpn
         refreshInterval: 15000
@@ -1720,110 +1013,19 @@ Item {
     readonly property bool _statusPollingWanted: modStatus || barAnim === 7
     readonly property bool _voxActive: voxState === "recording" || voxState === "transcribing"
 
-    function refreshIdleStatus() {
-        if (!_idleBackendChecked) return
-        if (_idleOmarchyShellSystem) {
-            idleStateFile.reload()
-            return
-        }
-        if (!idleProc.running) idleProc.running = true
-    }
-    function refreshStatusIndicators() {
-        refreshIdleStatus()
-        refreshNotificationStatus()
-    }
-    function reprobeOmarchyShellBackends() {
-        if (idleBackendProc.running || notifBackendProc.running) {
-            _omarchyBackendReprobePending = true
-            return
-        }
-        _omarchyBackendReprobePending = false
-        idleBackendProc.running = true
-        notifBackendProc.running = true
-    }
-    function finishOmarchyBackendReprobe() {
-        if (idleBackendProc.running || notifBackendProc.running) return
-        if (_omarchyBackendReprobePending) {
-            omarchyBackendProbeDebounce.restart()
-            return
-        }
-        scheduleOmarchyBackendRetry()
-    }
-    function omarchyBackendRetryNeeded() {
-        return (_idleOmarchyShellSystem && !_idleOmarchyShellBackend)
-            || (_notifOmarchyShellSystem && !_notifOmarchyShellBackend)
-    }
-    function scheduleOmarchyBackendRetry() {
-        if (!omarchyBackendRetryNeeded()) {
-            omarchyBackendRetryTimer.stop()
-            _omarchyBackendRetryIndex = 0
-            return
-        }
-        if (omarchyBackendConfirmTimer.running || omarchyBackendRetryTimer.running
-                || _omarchyBackendRetryIndex >= _omarchyBackendRetryDelays.length) return
-        omarchyBackendRetryTimer.interval = _omarchyBackendRetryDelays[_omarchyBackendRetryIndex]
-        _omarchyBackendRetryIndex++
-        omarchyBackendRetryTimer.restart()
-    }
-    function resetOmarchyBackendProbes() {
-        omarchyBackendRetryTimer.stop()
-        _omarchyBackendRetryIndex = 0
-        omarchyBackendProbeDebounce.restart()
-        omarchyBackendConfirmTimer.restart()
-    }
-    function parseNotificationsState(text) {
-        try {
-            var parsed = JSON.parse(String(text || "{}"))
-            notifSilenced = parsed && parsed.dnd === true
-        } catch (e) {
-            notifSilenced = false
-        }
-    }
-    function refreshNotificationStatus() {
-        if (!_notifBackendChecked) return
-        if (_notifOmarchyShellSystem) {
-            notificationsStateFile.reload()
-            return
-        }
-        if (!dndProc.running) dndProc.running = true
-    }
-    function refreshRecordingStatus() {
-        if (recordingPidProc.running) {
-            _recordingRefreshPending = true
-            return
-        }
-        recordingPidProc.running = true
-    }
-    function reconcileSlowStatusIndicators() {
-        refreshRecordingStatus()
-    }
-    function setScreenRecordingPid(pid) {
-        pid = String(pid || "").trim()
-        if (pid === _screenRecordingPid) return
-
-        _screenRecordingPid = pid
-        if (pid === "") {
-            screenRecording = false
-            screenRecordingElapsed = 0
-            _screenRecordingBaseElapsed = 0
-            _screenRecordingBaseMs = 0
-            _screenRecordingElapsedProbePid = ""
-            return
-        }
-
-        screenRecording = true
-        screenRecordingElapsed = 0
-        _screenRecordingBaseElapsed = 0
-        _screenRecordingBaseMs = Date.now()
-        _screenRecordingElapsedProbePid = pid
-        recordingElapsedProc.command = ["ps", "-o", "etimes=", "-p", pid]
-        recordingElapsedProc.running = false
-        recordingElapsedProc.running = true
-    }
-    function updateScreenRecordingElapsed() {
-        if (!screenRecording || _screenRecordingBaseMs <= 0) return
-        screenRecordingElapsed = _screenRecordingBaseElapsed + Math.floor((Date.now() - _screenRecordingBaseMs) / 1000)
-    }
+    function refreshIdleStatus() { return ThemeIntegrations.refreshIdleStatus(theme, {idleStateFile: idleStateFile, idleProc: idleProc}) }
+    function refreshStatusIndicators() { return ThemeIntegrations.refreshStatusIndicators(theme, {}) }
+    function reprobeOmarchyShellBackends() { return ThemeIntegrations.reprobeOmarchyShellBackends(theme, {idleBackendProc: idleBackendProc, notifBackendProc: notifBackendProc}) }
+    function finishOmarchyBackendReprobe() { return ThemeIntegrations.finishOmarchyBackendReprobe(theme, {idleBackendProc: idleBackendProc, notifBackendProc: notifBackendProc, omarchyBackendProbeDebounce: omarchyBackendProbeDebounce}) }
+    function omarchyBackendRetryNeeded() { return ThemeIntegrations.omarchyBackendRetryNeeded(theme, {}) }
+    function scheduleOmarchyBackendRetry() { return ThemeIntegrations.scheduleOmarchyBackendRetry(theme, {omarchyBackendRetryTimer: omarchyBackendRetryTimer, omarchyBackendConfirmTimer: omarchyBackendConfirmTimer}) }
+    function resetOmarchyBackendProbes() { return ThemeIntegrations.resetOmarchyBackendProbes(theme, {omarchyBackendRetryTimer: omarchyBackendRetryTimer, omarchyBackendProbeDebounce: omarchyBackendProbeDebounce, omarchyBackendConfirmTimer: omarchyBackendConfirmTimer}) }
+    function parseNotificationsState(text) { return ThemeIntegrations.parseNotificationsState(theme, {}, text) }
+    function refreshNotificationStatus() { return ThemeIntegrations.refreshNotificationStatus(theme, {notificationsStateFile: notificationsStateFile, dndProc: dndProc}) }
+    function refreshRecordingStatus() { return ThemeIntegrations.refreshRecordingStatus(theme, {recordingPidProc: recordingPidProc}) }
+    function reconcileSlowStatusIndicators() { return ThemeValues.reconcileSlowStatusIndicators(theme, {}) }
+    function setScreenRecordingPid(pid) { return ThemeIntegrations.setScreenRecordingPid(theme, {recordingElapsedProc: recordingElapsedProc}, pid) }
+    function updateScreenRecordingElapsed() { return ThemeIntegrations.updateScreenRecordingElapsed(theme, {}) }
     function refreshVoxtypeStatus() {
         if (!voxAvailable && !modStatus && barAnim !== 7) return
         if (voxProc.running) return
@@ -2098,15 +1300,8 @@ Item {
     readonly property bool barVertical: barPosition === "left" || barPosition === "right"
     readonly property int verticalBarWidth: 40
     property var verticalAnchorsByScreen: ({})
-    function verticalAnchorY(name) {
-        var map = verticalAnchorsByScreen[activePopupScreenName] || {}
-        return map[name] !== undefined ? map[name] : (activePopupScreen ? activePopupScreen.height / 2 : 200)
-    }
-    function publishVerticalAnchors(screenName, values) {
-        var next = Object.assign({}, verticalAnchorsByScreen)
-        next[screenName] = values
-        verticalAnchorsByScreen = next
-    }
+    function verticalAnchorY(name) { return ThemePanels.verticalAnchorY(theme, {}, name) }
+    function publishVerticalAnchors(screenName, values) { return ThemePanels.publishVerticalAnchors(theme, {}, screenName, values) }
 
     // ── picker visual style (theme/wallpaper/screenshot/video pickers) ──
     property string pickerStyle: "tanzaku"   // "tanzaku", "hearthstone", "carousel"
@@ -2213,7 +1408,12 @@ Item {
                  + V1Defaults.compactCacheFields(compactNordVpn, compactAi).join(" ") + " " // +37..+38, append-only
                  + (modGpu ? "1" : "0") + " " // +39 GPU; preserve all older fields
                  + (compactGpu ? "1" : "0") + " " // +40 GPU compact; append-only
-                 + (layoutProtected ? "1" : "0") // +41 layout protection
+                 + (layoutProtected ? "1" : "0") + " " // +41 layout protection
+                 + (modCpuTemperature ? "1" : "0") + " " // +42 Temperature (V1 G20)
+                 + (modStorage ? "1" : "0") + " " // +43 Storage (V1 G21)
+                 + (compactTemperature ? "1" : "0") + " " // +44
+                 + (compactStorage ? "1" : "0") + " " // +45
+                 + barTemperatureSource // +46, V1 schema
         widgetSaveProc.command = ["bash", "-c",
             "echo '" + line + "' > '" + widgetsCachePath + "'"]
         widgetSaveProc.running = false
@@ -2223,107 +1423,20 @@ Item {
     readonly property var launcherLogoTextOptions: ["omarchy", "hyprland", "arch", "omacom"]
     readonly property var launcherLogoIconOptions: ["omarchy", "hyprland", "arch", "grid", "spark", "power", "dragon", "mark", "nix", "branch", "rebel"]
 
-    function launcherLogoTextIndex(id) {
-        for (var i = 0; i < launcherLogoTextOptions.length; i++)
-            if (launcherLogoTextOptions[i] === id) return i
-        return 0
-    }
-    function launcherLogoIconIndex(id) {
-        for (var i = 0; i < launcherLogoIconOptions.length; i++)
-            if (launcherLogoIconOptions[i] === id) return i
-        return 0
-    }
-    function launcherLogoTextValid(id) {
-        return launcherLogoTextIndex(id) >= 0 && launcherLogoTextOptions[launcherLogoTextIndex(id)] === id
-    }
-    function launcherLogoIconValid(id) {
-        return launcherLogoIconIndex(id) >= 0 && launcherLogoIconOptions[launcherLogoIconIndex(id)] === id
-    }
-    function nextLauncherLogoText() {
-        launcherLogoText = launcherLogoTextOptions[(launcherLogoTextIndex(launcherLogoText) + 1) % launcherLogoTextOptions.length]
-    }
-    function nextLauncherLogoIcon() {
-        launcherLogoIcon = launcherLogoIconOptions[(launcherLogoIconIndex(launcherLogoIcon) + 1) % launcherLogoIconOptions.length]
-    }
-    function launcherConfigValue(config, a, b, c) {
-        if (!config) return undefined
-        if (config[a] !== undefined) return config[a]
-        if (b && config[b] !== undefined) return config[b]
-        if (c && config[c] !== undefined) return config[c]
-        return undefined
-    }
-    function applyLauncherConfig(config) {
-        if (!config) return
-
-        var launcher = config.launcher || config.logo || config
-        var mode = launcherConfigValue(launcher, "launcherLogoMode", "logoMode", "mode")
-        var text = launcherConfigValue(launcher, "launcherLogoText", "textLogo", "text")
-        var icon = launcherConfigValue(launcher, "launcherLogoIcon", "iconLogo", "icon")
-
-        if (mode === "text" || mode === "icon") launcherLogoMode = mode
-        if (text !== undefined && launcherLogoTextValid(text)) launcherLogoText = text
-        if (icon !== undefined && launcherLogoIconValid(icon)) launcherLogoIcon = icon
-    }
-    function launcherLogoLabel(id) {
-        if (id === "omarchy") return "Omarchy"
-        if (id === "hyprland") return "Hyprland"
-        if (id === "arch") return "Arch"
-        if (id === "omacom") return "Omacom"
-        if (id === "grid") return "Grid"
-        if (id === "spark") return "Spark"
-        if (id === "power") return "Power"
-        if (id === "dragon") return "Dragon"
-        if (id === "mark") return "Mark"
-        if (id === "nix") return "Nix"
-        if (id === "branch") return "Branch"
-        if (id === "rebel") return "Rebel"
-        return "Omarchy"
-    }
-    function launcherLogoIconGlyph(id) {
-        if (id === "omarchy") return String.fromCodePoint(0xE900)
-        if (id === "hyprland") return ""
-        if (id === "arch") return ""
-        if (id === "grid") return ""
-        if (id === "spark") return ""
-        if (id === "power") return ""
-        if (id === "dragon") return "⻯"
-        if (id === "mark") return ""
-        if (id === "nix") return ""
-        if (id === "branch") return ""
-        if (id === "rebel") return ""
-        return String.fromCodePoint(0xE900)
-    }
-    function launcherLogoIconFont(id) {
-        return id === "omarchy" ? "omarchy" : mono
-    }
-    function launcherLogoIconSize(id) {
-        if (id === "omarchy") return 15
-        if (id === "arch") return 17
-        if (id === "dragon") return 16
-        return 16
-    }
-    function launcherLogoIconXOffset(id) {
-        if (id === "omarchy") return 0.5
-        if (id === "hyprland") return 0
-        if (id === "arch") return 1
-        if (id === "grid") return -1
-        if (id === "spark") return 0
-        if (id === "power") return 0
-        if (id === "dragon") return 0
-        if (id === "mark") return 0.5
-        if (id === "nix") return 0
-        if (id === "branch") return 0
-        return 0
-    }
-    function launcherLogoIconYOffset(id) {
-        if (id === "omarchy") return 0
-        if (id === "hyprland") return 0
-        if (id === "arch") return 0
-        if (id === "mark") return 0.5
-        if (id === "branch") return 0
-        if (id === "dragon") return 0
-        return 0
-    }
+    function launcherLogoTextIndex(id) { return ThemeLauncher.launcherLogoTextIndex(theme, {}, id) }
+    function launcherLogoIconIndex(id) { return ThemeLauncher.launcherLogoIconIndex(theme, {}, id) }
+    function launcherLogoTextValid(id) { return ThemeLauncher.launcherLogoTextValid(theme, {}, id) }
+    function launcherLogoIconValid(id) { return ThemeLauncher.launcherLogoIconValid(theme, {}, id) }
+    function nextLauncherLogoText() { return ThemeLauncher.nextLauncherLogoText(theme, {}) }
+    function nextLauncherLogoIcon() { return ThemeLauncher.nextLauncherLogoIcon(theme, {}) }
+    function launcherConfigValue(config, a, b, c) { return ThemeLauncher.launcherConfigValue(theme, {}, config, a, b, c) }
+    function applyLauncherConfig(config) { return ThemeLauncher.applyLauncherConfig(theme, {}, config) }
+    function launcherLogoLabel(id) { return ThemeLauncher.launcherLogoLabel(theme, {}, id) }
+    function launcherLogoIconGlyph(id) { return ThemeLauncher.launcherLogoIconGlyph(theme, {}, id) }
+    function launcherLogoIconFont(id) { return ThemeValues.launcherLogoIconFont(theme, {}, id) }
+    function launcherLogoIconSize(id) { return ThemeLauncher.launcherLogoIconSize(theme, {}, id) }
+    function launcherLogoIconXOffset(id) { return ThemeLauncher.launcherLogoIconXOffset(theme, {}, id) }
+    function launcherLogoIconYOffset(id) { return ThemeLauncher.launcherLogoIconYOffset(theme, {}, id) }
 
     Process {
         id: widgetLoadProc
@@ -2426,6 +1539,11 @@ Item {
                     if (parts.length > wsField + 36) theme.displayManagerAutoWorkspaces = parts[wsField + 36] === "1"
                     if (parts.length > wsField + 39) theme.modGpu = parts[wsField + 39] !== "0"
                     if (parts.length > wsField + 40) theme.compactGpu = parts[wsField + 40] === "1"
+                    if (parts.length > wsField + 42) theme.modCpuTemperature = parts[wsField + 42] === "1"
+                    if (parts.length > wsField + 43) theme.modStorage = parts[wsField + 43] === "1"
+                    if (parts.length > wsField + 44) theme.compactTemperature = parts[wsField + 44] === "1"
+                    if (parts.length > wsField + 45) theme.compactStorage = parts[wsField + 45] === "1"
+                    if (parts.length > wsField + 46 && theme.barTemperatureSourceValid(parts[wsField + 46])) theme.barTemperatureSource = parts[wsField + 46]
                     var compactFields = V1Defaults.parseCompactCacheFields(parts, wsField)
                     theme.compactNordVpn = compactFields.compactNordVpn
                     theme.compactAi = compactFields.compactAi
@@ -2507,12 +1625,7 @@ Item {
             onStreamFinished: { theme.hyprUsesLua = (this.text.trim() === "lua") }
         }
     }
-    function gotoWorkspace(id) {
-        if (hyprUsesLua)
-            Hyprland.dispatch("hl.dsp.focus({ workspace = " + id + " })")
-        else
-            Hyprland.dispatch("workspace " + id)
-    }
+    function gotoWorkspace(id) { return ThemeIntegrations.gotoWorkspace(theme, {Hyprland: Hyprland}, id) }
 
     // ── Arch Updater state ──
     property bool archVisible: false
@@ -2544,7 +1657,7 @@ Item {
     // Manual retry, e.g. on panel open: a degraded verdict can be a transient
     // (blacklist file mid-update at scan time) and must not stick until the
     // next refresh.
-    function archGateRescan() { archGate.rerun() }
+    function archGateRescan() { return ThemeValues.archGateRescan(theme, {archGate: archGate}) }
 
     Process {
         id: archGate
@@ -2632,7 +1745,7 @@ Item {
         }
     }
 
-    function closeArchUpdatesPanel() { archVisible = false }
+    function closeArchUpdatesPanel() { return ThemeValues.closeArchUpdatesPanel(theme, {}) }
 
     // ── Theme Updater state (fed by ArchUpdaterPanel's FileView over
     //    ~/.cache/qs-theme-updates.json; the panel owns the check Process so it
@@ -2686,64 +1799,16 @@ Item {
     property string trayMenuTitle: ""
     property string trayMenuIcon: ""
 
-    function trayDisplayName(item) {
-        if (!item) return "Tray App"
+    function trayDisplayName(item) { return ThemeTray.trayDisplayName(theme, {}, item) }
 
-        var title = String(item.title || "").trim()
-        if (title !== "") return title
+    function trayDescription(item, displayName) { return ThemeTray.trayDescription(theme, {}, item, displayName) }
 
-        var tooltipTitle = String(item.tooltipTitle || "").trim()
-        if (tooltipTitle !== "") return tooltipTitle
+    function openTrayMenu(handle, x, title, icon) { return ThemeValues.openTrayMenu(theme, {}, handle, x, title, icon) }
 
-        var fallback = String(item.id || "").trim()
-        var slash = fallback.lastIndexOf("/")
-        if (slash >= 0 && slash < fallback.length - 1)
-            fallback = fallback.substring(slash + 1)
-        fallback = fallback.replace(/^org\.(kde|ayatana|freedesktop)\./i, "")
-                           .replace(/[_-]+/g, " ")
-        return fallback !== "" ? fallback : "Tray App"
-    }
-
-    function trayDescription(item, displayName) {
-        if (!item) return ""
-
-        var description = String(item.tooltipDescription || "").trim()
-        var tooltipTitle = String(item.tooltipTitle || "").trim()
-        var name = String(displayName || "").trim().toLowerCase()
-        if (description !== "" && description.toLowerCase() !== name)
-            return description
-        if (tooltipTitle !== "" && tooltipTitle.toLowerCase() !== name)
-            return tooltipTitle
-        return ""
-    }
-
-    function openTrayMenu(handle, x, title, icon) {
-        if (!handle) return
-        trayMenuHandle = handle
-        trayMenuTitle = String(title || "App Menu")
-        trayMenuIcon = String(icon || "")
-        setPanelAnchor("trayMenu", x)
-        trayMenuVisible = true
-    }
-
-    function trayIsHidden(item) {
-        return trayPinned.indexOf(item.id) < 0
-    }
+    function trayIsHidden(item) { return ThemeValues.trayIsHidden(theme, {}, item) }
 
     // toggle: hidden items get pinned (shown in bar); pinned items get unpinned (back to panel)
-    function trayToggleHide(item) {
-        var key = item.id
-        if (!key) return
-        var i = trayPinned.indexOf(key)
-        if (i >= 0) {
-            var a = trayPinned.slice(0, i)
-            var b = trayPinned.slice(i + 1)
-            trayPinned = a.concat(b)
-            trayVisible = false
-        } else {
-            trayPinned = trayPinned.concat([key])
-        }
-    }
+    function trayToggleHide(item) { return ThemeTray.trayToggleHide(theme, {}, item) }
 
     Process {
         id: omarchyCurrentRootProbe
@@ -2806,31 +1871,13 @@ Item {
         }
     }
 
-    function ipcApplyTheme(payload) {
-        let p;
-        try { p = JSON.parse(payload); }
-        catch (e) { console.warn("theme.apply: bad payload —", e); return; }
-        if (!p || !p.colors) return;
-        Palette.apply(theme, Palette.mapKeys(p.colors));
-        theme.lastAppliedName = p.name || "";
-    }
+    function ipcApplyTheme(payload) { return ThemeIntegrations.ipcApplyTheme(theme, {Palette: Palette}, payload) }
 
-    function ipcApplyLauncher(payload) {
-        let p;
-        try { p = JSON.parse(payload); }
-        catch (e) { console.warn("theme.applyLauncher: bad payload —", e); return; }
-        theme.applyLauncherConfig(p);
-    }
+    function ipcApplyLauncher(payload) { return ThemeLauncher.ipcApplyLauncher(theme, {}, payload) }
 
-    function ipcReloadTheme() {
-        paletteReader.running = false;
-        paletteReader.running = true;
-    }
+    function ipcReloadTheme() { return ThemeIntegrations.ipcReloadTheme(theme, {paletteReader: paletteReader}) }
 
-    function ipcOpenPicker(mode) {
-        if (mode === "theme" || mode === "wallpaper") openImagePicker(mode)
-        else if (mode === "screenshots" || mode === "videos") openMediaBrowser(mode)
-    }
+    function ipcOpenPicker(mode) { return ThemeIntegrations.ipcOpenPicker(theme, {}, mode) }
 
     // Standalone compatibility while the integrated bootstrap is being rolled
     // out. VariantRoot supplies variantHost, so only the common IPC router owns

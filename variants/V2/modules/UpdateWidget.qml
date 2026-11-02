@@ -1,5 +1,6 @@
 import QtQuick
 import Quickshell.Io
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -15,7 +16,7 @@ Item {
 
     readonly property string tooltipText: "Omarchy update available"
 
-    IconText {
+    CommonComponents.IconText {
         anchors.centerIn: parent
         text: "\uE627"   // sync
         color: rootMod.contentColor
@@ -39,7 +40,7 @@ Item {
 
     Process { id: runProc; command: ["bash", "-c", "omarchy-launch-floating-terminal-with-presentation omarchy-update"] }
 
-    TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
 
     MouseArea {
         anchors.fill: parent

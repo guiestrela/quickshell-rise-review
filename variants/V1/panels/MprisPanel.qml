@@ -1,10 +1,13 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "../../../shared/logic/MprisPanelLogic.js" as MprisPanelLogic
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
 import Quickshell.Services.Mpris
 import "../modules"
+import "../../../shared/components" as CommonComponents
+import "../../../shared/services" as CommonServices
 
 PanelWindow {
     id: mprisPanel
@@ -24,7 +27,7 @@ PanelWindow {
     // ── pick a REAL active player ───────────────────────────────────
     // Selection (incl. ghost-filtering) lives in MprisSelect so the bar
     // widget and this panel always agree on the active player.
-    MprisSelect { id: sel }
+    CommonServices.MprisSelect { id: sel }
     readonly property var  player:  sel.player
     readonly property bool active:  sel.active
     readonly property bool playing: sel.playing
@@ -59,24 +62,15 @@ PanelWindow {
         }
     }
     onPlayingChanged: { _lastRead = -1 }   // force a resync on play/pause
-    function fmtTime(s) {
-        if (!s || s < 0) return "0:00"
-        var m = Math.floor(s / 60)
-        var sec = Math.floor(s % 60)
-        return m + ":" + (sec < 10 ? "0" + sec : "" + sec)
-    }
+    function fmtTime(s) { return MprisPanelLogic.fmtTime(mprisPanel, {}, s) }
 
     // ── visualizer state ────────────────────────────────────────────
-    readonly property int bands: 12
-    property var levels:  []     // smoothed, what we draw
-    property var targets: []     // raw cava input
-    property real phase: 0       // drives the synthetic idle wave
+    readonly property int bands: spectrum.bands
+    property alias levels: spectrum.levels
+    property alias targets: spectrum.targets
+    property alias phase: spectrum.phase
 
-    Component.onCompleted: {
-        var a = [], b = []
-        for (var i = 0; i < bands; i++) { a.push(0.06); b.push(0.0) }
-        levels = a; targets = b
-    }
+
 
     property real reveal: mprisPanel.root.mprisVisible ? 1 : 0
     Behavior on reveal {
@@ -88,14 +82,14 @@ PanelWindow {
     visible: reveal > 0.001
     WlrLayershell.keyboardFocus: mprisPanel.root.mprisVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
-    // ── cava: real system-audio spectrum (runs only while playing) ──
-    // Captures the DEFAULT SINK's monitor explicitly — otherwise cava's "auto"
-    // can grab the microphone on this PipeWire box, so the bars react to room
-    // noise instead of the music. 60fps + direct drive = tight sync.
-    Process {
-        id: cava
-        running: mprisPanel.visible && mprisPanel.playing
-        command: ["bash", "-c",
+    CommonServices.MprisSpectrum {
+        id: spectrum
+        enabled: mprisPanel.visible
+        playing: mprisPanel.playing
+        active: mprisPanel.active
+        attack: 0.7
+        release: 0.7
+        captureCommand: ["bash", "-c",
             "command -v cava >/dev/null 2>&1 || exit 0; " +
             "sink=$(pactl get-default-sink 2>/dev/null); " +
             "src=auto; [ -n \"$sink\" ] && src=\"${sink}.monitor\"; " +
@@ -105,47 +99,6 @@ PanelWindow {
             "'[output]' 'method = raw' 'raw_target = /dev/stdout' " +
             "'data_format = ascii' 'ascii_max_range = 100')"
         ]
-        stdout: SplitParser {
-            splitMarker: "\n"
-            // drive the bars DIRECTLY from cava (light smoothing only) → low lag
-            onRead: function(line) {
-                if (!mprisPanel.playing) return
-                var parts = line.split(";")
-                var lv = mprisPanel.levels
-                var out = []
-                for (var i = 0; i < mprisPanel.bands; i++) {
-                    var v = parseInt(parts[i]); v = isNaN(v) ? 0 : Math.min(1, v / 100)
-                    var prev = (lv[i] === undefined) ? 0 : lv[i]
-                    out.push(prev * 0.3 + v * 0.7)
-                }
-                mprisPanel.levels = out
-            }
-        }
-    }
-
-    // ── idle wave: only when active+paused (cava drives the bars while playing) ─
-    Timer {
-        interval: 33; repeat: true
-        running: mprisPanel.visible && mprisPanel.active && !mprisPanel.playing
-        onTriggered: {
-            mprisPanel.phase += 0.12
-            var out = []
-            var lv = mprisPanel.levels
-            for (var i = 0; i < mprisPanel.bands; i++) {
-                var goal
-                if (mprisPanel.active) {
-                    goal = 0.05                 // paused → flat rest
-                } else {
-                    // no song: gentle symmetric idle wave
-                    var d = Math.abs(i - (mprisPanel.bands - 1) / 2)
-                    goal = 0.10 + 0.09 * (0.5 + 0.5 * Math.sin(mprisPanel.phase - i * 0.55))
-                                * (1 - d / mprisPanel.bands)
-                }
-                var cur = lv[i] === undefined ? 0.06 : lv[i]
-                out.push(cur + (goal - cur) * 0.25)   // gentle ease for the idle state
-            }
-            mprisPanel.levels = out
-        }
     }
 
     MouseArea { anchors.fill: parent; onClicked: mprisPanel.root.mprisVisible = false }
@@ -184,7 +137,7 @@ PanelWindow {
             Item {
                 width: parent.width
                 height: 24
-                UiText {
+                CommonComponents.UiText {
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                     text: "NOW PLAYING"
                     color: mprisPanel.root.ink; font.family: mprisPanel.root.mono; font.pixelSize: 13
@@ -193,14 +146,14 @@ PanelWindow {
                 Row {
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                     spacing: 8
-                    UiText {
+                    CommonComponents.UiText {
                         anchors.verticalCenter: parent.verticalCenter
                         visible: mprisPanel.active && mprisPanel.playerName !== ""
                         text: mprisPanel.playerName
                         color: Qt.rgba(mprisPanel.root.ink.r, mprisPanel.root.ink.g, mprisPanel.root.ink.b, 0.45)
                         font.family: mprisPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1
                     }
-                    UiText {
+                    CommonComponents.UiText {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "✕"; color: closeMa.containsMouse ? mprisPanel.root.seal : mprisPanel.root.sumi; font.pixelSize: 12
                         Behavior on color { ColorAnimation { duration: 120 } }
@@ -229,7 +182,7 @@ PanelWindow {
                         asynchronous: true
                         visible: status === Image.Ready
                     }
-                    IconText {
+                    CommonComponents.IconText {
                         anchors.centerIn: parent
                         visible: !mprisPanel.player || mprisPanel.player.trackArtUrl === ""
                         text: ""   // music_note
@@ -242,20 +195,20 @@ PanelWindow {
                     width: parent.width - 62
                     anchors.verticalCenter: parent.verticalCenter
                     spacing: 3
-                    UiText {
+                    CommonComponents.UiText {
                         width: parent.width
                         text: mprisPanel.player ? (mprisPanel.player.trackTitle || "Unknown") : ""
                         color: mprisPanel.root.ink; font.family: mprisPanel.root.mono; font.pixelSize: 12; font.weight: Font.Medium
                         elide: Text.ElideRight
                     }
-                    UiText {
+                    CommonComponents.UiText {
                         width: parent.width
                         text: mprisPanel.player ? (mprisPanel.player.trackArtist || "") : ""
                         color: mprisPanel.root.sumiHi; font.family: mprisPanel.root.mono; font.pixelSize: 11
                         elide: Text.ElideRight
                         visible: text !== ""
                     }
-                    UiText {
+                    CommonComponents.UiText {
                         width: parent.width
                         text: mprisPanel.player ? (mprisPanel.player.trackAlbum || "") : ""
                         color: Qt.rgba(mprisPanel.root.ink.r, mprisPanel.root.ink.g, mprisPanel.root.ink.b, 0.45)
@@ -285,12 +238,12 @@ PanelWindow {
                         Behavior on width { NumberAnimation { duration: 450 } }
                     }
                 }
-                UiText {
+                CommonComponents.UiText {
                     anchors.left: parent.left; anchors.top: track.bottom; anchors.topMargin: 2
                     text: mprisPanel.fmtTime(mprisPanel.curPos)
                     color: mprisPanel.root.sumiHi; font.family: mprisPanel.root.mono; font.pixelSize: 9
                 }
-                UiText {
+                CommonComponents.UiText {
                     anchors.right: parent.right; anchors.top: track.bottom; anchors.topMargin: 2
                     text: mprisPanel.fmtTime(mprisPanel.curLen)
                     color: mprisPanel.root.sumiHi; font.family: mprisPanel.root.mono; font.pixelSize: 9
@@ -348,13 +301,13 @@ PanelWindow {
                     anchors.centerIn: parent
                     spacing: 1
                     visible: !mprisPanel.active
-                    UiText {
+                    CommonComponents.UiText {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: "No song playing"
                         color: Qt.rgba(mprisPanel.root.ink.r, mprisPanel.root.ink.g, mprisPanel.root.ink.b, 0.55)
                         font.family: mprisPanel.root.mono; font.pixelSize: 12; font.weight: Font.Medium
                     }
-                    UiText {
+                    CommonComponents.UiText {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: "no active player"
                         color: Qt.rgba(mprisPanel.root.ink.r, mprisPanel.root.ink.g, mprisPanel.root.ink.b, 0.3)
@@ -369,21 +322,21 @@ PanelWindow {
                 anchors.horizontalCenter: parent.horizontalCenter
                 spacing: 18
 
-                IconText {
+                CommonComponents.IconText {
                     text: ""
                     font.pixelSize: 20
                     anchors.verticalCenter: parent.verticalCenter
                     color: (mprisPanel.player && mprisPanel.player.canGoPrevious) ? mprisPanel.root.ink : Qt.rgba(mprisPanel.root.ink.r, mprisPanel.root.ink.g, mprisPanel.root.ink.b, 0.25)
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (mprisPanel.player) mprisPanel.player.previous() }
                 }
-                IconText {
+                CommonComponents.IconText {
                     text: mprisPanel.playing ? "" : ""
                     font.pixelSize: 24
                     anchors.verticalCenter: parent.verticalCenter
                     color: mprisPanel.root.seal
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (mprisPanel.player) mprisPanel.player.togglePlaying() }
                 }
-                IconText {
+                CommonComponents.IconText {
                     text: ""
                     font.pixelSize: 20
                     anchors.verticalCenter: parent.verticalCenter

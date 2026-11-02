@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Updater removal and last-good-state regressions; never apply updates."""
+from qml_fixture_source import copy_qml_fixture, qml_fixture_source, qml_fixture_text
 import os
 from pathlib import Path
 import re
@@ -16,7 +17,7 @@ class UpdatePanelTests(unittest.TestCase):
     def test_packages_tab_shows_last_update_check_time(self):
         for generation in GENERATIONS:
             with self.subTest(generation=generation):
-                panel = (generation / 'panels/ArchUpdaterPanel.qml').read_text()
+                panel = qml_fixture_text(ROOT / 'shared/panels/ArchUpdaterPanel.qml')
                 self.assertIn('last check ', panel)
                 self.assertIn('Qt.formatDateTime(new Date(archPanel.root.archScanCheckedEpoch * 1000)', panel)
 
@@ -24,20 +25,20 @@ class UpdatePanelTests(unittest.TestCase):
         for generation in GENERATIONS:
             with self.subTest(generation=generation):
                 for relative in ['Theme.qml', 'BarSlot.qml', 'modules/ArchUpdaterWidget.qml', 'panels/ArchUpdaterPanel.qml']:
-                    content = (generation / relative).read_text()
+                    content = qml_fixture_text(ROOT / 'shared/panels/ArchUpdaterPanel.qml' if relative == 'panels/ArchUpdaterPanel.qml' else generation / relative)
                     self.assertNotRegex(content, r'ShellUpdateTab|shellUpdate|shellProgress|archBadgeShell|preferShell|shellFallback')
-                panel = (generation / 'panels/ArchUpdaterPanel.qml').read_text()
+                panel = qml_fixture_text(ROOT / 'shared/panels/ArchUpdaterPanel.qml')
                 models = re.findall(r'model:\s*\[(.*?)\]', panel, re.S)
                 tab_models = [re.findall(r'id:\s*"([^"]+)"', model) for model in models if 'id: "packages"' in model]
                 self.assertEqual(tab_models, [['packages', 'themes'], ['packages', 'themes']])
                 self.assertFalse((generation / 'panels/ShellUpdateTab.qml').exists())
-                theme = (generation / 'Theme.qml').read_text()
+                theme = qml_fixture_text(generation / 'Theme.qml')
                 self.assertIn('+ "0 "', theme, 'Keep the retired positional preference slot reserved')
-        installer = (ROOT / 'install.sh').read_text()
+        installer = qml_fixture_text(ROOT / 'install.sh')
         self.assertNotRegex(installer, r'install_shell_updater|qs-shell-(check|apply|update-check)')
         for relative in ['scripts/qs-shell-check-update.sh', 'scripts/qs-shell-apply-update.sh', 'systemd/qs-shell-update-check.service', 'systemd/qs-shell-update-check.timer']:
             self.assertFalse((ROOT / relative).exists(), relative)
-        post_update = (ROOT / 'scripts/qs-shell-post-update.sh').read_text()
+        post_update = qml_fixture_text(ROOT / 'scripts/qs-shell-post-update.sh')
         self.assertNotRegex(post_update, r'qs-shell-(check|apply|update-check)')
 
 
@@ -52,8 +53,10 @@ class UpdatePanelTests(unittest.TestCase):
                 modules = fixture_generation / 'modules'
                 modules.mkdir(parents=True)
                 for name in ['ArchUpdaterWidget.qml', 'IconText.qml', 'TooltipMixin.qml']:
-                    shutil.copy2(generation / 'modules' / name, modules / name)
-                shutil.copy2(generation / 'IconMap.js', fixture_generation / 'IconMap.js')
+                    copy_qml_fixture(qml_fixture_source(generation / 'modules' / name), modules / name)
+                logic = work / 'shared/logic'
+                logic.mkdir(parents=True)
+                copy_qml_fixture(qml_fixture_source(ROOT / 'shared/logic/IconMap.js'), logic / 'IconMap.js')
                 binary = work / 'scripts/qs-arch-update-check.sh'
                 binary.parent.mkdir(parents=True)
                 binary.write_text(HELPER)

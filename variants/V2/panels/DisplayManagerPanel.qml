@@ -1,7 +1,8 @@
 pragma ComponentBehavior: Bound
 import QtQuick
-import "../../V1/panels" as Shared
+import "../../../shared/panels" as Shared
 import "../modules" as Native
+import "../../../shared/components" as CommonComponents
 
 // Reuse the controls/controller, but draw the exact connected V2 panel surface.
 Shared.DisplayManagerPanel {
@@ -10,7 +11,7 @@ Shared.DisplayManagerPanel {
     headerComponent: Component {
         Item {
             implicitHeight: 24
-            Native.UiText {
+            CommonComponents.UiText {
                 objectName: "display-v2-title"
                 anchors.left: parent.left
                 anchors.verticalCenter: parent.verticalCenter
@@ -21,7 +22,7 @@ Shared.DisplayManagerPanel {
                 font.letterSpacing: 2
                 font.weight: Font.Medium
             }
-            Native.UiText {
+            CommonComponents.UiText {
                 anchors.right: parent.right
                 anchors.verticalCenter: parent.verticalCenter
                 text: "✕"

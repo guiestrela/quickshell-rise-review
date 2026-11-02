@@ -14,6 +14,7 @@ import "panels"
 // wrapper loads this adapter directly. Register the lazy V2 bundle here as well
 // so Quickshell's virtual filesystem scanner can resolve its complete type graph.
 import "../V2" as V2Bundle
+import "../../shared/panels" as CommonPanels
 
 Item {
     id: root
@@ -253,13 +254,15 @@ Item {
 
     TooltipOverlay { root: theme }
     WallpaperManagerQuickPanel { root: theme }
-    DisplayManagerPanel { root: theme }
+    CommonPanels.DisplayManagerPanel { root: theme }
     CalendarPopup { root: theme }
     ArchUpdaterPanel { root: theme }
     PowerProfilePanel { root: theme }
     MemoryPanel { root: theme }
     CpuPanel { root: theme }
     GpuPanel { root: theme }
+    ThermalsPanel { root: theme }
+    StoragePanel { root: theme }
     AiUsagePanel { root: theme }
     VolumePanel { root: theme }
     TrayPanel { root: theme }
@@ -276,10 +279,10 @@ Item {
     TrayMenu { root: theme }
 
     // Picker variants: only the selected pickerStyle is instantiated.
-    LazyLoader { active: theme.pickerStyle === "tanzaku" || theme.pickerStyle === "";  ImageCarouselPanel       { root: theme } }
-    LazyLoader { active: theme.pickerStyle === "hearthstone";                           ImageCarouselHearthstone { root: theme } }
-    LazyLoader { active: theme.pickerStyle === "carousel";                              ImageCarouselCarousel    { root: theme } }
-    LazyLoader { active: theme.mediaBrowserVisible && (theme.pickerStyle === "tanzaku" || theme.pickerStyle === "");  MediaBrowserPanel        { root: theme } }
-    LazyLoader { active: theme.mediaBrowserVisible && theme.pickerStyle === "hearthstone";                             MediaBrowserHearthstone  { root: theme } }
-    LazyLoader { active: theme.mediaBrowserVisible && theme.pickerStyle === "carousel";                                MediaBrowserCarousel     { root: theme } }
+    LazyLoader { active: theme.pickerStyle === "tanzaku" || theme.pickerStyle === "";  CommonPanels.ImageCarouselPanel       { root: theme } }
+    LazyLoader { active: theme.pickerStyle === "hearthstone";                           CommonPanels.ImageCarouselHearthstone { root: theme } }
+    LazyLoader { active: theme.pickerStyle === "carousel";                              CommonPanels.ImageCarouselCarousel    { root: theme } }
+    LazyLoader { active: theme.mediaBrowserVisible && (theme.pickerStyle === "tanzaku" || theme.pickerStyle === "");  CommonPanels.MediaBrowserPanel        { root: theme } }
+    LazyLoader { active: theme.mediaBrowserVisible && theme.pickerStyle === "hearthstone";                             CommonPanels.MediaBrowserHearthstone  { root: theme } }
+    LazyLoader { active: theme.mediaBrowserVisible && theme.pickerStyle === "carousel";                                CommonPanels.MediaBrowserCarousel     { root: theme } }
 }

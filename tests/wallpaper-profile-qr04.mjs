@@ -7,8 +7,8 @@ import vm from 'node:vm';
 
 const project = dirname(dirname(fileURLToPath(import.meta.url)));
 const variants = [
-  ['V1', 'variants/V1/modules/WallpaperProfile.js'],
-  ['V2', 'variants/V2/modules/WallpaperProfile.js'],
+  ['V1', 'shared/logic/WallpaperProfile.js'],
+  ['V2', 'shared/logic/WallpaperProfile.js'],
 ];
 
 function profile(path) {

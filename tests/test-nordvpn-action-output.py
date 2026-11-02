@@ -3,6 +3,7 @@
 
 Never invokes the installed NordVPN client or changes the host network.
 """
+from qml_fixture_source import qml_fixture_text
 import json
 import os
 from pathlib import Path
@@ -38,8 +39,8 @@ else: print('Fixture command failed',file=sys.stderr); sys.exit(7)
 ''')
     cli.chmod(0o700)
     urls = [(ROOT / relative).as_uri() for relative in [
-        'variants/V1/modules/NordVpnController.qml',
-        'variants/V2/modules/NordVpnController.qml',
+        'shared/controllers/NordVpnController.qml',
+        'shared/controllers/NordVpnController.qml',
     ]]
     qml = '''import QtQuick
 import Quickshell
@@ -112,7 +113,7 @@ Scope {
     output = result.stdout + result.stderr
     assert result.returncode == 0 and output.count('NORDVPN_OUTPUT_PASS') == 2 and 'NORDVPN_OUTPUT_FAIL' not in output, output
     assert not any(error in output for error in ['ReferenceError', 'TypeError', 'Cannot assign']), output
-    argv = [json.loads(line) for line in log.read_text().splitlines()]
+    argv = [json.loads(line) for line in qml_fixture_text(log).splitlines()]
     actions = [args for args in argv if args and args[0]=='set']
     assert actions == [['set','routing','off'],['set','routing','off'],['set','routing','on'],['set','dns','9.9.9.9']] * 2, actions
     assert [args for args in argv if args and args[0]=='pause'] == [['pause','5m']] * 2

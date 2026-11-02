@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
 """Qt6 pointer events on production panel; layer replaced by Window, controller inert."""
+from qml_fixture_source import qml_fixture_text
 import os,re,subprocess,tempfile
 from pathlib import Path
 repo=Path(__file__).resolve().parents[1]
-source=(repo/'variants/V1/panels/DisplayManagerPanel.qml').read_text();base=(repo/'tests/qml/qr-display-panel-runtime.qml').read_text()
-controller=(repo/'variants/V1/modules/DisplayManagerController.qml').read_text()
+source=qml_fixture_text(repo/'shared/panels/DisplayManagerPanel.qml');base=qml_fixture_text(repo/'tests/qml/qr-display-panel-runtime.qml')
+controller=qml_fixture_text(repo/'shared/controllers/DisplayManagerController.qml')
 def method(name):
  start=controller.index('    function '+name+'(');opening=controller.index('{',start);depth=1;i=opening+1
  while depth:
@@ -17,7 +18,7 @@ with tempfile.TemporaryDirectory(prefix='apply-pointer-',dir=os.environ['TMPDIR'
  visual=source.replace('import Quickshell\n','').replace('import Quickshell.Wayland\n','').replace('import QtQuick\n','import QtQuick\nimport QtQuick.Window\n').replace('PanelWindow {','Window {',1)
  visual=re.sub(r'    anchors \{[^}]*\}','',visual,count=1);visual=re.sub(r'^    (?:WlrLayershell\..*|exclusionMode:.*|margins\..*)\n','',visual,flags=re.M);visual=visual.replace('    id: panel','    id: panel\n    width: 520\n    height: 900',1)
  (root/'panels/DisplayManagerPanel.qml').write_text(visual)
- fixture=base.replace('import Quickshell\n','').replace('import Quickshell.Wayland\n','').replace('ShellRoot {','Item {').replace('property bool displayManagerVisible: false','property bool displayManagerVisible: true').replace('Quickshell.screens.length ? Quickshell.screens[0] : null','Qt.application.screens[0]').replace('import "../../variants/V1/panels" as Panels','import "panels" as Panels\nimport QtTest')
+ fixture=base.replace('import Quickshell\n','').replace('import Quickshell.Wayland\n','').replace('ShellRoot {','Item {').replace('property bool displayManagerVisible: false','property bool displayManagerVisible: true').replace('Quickshell.screens.length ? Quickshell.screens[0] : null','Qt.application.screens[0]').replace('import "../../shared/panels" as Panels','import "panels" as Panels\nimport QtTest')
  fixture=fixture.replace('property color bg: "#202020"','property color bg: "#202020"\n property color paper: "#202020"\n property color fillHover: "#404040"\n property color sumi: "#808080"\n property int pillRadius: 6\n property color pillBorder: "#606060"\n property real pillBorderW: 1\n property real panelRadius: 6\n property real v2BarHeight: 30')
  fixture=fixture.replace('property var monitors: []','property var monitors: [{name:"DP-1",width:2560,height:1440,x:0,y:0,scale:1,transform:0,refreshRate:60,mirrorOf:"none",disabled:false,availableModes:["2560x1440@60Hz"]},{name:"DP-2",width:1920,height:1080,x:2560,y:0,scale:1,transform:0,refreshRate:60,mirrorOf:"none",disabled:false,availableModes:["1920x1080@60Hz"]}]')
  fixture=fixture.replace('property string selectedMonitor: ""','property string selectedMonitor: "DP-2"')

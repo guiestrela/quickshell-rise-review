@@ -2,6 +2,8 @@ pragma ComponentBehavior: Bound
 import Quickshell
 import Quickshell.Services.SystemTray
 import QtQuick
+import "../../../shared/logic/TrayWidgetValuesLogic.js" as TrayWidgetValuesLogic
+import "../../../shared/components" as CommonComponents
 
 Item {
     id: rootMod
@@ -11,9 +13,7 @@ Item {
     implicitHeight: 28
     visible: trayRow.implicitWidth > 0
 
-    function toggleHide(item) {
-        rootMod.root.trayToggleHide(item)
-    }
+    function toggleHide(item) { return TrayWidgetValuesLogic.toggleHide(rootMod, {}, item) }
 
     Row {
         id: trayRow
@@ -79,9 +79,9 @@ Item {
             readonly property string tooltipText: totalCount + (totalCount === 1 ? " app" : " apps")
                                                   + (hiddenCount > 0 ? " · " + hiddenCount + " hidden" : "")
 
-            TooltipMixin { id: tip; root: rootMod.root; owner: toggleBtn; text: toggleBtn.tooltipText }
+            CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: toggleBtn; text: toggleBtn.tooltipText }
 
-            IconText {
+            CommonComponents.IconText {
                 id: moreIcon
                 anchors.centerIn: parent
                 text: "\uE5D3"   // more_horiz

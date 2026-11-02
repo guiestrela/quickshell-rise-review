@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Real Process wake snapshots + actual wallpaper event callbacks, effects inert."""
+from qml_fixture_source import qml_fixture_text
 import json
 import os
 from pathlib import Path
@@ -12,14 +13,14 @@ assert BRIDGE.exists(), 'Missing safe bridge: wake control remains disabled in s
 with tempfile.TemporaryDirectory(prefix='wake-runtime-',dir=os.environ['TMPDIR']) as directory:
     temp=Path(directory);state=temp/'state';state.write_text('{"schema":1,"locked":false,"screensaverShowing":false}')
     reader=temp/'reader.py';reader.write_text('import pathlib\nprint((pathlib.Path(__file__).parent/"state").read_text())\n')
-    source=BRIDGE.read_text()
+    source=qml_fixture_text(BRIDGE)
     begin=source.index('    readonly property string readerPath:')
     end=source.index('\n',begin)
     source=source[:begin]+'    readonly property string readerPath: '+json.dumps(str(reader))+source[end:]
     source=source.replace('interval: 1000','interval: 30')
     (temp/'WallpaperWakeBridge.qml').write_text(source)
-    for variant,rel in enumerate(['variants/V1/modules/WallpaperManagerService.qml','variants/V2/modules/WallpaperManagerService.qml'],1):
-        service=(REPO/rel).read_text();start=service.index('    function wakeShuffle()');end=service.index('        function onWallpaperManagerFolderChanged()',start)
+    for variant,rel in enumerate(['shared/services/WallpaperManagerService.qml','shared/services/WallpaperManagerService.qml'],1):
+        service=qml_fixture_text(REPO/rel);start=service.index('    function wakeShuffle()');end=service.index('        function onWallpaperManagerFolderChanged()',start)
         event=service[start:end]+'    }\n'
         event=event.replace('interval: 400','interval: 40')
         (temp/f'WakeV{variant}.qml').write_text('import QtQuick\nItem { id: manager; required property var theme; property string pinnedPath:""; property int calls:0; function hasShuffleOutput(){return true} function shuffleAll(force){calls++}\n'+event+'}\n')

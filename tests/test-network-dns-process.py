@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Actual Quickshell Process/readback with a private, nonprivileged DNS helper."""
+from qml_fixture_source import qml_fixture_bytes, qml_fixture_source, qml_fixture_text
 import json
 import os
 from pathlib import Path
@@ -24,9 +25,9 @@ if (root/'mismatch').read_text()=='yes':sys.exit(0)
 (root/'state').write_text(sys.argv[1])
 ''')
     fake.chmod(0o700)
-    source=(PROJECT/'variants/V1/modules/NetworkDnsSection.qml').read_text()
+    source=qml_fixture_text(PROJECT/'shared/components/NetworkDnsSection.qml')
     (root/'NetworkDnsSection.qml').write_text(source.replace('/usr/bin/omarchy-dns', str(fake)))
-    (root/'UiText.qml').write_bytes((PROJECT/'variants/V1/modules/UiText.qml').read_bytes())
+    (root/'UiText.qml').write_bytes(qml_fixture_bytes(qml_fixture_source(PROJECT/'shared/components/UiText.qml')))
     qml='''import QtQuick
 import Quickshell
 import Quickshell.Io
@@ -84,5 +85,5 @@ Scope {
     output=z.stdout+z.stderr
     assert z.returncode==0 and 'DNS_PROCESS_PASS' in output and 'DNS_PROCESS_FAIL' not in output,output
     assert not any(value in output for value in ['ReferenceError','TypeError','Cannot assign']),output
-    assert (root/'actions').read_text().splitlines()==['Cloudflare','Google','DHCP','Cloudflare','Google']
+    assert qml_fixture_text(root/'actions').splitlines()==['Cloudflare','Google','DHCP','Cloudflare','Google']
     print('PASS: real Process + private helper; three selections/readbacks, failure, mismatched successful exit, Custom preserved, malformed data blocked, no overlapping writes; zero real DNS mutation')

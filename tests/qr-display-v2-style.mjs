@@ -1,6 +1,7 @@
+import { readQmlSource } from './qml-source.mjs';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const read = p => fs.readFileSync(new URL('../'+p, import.meta.url), 'utf8');
+const read = p => readQmlSource(new URL('../'+p, import.meta.url), 'utf8');
 const variant = read('variants/V2/VariantRoot.qml');
 assert.match(variant, /(?<!\.)\bDisplayManagerPanel\s*\{\s*root:\s*theme/, 'V2 must load its native-style wrapper, not the plain shared panel');
 const wrapper = read('variants/V2/panels/DisplayManagerPanel.qml');
@@ -13,7 +14,7 @@ assert.match(wrapper, /reveal:\s*panel\.root\.panelInsetReveal/);
 const theme = read('variants/V2/Theme.qml');
 const anchored = theme.match(/readonly property bool anchoredPanelVisible:([\s\S]*?)\n\s*\/\//)[1];
 assert.match(anchored, /displayManagerVisible/, 'Display Manager must participate in the native bar notch');
-const panel = read('variants/V1/panels/DisplayManagerPanel.qml');
+const panel = read('shared/panels/DisplayManagerPanel.qml');
 assert.match(panel, /readonly property Item surfaceHost:/);
 assert.match(panel, /color: panel\.connectedStyle \? "transparent" : panel\.root\.bg/);
 assert.match(panel, /border\.width: panel\.connectedStyle \? 0 : panel\.root\.pillBorderW/);
