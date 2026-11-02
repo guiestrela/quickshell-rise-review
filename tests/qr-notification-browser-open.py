@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 ROOT=Path(__file__).resolve().parents[1]
-HELPER=ROOT/'versions/V1/integrations/notification-browser-open.py'
+HELPER=ROOT/'shared/integrations/notification-browser-open.py'
 
 class BrowserOpen(unittest.TestCase):
     def test_expired_selected_entry_opens_only_available_href(self):

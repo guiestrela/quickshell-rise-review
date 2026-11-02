@@ -1,7 +1,7 @@
 // Run exact QML functions in a JS fixture. No app, shell, cache or UI effects.
 const fs=require('fs'),vm=require('vm'),assert=require('assert/strict'),path=require('path');
 function fn(text,name){let start=text.indexOf('function '+name+'(');assert.ok(start>=0,'Missing '+name);let brace=text.indexOf('{',start),depth=1,end=brace+1;while(depth&&end<text.length){if(text[end]==='{')depth++;if(text[end]==='}')depth--;end++;}return text.slice(start,end);}
-for(const variant of ['versions/V1','versions/V1/variants/V2']){
+for(const variant of ['variants/V1','variants/V2']){
  const t=fs.readFileSync(path.join(__dirname,'..',variant,'panels/NotificationPanel.qml'),'utf8');let writes=0,invokes=0;
  const panel={dismissed:{old:true},cacheLoaded:true,pendingNotificationKey:'',browserOpenReplySeen:false,notificationReplySeen:false,nativeBrowserClaims:{},appOpenHelper:'app-fixture',browserOpenHelper:'browser-fixture',notificationActionHelper:'special-fixture',saveCache(){writes++;},runNotificationAction(){invokes++;}};
  const root={notifVisible:true};const ctx={notifPanel:panel,root,browserOpenProc:{running:false},notificationOpenProc:{running:false},NotificationActions:{serviceFor(){return null;},invokeDefault(){return false;}}};vm.createContext(ctx);

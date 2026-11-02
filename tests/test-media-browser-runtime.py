@@ -13,7 +13,7 @@ with tempfile.TemporaryDirectory(prefix='rise-media-browser-', dir='/tmp') as di
     runtime.mkdir(mode=0o700)
     for variant, source, component, style in [
         (variant,source,component,style)
-        for variant,source in [('V1','versions/V1'),('V2','versions/V1/variants/V2')]
+        for variant,source in [('V1','variants/V1'),('V2','variants/V2')]
         for component,style in [('MediaBrowserPanel','tanzaku'),('MediaBrowserHearthstone','hearthstone'),('MediaBrowserCarousel','carousel')]
     ]:
         folder = base / (variant + style)

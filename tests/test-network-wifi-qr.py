@@ -31,8 +31,8 @@ QtObject {
  onRunningChanged: if(running) done.start()
 }
 ''')
-    (tmp/'UiText.qml').write_bytes((REPO/'versions/V1/modules/UiText.qml').read_bytes())
-    for variant,rel in enumerate(['versions/V1/panels/NetworkPanel.qml','versions/V1/variants/V2/panels/NetworkPanel.qml'],1):
+    (tmp/'UiText.qml').write_bytes((REPO/'variants/V1/modules/UiText.qml').read_bytes())
+    for variant,rel in enumerate(['variants/V1/panels/NetworkPanel.qml','variants/V2/panels/NetworkPanel.qml'],1):
         source=(REPO/rel).read_text()
         assert source.index('objectName: "wifi-qr-button"')>source.index('id: speedFooter')
         assert source.index('objectName: "wifi-qr-button"')<source.index('// ── wifi radio toggle ──')

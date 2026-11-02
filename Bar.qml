@@ -4,10 +4,10 @@
 
 import QtQuick
 import Quickshell
-import "versions/V1/core"
+import "core"
 // Register both lazily loaded variant trees with Quickshell's virtual scanner.
-import "versions/V1" as V1Bundle
-import "versions/V1/variants/V2" as V2Bundle
+import "variants/V1" as V1Bundle
+import "variants/V2" as V2Bundle
 
 Item {
     id: root
@@ -42,8 +42,8 @@ Item {
         wallpaperWakeAvailable: wakeBridge.available
         wallpaperSessionLocked: wakeBridge.locked
         wallpaperScreensaverShowing: wakeBridge.screensaverShowing
-        v1Source: Qt.resolvedUrl("versions/V1/VariantRoot.qml")
-        v2Source: Qt.resolvedUrl("versions/V1/variants/V2/VariantRoot.qml")
+        v1Source: Qt.resolvedUrl("variants/V1/VariantRoot.qml")
+        v2Source: Qt.resolvedUrl("variants/V2/VariantRoot.qml")
     }
 
     IpcRouter { variantHost: variantController }

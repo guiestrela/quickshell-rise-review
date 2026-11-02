@@ -11,7 +11,8 @@ repo = Path(__file__).resolve().parents[1]
 assert os.environ.get('WAYLAND_DISPLAY') and os.environ.get('XDG_RUNTIME_DIR'), 'Wayland runtime required'
 with tempfile.TemporaryDirectory(prefix='display-integration-', dir=os.environ['TMPDIR']) as folder:
     root = Path(folder)
-    shutil.copytree(repo / 'versions/V1', root / 'V1')
+    for directory in ('variants', 'core', 'shared'):
+        shutil.copytree(repo / directory, root / directory)
     helper = root / 'helper'
     helper.write_text('''#!/usr/bin/python3
 import json, sys, time, os
@@ -54,9 +55,9 @@ p.write_text(json.dumps(data));print(json.dumps(data))
     shell.write_text('''import QtQuick
 import Quickshell
 import Quickshell.Io
-import "V1/modules" as Modules
-import "V1" as VariantOne
-import "V1/variants/V2" as VariantTwo
+import "variants/V1/modules" as Modules
+import "variants/V1" as VariantOne
+import "variants/V2" as VariantTwo
 Scope {
  id: test
  property int phase: 0
@@ -67,7 +68,7 @@ Scope {
  Modules.DisplayManagerController { id: c; theme: theme }
  function fail(message) { console.error("DISPLAY_INTEGRATION_FAIL " + message); Qt.quit() }
  Component.onCompleted: {
-  for (var path of ["V1/Theme.qml","V1/variants/V2/Theme.qml", "V1/VariantRoot.qml", "V1/variants/V2/VariantRoot.qml"]) {
+  for (var path of ["variants/V1/Theme.qml","variants/V2/Theme.qml", "variants/V1/VariantRoot.qml", "variants/V2/VariantRoot.qml"]) {
    var component=Qt.createComponent(path)
    components.push(component)
    if (component.status === Component.Error) { fail(component.errorString()); return }

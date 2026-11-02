@@ -7,8 +7,8 @@ import vm from 'node:vm';
 
 const project = dirname(dirname(fileURLToPath(import.meta.url)));
 for (const [variant, relative] of [
-  ['V1', 'versions/V1/panels/WallpaperManagerQuickPanel.qml'],
-  ['V2', 'versions/V1/variants/V2/panels/WallpaperManagerQuickPanel.qml'],
+  ['V1', 'variants/V1/panels/WallpaperManagerQuickPanel.qml'],
+  ['V2', 'variants/V2/panels/WallpaperManagerQuickPanel.qml'],
 ]) {
   const panel = readFileSync(join(project, relative), 'utf8');
   test(`${variant}: wallpaper panel exposes Displays and Shuffling tabs`, () => {

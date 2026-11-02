@@ -2,11 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
-const read=p=>fs.readFileSync('versions/V1/'+p,'utf8');
+const read=p=>fs.readFileSync('variants/V1/'+p,'utf8');
 function fn(q,name){const a=q.indexOf('    function '+name+'(');assert.ok(a>=0,name);let b=q.indexOf('{',a),d=1,e=b+1;for(;d;e++){if(q[e]==='{')d++;if(q[e]==='}')d--;}return q.slice(a,e)}
 test('V1 GPU uses same SVG icon as V2',()=>{
  assert.match(read('modules/GpuWidget.qml'),/gpu-card.svg/);
- assert.equal(read('assets/gpu-card.svg'),read('variants/V2/assets/gpu-card.svg'));
+ assert.equal(read('assets/gpu-card.svg'),read('../V2/assets/gpu-card.svg'));
 });
 test('V1 detailed CPU parses model, clock, load and top processes',()=>{
  const q=read('Theme.qml'),c=vm.createContext({});

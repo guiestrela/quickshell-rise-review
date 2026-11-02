@@ -5,8 +5,8 @@ import { fileURLToPath } from "node:url";
 
 const project = resolve(fileURLToPath(new URL("..", import.meta.url)));
 const variants = [
-  ["V1", "versions/V1/modules/WeatherRadar.qml"],
-  ["V2", "versions/V1/variants/V2/modules/WeatherRadar.qml"]
+  ["V1", "variants/V1/modules/WeatherRadar.qml"],
+  ["V2", "variants/V2/modules/WeatherRadar.qml"]
 ];
 
 for (const [name, path] of variants) {

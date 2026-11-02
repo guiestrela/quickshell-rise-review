@@ -6,7 +6,7 @@ fixture_scope={'__file__':str(b/'tests/test-per-display-runtime.py')}
 exec((b/'tests/test-per-display-runtime.py').read_text().split('variants=sys.argv')[0],fixture_scope)
 settings={'folder':'','perDisplayConfig':True,'displayConfig':{'all':{'folder':''},'DP-1':{'folder':str(fixture_scope['A']),'recursive':False,'mode':'shuffle','scaling':'actual'},'DP-2':{'folder':str(fixture_scope['B']),'recursive':True,'mode':'shuffle','scaling':'zoom'}}}
 (home/'.cache/quickshell-rise/wallpaper-manager.json').write_text(json.dumps(settings))
-for v,sub in [('V1','versions/V1'),('V2','versions/V1/variants/V2')]:
+for v,sub in [('V1','variants/V1'),('V2','variants/V2')]:
  vr=b/sub
  src=(vr/'Theme.qml').read_text()
  start=src.index('    // Optional wallpaper-manager folder.')

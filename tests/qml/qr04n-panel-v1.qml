@@ -63,7 +63,7 @@ Window {
         host.calls = []
     }
     Component.onCompleted: {
-        var component = Qt.createComponent("file:///home/guiestrela/Work/omarchy/quickshell-rise-review/versions/V1/panels/NordVPNPanel.qml")
+        var component = Qt.createComponent(Qt.resolvedUrl("../../variants/V1/panels/NordVPNPanel.qml"))
         if (component.status !== Component.Ready) {
             console.error("QR04N_PANEL_FAIL component", component.errorString())
             Qt.exit(1)

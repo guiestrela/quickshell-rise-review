@@ -6,7 +6,7 @@ repo = Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory(prefix='display-v1-widget-', dir=os.environ['TMPDIR']) as work:
     folder = Path(work)
     for name in ['DisplayManagerWidget.qml', 'PillShadow.qml', 'IconText.qml', 'TooltipMixin.qml']:
-        (folder / name).write_bytes((repo / 'versions/V1/modules' / name).read_bytes())
+        (folder / name).write_bytes((repo / 'variants/V1/modules' / name).read_bytes())
     (folder / 'shell.qml').write_text('''import QtQuick
 import Quickshell
 ShellRoot {

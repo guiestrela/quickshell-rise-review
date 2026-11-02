@@ -9,7 +9,7 @@ import tempfile
 repo = Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory(prefix='rise-style-preview-', dir='/tmp') as directory:
     root = Path(directory)
-    shutil.copy2(repo / 'versions/V1/modules/BarStylePreview.qml', root)
+    shutil.copy2(repo / 'variants/V1/modules/BarStylePreview.qml', root)
     (root / 'runtime').mkdir(mode=0o700)
     (root / 'shell.qml').write_text('''import QtQuick
 import QtQuick.Window

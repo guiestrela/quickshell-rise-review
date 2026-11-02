@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const adapter = new URL('../versions/V1/modules/NordVpnProtocol.js', import.meta.url);
+const adapter = new URL('../variants/V1/modules/NordVpnProtocol.js', import.meta.url);
 function normalize(settings) {
   assert.ok(existsSync(adapter), 'NordVPN protocol adapter must exist');
   const context = vm.createContext({});
@@ -11,7 +11,7 @@ function normalize(settings) {
   return JSON.parse(JSON.stringify(context.normalizeSettings(settings)));
 }
 function action(settings) {
-  const source = readFileSync(new URL('../versions/V1/modules/NordVpnController.qml', import.meta.url), 'utf8');
+  const source = readFileSync(new URL('../variants/V1/modules/NordVpnController.qml', import.meta.url), 'utf8');
   const start = source.indexOf('function setVpnSetting(');
   const end = source.indexOf('\n    function _runAction(', start);
   const calls = [];

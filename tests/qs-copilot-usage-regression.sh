@@ -132,7 +132,7 @@ PY
 pass "failed fetch degrades to stale, keeping the last numbers"
 
 # ── 2. the QML parse in both variants ──
-for variant in versions/V1/Theme.qml versions/V1/variants/V2/Theme.qml; do
+for variant in variants/V1/Theme.qml variants/V2/Theme.qml; do
   [[ -f "$REPO_ROOT/$variant" ]] || fail "missing $variant"
   node "$REPO_ROOT/tests/qr04n-copilot-parse.mjs" "$REPO_ROOT/$variant" "$WORK/live-cache.json" \
     || fail "Copilot cache parse regressed in $variant"

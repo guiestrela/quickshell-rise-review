@@ -196,7 +196,7 @@ Scope {
 settings={'perDisplayConfig':True,'displayConfig':{'all':{'folder':''},'DP-1':{'folder':str(A),'recursive':False,'mode':'shuffle'},'DP-2':{'folder':str(B),'recursive':True,'mode':'single'}}}
 variants=sys.argv[1:] or ['V1','V2']
 for variant in variants:
-    root=base/'versions/V1'/('variants/V2' if variant=='V2' else '')
+    root=base/'variants'/variant
     theme=(root/'Theme.qml').read_text()
     q='import "'+str((root/'modules').relative_to(base))+'" as Service\nimport "'+str((root/'modules').relative_to(base))+'" as WallpaperWidgetModule\n'+qml
     replacements={'PROFILE':json.dumps(str((root/'modules/WallpaperProfile.js').relative_to(base))),'WIDGET_MODULE':json.dumps(str((root/'modules').relative_to(base))),'SERVICE_MODULE':'Service','SETTINGS':'('+json.dumps(settings)+')',

@@ -61,8 +61,8 @@ Scope {
 }
 '''
 
-for variant in ('', 'variants/V2/'):
-    target = PROJECT / 'versions/V1' / variant / 'modules/WallpaperWidget.qml'
+for variant in ('V1', 'V2'):
+    target = PROJECT / 'variants' / variant / 'modules/WallpaperWidget.qml'
     with tempfile.TemporaryDirectory(prefix='qr04w-widget-', dir=os.environ['TMPDIR']) as temp:
         probe = Path(temp) / 'shell.qml'
         probe.write_text(QML % json.dumps(target.as_uri()))

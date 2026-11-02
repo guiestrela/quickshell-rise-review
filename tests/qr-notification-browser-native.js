@@ -3,7 +3,7 @@ const fs = require('fs');
 const vm = require('vm');
 const assert = require('assert/strict');
 const path = require('path');
-const file = path.join(__dirname,'../versions/V1/integrations/NotificationActions.js');
+const file = path.join(__dirname,'../shared/integrations/NotificationActions.js');
 assert.ok(fs.existsSync(file), 'Selected native notification bridge is missing');
 const ctx = {}; vm.createContext(ctx);
 vm.runInContext(fs.readFileSync(file,'utf8').replace(/^\.pragma library\s*/,''),ctx);

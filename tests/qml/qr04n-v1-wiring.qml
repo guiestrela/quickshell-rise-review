@@ -90,10 +90,10 @@ Window {
 
     Component.onCompleted: {
         try {
-            var controllerUrl = "file:///home/guiestrela/Work/omarchy/quickshell-rise-review/versions/V1/modules/NordVpnController.qml"
+            var controllerUrl = Qt.resolvedUrl("../../variants/V1/modules/NordVpnController.qml")
             controller = createAt(controllerUrl, { "cli": "/home/guiestrela/Work/omarchy/quickshell-rise-review/tests/fixtures/nordvpn-cli-recording-stub.sh", "refreshInterval": 60000, "enabled": true })
-            widget = createAt("file:///home/guiestrela/Work/omarchy/quickshell-rise-review/versions/V1/modules/NordVPNWidget.qml", { "root": host, "width": 150, "height": 28 })
-            panel = createAt("file:///home/guiestrela/Work/omarchy/quickshell-rise-review/versions/V1/panels/NordVPNPanel.qml", { "root": host, "controller": controller })
+            widget = createAt(Qt.resolvedUrl("../../variants/V1/modules/NordVPNWidget.qml"), { "root": host, "width": 150, "height": 28 })
+            panel = createAt(Qt.resolvedUrl("../../variants/V1/panels/NordVPNPanel.qml"), { "root": host, "controller": controller })
             begin.start()
         } catch (e) { console.error("QR04N_V1_WIRING_FAIL setup", e); Qt.exit(1) }
     }

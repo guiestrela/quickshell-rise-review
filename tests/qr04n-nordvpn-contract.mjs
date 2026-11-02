@@ -6,10 +6,10 @@ import { dirname, resolve } from "node:path";
 const project = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const read = (path) => readFileSync(resolve(project, path), "utf8");
 
-const variants = process.argv.includes("--v1") ? [""] : ["", "variants/V2/"];
+const variants = process.argv.includes("--v1") ? ["V1"] : ["V1", "V2"];
 for (const variant of variants) {
-  const prefix = `versions/V1/${variant}`;
-  const nordVpnGid = variant ? "G19" : "G16";
+  const prefix = `variants/${variant}/`;
+  const nordVpnGid = variant === "V2" ? "G19" : "G16";
   const slot = read(`${prefix}BarSlot.qml`);
   const controls = read(`${prefix}panels/ControlPanel.qml`);
   const network = read(`${prefix}modules/NetworkWidget.qml`);
@@ -20,12 +20,12 @@ for (const variant of variants) {
   assert.ok(existsSync(resolve(project, widgetPath)), `${prefix} independent NordVPN widget is missing`);
   const widget = read(widgetPath);
   assert.ok(slot.includes(`"${nordVpnGid}": compNordVpn`), `${prefix}BarSlot must map ${nordVpnGid} to a dedicated component`);
-  const expectedToggle = variant
+  const expectedToggle = variant === "V2"
     ? controls.includes(`gid: "${nordVpnGid}"`) && controls.includes('label: "NordVPN"')
     : controls.includes('label: "NordVPN"') && controls.includes('active: root.modNordVpn');
   assert.ok(expectedToggle, `${prefix} WIDGETS must independently toggle ${nordVpnGid}`);
   assert.ok(slot.includes("NordVpnLayout.swapModels"), `${prefix} drag must use tested slot swap logic`);
-  assert.ok(slot.includes(variant ? "migrateV2Entries" : "migrateV1Order"), `${prefix} must migrate persisted layouts`);
+  assert.ok(slot.includes(variant === "V2" ? "migrateV2Entries" : "migrateV1Order"), `${prefix} must migrate persisted layouts`);
   assert.ok(widget.includes("nordVpnStatus"), `${prefix} widget must render shared status`);
   assert.ok(widget.includes("vpnVisible = true"), `${prefix} widget click must open the independent Rise VPN panel`);
   assert.ok(theme.includes("property bool vpnVisible"), `${prefix} must own independent VPN panel visibility`);
@@ -38,12 +38,12 @@ for (const variant of variants) {
   assert.ok(theme.includes("property bool modNordVpn"), `${prefix} visibility needs a persisted theme setting`);
   const vpnPanel = read(`${prefix}panels/NordVPNPanel.qml`);
   const vpnPanelImplementation = variant && vpnPanel.includes("Shared.NordVPNPanel")
-    ? read("versions/V1/panels/NordVPNPanel.qml") : vpnPanel;
+    ? read("variants/V1/panels/NordVPNPanel.qml") : vpnPanel;
   assert.ok(vpnPanelImplementation.includes("connectVpnCountry") && vpnPanelImplementation.includes("pauseVpn") && vpnPanelImplementation.includes("setVpnSetting"), `${prefix} independent VPN panel must preserve real VPN controls`);
   assert.ok(vpnPanelImplementation.includes("auto-connect") && vpnPanelImplementation.includes("technology"), `${prefix} independent VPN panel must preserve auto-connect and technology controls`);
-  if (!variant) {
-    const controller = read("versions/V1/modules/NordVpnController.qml");
-    const variantRoot = read("versions/V1/VariantRoot.qml");
+  if (variant === "V1") {
+    const controller = read("variants/V1/modules/NordVpnController.qml");
+    const variantRoot = read("variants/V1/VariantRoot.qml");
     assert.ok(controller.includes('"connect"') && controller.includes('"disconnect"') && controller.includes('"pause"'), "V1 controller must own fixed-argv actions");
     assert.ok(controller.includes('"set", "protocol"') === false, "V1 unsupported protocol must not be implemented as CLI argv");
     assert.ok(theme.includes("readonly property string vpnState:") && theme.includes("readonly property bool vpnBusy:"), "Theme must expose shared controller state");

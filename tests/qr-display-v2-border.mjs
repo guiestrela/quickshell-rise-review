@@ -1,7 +1,7 @@
 import fs from 'node:fs';
 import vm from 'node:vm';
 import assert from 'node:assert/strict';
-const source = fs.readFileSync('versions/V1/variants/V2/Theme.qml', 'utf8');
+const source = fs.readFileSync('variants/V2/Theme.qml', 'utf8');
 const names = ['paletteColorValid','widgetGidValid','widgetColorModeValid','normalizedWidgetColorMode','widgetToneValid','widgetColorStyle','setWidgetColorStyle','setWidgetBorderEnabled','setWidgetPaletteColor','setWidgetTone','widgetHasFill','widgetHasBorder','serializeWidgetColorStyles','parseWidgetColorStyles','resetAllWidgetFillColors'];
 const context = vm.createContext({ widgetColorStyles:{}, _widgetsLoaded:true, saves:[] });
 for (const name of names) {

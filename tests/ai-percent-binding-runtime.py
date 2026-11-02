@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 repo=Path(__file__).resolve().parents[1]
-for v in ('versions/V1','versions/V1/variants/V2'):
+for v in ('variants/V1','variants/V2'):
     text=(repo/v/'modules/ClaudeWidget.qml').read_text()
     start=text.index('            text: rootMod.blocked')
     end=text.index('            color:',start)

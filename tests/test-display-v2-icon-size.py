@@ -5,8 +5,8 @@ from pathlib import Path
 repo = Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory(prefix='display-v2-icon-', dir=os.environ['TMPDIR']) as work:
     folder = Path(work)
-    (folder/'DisplayManagerWidget.qml').write_bytes((repo/'versions/V1/variants/V2/modules/DisplayManagerWidget.qml').read_bytes())
-    (folder/'TooltipMixin.qml').write_bytes((repo/'versions/V1/variants/V2/modules/TooltipMixin.qml').read_bytes())
+    (folder/'DisplayManagerWidget.qml').write_bytes((repo/'variants/V2/modules/DisplayManagerWidget.qml').read_bytes())
+    (folder/'TooltipMixin.qml').write_bytes((repo/'variants/V2/modules/TooltipMixin.qml').read_bytes())
     (folder/'shell.qml').write_text('''import QtQuick
 import Quickshell
 ShellRoot {

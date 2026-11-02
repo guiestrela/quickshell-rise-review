@@ -14,7 +14,7 @@ with tempfile.TemporaryDirectory(prefix='rise-notifications-', dir='/tmp') as di
     panels, modules = base / 'panels', base / 'modules'
     panels.mkdir()
     modules.mkdir()
-    source = repo / os.environ.get('RISE_NOTIFICATION_SOURCE', 'versions/V1')
+    source = repo / os.environ.get('RISE_NOTIFICATION_SOURCE', 'variants/V1')
     text = (source / 'panels/NotificationPanel.qml').read_text()
     text = re.sub(r'^import Quickshell(?:\.[A-Za-z.]+)?\n', '', text, flags=re.M)
     text = text.replace('PanelWindow {', 'Rectangle {\n    width: 800; height: 700\n    property var screen', 1)
@@ -24,7 +24,7 @@ with tempfile.TemporaryDirectory(prefix='rise-notifications-', dir='/tmp') as di
     text = text.replace('Process {','InertProcess {').replace('FileView {','InertFileView {').replace('StdioCollector {','InertCollector {')
     text = text.replace('Quickshell.env("HOME")','"/fixture"')
     text = re.sub(r'^import ".*NotificationActions.js" as NotificationActions$', 'import "NotificationActions.js" as NotificationActions',text,flags=re.M)
-    (panels/'NotificationActions.js').write_bytes((repo/'versions/V1/integrations/NotificationActions.js').read_bytes())
+    (panels/'NotificationActions.js').write_bytes((repo/'shared/integrations/NotificationActions.js').read_bytes())
     (panels/'InertProcess.qml').write_text('import QtQuick\nQtObject { property var command: []; property bool running: false; property var stdout; signal exited(int exitCode) }')
     (panels/'InertCollector.qml').write_text('import QtQuick\nQtObject { property string text: ""; signal streamFinished() }')
     (panels/'InertFileView.qml').write_text('import QtQuick\nQtObject { property string path; property string contents: ""; signal loaded(); signal loadFailed(); function reload() { loadFailed() } function text() { return contents } function setText(value) { contents=value } }')

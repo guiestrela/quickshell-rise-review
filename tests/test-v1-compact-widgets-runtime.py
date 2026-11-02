@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 
 repo = Path(__file__).resolve().parents[1]
-modules = repo / 'versions/V1/modules'
+modules = repo / 'variants/V1/modules'
 with tempfile.TemporaryDirectory(dir=os.environ.get('TMPDIR')) as temp:
     root = Path(temp)
     qml_modules = root / 'modules'
@@ -15,7 +15,7 @@ with tempfile.TemporaryDirectory(dir=os.environ.get('TMPDIR')) as temp:
     for name in ('ClaudeWidget.qml', 'NordVPNWidget.qml', 'UiText.qml', 'PillShadow.qml', 'TooltipMixin.qml'):
         shutil.copy2(modules / name, qml_modules / name)
     for name in ('assets', 'shaders'):
-        shutil.copytree(repo / 'versions/V1' / name, root / name)
+        shutil.copytree(repo / 'variants/V1' / name, root / name)
 
     vpn_path = qml_modules / 'NordVPNWidget.qml'
     vpn_path.write_text(vpn_path.read_text().replace(

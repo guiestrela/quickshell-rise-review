@@ -5,7 +5,7 @@ from pathlib import Path
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-HELPER = ROOT / 'versions/V1/integrations/notification-crash-action.py'
+HELPER = ROOT / 'shared/integrations/notification-crash-action.py'
 BOOT = 'a' * 32
 
 

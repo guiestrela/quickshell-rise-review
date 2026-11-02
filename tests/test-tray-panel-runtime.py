@@ -11,7 +11,7 @@ with tempfile.TemporaryDirectory(prefix='rise-tray-',dir='/tmp') as directory:
     base=Path(directory)
     runtime=base/'runtime'
     runtime.mkdir(mode=0o700)
-    for variant,path in [('V1','versions/V1'),('V2','versions/V1/variants/V2')]:
+    for variant,path in [('V1','variants/V1'),('V2','variants/V2')]:
         folder=base/variant
         panels,modules=folder/'panels',folder/'modules'
         panels.mkdir(parents=True); modules.mkdir()

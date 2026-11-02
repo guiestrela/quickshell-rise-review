@@ -5,8 +5,8 @@ import { dirname, resolve } from "node:path";
 
 const project = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 for (const [variant, path] of [
-  ["V1", "versions/V1/panels/NordVPNPanel.qml"],
-  ["V2", "versions/V1/variants/V2/panels/NordVPNPanel.qml"],
+  ["V1", "variants/V1/panels/NordVPNPanel.qml"],
+  ["V2", "variants/V2/panels/NordVPNPanel.qml"],
 ]) {
   const qml = readFileSync(resolve(project, path), "utf8");
   assert.match(qml, /width:\s*Math\.min\(300, parent\.width - 16\)/, `${variant}: panel is capped at Network's 300px width`);

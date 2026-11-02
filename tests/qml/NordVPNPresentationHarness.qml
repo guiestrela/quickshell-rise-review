@@ -56,8 +56,8 @@ Item {
     function setPanelInsetX(_) {}
     function loadPanel() {
         const path = variant === "V2"
-            ? "file:///home/guiestrela/Work/quickshell-rise-review/versions/V1/variants/V2/panels/NordVPNPanel.qml"
-            : "file:///home/guiestrela/Work/quickshell-rise-review/versions/V1/panels/NordVPNPanel.qml"
+            ? Qt.resolvedUrl("../../variants/V2/panels/NordVPNPanel.qml")
+            : Qt.resolvedUrl("../../variants/V1/panels/NordVPNPanel.qml")
         const component = Qt.createComponent(path)
         if (component.status !== Component.Ready) throw new Error(component.errorString())
         panel = component.createObject(harness, { root: harness, controller: controller })

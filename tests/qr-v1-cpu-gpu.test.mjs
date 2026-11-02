@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-const read=p=>fs.readFileSync('versions/V1/'+p,'utf8');
+const read=p=>fs.readFileSync('variants/V1/'+p,'utf8');
 test('V1 CPU owns no GPU sampler or GPU UI',()=>{
  const q=read('panels/CpuPanel.qml');assert.doesNotMatch(q,/gpuDriver|gpuUtil|nvidia-smi|CPU \\u00B7 GPU/);assert.match(q,/text: "CPU"/);assert.match(q,/FanRpmHistory/);
 });

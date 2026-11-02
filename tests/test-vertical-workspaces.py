@@ -10,7 +10,7 @@ repo = Path(__file__).resolve().parents[1]
 with tempfile.TemporaryDirectory(prefix='rise-workspaces-', dir='/tmp') as directory:
     base = Path(directory)
     (base / 'runtime').mkdir(mode=0o700)
-    shutil.copy2(repo / 'versions/V1/variants/V2/modules/WorkspaceWidget.qml', base)
+    shutil.copy2(repo / 'variants/V2/modules/WorkspaceWidget.qml', base)
     (base / 'shell.qml').write_text('''import QtQuick
 import QtQuick.Window
 import Quickshell

@@ -7,7 +7,7 @@ assert os.environ.get('WAYLAND_DISPLAY') and os.environ.get('XDG_RUNTIME_DIR')
 with tempfile.TemporaryDirectory(prefix='explicit-apply-',dir=os.environ['TMPDIR']) as directory:
  root=Path(directory);scripts=root/'scripts';scripts.mkdir();runtime=root/'runtime';runtime.mkdir(mode=0o700);home=root/'home';(home/'.cache/quickshell-rise').mkdir(parents=True)
  for name in ['rise-display-manager-apply','rise-display-manager-guard']:shutil.copy2(repo/'scripts'/name,scripts/name)
- shutil.copy2(repo/'versions/V1/modules/DisplayManagerController.qml',root/'Controller.qml')
+ shutil.copy2(repo/'variants/V1/modules/DisplayManagerController.qml',root/'Controller.qml')
  baseline=[dict(id=i,name=name,width=1000,height=1000,refreshRate=60,x=i*1000,y=0,scale=1,transform=0,disabled=False,mirrorOf='none') for i,name in enumerate(['A','B'])]
  (root/'state.json').write_text(json.dumps(baseline));(root/'effects.json').write_text(json.dumps({'eval':0,'brightness':0,'font':0,'percent':70}))
  cli=root/'hyprctl';cli.write_text('''#!/usr/bin/python3

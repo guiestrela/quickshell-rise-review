@@ -4,8 +4,8 @@ import path from "node:path";
 
 const repo = path.resolve(import.meta.dirname, "..");
 const variants = [
-  { id: "V1", dir: "versions/V1", panel: "versions/V1/panels/DisplayManagerPanel.qml", slot: "G18", tile: "Tile" },
-  { id: "V2", dir: "versions/V1/variants/V2", panel: "versions/V1/panels/DisplayManagerPanel.qml", slot: "G21", tile: "WidgetStateTile" },
+  { id: "V1", dir: "variants/V1", panel: "variants/V1/panels/DisplayManagerPanel.qml", slot: "G18", tile: "Tile" },
+  { id: "V2", dir: "variants/V2", panel: "variants/V1/panels/DisplayManagerPanel.qml", slot: "G21", tile: "WidgetStateTile" },
 ];
 const read = (relative) => readFileSync(path.join(repo, relative), "utf8");
 const controls = [
@@ -27,7 +27,7 @@ for (const variant of variants) {
   if (variant.id === "V2") {
     const entry = read(prefix + "VariantRoot.qml");
     const wrapper = read(prefix + "panels/DisplayManagerPanel.qml");
-    assert.ok(/(?<!\.)\bDisplayManagerPanel\s*\{/.test(entry) && wrapper.includes('import "../../../panels" as Shared') && wrapper.includes("Shared.DisplayManagerPanel"), "V2 native-style wrapper must retain the shared panel controls");
+    assert.ok(/(?<!\.)\bDisplayManagerPanel\s*\{/.test(entry) && wrapper.includes('import "../../V1/panels" as Shared') && wrapper.includes("Shared.DisplayManagerPanel"), "V2 native-style wrapper must retain the shared panel controls");
   }
   assert.match(theme, /onModDisplayManagerChanged:\s*if \(_widgetsLoaded\) saveWidgets\(\)/, `${variant.id} toggle persistence hook`);
   if (variant.id === "V2") assert.match(read(prefix+"modules/DisplayManagerController.qml"), /Shared\.DisplayManagerController/, "V2 shared controller wrapper must be resolved");
@@ -45,6 +45,6 @@ for (const variant of variants) {
   assert.ok(panel.includes("displayManagerControllerApi"), `${variant.id} production controller wiring`);
   assert.ok(read(prefix + "VariantRoot.qml").includes("DisplayManagerPanel"), `${variant.id} panel instantiated`);
 }
-assert.ok(existsSync(path.join(repo, "versions/V1/modules/DisplayManagerController.qml")), "shared controller missing");
+assert.ok(existsSync(path.join(repo, "variants/V1/modules/DisplayManagerController.qml")), "shared controller missing");
 assert.ok(existsSync(path.join(repo, "scripts/rise-display-manager-apply")), "safe apply helper missing");
 console.log("QR_DISPLAY_CONTRACT_PASS V1/V2");

@@ -9,11 +9,11 @@ import subprocess
 import tempfile
 
 REPO = Path(__file__).resolve().parents[1]
-FILES = ['versions/V1/panels/DisplayManagerPanel.qml',
-         'versions/V1/variants/V2/panels/DisplayManagerPanel.qml',
-         'versions/V1/variants/V2/modules/ConnectedPanelSurface.qml',
-         'versions/V1/variants/V2/modules/AiPanelSurface.qml',
-         'versions/V1/variants/V2/modules/UiText.qml']
+FILES = ['variants/V1/panels/DisplayManagerPanel.qml',
+         'variants/V2/panels/DisplayManagerPanel.qml',
+         'variants/V2/modules/ConnectedPanelSurface.qml',
+         'variants/V2/modules/AiPanelSurface.qml',
+         'variants/V2/modules/UiText.qml']
 env = dict(os.environ, QT_QPA_PLATFORM='wayland')
 env.pop('DISPLAY', None)
 with tempfile.TemporaryDirectory(prefix='display-v2-style-', dir=os.environ['TMPDIR']) as work:
@@ -30,8 +30,8 @@ with tempfile.TemporaryDirectory(prefix='display-v2-style-', dir=os.environ['TMP
             data = re.sub(r'    anchors \{[^}]*\}', '', data, count=1)
             data = re.sub(r'^    (?:WlrLayershell\..*|exclusionMode:.*|margins\..*|screen:.*)\n', '', data, flags=re.M)
         dest.write_text(data)
-    fixture = (REPO / 'versions/V1/tests/qr-display-panel-runtime.qml').read_text()
-    fixture = fixture.replace('import "../panels"', 'import "versions/V1/variants/V2/panels"')
+    fixture = (REPO / 'tests/qml/qr-display-panel-runtime.qml').read_text()
+    fixture = fixture.replace('import "../panels"', 'import "variants/V2/panels"')
     fixture = fixture.replace('property bool displayManagerVisible: false', 'property bool displayManagerVisible: true')
     fixture = fixture.replace('property color bg: "#202020"', '''property color bg: "#202020"
         property color paper: "#202020"

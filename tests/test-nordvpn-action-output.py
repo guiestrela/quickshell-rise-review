@@ -38,8 +38,8 @@ else: print('Fixture command failed',file=sys.stderr); sys.exit(7)
 ''')
     cli.chmod(0o700)
     urls = [(ROOT / relative).as_uri() for relative in [
-        'versions/V1/modules/NordVpnController.qml',
-        'versions/V1/variants/V2/modules/NordVpnController.qml',
+        'variants/V1/modules/NordVpnController.qml',
+        'variants/V2/modules/NordVpnController.qml',
     ]]
     qml = '''import QtQuick
 import Quickshell

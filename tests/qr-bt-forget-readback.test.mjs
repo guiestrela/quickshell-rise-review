@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
-for (const variant of ['versions/V1', 'versions/V1/variants/V2']) {
+for (const variant of ['variants/V1', 'variants/V2']) {
   test(`${variant}: partial default-adapter listing cannot override paired native device`, () => {
     const source = readFileSync(new URL(`../${variant}/panels/BluetoothPanel.qml`, import.meta.url), 'utf8');
     const marker = 'if (btPanel.forgetReadbackPending && btPanel.forgetTarget)';

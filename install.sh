@@ -210,10 +210,11 @@ if [[ "$WANT_AUTOSTART" == "yes" || ( -z "$WANT_AUTOSTART" && "$hook_was_install
   hide_stock_after_install=true
 fi
 
-payload="$tmp/repo/versions/V1"
-[[ -f "$payload/shell.qml" && -f "$payload/VariantRoot.qml" \
+payload="$tmp/repo"
+[[ -f "$payload/shell.qml" && -f "$payload/variants/V1/VariantRoot.qml" \
    && -f "$payload/variants/V2/VariantRoot.qml" \
-   && -x "$payload/core/qs-system-update.sh" ]] || {
+   && -x "$payload/core/qs-system-update.sh" \
+   && -d "$payload/shared/integrations" ]] || {
   err "Integrated V1/V2 payload is incomplete"
   exit 1
 }
@@ -301,9 +302,12 @@ mkdir -p "$(dirname "$DEST")"
 rm -rf "$(dirname "$DEST")"/.qs-install-stage.* 2>/dev/null || true
 ts="$(date +%Y%m%d-%H%M%S)"
 stage="$(mktemp -d -p "$(dirname "$DEST")" .qs-install-stage.XXXXXX)"
-cp -r "$payload/." "$stage/"
-# .qsrise identifies the single update payload. V1 now contains the common
-# bootstrap plus both isolated UI variants; active-variant selects the UI.
+cp "$payload/shell.qml" "$stage/"
+for directory in core shared variants scripts; do
+  cp -r "$payload/$directory" "$stage/"
+done
+# .qsrise retains the legacy payload marker. The root bootstrap loads either
+# isolated UI variant; active-variant selects the UI.
 printf 'V1\n' > "$stage/.qsrise"
 
 # On a Quattro reinstall, return our persistent bar-off state before touching

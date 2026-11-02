@@ -8,8 +8,8 @@ import re
 import subprocess
 import tempfile
 repo=Path(__file__).resolve().parents[1]
-source=(repo/'versions/V1/panels/DisplayManagerPanel.qml').read_text()
-base=(repo/'versions/V1/tests/qr-display-panel-runtime.qml').read_text()
+source=(repo/'variants/V1/panels/DisplayManagerPanel.qml').read_text()
+base=(repo/'tests/qml/qr-display-panel-runtime.qml').read_text()
 with tempfile.TemporaryDirectory(prefix='display-pointer-',dir=os.environ['TMPDIR']) as directory:
  folder=Path(directory); (folder/'panels').mkdir()
  visual=source.replace('import Quickshell\n','').replace('import Quickshell.Wayland\n','').replace('import QtQuick\n','import QtQuick\nimport QtQuick.Window\n').replace('PanelWindow {','Window {',1)
@@ -28,7 +28,7 @@ with tempfile.TemporaryDirectory(prefix='display-pointer-',dir=os.environ['TMPDI
  fixture=fixture.replace('function setBrightness() { }','function setBrightness(value) { brightnessCalls.push(value) }')
  fixture=fixture.replace('function setPosition() { }','function setPosition(name,x,y) { var next=Object.assign({},positions); next[name]={x:x,y:y}; positions=next }')
  fixture=fixture.replace('id: productionPanel; root: fakeRoot','id: productionPanel; root: fakeRoot; visible: true')
- controllerSource=(repo/'versions/V1/modules/DisplayManagerController.qml').read_text()
+ controllerSource=(repo/'variants/V1/modules/DisplayManagerController.qml').read_text()
  toggleCode=controllerSource[controllerSource.index('    function toggleMirror('):controllerSource.index('    function enableMonitor(')]
  fixture=fixture.replace('function applyMonitor(name,mode,x,y,scale,transform,mirror)', 'property var mirrorReturnStates: ({})\n'+toggleCode+'\nfunction applyMonitor(name,mode,x,y,scale,transform,mirror)')
  start=fixture.index('    Timer {')

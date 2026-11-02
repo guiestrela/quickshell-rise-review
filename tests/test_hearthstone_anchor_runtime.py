@@ -12,8 +12,8 @@ import tempfile
 
 PROJECT = Path(__file__).resolve().parents[1]
 CANDIDATES = (
-    PROJECT / 'versions/V1/panels/ImageCarouselHearthstone.qml',
-    PROJECT / 'versions/V1/variants/V2/panels/ImageCarouselHearthstone.qml',
+    PROJECT / 'variants/V1/panels/ImageCarouselHearthstone.qml',
+    PROJECT / 'variants/V2/panels/ImageCarouselHearthstone.qml',
 )
 QML = '''import QtQuick
 import Quickshell

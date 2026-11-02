@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 
 repo = Path(__file__).resolve().parents[1]
-for variant in ('versions/V1', 'versions/V1/variants/V2'):
+for variant in ('variants/V1', 'variants/V2'):
     source = (repo / variant / 'panels/AiUsagePanel.qml').read_text()
     start = source.index('                Item {', source.index('// ── GitHub Copilot'))
     end = source.index('                UiText {\n                    visible:', start)

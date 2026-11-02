@@ -2,7 +2,8 @@
 
 Use esta referência ao modificar a apresentação lateral da Rise. Confirme os valores atuais no código; a V1 continua horizontal.
 
-Os caminhos de implementação abaixo são relativos a `versions/V1/`.
+Os caminhos `variants/V2/...` são relativos à raiz do repositório. Os demais
+caminhos de módulos são relativos a `variants/V2/`.
 
 ## Onde alterar
 

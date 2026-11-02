@@ -54,7 +54,7 @@ fi
 
 check_qml() {
   local file count=0 warnings=0 file_warnings status
-  printf '==> QML lint (Bar.qml and all files under versions/)\n'
+  printf '==> QML lint (root entry points, core, shared, and variants)\n'
   while IFS= read -r -d '' file; do
     count=$((count + 1))
     if "$qmllint" -I /usr/lib/qt6/qml "$file" >"$tmp/qmllint.log" 2>&1; then
@@ -67,7 +67,7 @@ check_qml() {
       printf 'FAIL: QML lint %s (exit %s; %s warnings)\n' "$file" "$status" "$file_warnings" >&2
       return "$status"
     fi
-  done < <(find Bar.qml versions -type f -name '*.qml' -print0)
+  done < <(find Bar.qml shell.qml core shared variants -type f -name '*.qml' -print0)
   if [[ "$count" -eq 0 ]]; then
     printf 'FAIL: no QML files found.\n' >&2
     return 1
@@ -75,6 +75,7 @@ check_qml() {
   printf 'PASS: QML lint (%s files; %s warnings)\n' "$count" "$warnings"
 }
 check_qml
+check "source layout and local imports" python3 tests/test-source-layout.py
 
 check "variant failure and retry" python3 tests/test-variant-failure-runtime.py
 check "network SSID width" python3 tests/test-network-ssid-width.py
@@ -86,12 +87,12 @@ check "storage panel inventory" python3 tests/test-storage-panel-runtime.py
 check "thermal panel sensors" python3 tests/test-thermal-panel-runtime.py
 check "image carousel selection" python3 tests/test-image-carousel-runtime.py
 check "V1 notification history" python3 tests/test-notification-history-runtime.py
-check "V2 notification history" env RISE_NOTIFICATION_SOURCE=versions/V1/variants/V2 python3 tests/test-notification-history-runtime.py
+check "V2 notification history" env RISE_NOTIFICATION_SOURCE=variants/V2 python3 tests/test-notification-history-runtime.py
 check "notification pointer actions" python3 tests/qr-notification-panel-click.py
 check "wallpaper panel controls" python3 tests/test-wallpaper-panel-runtime.py
 check "tray panel actions" python3 tests/test-tray-panel-runtime.py
 check "V1 media panel" python3 tests/test-mpris-panel-runtime.py
-check "V2 media panel" env RISE_MPRIS_SOURCE=versions/V1/variants/V2 python3 tests/test-mpris-panel-runtime.py
+check "V2 media panel" env RISE_MPRIS_SOURCE=variants/V2 python3 tests/test-mpris-panel-runtime.py
 check "media browser actions" python3 tests/test-media-browser-runtime.py
 check "AI widget mouse actions" python3 tests/test-ai-widget-click.py
 

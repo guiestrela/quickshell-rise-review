@@ -4,13 +4,13 @@ import os, re, subprocess, tempfile
 from pathlib import Path
 repo = Path(__file__).resolve().parents[1]
 for variant in ['V1', 'V2']:
-    source = repo / ('versions/V1/modules' if variant == 'V1' else 'versions/V1/variants/V2/modules')
+    source = repo / ('variants/V1/modules' if variant == 'V1' else 'variants/V2/modules')
     with tempfile.TemporaryDirectory(prefix='display-hover-', dir=os.environ['TMPDIR']) as work:
         folder = Path(work)
         for name in ['DisplayManagerWidget.qml', 'TooltipMixin.qml']:
             (folder / name).write_bytes((source / name).read_bytes())
         for name in ['IconText.qml', 'PillShadow.qml']:
-            (folder / name).write_bytes((repo / 'versions/V1/modules' / name).read_bytes())
+            (folder / name).write_bytes((repo / 'variants/V1/modules' / name).read_bytes())
         (folder / 'shell.qml').write_text('''import QtQuick
 import Quickshell
 ShellRoot {

@@ -1,5 +1,5 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
-const source=fs.readFileSync(path.join(__dirname,'../versions/V1/modules/DisplayManagerController.qml'),'utf8');
+const source=fs.readFileSync(path.join(__dirname,'../variants/V1/modules/DisplayManagerController.qml'),'utf8');
 const c={selectedMonitor:'DP-2',focusedMonitor:'DP-1',brightnessAvailable:true,calls:[],error:'',safeMonitor:n=>/^DP-[12]$/.test(n),command:args=>{c.calls.push(args);return true}};
 vm.createContext(c);vm.runInContext(source.slice(source.indexOf('    function setBrightness(value)'),source.indexOf('    function setTextSize(index)')),c);
 assert.equal(c.setBrightness(73),true);assert.equal(c.calls[0][3],'DP-2','selected monitor must win over focused monitor');

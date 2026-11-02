@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const source = readFileSync(new URL('../versions/V1/modules/NordVpnController.qml', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../variants/V1/modules/NordVpnController.qml', import.meta.url), 'utf8');
 function method(name, next) {
   const start = source.indexOf(`function ${name}(`);
   return source.slice(start, source.indexOf(`\n    function ${next}(`, start)).trim();

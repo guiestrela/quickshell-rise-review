@@ -7,7 +7,7 @@ with tempfile.TemporaryDirectory(prefix='rise-v1-vertical-', dir='/tmp') as dire
     base = Path(directory)
     runtime = base / 'runtime'; runtime.mkdir(mode=0o700)
     for name in ['VerticalBarContent.qml', 'SidePanelPositioner.qml', 'WorkspaceWidget.qml', 'PillShadow.qml', 'CpuWidget.qml', 'MemoryWidget.qml', 'MprisWidget.qml', 'UiText.qml', 'IconText.qml', 'TooltipMixin.qml']:
-        shutil.copy2(repo / 'versions/V1/modules' / name, base)
+        shutil.copy2(repo / 'variants/V1/modules' / name, base)
     for name in ['ArchUpdaterWidget', 'TrayWidget', 'NotificationWidget', 'IdleInhibitorWidget', 'MediaBrowserWidget', 'ThemeDisplayWidget', 'WeatherWidget']:
         (base / (name + '.qml')).write_text('import QtQuick\nItem { property var root; property var screen; implicitWidth: 30; implicitHeight: 28 }\n')
     (base / 'MprisSelect.qml').write_text('import QtQuick\nItem { property var player: ({trackTitle:"Long song name",trackArtist:"Artist",canGoPrevious:true,canGoNext:true}); property bool active: true; property bool playing: false }')

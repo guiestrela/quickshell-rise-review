@@ -8,7 +8,7 @@ import sys
 import tempfile
 import unittest
 
-SCRIPT = Path(__file__).resolve().parents[1] / 'versions/V1/integrations/wallpaper-scan.py'
+SCRIPT = Path(__file__).resolve().parents[1] / 'shared/integrations/wallpaper-scan.py'
 spec = importlib.util.spec_from_file_location('rise_wallpaper_scan', SCRIPT)
 assert spec is not None and spec.loader is not None
 scanner = importlib.util.module_from_spec(spec)

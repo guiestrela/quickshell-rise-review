@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 
 REPO=Path(__file__).resolve().parents[1]
-BRIDGE=REPO/'versions/V1/core/WallpaperWakeBridge.qml'
+BRIDGE=REPO/'core/WallpaperWakeBridge.qml'
 assert BRIDGE.exists(), 'Missing safe bridge: wake control remains disabled in scoped host'
 with tempfile.TemporaryDirectory(prefix='wake-runtime-',dir=os.environ['TMPDIR']) as directory:
     temp=Path(directory);state=temp/'state';state.write_text('{"schema":1,"locked":false,"screensaverShowing":false}')
@@ -18,7 +18,7 @@ with tempfile.TemporaryDirectory(prefix='wake-runtime-',dir=os.environ['TMPDIR']
     source=source[:begin]+'    readonly property string readerPath: '+json.dumps(str(reader))+source[end:]
     source=source.replace('interval: 1000','interval: 30')
     (temp/'WallpaperWakeBridge.qml').write_text(source)
-    for variant,rel in enumerate(['versions/V1/modules/WallpaperManagerService.qml','versions/V1/variants/V2/modules/WallpaperManagerService.qml'],1):
+    for variant,rel in enumerate(['variants/V1/modules/WallpaperManagerService.qml','variants/V2/modules/WallpaperManagerService.qml'],1):
         service=(REPO/rel).read_text();start=service.index('    function wakeShuffle()');end=service.index('        function onWallpaperManagerFolderChanged()',start)
         event=service[start:end]+'    }\n'
         event=event.replace('interval: 400','interval: 40')

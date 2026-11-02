@@ -3,7 +3,7 @@
 import importlib.util,json,os,tempfile,unittest
 from pathlib import Path
 from unittest.mock import patch
-HELPER=Path(__file__).resolve().parents[1]/'versions/V1/integrations/notification-app-open.py'
+HELPER=Path(__file__).resolve().parents[1]/'shared/integrations/notification-app-open.py'
 class AppOpen(unittest.TestCase):
  def test_selected_thunderbird_history_uses_fixed_app_only(self):
   self.assertTrue(HELPER.exists(),'Selected app launcher is missing')

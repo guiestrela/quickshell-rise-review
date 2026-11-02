@@ -18,12 +18,12 @@ with tempfile.TemporaryDirectory(prefix='rise-calendar-workspace-', dir='/tmp') 
     temp = Path(directory)
     runtime = temp / 'runtime'
     runtime.mkdir(mode=0o700)
-    for variant, path in [('V1','versions/V1'),('V2','versions/V1/variants/V2')]:
+    for variant, path in [('V1','variants/V1'),('V2','variants/V2')]:
         folder = temp / variant
         panels, modules = folder / 'panels', folder / 'modules'
         panels.mkdir(parents=True)
         modules.mkdir()
-        model = repo / 'versions/V1/integrations/google-calendar/CalendarModel.js'
+        model = repo / 'shared/integrations/google-calendar/CalendarModel.js'
         (folder / 'CalendarModel.js').write_bytes(model.read_bytes())
         texts = []
         for name in ['CalendarPopup','WorkspacePanel']:

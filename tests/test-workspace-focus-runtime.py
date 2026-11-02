@@ -10,7 +10,7 @@ with tempfile.TemporaryDirectory(prefix='rise-workspace-focus-', dir='/tmp') as 
     temp = Path(directory)
     runtime = temp / 'runtime'
     runtime.mkdir(mode=0o700)
-    for variant, path in [('V1', 'versions/V1'), ('V2', 'versions/V1/variants/V2')]:
+    for variant, path in [('V1', 'variants/V1'), ('V2', 'variants/V2')]:
         folder = temp / variant
         folder.mkdir()
         for name in ['WorkspaceWidget', 'PillShadow']:

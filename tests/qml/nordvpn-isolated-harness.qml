@@ -1,7 +1,7 @@
 import QtQuick
 import QtQuick.Window
-import "../../versions/V1/modules"
-import "../../versions/V1/modules/NordVpnLayout.js" as NordVpnLayout
+import "../../variants/V1/modules"
+import "../../variants/V1/modules/NordVpnLayout.js" as NordVpnLayout
 
 Window {
     id: harness

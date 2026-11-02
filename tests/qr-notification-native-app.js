@@ -1,7 +1,7 @@
 // Inert native actions only; no real notification, app, message or URI.
 const fs=require('fs'), vm=require('vm'), assert=require('assert/strict'),path=require('path');
 const ctx={};vm.createContext(ctx);
-vm.runInContext(fs.readFileSync(path.join(__dirname,'../versions/V1/integrations/NotificationActions.js'),'utf8').replace(/^\.pragma library\s*/,''),ctx);
+vm.runInContext(fs.readFileSync(path.join(__dirname,'../shared/integrations/NotificationActions.js'),'utf8').replace(/^\.pragma library\s*/,''),ctx);
 assert.equal(typeof ctx.invokeDefault,'function','Selected native app action is missing');
 for (const app of ['Thunderbird','Hermes','ChatGPT']) {
  let hits=0;

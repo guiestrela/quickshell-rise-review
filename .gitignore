@@ -1,6 +1,5 @@
 
-# Legacy standalone V2 development tree. The shipped V2 bundle lives inside
-# versions/V1/variants/V2 so both variants deploy as one atomic payload.
+# Ignore the retired standalone V2 tree; current interfaces live in variants/.
 /versions/V2/
 
 # Local qs-proj / qsrise active-version marker

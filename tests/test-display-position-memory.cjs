@@ -1,5 +1,5 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
-const source=fs.readFileSync(path.join(__dirname,'../versions/V1/modules/DisplayManagerController.qml'),'utf8');
+const source=fs.readFileSync(path.join(__dirname,'../variants/V1/modules/DisplayManagerController.qml'),'utf8');
 function functionText(name){let start=source.indexOf('    function '+name+'(');assert.ok(start>=0,'Missing production function '+name);let open=source.indexOf('{',start),depth=1,end=open+1;for(;depth&&end<source.length;end++){if(source[end]==='{')depth++;else if(source[end]==='}')depth--;}return source.slice(start,end);}
 const active={name:'DP-1',width:2560,height:1440,x:0,y:560,scale:1,transform:0,disabled:false,mirrorOf:'none',refreshRate:155};
 const target={name:'DP-2',width:2560,height:1440,x:2579,y:-50,scale:1.25,transform:1,disabled:false,mirrorOf:'none',refreshRate:59.951};

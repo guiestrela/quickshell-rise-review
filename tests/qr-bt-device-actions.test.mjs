@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 function fn(qml,name){const start=qml.indexOf(`function ${name}(`);assert.ok(start>=0,`${name} missing`);let open=qml.indexOf('{',start),depth=0;for(let i=open;i<qml.length;i++){if(qml[i]==='{')depth++;if(qml[i]==='}'&&--depth===0)return qml.slice(start,i+1)}assert.fail('function incomplete')}
-for(const variant of ['versions/V1','versions/V1/variants/V2']){
+for(const variant of ['variants/V1','variants/V2']){
  test(`${variant}: left-click accordion toggles one device and preserves main connection button`,()=>{
   const qml=readFileSync(new URL(`../${variant}/panels/BluetoothPanel.qml`,import.meta.url),'utf8');
   const panel={expandedDeviceKey:'',actionBusy:false,cancelForgetDevice(){},trustError:''};

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 
-const source = fs.readFileSync('versions/V1/variants/V2/Theme.qml', 'utf8');
+const source = fs.readFileSync('variants/V2/Theme.qml', 'utf8');
 function settings() {
     const context = vm.createContext({
         widgetSurfaceStyles: {}, _widgetsLoaded: true, saves: 0,

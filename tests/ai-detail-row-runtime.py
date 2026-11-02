@@ -5,7 +5,7 @@ import os
 import subprocess
 import tempfile
 repo = Path(__file__).resolve().parents[1]
-for variant in ('versions/V1', 'versions/V1/variants/V2'):
+for variant in ('variants/V1', 'variants/V2'):
     source = (repo / variant / 'panels/AiUsagePanel.qml').read_text()
     start = source.index('    component DetailRow:')
     end = source.index('\n    // ── compact', start)

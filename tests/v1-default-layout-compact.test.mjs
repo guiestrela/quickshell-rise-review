@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
 
-const source = readFileSync(new URL('../versions/V1/modules/V1Defaults.js', import.meta.url), 'utf8')
+const source = readFileSync(new URL('../variants/V1/modules/V1Defaults.js', import.meta.url), 'utf8')
   .replace(/^\.pragma library\s*/m, '');
 const defaults = vm.runInNewContext(`${source}\n({ defaultOrder, defaultSplits, defaultCompact, compactCacheFields, parseCompactCacheFields })`);
 

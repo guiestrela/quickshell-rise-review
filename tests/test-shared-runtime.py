@@ -23,10 +23,10 @@ q=scope['qml'];q=q[:q.index('    Timer {')]+'''    Timer {
     }
 }'''
 for v in ['V1','V2']:
-    root=b/'versions/V1'/('variants/V2' if v=='V2' else '')
+    root=b/'variants'/v
     settings={'perDisplayConfig':False,'displayConfig':{'all':{'folder':str(scope['A']),'recursive':True,'mode':'shuffle'}}}
     text='import "'+str((root/'modules').relative_to(b))+'" as Service\n'+q
-    for k,val in {'PROFILE':json.dumps(str((root/'modules/WallpaperProfile.js').relative_to(b))),'WIDGET_MODULE':json.dumps(str((root/'modules').relative_to(b))),'SERVICE_MODULE':'Service','SETTINGS':'('+json.dumps(settings)+')','PANEL_URL':json.dumps((b/'versions/V1/panels/WallpaperManagerQuickPanel.qml').as_uri()),'THEME_FUNCTIONS':'\n'.join(scope['extract']((root/'Theme.qml').read_text(),n) for n in ['setWallpaperProfile','setWallpaperPerDisplay','nextWallpaper'])}.items():text=text.replace(k,val)
+    for k,val in {'PROFILE':json.dumps(str((root/'modules/WallpaperProfile.js').relative_to(b))),'WIDGET_MODULE':json.dumps(str((root/'modules').relative_to(b))),'SERVICE_MODULE':'Service','SETTINGS':'('+json.dumps(settings)+')','PANEL_URL':json.dumps((b/'variants/V1/panels/WallpaperManagerQuickPanel.qml').as_uri()),'THEME_FUNCTIONS':'\n'.join(scope['extract']((root/'Theme.qml').read_text(),n) for n in ['setWallpaperProfile','setWallpaperPerDisplay','nextWallpaper'])}.items():text=text.replace(k,val)
     probe=b/f'shared-probe-{v}.qml';probe.write_text(text)
     env=os.environ.copy();env.pop('DISPLAY',None);env.update(QT_QPA_PLATFORM='wayland',QT_QUICK_BACKEND='software',NO_COLOR='1',XDG_RUNTIME_DIR='/run/user/1000',WAYLAND_DISPLAY='wayland-1')
     r=subprocess.run(['qs','-n','-p',str(probe)],capture_output=True,text=True,env=env,timeout=10)

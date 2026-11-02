@@ -1,7 +1,7 @@
 from pathlib import Path
 import os,subprocess
 b=Path(__file__).resolve().parent.parent
-for v,sub,gid in [('V1','versions/V1','G17'),('V2','versions/V1/variants/V2','G20')]:
+for v,sub,gid in [('V1','variants/V1','G17'),('V2','variants/V2','G20')]:
  vr=b/sub;s=(vr/'BarSlot.qml').read_text()
  a=s.index('id: compQuick');z=s.index('id: compNetwork',a)
  assert 'WallpaperManagerQuickWidget' not in s[a:z],v+' STILL_IN_QUICK_TOOLS'

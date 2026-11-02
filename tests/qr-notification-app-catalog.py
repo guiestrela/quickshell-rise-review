@@ -3,7 +3,7 @@
 import importlib.util,json,os,tempfile,unittest
 from pathlib import Path
 from unittest.mock import patch
-HELPER=Path(__file__).resolve().parents[1]/'versions/V1/integrations/notification-app-open.py'
+HELPER=Path(__file__).resolve().parents[1]/'shared/integrations/notification-app-open.py'
 class Catalog(unittest.TestCase):
  def test_unique_registered_app_and_catalog_guards(self):
   spec=importlib.util.spec_from_file_location('app_open',HELPER);assert spec and spec.loader

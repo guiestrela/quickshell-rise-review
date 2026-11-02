@@ -34,8 +34,8 @@ Use `omarchy plugin update io.github.guiestrela.quickshell-rise` to update throu
 ## Preserve the architecture
 
 - `Bar.qml` is the plugin entry point in the existing `omarchy-shell` process. Do not start a second bar with `qs -p` to test the active installation.
-- `versions/V1/core/StateService.qml`, `VariantHost.qml`, and `IpcRouter.qml` control state, loading, and IPC. Only the selected variant should be instantiated.
-- V1 is under `versions/V1/`; V2 is under `versions/V1/variants/V2/`. Each `VariantRoot.qml` creates bars for valid outputs; `BarSlot.qml` arranges widgets. Logic and presentation live in `modules/` and `panels/`.
+- `core/StateService.qml`, `VariantHost.qml`, and `IpcRouter.qml` control state, loading, and IPC. Only the selected variant should be instantiated.
+- V1 is under `variants/V1/`; V2 is under `variants/V2/`. Each `VariantRoot.qml` creates bars for valid outputs; `BarSlot.qml` arranges widgets. Logic and presentation live in `modules/` and `panels/`.
 - Before fixing V1/V2, check whether the V2 file has its own implementation or only imports V1. Fix shared behavior without removing intentional visual differences.
 - Omarchy services read `fontFamily`, `position`, `barSize`, and `barHidden` from the bar entry point. These values must remain valid during loading and variant switching.
 - State and preferences live outside the code: `~/.local/state/quickshell-rise/active-variant`, `~/.cache/quickshell_widgets`, and `~/.cache/quickshell_widgets_v2`, plus integration-specific caches. Do not delete these files to fix a failure without investigating their purpose.

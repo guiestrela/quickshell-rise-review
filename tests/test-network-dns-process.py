@@ -24,9 +24,9 @@ if (root/'mismatch').read_text()=='yes':sys.exit(0)
 (root/'state').write_text(sys.argv[1])
 ''')
     fake.chmod(0o700)
-    source=(PROJECT/'versions/V1/modules/NetworkDnsSection.qml').read_text()
+    source=(PROJECT/'variants/V1/modules/NetworkDnsSection.qml').read_text()
     (root/'NetworkDnsSection.qml').write_text(source.replace('/usr/bin/omarchy-dns', str(fake)))
-    (root/'UiText.qml').write_bytes((PROJECT/'versions/V1/modules/UiText.qml').read_bytes())
+    (root/'UiText.qml').write_bytes((PROJECT/'variants/V1/modules/UiText.qml').read_bytes())
     qml='''import QtQuick
 import Quickshell
 import Quickshell.Io

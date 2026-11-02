@@ -7,11 +7,11 @@ import subprocess
 import tempfile
 
 PROJECT = Path(__file__).resolve().parents[1]
-SOURCE = PROJECT / 'versions/V1/modules/NetworkDnsSection.qml'
+SOURCE = PROJECT / 'variants/V1/modules/NetworkDnsSection.qml'
 assert SOURCE.exists(), 'Missing DNS selector component'
 source = SOURCE.read_text()
 assert source.count('/usr/bin/omarchy-dns') == 2
-for panel in [PROJECT / 'versions/V1/panels/NetworkPanel.qml', PROJECT / 'versions/V1/variants/V2/panels/NetworkPanel.qml']:
+for panel in [PROJECT / 'variants/V1/panels/NetworkPanel.qml', PROJECT / 'variants/V2/panels/NetworkPanel.qml']:
     assert 'NetworkDnsSection {' in panel.read_text(), f'Missing DNS selector: {panel}'
 
 with tempfile.TemporaryDirectory(prefix='network-dns-', dir=os.environ['TMPDIR']) as temp:
@@ -35,7 +35,7 @@ if (root/'mismatch').exists():sys.exit(0)
     (root/'Backend.qml').write_text('pragma Singleton\nimport QtQuick\nQtObject { property string provider: "DHCP"; property var actions: []; property bool fail: false; property bool mismatch: false }')
     (root/'StdioCollector.qml').write_text('import QtQuick\nQtObject { property string text: ""; property bool waitForEnd: false }')
     (root/'Process.qml').write_text('import QtQuick\nimport "." as Fixture\nQtObject {\n id: proc\n property var command: []\n property bool running: false\n property var stdout\n property var stderr\n signal exited(int exitCode)\n property Timer done: Timer {\n  interval: 80\n  onTriggered: {\n   var code=0\n   if(proc.command.length===1) proc.stdout.text=Fixture.Backend.provider\n   else {\n    Fixture.Backend.actions=Fixture.Backend.actions.concat([proc.command[1]])\n    if(Fixture.Backend.fail) code=1\n    else if(!Fixture.Backend.mismatch) Fixture.Backend.provider=proc.command[1]\n   }\n   proc.running=false\n   proc.exited(code)\n  }\n }\n onRunningChanged: if(running) done.restart()\n}\n')
-    (root/'UiText.qml').write_bytes((PROJECT/'versions/V1/modules/UiText.qml').read_bytes())
+    (root/'UiText.qml').write_bytes((PROJECT/'variants/V1/modules/UiText.qml').read_bytes())
     qml = '''import QtQuick
 import QtTest
 import "." as Fixture

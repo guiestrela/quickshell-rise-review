@@ -6,7 +6,7 @@ import subprocess
 import tempfile
 
 repo = Path(__file__).resolve().parents[1]
-source = (repo / 'versions/V1/variants/V2/modules/NetworkWidget.qml').read_text()
+source = (repo / 'variants/V2/modules/NetworkWidget.qml').read_text()
 
 
 def block(type_name, identity):

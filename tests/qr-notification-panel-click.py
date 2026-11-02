@@ -5,7 +5,7 @@ from pathlib import Path
 import subprocess
 import tempfile
 
-ROOT = Path(__file__).resolve().parents[1] / 'versions/V1'
+ROOT = Path(__file__).resolve().parents[1] / 'variants/V1'
 RUNNER = '/usr/lib/qt6/bin/qmltestrunner'
 
 
@@ -105,9 +105,9 @@ Item {
 def main():
     env = dict(os.environ, QT_QPA_PLATFORM='offscreen', QT_QUICK_BACKEND='software', QT_QPA_PLATFORMTHEME='', DISPLAY='')
     with tempfile.TemporaryDirectory(prefix='notif-pointer-') as directory:
-        (Path(directory) / 'NotificationActions.js').write_bytes((ROOT / 'integrations/NotificationActions.js').read_bytes())
+        (Path(directory) / 'NotificationActions.js').write_bytes((ROOT.parents[1] / 'shared/integrations/NotificationActions.js').read_bytes())
         for variant, source in [('V1', ROOT / 'panels/NotificationPanel.qml'),
-                                ('V2', ROOT / 'variants/V2/panels/NotificationPanel.qml')]:
+                                ('V2', ROOT.parent / 'V2/panels/NotificationPanel.qml')]:
             text = source.read_text()
             assert 'onClicked: notifPanel.openNotification(notificationRow.modelData)' in text
             functions = '\n'.join(extract(text, name) for name in

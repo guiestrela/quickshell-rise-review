@@ -10,8 +10,8 @@ import subprocess
 import tempfile
 
 repo = Path(__file__).resolve().parents[1]
-source = repo / "versions/V1/panels/DisplayManagerPanel.qml"
-base = (repo / "versions/V1/tests/qr-display-panel-runtime.qml").read_text()
+source = repo / "variants/V1/panels/DisplayManagerPanel.qml"
+base = (repo / "tests/qml/qr-display-panel-runtime.qml").read_text()
 for variant in ("V1", "V2"):
     with tempfile.TemporaryDirectory(prefix="display-ui-", dir=os.environ["TMPDIR"]) as directory:
         folder = Path(directory)

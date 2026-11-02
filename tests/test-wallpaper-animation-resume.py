@@ -8,7 +8,7 @@ with tempfile.TemporaryDirectory(prefix='resume-render-',dir=os.environ['TMPDIR'
  t=Path(directory)
  # A distinct URL with identical content isolates MP4 -> MP4 source changes.
  second_video=t/'second.mp4';second_video.write_bytes((MEDIA/'moving.mp4').read_bytes())
- for i,rel in enumerate(['versions/V1/modules/WallpaperManagerService.qml','versions/V1/variants/V2/modules/WallpaperManagerService.qml'],1):
+ for i,rel in enumerate(['variants/V1/modules/WallpaperManagerService.qml','variants/V2/modules/WallpaperManagerService.qml'],1):
   src=(R/rel).read_text();a=src.index('            PanelWindow {');b=src.index('\n            }\n        }\n    }',a)+14
   renderer=src[a:b].replace('PanelWindow {','Rectangle {',1)
   renderer=renderer.replace('                id: wallpaperWindow','                id: wallpaperWindow\n                required property var manager\n                property int frameCount:0\n                width:320; height:180',1)

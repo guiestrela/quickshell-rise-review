@@ -16,7 +16,7 @@ omarchy restart shell
 From the repository root, run:
 
 ```bash
-qs -p "$PWD/versions/V1/shell.qml"
+qs -p "$PWD/shell.qml"
 ```
 
 This entry point loads either variant through `VariantHost` and reads the same
@@ -45,7 +45,7 @@ Run the repository-wide automated checks from any directory:
 ```
 
 The runner checks shell syntax, runs ShellCheck when installed, lints every QML
-file under `versions/` plus `Bar.qml`, runs the seven isolated shell regression suites, and checks
+file under `core/`, `shared/`, and `variants/` plus `Bar.qml` and `shell.qml`, runs the seven isolated shell regression suites, and checks
 patch whitespace. It stops at the first failure. QML lint can report existing
 warnings from Quickshell-specific types; warnings are counted, while lint errors
 fail the run. This command does not replace live V1/V2 checks in a Wayland
@@ -106,8 +106,8 @@ For example, validate both bar surfaces:
 
 ```bash
 /usr/lib/qt6/bin/qmllint -I /usr/lib/qt6/qml \
-  versions/V1/BarSlot.qml \
-  versions/V1/variants/V2/BarSlot.qml
+  variants/V1/BarSlot.qml \
+  variants/V2/BarSlot.qml
 ```
 
 Quickshell-specific IPC types can expose local `qmllint` version limits. Treat an exit without diagnostics separately from a reported QML error, then verify the same file through a live load.

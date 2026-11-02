@@ -4,7 +4,7 @@ import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";
 const dir = dirname(fileURLToPath(import.meta.url));
-const qml = readFileSync(resolve(dir, "../versions/V1/panels/NordVPNPanel.qml"), "utf8");
+const qml = readFileSync(resolve(dir, "../variants/V1/panels/NordVPNPanel.qml"), "utf8");
 assert.match(qml, /required property var root/);
 assert.match(qml, /required property var controller/);
 assert.match(qml, /root\.vpnVisible/);

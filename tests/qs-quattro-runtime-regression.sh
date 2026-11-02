@@ -10,20 +10,20 @@ README="$REPO_ROOT/README.md"
 GETTING_STARTED="$REPO_ROOT/docs/getting-started.md"
 MAINTENANCE="$REPO_ROOT/docs/maintenance-and-recovery.md"
 USAGE="$REPO_ROOT/docs/usage.md"
-V1_THEME="$REPO_ROOT/versions/V1/Theme.qml"
-V2_THEME="$REPO_ROOT/versions/V1/variants/V2/Theme.qml"
-V2_BAR_SLOT="$REPO_ROOT/versions/V1/variants/V2/BarSlot.qml"
-V2_CONNECTED_PANEL_SURFACE="$REPO_ROOT/versions/V1/variants/V2/modules/ConnectedPanelSurface.qml"
-V1_PALETTE="$REPO_ROOT/versions/V1/Palette.js"
-V1_CONTROL_PANEL="$REPO_ROOT/versions/V1/panels/ControlPanel.qml"
-V1_ARCH_UPDATER="$REPO_ROOT/versions/V1/panels/ArchUpdaterPanel.qml"
-V1_BLUETOOTH_PANEL="$REPO_ROOT/versions/V1/panels/BluetoothPanel.qml"
-V1_MPRIS_WIDGET="$REPO_ROOT/versions/V1/modules/MprisWidget.qml"
-V1_MPRIS_PANEL="$REPO_ROOT/versions/V1/panels/MprisPanel.qml"
-V2_ARCH_UPDATER="$REPO_ROOT/versions/V1/variants/V2/panels/ArchUpdaterPanel.qml"
-V2_BLUETOOTH_PANEL="$REPO_ROOT/versions/V1/variants/V2/panels/BluetoothPanel.qml"
-V2_MPRIS_WIDGET="$REPO_ROOT/versions/V1/variants/V2/modules/MprisWidget.qml"
-V2_MPRIS_PANEL="$REPO_ROOT/versions/V1/variants/V2/panels/MprisPanel.qml"
+V1_THEME="$REPO_ROOT/variants/V1/Theme.qml"
+V2_THEME="$REPO_ROOT/variants/V2/Theme.qml"
+V2_BAR_SLOT="$REPO_ROOT/variants/V2/BarSlot.qml"
+V2_CONNECTED_PANEL_SURFACE="$REPO_ROOT/variants/V2/modules/ConnectedPanelSurface.qml"
+V1_PALETTE="$REPO_ROOT/variants/V1/Palette.js"
+V1_CONTROL_PANEL="$REPO_ROOT/variants/V1/panels/ControlPanel.qml"
+V1_ARCH_UPDATER="$REPO_ROOT/variants/V1/panels/ArchUpdaterPanel.qml"
+V1_BLUETOOTH_PANEL="$REPO_ROOT/variants/V1/panels/BluetoothPanel.qml"
+V1_MPRIS_WIDGET="$REPO_ROOT/variants/V1/modules/MprisWidget.qml"
+V1_MPRIS_PANEL="$REPO_ROOT/variants/V1/panels/MprisPanel.qml"
+V2_ARCH_UPDATER="$REPO_ROOT/variants/V2/panels/ArchUpdaterPanel.qml"
+V2_BLUETOOTH_PANEL="$REPO_ROOT/variants/V2/panels/BluetoothPanel.qml"
+V2_MPRIS_WIDGET="$REPO_ROOT/variants/V2/modules/MprisWidget.qml"
+V2_MPRIS_PANEL="$REPO_ROOT/variants/V2/panels/MprisPanel.qml"
 WORK="$(mktemp -d /tmp/qs-quattro-runtime-test.XXXXXX)"
 HOST_BIN="$WORK/host-bin"
 mkdir -p "$HOST_BIN"
@@ -178,14 +178,15 @@ SCRIPT
 build_installer_fixture() {
   local repo="$WORK/installer-source"
 
-  mkdir -p "$repo/contrib/post-boot.d" "$repo/versions/V1/core" \
-    "$repo/versions/V1/variants/V2" \
+  mkdir -p "$repo/contrib/post-boot.d" "$repo/core" \
+    "$repo/variants/V1" "$repo/variants/V2" "$repo/shared/integrations" \
     "$repo/scripts" "$repo/systemd"
-  printf 'import QtQuick\nItem {}\n' > "$repo/versions/V1/shell.qml"
-  printf 'import QtQuick\nItem {}\n' > "$repo/versions/V1/VariantRoot.qml"
-  printf 'import QtQuick\nItem {}\n' > "$repo/versions/V1/variants/V2/VariantRoot.qml"
-  printf '#!/usr/bin/env bash\nexit 0\n' > "$repo/versions/V1/core/qs-system-update.sh"
-  chmod 0755 "$repo/versions/V1/core/qs-system-update.sh"
+  printf 'fixture shared integration\n' > "$repo/shared/integrations/fixture.txt"
+  printf 'import QtQuick\nItem {}\n' > "$repo/shell.qml"
+  printf 'import QtQuick\nItem {}\n' > "$repo/variants/V1/VariantRoot.qml"
+  printf 'import QtQuick\nItem {}\n' > "$repo/variants/V2/VariantRoot.qml"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$repo/core/qs-system-update.sh"
+  chmod 0755 "$repo/core/qs-system-update.sh"
 
   # Stock-bar ownership remains isolated from the host. Installer readiness is
   # intentionally not stubbed here: the fixture ships the real qs-barctl below
@@ -264,7 +265,7 @@ SCRIPT
     contrib/post-boot.d/quickshell-rise \
     scripts/qs-barctl \
     scripts/qs-proj \
-    versions/V1/core/qs-system-update.sh
+    core/qs-system-update.sh
   git -C "$repo" commit -m fixture >/dev/null
 
   sed "s|^REPO_URL=.*|REPO_URL=\"$repo\"|" "$INSTALLER" > "$WORK/install-under-test.sh"
@@ -525,6 +526,8 @@ case_installer_interactive_prompt_matrix() {
     "fresh V2 initial selection"
   assert_file "$root/home/.config/quickshell/bar/variants/V2/VariantRoot.qml" \
     "integrated V2 payload"
+  assert_file "$root/home/.config/quickshell/bar/variants/V1/VariantRoot.qml" "integrated V1 payload"
+  assert_file "$root/home/.config/quickshell/bar/shared/integrations/fixture.txt" "shared integration payload"
   assert_contains "ipc lifecycle ready" "$root/actions.log" \
     "fresh V2 lifecycle readiness"
 
@@ -592,7 +595,7 @@ SCRIPT
   assert_contains "Requested 'v2', but the integrated host became ready as 'v1'" \
     "$root/installer.out" "variant fallback diagnostic"
 
-  git -C "$source" rm versions/V1/core/qs-system-update.sh >/dev/null
+  git -C "$source" rm core/qs-system-update.sh >/dev/null
   git -C "$source" commit -m missing-system-update-adapter >/dev/null
   root="$WORK/installer-missing-system-update-adapter"
   make_installer_case "$root"
@@ -604,11 +607,11 @@ SCRIPT
   assert_no_file "$root/home/.config/quickshell/bar/shell.qml" \
     "missing system-update adapter install mutation"
 
-  mkdir -p "$source/versions/V1/core"
-  printf '#!/usr/bin/env bash\nexit 0\n' > "$source/versions/V1/core/qs-system-update.sh"
-  chmod 0644 "$source/versions/V1/core/qs-system-update.sh"
-  git -C "$source" add versions/V1/core/qs-system-update.sh
-  git -C "$source" update-index --chmod=-x versions/V1/core/qs-system-update.sh
+  mkdir -p "$source/core"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$source/core/qs-system-update.sh"
+  chmod 0644 "$source/core/qs-system-update.sh"
+  git -C "$source" add core/qs-system-update.sh
+  git -C "$source" update-index --chmod=-x core/qs-system-update.sh
   git -C "$source" commit -m nonexecutable-system-update-adapter >/dev/null
   root="$WORK/installer-nonexecutable-system-update-adapter"
   make_installer_case "$root"
@@ -620,9 +623,9 @@ SCRIPT
   assert_no_file "$root/home/.config/quickshell/bar/shell.qml" \
     "non-executable system-update adapter install mutation"
 
-  chmod 0755 "$source/versions/V1/core/qs-system-update.sh"
-  git -C "$source" add versions/V1/core/qs-system-update.sh
-  git -C "$source" update-index --chmod=+x versions/V1/core/qs-system-update.sh
+  chmod 0755 "$source/core/qs-system-update.sh"
+  git -C "$source" add core/qs-system-update.sh
+  git -C "$source" update-index --chmod=+x core/qs-system-update.sh
   git -C "$source" commit -m restore-system-update-adapter >/dev/null
   root="$WORK/installer-system-update-adapter"
   make_installer_case "$root"
@@ -1270,7 +1273,7 @@ case_static_contracts() {
     assert_contains 'ownerActive:' \
       "$connected_panel" "V2 connected panel owner binding"
   done < <(grep -Rl --include='*.qml' 'ConnectedPanelSurface {' \
-    "$REPO_ROOT/versions/V1/variants/V2/panels")
+    "$REPO_ROOT/variants/V2/panels")
   assert_eq "23" "$connected_panel_count" "V2 connected panel owner coverage"
   for theme_file in "$V1_THEME" "$V2_THEME"; do
     assert_contains 'omarchy-shell idle status' "$theme_file" "live Omarchy idle service probe"
@@ -1355,7 +1358,7 @@ case_static_contracts() {
   assert_contains '(compactMpris      ? "1" : "0")' "$V1_THEME" "V1 MPRIS presentation save"
   assert_contains 'parts.length > wsField + 32' "$V1_THEME" "V1 MPRIS presentation restore"
   assert_contains 'compactMpris = defaults.compactMpris' "$V1_THEME" "V1 MPRIS default-layout reset"
-  assert_contains 'compactMpris: false' "$REPO_ROOT/versions/V1/modules/V1Defaults.js" "V1 MPRIS shared default"
+  assert_contains 'compactMpris: false' "$REPO_ROOT/variants/V1/modules/V1Defaults.js" "V1 MPRIS shared default"
   assert_contains 'model: ctrlPanel.root.barColorOptions' "$V1_CONTROL_PANEL" "V1 bar palette control"
   assert_contains 'label: "Now playing"' "$V1_CONTROL_PANEL" "V1 MPRIS presentation control"
   assert_contains 'readonly property bool fullMode: rootMod.root.compactMpris' "$V1_MPRIS_WIDGET" "V1 FULL presentation binding"

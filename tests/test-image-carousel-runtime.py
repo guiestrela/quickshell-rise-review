@@ -12,7 +12,7 @@ with tempfile.TemporaryDirectory(prefix='rise-picker-', dir='/tmp') as directory
     runtime = base / 'runtime'
     runtime.mkdir(mode=0o700)
     for variant, source, component, style in [
-        (v,b,c,s) for v,b in [('V1','versions/V1'),('V2','versions/V1/variants/V2')]
+        (v,b,c,s) for v,b in [('V1','variants/V1'),('V2','variants/V2')]
         for c,s in [('ImageCarouselPanel','tanzaku'),('ImageCarouselHearthstone','hearthstone'),('ImageCarouselCarousel','carousel')]
     ]:
         folder = base / (variant+style)

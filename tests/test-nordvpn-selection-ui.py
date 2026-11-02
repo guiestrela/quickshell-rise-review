@@ -22,7 +22,7 @@ def rectangle(source, marker):
 
 with tempfile.TemporaryDirectory(prefix='vpn-selection-ui-', dir=os.environ['TMPDIR']) as directory:
     temp = Path(directory)
-    for variant, relative in [('V1', 'versions/V1/panels/NordVPNPanel.qml'), ('V2', 'versions/V1/variants/V2/panels/NordVPNPanel.qml')]:
+    for variant, relative in [('V1', 'variants/V1/panels/NordVPNPanel.qml'), ('V2', 'variants/V2/panels/NordVPNPanel.qml')]:
         source = (ROOT / relative).read_text()
         tech = rectangle(source, 'id: technologyMouse;')
         udp = rectangle(source, 'id: protocolMouse;')

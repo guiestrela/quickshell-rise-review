@@ -7,8 +7,8 @@ import vm from 'node:vm';
 
 const repo = dirname(dirname(fileURLToPath(import.meta.url)));
 const variants = [
-  ['V1', 'versions/V1/panels/BluetoothPanel.qml'],
-  ['V2', 'versions/V1/variants/V2/panels/BluetoothPanel.qml'],
+  ['V1', 'variants/V1/panels/BluetoothPanel.qml'],
+  ['V2', 'variants/V2/panels/BluetoothPanel.qml'],
 ];
 const selectedDevice = {
   name: 'Synthetic paired device', paired: true, connected: false,

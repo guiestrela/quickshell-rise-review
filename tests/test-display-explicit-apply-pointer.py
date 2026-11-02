@@ -3,8 +3,8 @@
 import os,re,subprocess,tempfile
 from pathlib import Path
 repo=Path(__file__).resolve().parents[1]
-source=(repo/'versions/V1/panels/DisplayManagerPanel.qml').read_text();base=(repo/'versions/V1/tests/qr-display-panel-runtime.qml').read_text()
-controller=(repo/'versions/V1/modules/DisplayManagerController.qml').read_text()
+source=(repo/'variants/V1/panels/DisplayManagerPanel.qml').read_text();base=(repo/'tests/qml/qr-display-panel-runtime.qml').read_text()
+controller=(repo/'variants/V1/modules/DisplayManagerController.qml').read_text()
 def method(name):
  start=controller.index('    function '+name+'(');opening=controller.index('{',start);depth=1;i=opening+1
  while depth:

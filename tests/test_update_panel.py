@@ -9,7 +9,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-GENERATIONS = [ROOT / 'versions/V1', ROOT / 'versions/V1/variants/V2']
+GENERATIONS = [ROOT / 'variants/V1', ROOT / 'variants/V2']
 
 
 class UpdatePanelTests(unittest.TestCase):

@@ -10,7 +10,7 @@ repo = Path(__file__).resolve().parents[1]
 runner = shutil.which('qmltestrunner') or '/usr/lib/qt6/bin/qmltestrunner'
 with tempfile.TemporaryDirectory(prefix='rise-variant-failure-', dir='/tmp') as directory:
     temp = Path(directory)
-    shutil.copy2(repo / 'versions/V1/core/VariantHost.qml', temp / 'VariantHost.qml')
+    shutil.copy2(repo / 'core/VariantHost.qml', temp / 'VariantHost.qml')
     (temp / 'Variant.qml').write_text('''import QtQuick
 Item {
     required property var variantHost

@@ -4,10 +4,10 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 import path from 'node:path';
 
-const base = path.resolve('versions/V1');
+const base = path.resolve('variants/V1');
 const variants = [
   { dir: base, gid: 'G17', field: 34 },
-  { dir: path.join(base, 'variants/V2'), gid: 'G20', field: 46 },
+  { dir: path.join(base, '../V2'), gid: 'G20', field: 46 },
 ];
 for (const { dir, gid, field } of variants) {
   const variant = gid === 'G17' ? 'V1' : 'V2';

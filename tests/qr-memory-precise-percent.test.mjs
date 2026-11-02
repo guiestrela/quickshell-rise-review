@@ -6,8 +6,8 @@ import vm from 'node:vm';
 
 const root = process.env.QSR_TEST_ROOT ?? process.cwd();
 const variants = [
-  ['V1', 'versions/V1/modules/MemoryWidget.qml'],
-  ['V2', 'versions/V1/variants/V2/modules/MemoryWidget.qml'],
+  ['V1', 'variants/V1/modules/MemoryWidget.qml'],
+  ['V2', 'variants/V2/modules/MemoryWidget.qml'],
 ];
 
 for (const [variant, relativePath] of variants) {

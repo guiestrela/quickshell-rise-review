@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import vm from 'node:vm';
 test('fan samples: zero, invalid clearing, bounded history',()=>{
- const q=fs.readFileSync('versions/V1/modules/FanRpmHistory.qml','utf8');
+ const q=fs.readFileSync('variants/V1/modules/FanRpmHistory.qml','utf8');
  const a=q.indexOf('    function acceptSample(');const b=q.indexOf('    function refresh()',a);assert.ok(a>=0);
  const c=vm.createContext({rpm:-1,peakRpm:0,samples:[],trace:{requestPaint(){}}});vm.runInContext(q.slice(a,b),c);
  c.acceptSample('2500',0);assert.equal(c.rpm,2500);assert.equal(c.peakRpm,2500);

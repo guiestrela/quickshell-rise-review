@@ -7,7 +7,7 @@ import subprocess
 import tempfile
 
 PROJECT = Path(__file__).resolve().parents[1]
-TARGET = PROJECT / 'versions/V1/variants/V2/panels/NetworkPanel.qml'
+TARGET = PROJECT / 'variants/V2/panels/NetworkPanel.qml'
 qml = '''import QtQuick
 import Quickshell
 Scope {

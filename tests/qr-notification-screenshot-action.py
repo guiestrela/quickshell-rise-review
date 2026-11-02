@@ -10,7 +10,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 
 def module():
-    spec = importlib.util.spec_from_file_location('actions', ROOT/'versions/V1/integrations/notification-crash-action.py')
+    spec = importlib.util.spec_from_file_location('actions', ROOT/'shared/integrations/notification-crash-action.py')
     assert spec is not None and spec.loader is not None
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
@@ -33,7 +33,7 @@ class ScreenshotAction(unittest.TestCase):
                    'execArgv':json.dumps(['tensaku-edit',str(capture)])}
             (state/f'{entry["timestamp"]}-7.json').write_text(json.dumps(row))
             env = dict(os.environ, HOME=str(home), XDG_STATE_HOME=str(home/'.local/state'))
-            run = subprocess.run(['python3', str(ROOT/'versions/V1/integrations/notification-crash-action.py'),
+            run = subprocess.run(['python3', str(ROOT/'shared/integrations/notification-crash-action.py'),
                                   '--check','--entry',json.dumps(entry)],
                                  env=env, capture_output=True,text=True,timeout=4)
             self.assertEqual(run.returncode,0,run.stdout+run.stderr)

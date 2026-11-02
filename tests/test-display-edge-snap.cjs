@@ -1,5 +1,5 @@
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
-const src=fs.readFileSync(path.join(__dirname,'../versions/V1/panels/DisplayManagerPanel.qml'),'utf8');
+const src=fs.readFileSync(path.join(__dirname,'../variants/V1/panels/DisplayManagerPanel.qml'),'utf8');
 const a={name:'A',x:0,y:560,width:2560,height:1440,scale:1,transform:0,disabled:false,mirrorOf:'none'},b={name:'B',x:2579,y:0,width:2560,height:1440,scale:1,transform:1,disabled:false,mirrorOf:'none'};
 const controller={monitors:[a,b],positions:{},selectedMonitor:'B',calls:[],error:'',busy:false,loading:false,rollbackPending:false,monitor:n=>controller.monitors.find(m=>m.name===n),applyMonitor:(...v)=>{controller.calls.push(v);return true},setPosition:(n,x,y)=>{controller.positions[n]={x,y}}};
 Object.defineProperty(controller,'previewMonitors',{get:()=>controller.monitors.map(m=>Object.assign({},m,controller.positions[m.name]||{}))});Object.defineProperty(controller,'previewPositions',{get:()=>controller.positions});controller.previewMonitor=name=>controller.previewMonitors.find(m=>m.name===name);controller.stageMonitor=(name,patch)=>{const m=controller.previewMonitor(name);controller.calls.push([name,(m.width+'x'+m.height+'@'+Number(m.refreshRate||60)),patch.x,patch.y,m.scale,m.transform,'none']);controller.positions[name]={x:patch.x,y:patch.y};return true};
@@ -16,5 +16,5 @@ const scaled={...a,x:0,y:0,scale:2,transform:1};assert.equal(move(739,0,.06,[sca
 const third={...a,name:'C',x:2600,y:0,width:2000,height:3000};assert.equal(move(2579,0,.06,[a,b,third]),false);assert.equal(controller.calls.length,0,'A snap must never collide with a third output');
 assert.equal(move(1000,600),false);assert.equal(controller.calls.length,0,'Deep overlap stays rejected');
 controller.rollbackPending=true;assert.equal(move(2579,0),false);assert.equal(controller.calls.length,0,'Pending guard blocks drag');controller.rollbackPending=false;
-assert.match(fs.readFileSync(path.join(__dirname,'../versions/V1/variants/V2/panels/DisplayManagerPanel.qml'),'utf8'),/Shared\.DisplayManagerPanel/);
+assert.match(fs.readFileSync(path.join(__dirname,'../variants/V2/panels/DisplayManagerPanel.qml'),'utf8'),/Shared\.DisplayManagerPanel/);
 console.log('EDGE_SNAP_PASS shared V1/V2 actual gap, four directions, shallow/deep overlap, scale/rotation, offset, distant placement, corners, third output, pending guard');

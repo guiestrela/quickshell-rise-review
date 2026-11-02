@@ -13,7 +13,7 @@ with tempfile.TemporaryDirectory(prefix='display-position-', dir=os.environ['TMP
     root = Path(folder)
     home = root / 'home'
     (home / '.cache/quickshell-rise').mkdir(parents=True)
-    production = (repo / 'versions/V1/modules/DisplayManagerController.qml').read_text()
+    production = (repo / 'variants/V1/modules/DisplayManagerController.qml').read_text()
     start = production.index('    function command(args) {')
     end = production.index('    function applyMonitor(', start)
     # Replace only external dispatch in the scratch copy; production methods and FileView stay real.

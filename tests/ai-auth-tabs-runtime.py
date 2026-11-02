@@ -5,7 +5,7 @@ import subprocess
 import tempfile
 
 base = Path(__file__).resolve().parents[1]
-for variant in ('versions/V1', 'versions/V1/variants/V2'):
+for variant in ('variants/V1', 'variants/V2'):
     source = (base / variant / 'panels/AiUsagePanel.qml').read_text()
     assert 'function applyAuthStatus(states)' in source, 'Missing login-based tab filter'
     start = source.index('    function applyAuthStatus(states)')

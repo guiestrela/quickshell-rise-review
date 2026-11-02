@@ -12,8 +12,8 @@ import subprocess
 import tempfile
 
 REPO = Path(__file__).resolve().parents[1]
-SOURCE = REPO / "versions/V1/panels/DisplayManagerPanel.qml"
-HARNESS = REPO / "versions/V1/tests/qr-display-panel-runtime.qml"
+SOURCE = REPO / "variants/V1/panels/DisplayManagerPanel.qml"
+HARNESS = REPO / "tests/qml/qr-display-panel-runtime.qml"
 env = dict(os.environ, QT_QPA_PLATFORM="wayland")
 env.pop("DISPLAY", None)
 if not env.get("XDG_RUNTIME_DIR") or not env.get("WAYLAND_DISPLAY"):

@@ -3,7 +3,7 @@ const fs = require('node:fs');
 const vm = require('node:vm');
 const path = require('node:path');
 const root = path.resolve(__dirname, '..');
-const helper = path.join(root, 'versions/V1/integrations/WeatherData.js');
+const helper = path.join(root, 'shared/integrations/WeatherData.js');
 assert.ok(fs.existsSync(helper), 'Weather widget must use the configured location/provider, not only the failing wttr endpoint');
 const ctx = {}; vm.createContext(ctx); vm.runInContext(fs.readFileSync(helper, 'utf8').replace(/^\.pragma library\s*/, ''), ctx);
 const settings = { name: 'Fixture city', latitude: -10, longitude: -40 };
@@ -23,7 +23,7 @@ for (const [code,expected] of [[0,113],[2,116],[3,119],[45,143],[53,266],[63,308
 assert.throws(()=>ctx.normalize({current:{temperature_2m:20}},settings));
 assert.throws(()=>ctx.normalize({current:{temperature_2m:null,weather_code:0}},settings));
 const wttr={current_condition:[{weatherCode:'113',temp_C:'20'}]}; assert.equal(ctx.normalize(wttr,{}),wttr);
-for (const variant of ['versions/V1','versions/V1/variants/V2']) {
+for (const variant of ['variants/V1','variants/V2']) {
  const src=fs.readFileSync(path.join(root,variant,'modules/WeatherWidget.qml'),'utf8');
  assert.match(src,/WeatherData\.weatherUrl\(rootMod\.requestSettings\)/);
  assert.match(src,/WeatherData\.normalize\(JSON\.parse\(txt\), rootMod\.requestSettings\)/);

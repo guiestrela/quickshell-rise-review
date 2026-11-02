@@ -8,7 +8,7 @@ import tempfile
 import unittest
 
 ROOT = Path(__file__).resolve().parents[1]
-spec = importlib.util.spec_from_file_location('actions', ROOT/'versions/V1/integrations/notification-crash-action.py')
+spec = importlib.util.spec_from_file_location('actions', ROOT/'shared/integrations/notification-crash-action.py')
 assert spec and spec.loader
 mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
 

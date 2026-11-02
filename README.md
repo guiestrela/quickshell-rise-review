@@ -1,6 +1,6 @@
 # Quickshell Rise
 
-**Version:** 1.1.0
+**Version:** 1.1.1
 
 Quickshell Rise is a full-bar plugin for Omarchy. It replaces the built-in
 Omarchy bar with the Rise interface and runs inside Omarchy's existing
@@ -250,6 +250,15 @@ quickshell ipc -p "$OMARCHY_PATH/shell" call quickshell-rise.variant activate v2
 ![Rise V2 — preview 1](docs/media/v2-preview01.png)
 ![Rise V2 — preview 3](docs/media/v2-preview03.png)
 ![Rise V2 — preview 4](docs/media/v2-preview04.png)
+
+## Source layout
+
+- `core/`: variant lifecycle, persistent selection, IPC, and host bridges.
+- `shared/integrations/`: helpers shared by both interfaces.
+- `variants/V1/` and `variants/V2/`: each interface's theme, layout, modules, panels, and assets.
+- `tests/`: regression suites; QML harnesses live in `tests/qml/`.
+
+`Bar.qml` loads Rise inside Omarchy; `shell.qml` is the standalone development entry point.
 
 ## Documentation
 

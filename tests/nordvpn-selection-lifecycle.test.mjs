@@ -5,8 +5,8 @@ import vm from 'node:vm';
 
 // Exercise the actual QML handlers, with only Process/Qt scheduling replaced.
 // No CLI, reader, socket, or VPN action is ever executed by this fixture.
-const source = readFileSync(new URL('../versions/V1/modules/NordVpnController.qml', import.meta.url), 'utf8');
-const adapter = readFileSync(new URL('../versions/V1/modules/NordVpnProtocol.js', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../variants/V1/modules/NordVpnController.qml', import.meta.url), 'utf8');
+const adapter = readFileSync(new URL('../variants/V1/modules/NordVpnProtocol.js', import.meta.url), 'utf8');
 const reply = JSON.stringify({ schema: 1, technology: 'NORDLYNX', protocol: 'UDP' });
 function fixture() {
   const later = [];

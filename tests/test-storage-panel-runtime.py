@@ -14,7 +14,7 @@ with tempfile.TemporaryDirectory(prefix='rise-storage-', dir='/tmp') as director
     panels, modules = base / 'panels', base / 'modules'
     panels.mkdir()
     modules.mkdir()
-    source = repo / 'versions/V1/variants/V2'
+    source = repo / 'variants/V2'
     text = (source / 'panels/StoragePanel.qml').read_text()
     text = re.sub(r'^import Quickshell(?:\.[A-Za-z.]+)?\n', '', text, flags=re.M)
     text = text.replace('PanelWindow {', 'Rectangle {\n    width: 800; height: 700\n    property var screen', 1)

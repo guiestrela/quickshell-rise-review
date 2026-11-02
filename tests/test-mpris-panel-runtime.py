@@ -14,7 +14,7 @@ with tempfile.TemporaryDirectory(prefix='rise-mpris-', dir='/tmp') as directory:
     panels, modules = base / 'panels', base / 'modules'
     panels.mkdir()
     modules.mkdir()
-    source = repo / os.environ.get('RISE_MPRIS_SOURCE','versions/V1')
+    source = repo / os.environ.get('RISE_MPRIS_SOURCE','variants/V1')
     text = (source / 'panels/MprisPanel.qml').read_text()
     text = re.sub(r'^import Quickshell(?:\.[A-Za-z.]+)?\n', '', text, flags=re.M)
     text = text.replace('PanelWindow {', 'Rectangle {\n    width: 800; height: 700\n    property var screen', 1)

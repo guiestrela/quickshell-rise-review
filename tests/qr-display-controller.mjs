@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
-const file = new URL('../versions/V1/modules/DisplayManagerController.qml', import.meta.url);
+const file = new URL('../variants/V1/modules/DisplayManagerController.qml', import.meta.url);
 const source = readFileSync(file, 'utf8');
 const context = vm.createContext({helperPath:undefined,busy:false,error:'',loading:false, actionProc:{}, monitors:[], positions:{}, console});
 for (const match of source.matchAll(/    function (\w+)\([^\n]*\) \{/g)) {

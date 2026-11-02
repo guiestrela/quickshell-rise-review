@@ -26,12 +26,12 @@ the overlay.
 The calendar popup reads local Caldir events and adds **Pull Google** and
 **Push Google** actions. Push requires a second click within five seconds.
 Calendar helper scripts and their upstream license are in
-`versions/V1/integrations/google-calendar/`.
+`shared/integrations/google-calendar/`.
 
 After installing Rise, run the integrated setup from its installed directory:
 
 ```bash
-~/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/versions/V1/integrations/google-calendar/setup [--hosted]
+~/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/shared/integrations/google-calendar/setup [--hosted]
 ```
 
 It installs the release-verified Caldir runtime and guides Google OAuth setup.
@@ -39,7 +39,7 @@ It does not change `shell.json` or replace Rise's clock. To install the runtime
 without connecting Google yet, run:
 
 ```bash
-~/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/versions/V1/integrations/google-calendar/setup --binaries-only
+~/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/shared/integrations/google-calendar/setup --binaries-only
 ```
 
 OAuth has two modes, and the popup offers both as a choice while Google is not
@@ -61,7 +61,7 @@ session exists, and reports any blocking setup reason in the popup itself.
 That check is available on its own:
 
 ```bash
-~/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/versions/V1/integrations/google-calendar/setup --check
+~/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/shared/integrations/google-calendar/setup --check
 ```
 
 It only verifies that this build can reach its pinned Caldir release, without

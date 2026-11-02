@@ -11,7 +11,7 @@ with tempfile.TemporaryDirectory(prefix='rise-wallpanel-', dir='/tmp') as direct
     base = Path(directory)
     runtime = base / 'runtime'
     runtime.mkdir(mode=0o700)
-    for variant, relative in [('V1','versions/V1'),('V2','versions/V1/variants/V2')]:
+    for variant, relative in [('V1','variants/V1'),('V2','variants/V2')]:
         source = repo / relative
         folder = base / variant
         panels, modules = folder / 'panels', folder / 'modules'

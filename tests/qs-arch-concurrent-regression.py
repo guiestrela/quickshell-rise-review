@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parents[1]
 
 class ParallelChecks(unittest.TestCase):
     def test_updating_property_exists_in_both_themes(self):
-        for theme in ['versions/V1/Theme.qml', 'versions/V1/variants/V2/Theme.qml']:
+        for theme in ['variants/V1/Theme.qml', 'variants/V2/Theme.qml']:
             with self.subTest(theme=theme):
                 self.assertRegex((ROOT / theme).read_text(), r'property bool archRefreshing:\s*false',
                                  'Widget cannot publish the updating state to its Theme')
