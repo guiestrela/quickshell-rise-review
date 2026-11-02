@@ -27,6 +27,9 @@ The calendar popup reads local Caldir events and adds **Pull Google** and
 **Push Google** actions. Push requires a second click within five seconds.
 Calendar helper scripts and their upstream license are in
 `shared/integrations/google-calendar/`.
+Versioned Caldir download manifests and checksums are kept in
+`shared/integrations/google-calendar/metadata/caldir/`; they are separate from
+Rise release metadata.
 
 After installing Rise, run the integrated setup from its installed directory:
 

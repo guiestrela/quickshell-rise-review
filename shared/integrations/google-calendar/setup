@@ -79,7 +79,7 @@ case "$(uname -m)" in
 esac
 
 ASSET="omarchy-google-calendar-clock-caldir-${ASSET_PLUGIN_VERSION}-${ASSET_ARCH}-linux.tar.gz"
-RELEASE_MANIFEST="${SCRIPT_DIR}/release-assets/v${ASSET_PLUGIN_VERSION}.json"
+RELEASE_MANIFEST="${SCRIPT_DIR}/metadata/caldir/v${ASSET_PLUGIN_VERSION}.json"
 [[ -f "$RELEASE_MANIFEST" ]] || {
   echo "No committed release manifest exists for binary asset version ${ASSET_PLUGIN_VERSION}." >&2
   echo "Refusing to download or execute an unbound Caldir asset." >&2
