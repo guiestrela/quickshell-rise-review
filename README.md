@@ -1,6 +1,6 @@
 # Quickshell Rise
 
-**Version:** 1.1.0
+**Version:** 1.1.1
 
 Quickshell Rise is a full-bar plugin for Omarchy. It replaces the built-in
 Omarchy bar with the Rise interface and runs inside Omarchy's existing
@@ -119,7 +119,7 @@ complete skill, including its references, and refuses to overwrite an existing
 
 For example, for Codex:
 
-```bash~
+```bash
 bash scripts/install-rise-skill "${CODEX_HOME:-$HOME/.codex}/skills"
 ```
 
