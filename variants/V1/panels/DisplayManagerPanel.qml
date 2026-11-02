@@ -220,7 +220,7 @@ PanelWindow {
         id: frameCard
         x: panel.connectedStyle ? Math.round(Math.max(6, Math.min(panel.root.displayManagerBarX - width / 2, panel.width - width - 6))) : Math.round(Math.max(0, Math.min(panel.width - width - 16, panel.root.displayManagerBarX - (width + 16) / 2))) + 8
         y: panel.connectedStyle ? (panel.root.barPosition === "bottom" ? panel.height - panel.root.v2BarHeight - 6 - height : panel.root.v2BarHeight + 6) : (panel.root.barPosition === "bottom" ? panel.height - panel.barBottom - panel.gap - height : panel.barBottom + panel.gap)
-        width: Math.min(456, panel.width - 16)
+        width: Math.min(420, panel.width - 16)
         height: panelContent.implicitHeight + (panel.connectedStyle ? 32 : 24)
         radius: panel.connectedStyle ? panel.root.panelRadius : panel.root.pillRadius
         color: panel.connectedStyle ? "transparent" : panel.root.bg
@@ -394,8 +394,8 @@ PanelWindow {
                     enabled: !panel.controller.busy && !panel.controller.loading && panel.controller.rollbackPending !== true && panel.controller.selectedMonitor !== ""
                     width: parent.width; spacing: 8
                     Text { text: "Position"; color: panel.root.ink; width: 74; anchors.verticalCenter: parent.verticalCenter; font.family: panel.root.mono; font.pixelSize: 11 }
-                    RiseSpinBox { id: posX; from: -32767; to: 32767; value: panel.selectedDisplay ? Number(panel.selectedDisplay.x || 0) : 0; editable: true; onValueModified: if (panel.selectedDisplay) panel.controller.stageMonitor(panel.selectedDisplay.name, { x: value }) }
-                    RiseSpinBox { id: posY; from: -32767; to: 32767; value: panel.selectedDisplay ? Number(panel.selectedDisplay.y || 0) : 0; editable: true; onValueModified: if (panel.selectedDisplay) panel.controller.stageMonitor(panel.selectedDisplay.name, { y: value }) }
+                    RiseSpinBox { width: 100; id: posX; from: -32767; to: 32767; value: panel.selectedDisplay ? Number(panel.selectedDisplay.x || 0) : 0; editable: true; onValueModified: if (panel.selectedDisplay) panel.controller.stageMonitor(panel.selectedDisplay.name, { x: value }) }
+                    RiseSpinBox { width: 100; id: posY; from: -32767; to: 32767; value: panel.selectedDisplay ? Number(panel.selectedDisplay.y || 0) : 0; editable: true; onValueModified: if (panel.selectedDisplay) panel.controller.stageMonitor(panel.selectedDisplay.name, { y: value }) }
                     RiseButton { objectName: "display-position-apply"; text: "Apply"; onClicked: panel.applyChanges() }
                 }
                 Row {
@@ -404,7 +404,7 @@ PanelWindow {
                     Text { text: "Scale"; color: panel.root.ink; width: 74; anchors.verticalCenter: parent.verticalCenter; font.family: panel.root.mono; font.pixelSize: 11 }
                     RiseComboBox {
                         objectName: "display-scale"
-                        width: 120
+                        width: 96
                         model: panel.controller.scalePresets
                         currentIndex: { var m = panel.selectedDisplay; return m ? Math.max(0, panel.controller.scalePresets.indexOf(Number(m.scale || 1))) : 0 }
                         onActivated: if (panel.selectedDisplay) panel.controller.stageMonitor(panel.selectedDisplay.name, { scale: Number(currentText) })
@@ -412,7 +412,7 @@ PanelWindow {
                     Text { text: "Rotation"; color: panel.root.ink; anchors.verticalCenter: parent.verticalCenter; font.family: panel.root.mono; font.pixelSize: 11 }
                     RiseComboBox {
                         objectName: "display-rotation"
-                        width: 140
+                        width: 120
                         model: ["0°", "90°", "180°", "270°", "Flipped", "Flipped 90°", "Flipped 180°", "Flipped 270°"]
                         currentIndex: { var m = panel.selectedDisplay; return m ? Number(m.transform || 0) : 0 }
                         onActivated: (index) => { if (panel.selectedDisplay) panel.controller.stageMonitor(panel.selectedDisplay.name, { transform: index }) }
@@ -437,7 +437,7 @@ PanelWindow {
                                 id: entryDelegate2
                                 required property int index
                                 objectName: "display-workspace-" + (index + 1)
-                                width: 28; height: 30; leftPadding: 0; rightPadding: 0
+                                width: 27; height: 30; leftPadding: 0; rightPadding: 0
                                 checkable: true
                                 text: String(index + 1)
                                 checked: panel.controller.workspaceOwner(index + 1) === panel.controller.selectedMonitor

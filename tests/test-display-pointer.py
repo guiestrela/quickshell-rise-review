@@ -17,7 +17,7 @@ with tempfile.TemporaryDirectory(prefix='display-pointer-',dir=os.environ['TMPDI
  visual=re.sub(r'^    (?:WlrLayershell\..*|exclusionMode:.*|margins\..*)\n','',visual,flags=re.M)
  visual=visual.replace('    id: panel', '    id: panel\n    width: 520\n    height: 900',1)
  (folder/'panels/DisplayManagerPanel.qml').write_text(visual)
- fixture=base.replace('import Quickshell\n','').replace('import Quickshell.Wayland\n','').replace('ShellRoot {','Item {').replace('property bool displayManagerVisible: false','property bool displayManagerVisible: true').replace('Quickshell.screens.length ? Quickshell.screens[0] : null','Qt.application.screens[0]').replace('import "../panels" as Panels','import "panels" as Panels\nimport QtTest')
+ fixture=base.replace('import Quickshell\n','').replace('import Quickshell.Wayland\n','').replace('ShellRoot {','Item {').replace('property bool displayManagerVisible: false','property bool displayManagerVisible: true').replace('Quickshell.screens.length ? Quickshell.screens[0] : null','Qt.application.screens[0]').replace('import "../../variants/V1/panels" as Panels','import "panels" as Panels\nimport QtTest')
  fixture=fixture.replace('property color bg: "#202020"','property color bg: "#202020"\n property color paper: "#202020"\n property color fillHover: "#404040"\n property color sumi: "#808080"\n property int pillRadius: 6\n property color pillBorder: "#606060"\n property real pillBorderW: 1\n property real panelRadius: 6\n property real v2BarHeight: 30')
  fixture=fixture.replace('property var monitors: []','property var monitors: [{name:"DP-1",width:2560,height:1440,x:0,y:0,scale:1,transform:0,refreshRate:59.95,mirrorOf:"none"},{name:"DP-2",width:1920,height:1080,x:2560,y:0,scale:1,transform:0,refreshRate:60,mirrorOf:"none"}]\n property var calls: []\n property var positions: ({})')
  fixture=fixture.replace('property string selectedMonitor: ""','property string selectedMonitor: "DP-1"')
@@ -27,6 +27,7 @@ with tempfile.TemporaryDirectory(prefix='display-pointer-',dir=os.environ['TMPDI
  fixture=fixture.replace('property bool brightnessAvailable: false' ,'property bool brightnessAvailable: true\n property var brightnessCalls: []')
  fixture=fixture.replace('function setBrightness() { }','function setBrightness(value) { brightnessCalls.push(value) }')
  fixture=fixture.replace('function setPosition() { }','function setPosition(name,x,y) { var next=Object.assign({},positions); next[name]={x:x,y:y}; positions=next }')
+ fixture=fixture.replace('drafts = copy; return true', 'drafts = copy; var m = copy[name]; calls.push([name,m.mode || (m.width+"x"+m.height+"@"+Number(m.refreshRate).toFixed(3)),m.x,m.y,m.scale,m.transform,m.mirrorOf]); return true')
  fixture=fixture.replace('id: productionPanel; root: fakeRoot','id: productionPanel; root: fakeRoot; visible: true')
  controllerSource=(repo/'variants/V1/modules/DisplayManagerController.qml').read_text()
  toggleCode=controllerSource[controllerSource.index('    function toggleMirror('):controllerSource.index('    function enableMonitor(')]
@@ -64,17 +65,23 @@ with tempfile.TemporaryDirectory(prefix='display-pointer-',dir=os.environ['TMPDI
           pointer.wait(100)
           if(fakeController.calls.length!==0 || Math.abs(card.x-originX)>.01 || Math.abs(card.y-originY)>.01 || fakeController.error.indexOf("cannot overlap")<0) throw new Error("overlapping mouse release must restore card and never dispatch: "+JSON.stringify(fakeController.calls))
           fakeController.error=""
+          // Staging can rebuild the monitor model and destroy its delegates.
+          card=null
+          for(var nextCard of stage.children) if(nextCard.modelData && nextCard.modelData.name==="DP-1") card=nextCard
+          if(!card) throw new Error("monitor delegate absent after overlap rollback")
+          area=card.children[1]
           pointer.mousePress(area,70,30,Qt.LeftButton)
           pointer.mouseMove(area,50,30,80)
           pointer.mouseMove(area,30,30,80)
           pointer.mouseRelease(area,30,30,Qt.LeftButton)
           pointer.wait(100)
           if(fakeController.calls.length!==1 || fakeController.calls[0][2]>=0) throw new Error("pointer drag did not dispatch changed position: calls="+JSON.stringify(fakeController.calls)+" card="+[card.x,card.y,card.width,card.height]+" area="+[area.x,area.y,area.width,area.height]+" stage="+[stage.x,stage.y,stage.width,stage.height]+" window="+[productionPanel.width,productionPanel.height])
+          if(fakeController.applyCalls.length!==0) throw new Error("drag must stage without applying")
           console.log("DISPLAY_POINTER_PASS QtTest events; normal Window fixture")
           var savedCalls=fakeController.calls.slice(), savedPositions=fakeController.positions, savedSelected=fakeController.selectedMonitor
           for(var snapStyle of [false,true]) {
             productionPanel.connectedStyle=snapStyle
-            fakeController.positions=({});fakeController.calls=[]
+            fakeController.drafts=({});fakeController.positions=({});fakeController.calls=[]
             pointer.wait(80)
             var snapCard=null
             for(var snapChild of stage.children) if(snapChild.modelData && snapChild.modelData.name==="DP-2") snapCard=snapChild
@@ -91,13 +98,13 @@ with tempfile.TemporaryDirectory(prefix='display-pointer-',dir=os.environ['TMPDI
             if(fakeController.calls.length!==1 || fakeController.calls[0][0]!=="DP-2" || fakeController.calls[0][2]!==2560 || fakeController.calls[0][3]!==0) throw new Error("near-edge pointer release did not snap: "+JSON.stringify(fakeController.calls))
           }
           productionPanel.connectedStyle=false
-          fakeController.calls=savedCalls;fakeController.positions=savedPositions;fakeController.selectedMonitor=savedSelected
+          fakeController.drafts=({});fakeController.calls=savedCalls;fakeController.positions=savedPositions;fakeController.selectedMonitor=savedSelected
           pointer.wait(50)
           console.log("DISPLAY_EDGE_SNAP_POINTER_PASS V1/V2 real QtTest drag release attaches edges; controller inert")
           var rows=find(productionPanel.contentItem,"display-save").parent
           var column=rows.parent
           var footer=column.children[column.children.length-1]
-          if(frame.width!==456 || footer.lineCount<2 || footer.text.replace(/\\s+/g," ")!=="Layout save creates a backup before updating the managed monitors.lua block.") throw new Error("footer must remain complete, wrap, and panel must narrow to 456")
+          if(frame.width!==420 || footer.lineCount<2 || footer.text.replace(/\\s+/g," ")!=="Layout save creates a backup before updating the managed monitors.lua block.") throw new Error("footer must remain complete, wrap, and panel must narrow to 420")
           for(var row of column.children) if(row.children && row.children.length>1) {
             var rowRight=0
             for(var element of row.children) if(element.visible) rowRight=Math.max(rowRight,element.x+element.width)
@@ -105,7 +112,7 @@ with tempfile.TemporaryDirectory(prefix='display-pointer-',dir=os.environ['TMPDI
           }
           productionPanel.connectedStyle=true
           pointer.wait(50)
-          if(frame.width!==456 || footer.lineCount<2) throw new Error("V2 shared panel lost narrow/wrapped footer")
+          if(frame.width!==420 || footer.lineCount<2) throw new Error("V2 shared panel lost narrow/wrapped footer")
           for(var v2row of column.children) if(v2row.children && v2row.children.length>1) {
             var v2right=0
             for(var v2element of v2row.children) if(v2element.visible) v2right=Math.max(v2right,v2element.x+v2element.width)
@@ -138,7 +145,7 @@ with tempfile.TemporaryDirectory(prefix='display-pointer-',dir=os.environ['TMPDI
           if(fakeController.calls.length!==mirrorCalls+2) throw new Error("Mirror toggle not blocked during confirmation")
           fakeController.rollbackPending=false
           productionPanel.connectedStyle=false
-          fakeController.monitors=mirrorBefore
+          fakeController.drafts=({});fakeController.monitors=mirrorBefore
           fakeController.calls.splice(mirrorCalls)
           pointer.wait(50)
           console.log("DISPLAY_MIRROR_POINTER_PASS ON V1/OFF V2, true state label, original mode/position, pending blocked; backend inert")
@@ -147,10 +154,10 @@ with tempfile.TemporaryDirectory(prefix='display-pointer-',dir=os.environ['TMPDI
           productionPanel.contentItem.forceActiveFocus()
           toggle.forceActiveFocus()
           pointer.wait(50)
-          var oldValue=fakeRoot.displayManagerAutoWorkspaces
+          var oldValue=productionPanel.draftAutoWorkspaces
           pointer.keyClick(Qt.Key_Space)
           pointer.wait(50)
-          if(fakeRoot.displayManagerAutoWorkspaces===oldValue) throw new Error("workspace toggle inert by keyboard")
+          if(productionPanel.draftAutoWorkspaces===oldValue) throw new Error("workspace toggle inert by keyboard")
           var apply=find(productionPanel.contentItem,"display-position-apply"), spin=apply.parent.children[1]
           pointer.mouseClick(spin.contentItem,spin.contentItem.width/2,spin.contentItem.height/2)
           pointer.tryVerify(function() { return spin.contentItem.activeFocus },1000)
@@ -186,6 +193,7 @@ with tempfile.TemporaryDirectory(prefix='display-pointer-',dir=os.environ['TMPDI
           pointer.mouseClick(apply,apply.width/2,apply.height/2)
           pointer.wait(50)
           if(fakeController.calls[fakeController.calls.length-1][3]!==5) throw new Error("Apply ignored typed Y without Enter")
+          if(fakeController.applyCalls.length!==3 || fakeController.applyCalls[2].monitors[0].x!==7 || fakeController.applyCalls[2].monitors[0].y!==5) throw new Error("typed Apply must dispatch complete drafts exactly once per click")
           console.log("DISPLAY_STEPPER_APPLY_PASS X/Y minus/plus/typed Apply without Enter")
           var brightness=find(productionPanel.contentItem,"display-brightness")
           fakeController.brightnessCalls = []
@@ -238,7 +246,7 @@ with tempfile.TemporaryDirectory(prefix='display-pointer-',dir=os.environ['TMPDI
     }
 }'''
  (folder/'shell.qml').write_text(fixture)
- env=dict(os.environ,QT_QPA_PLATFORM='offscreen'); env.pop('DISPLAY',None)
+ env=dict(os.environ,QT_QPA_PLATFORM='offscreen',QT_QPA_PLATFORMTHEME='',QT_QUICK_BACKEND='software'); env.pop('DISPLAY',None)
  result=subprocess.run(['/usr/lib/qt6/bin/qmltestrunner','-input',str(folder/'shell.qml')],env=env,text=True,capture_output=True,timeout=12)
  output=re.sub(r'\x1b\[[0-9;]*m','',result.stdout+result.stderr)
  if not (result.returncode==0 and 'DISPLAY_STEPPER_APPLY_PASS' in output and 'DISPLAY_CONFIRMATION_POINTER_PASS' in output and 'DISPLAY_POINTER_PASS' in output and 'DISPLAY_GEOMETRY_PASS' in output and 'DISPLAY_DISMISS_PASS' in output and 'DISPLAY_POINTER_FAIL' not in output):
