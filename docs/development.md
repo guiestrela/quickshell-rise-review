@@ -130,6 +130,12 @@ Use `qs list --all`, controller status, logs, and screenshots as evidence for ru
 
 ## Prepare a release
 
+Updating `manifest.json` on `main` now publishes the matching GitHub release
+automatically. The workflow creates `v<version>` only when that release does
+not already exist, so reruns are safe and do not duplicate releases. GitHub
+Actions must retain the repository's default `GITHUB_TOKEN` write permission
+for contents.
+
 Release the plugin through the plugin manager or the documented installation workflow. The bar does not update its own Shell generation.
 
 Before updating `main`:
@@ -140,6 +146,14 @@ Before updating `main`:
 4. Test V1 and V2 through the installed controller
 5. Confirm installer, hooks, and controller come from the same commit
 6. Push the reviewed branch and update `main` without rewriting published history
+
+The normal release sequence is:
+
+1. Change `version` in `manifest.json`
+2. Update the displayed version in `README.md`
+3. Run the validation suite
+4. Merge or push the version commit to `main`
+5. Let `Publish release on version bump` create the tag and release
 
 Keep the integrated payload, companion helpers and lifecycle controller in the same tested generation. Deployment and shell restarts require separate authorization.
 
