@@ -122,6 +122,109 @@ PanelWindow {
         }
     }
 
+    component WidgetStateTile: Rectangle {
+        id: widgetStateTile
+        property string label
+        property bool shown: true
+        property bool canHide: true
+        property bool compact: false
+        property string modeOffLabel: "Full"
+        property string modeOnLabel: "Icon"
+        signal visibilityToggled()
+        signal modeToggled()
+
+        readonly property bool hovered: bodyMa.containsMouse || eyeMa.containsMouse || modeMa.containsMouse
+        height: 27
+        radius: ctrlPanel.root.tileRadius
+        opacity: canHide || shown ? 1 : 0.4
+        color: ctrlPanel.root.fillIdle
+        border.color: hovered ? ctrlPanel.root.seal : ctrlPanel.root.sep
+        border.width: 1
+
+        CommonComponents.UiText {
+            anchors.left: parent.left
+            anchors.leftMargin: 8
+            anchors.right: stateArea.left
+            anchors.rightMargin: 4
+            anchors.verticalCenter: parent.verticalCenter
+            text: parent.label
+            color: parent.shown ? ctrlPanel.root.ink : ctrlPanel.root.sumi
+            font.family: ctrlPanel.root.mono
+            font.pixelSize: 10
+            elide: Text.ElideRight
+        }
+
+        Item {
+            id: stateArea
+            anchors.right: parent.right
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            width: 63
+
+            CommonComponents.IconText {
+                id: eyeGlyph
+                anchors.left: parent.left
+                anchors.verticalCenter: parent.verticalCenter
+                width: 25
+                horizontalAlignment: Text.AlignHCenter
+                text: stateArea.parent.shown ? "visibility" : "visibility_off"
+                color: eyeMa.containsMouse ? ctrlPanel.root.seal
+                    : stateArea.parent.shown ? ctrlPanel.root.sumiHi : ctrlPanel.root.sumi
+                font.pixelSize: 15
+                opacity: stateArea.parent.canHide ? 1 : 0.4
+            }
+
+            CommonComponents.UiText {
+                id: modeLabel
+                anchors.right: parent.right
+                anchors.verticalCenter: parent.verticalCenter
+                width: 38
+                horizontalAlignment: Text.AlignHCenter
+                text: stateArea.parent.compact ? stateArea.parent.modeOnLabel : stateArea.parent.modeOffLabel
+                color: modeMa.containsMouse || (stateArea.parent.shown && stateArea.parent.compact)
+                    ? ctrlPanel.root.seal : ctrlPanel.root.sumiHi
+                font.family: ctrlPanel.root.mono
+                font.pixelSize: 10
+                opacity: stateArea.parent.shown ? 1 : 0.4
+            }
+
+            MouseArea {
+                id: eyeMa
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: 25
+                enabled: stateArea.parent.canHide
+                hoverEnabled: true
+                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                onClicked: stateArea.parent.visibilityToggled()
+            }
+            MouseArea {
+                id: modeMa
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.bottom: parent.bottom
+                width: 38
+                enabled: stateArea.parent.shown
+                hoverEnabled: true
+                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                onClicked: stateArea.parent.modeToggled()
+            }
+        }
+
+        MouseArea {
+            id: bodyMa
+            anchors.left: parent.left
+            anchors.right: stateArea.left
+            anchors.top: parent.top
+            anchors.bottom: parent.bottom
+            enabled: parent.canHide
+            hoverEnabled: true
+            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: parent.visibilityToggled()
+        }
+    }
+
     MouseArea { anchors.fill: parent; onClicked: ctrlPanel.root.controlVisible = false }
 
     Rectangle {
@@ -532,7 +635,7 @@ PanelWindow {
                 columnSpacing: 8
                 rowSpacing: 8
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Memory";      active: ctrlPanel.root.modMemory;    onActivated: ctrlPanel.root.modMemory = !ctrlPanel.root.modMemory }
-                Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Brightness";  visible: ctrlPanel.root.hasBacklight; active: ctrlPanel.root.modBrightness; onActivated: ctrlPanel.root.modBrightness = !ctrlPanel.root.modBrightness }
+                WidgetStateTile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Brightness"; visible: ctrlPanel.root.hasBacklight; shown: ctrlPanel.root.modBrightness; compact: ctrlPanel.root.compactBrightness; onVisibilityToggled: ctrlPanel.root.modBrightness = !ctrlPanel.root.modBrightness; onModeToggled: ctrlPanel.root.compactBrightness = !ctrlPanel.root.compactBrightness }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "AI usage";    active: ctrlPanel.root.modClaude;    onActivated: ctrlPanel.root.modClaude = !ctrlPanel.root.modClaude }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Power Prof."; active: ctrlPanel.root.modPower;     onActivated: ctrlPanel.root.modPower = !ctrlPanel.root.modPower }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Bluetooth";   active: ctrlPanel.root.modBluetooth; onActivated: ctrlPanel.root.modBluetooth = !ctrlPanel.root.modBluetooth }
@@ -548,7 +651,7 @@ PanelWindow {
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Storage"; active: ctrlPanel.root.modStorage; onActivated: ctrlPanel.root.modStorage = !ctrlPanel.root.modStorage }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Volume";      active: ctrlPanel.root.modVolume;  onActivated: ctrlPanel.root.modVolume = !ctrlPanel.root.modVolume }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Now playing"; active: ctrlPanel.root.modMpris;   onActivated: ctrlPanel.root.modMpris = !ctrlPanel.root.modMpris }
-                Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Battery";     visible: ctrlPanel.root.hasBattery; active: true; enabled: false }
+                WidgetStateTile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Battery"; visible: ctrlPanel.root.hasBattery; shown: true; canHide: false; compact: ctrlPanel.root.compactBattery; onModeToggled: ctrlPanel.root.compactBattery = !ctrlPanel.root.compactBattery }
             }
 
             Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
