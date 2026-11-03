@@ -1,0 +1,125 @@
+import QtQuick
+import Quickshell.Io
+import "../logic/IconMap.js" as IconMap
+import "../components" as CommonComponents
+
+Item {
+    id: rootMod
+    property color contentColor: rootMod.root.ink
+    required property var root
+    required property bool showPrefix
+    required property bool showCount
+    required property real rowSpacing
+    required property color iconColor
+    required property color countColor
+    property Component backgroundComponent
+
+    property bool btOn:       false
+    property bool connected:  false
+    property int  numConnected: 0
+
+    readonly property string iconN: !btOn
+        ? "bluetooth_disabled"
+        : (connected ? "bluetooth_connected" : "bluetooth")
+
+    readonly property string tooltipText: connected
+        ? "Bluetooth · " + numConnected + " connected"
+        : (btOn ? "Bluetooth on" : "Bluetooth off")
+
+    readonly property bool shown: rootMod.root.modBluetooth
+    visible: implicitWidth > 0.5
+    implicitWidth: shown ? row.implicitWidth + 18 : 0
+    implicitHeight: 28
+    opacity: shown ? 1 : 0
+
+    Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
+
+    Loader {
+        x: 0; anchors.verticalCenter: parent.verticalCenter
+        width: Math.round(row.width) + 18
+        height: rootMod.root.pillH
+        sourceComponent: rootMod.backgroundComponent
+    }
+
+    Row {
+        id: row
+        anchors.centerIn: parent
+        spacing: rootMod.rowSpacing
+
+        CommonComponents.UiText {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: rootMod.showPrefix
+            text: "BT"
+            color: Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.6)
+            font.family: rootMod.root.mono
+            font.pixelSize: 12
+            font.letterSpacing: 0.5
+        }
+
+        CommonComponents.IconText {
+            anchors.verticalCenter: parent.verticalCenter
+            text: IconMap.icon(rootMod.iconN)
+            color: rootMod.iconColor
+            font.pixelSize: 14
+            Behavior on color { ColorAnimation { duration: 200 } }
+        }
+
+        CommonComponents.UiText {
+            anchors.verticalCenter: parent.verticalCenter
+            visible: rootMod.showCount && rootMod.connected
+            text: String(rootMod.numConnected)
+            color: rootMod.countColor
+            font.family: rootMod.root.mono
+            font.pixelSize: 12
+        }
+    }
+
+    Process {
+        id: btProc
+        command: ["bash", "-c",
+            "if bluetoothctl show 2>/dev/null | grep -q 'Powered: yes'; then " +
+            "  COUNT=$(bluetoothctl devices Connected 2>/dev/null | wc -l); " +
+            "  printf 'ON\\t%s\\n' \"$COUNT\"; " +
+            "else echo OFF; fi"
+        ]
+        running: false
+        stdout: SplitParser {
+            onRead: function(line) { btProc.result = line.trim() }
+        }
+        onExited: {
+            var r = btProc.result
+            if (r === "OFF" || r === "") {
+                rootMod.btOn = false; rootMod.connected = false; rootMod.numConnected = 0
+            } else if (r.startsWith("ON\t")) {
+                rootMod.btOn = true
+                const count = parseInt(r.split("\t")[1]) || 0
+                rootMod.numConnected = count
+                rootMod.connected = count > 0
+            }
+            btProc.result = ""
+        }
+        property string result: ""
+    }
+
+    Timer {
+        interval: 5000; running: rootMod.shown; repeat: true; triggeredOnStart: true
+        onTriggered: { btProc.result = ""; btProc.running = false; btProc.running = true }
+    }
+
+    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
+
+    Process { id: clickRunner; command: ["bash", "-c", rootMod.root.launchBtCmd] }
+
+    MouseArea {
+        anchors.fill: parent
+        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
+        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        onEntered: tip.show()
+        onExited: { tip.hide() }
+        onClicked: (e) => {
+            tip.hide()
+            if (e.button === Qt.RightButton) { clickRunner.running = false; clickRunner.running = true }
+            else rootMod.root.bluetoothVisible = !rootMod.root.bluetoothVisible
+        }
+    }
+}

@@ -25,6 +25,8 @@ with tempfile.TemporaryDirectory(prefix='rise-mpris-', dir='/tmp') as directory:
     (panels/'InertFileView.qml').write_text('import QtQuick\nQtObject { property string path; property bool watchChanges; property bool printErrors; signal fileChanged(); signal loaded(); signal loadFailed(); function reload() {} function text() { return "" } }')
     (panels/'InertProcess.qml').write_text('import QtQuick\nQtObject { property var command: []; property bool running:false; property var stdout }')
     (panels/'SplitParser.qml').write_text('import QtQuick\nQtObject { property string splitMarker; signal read(string line) }')
+    (modules/'MprisPanelPalette.qml').write_text(qml_fixture_text(repo / 'variants/V2/modules/MprisPanelPalette.qml').replace('import Quickshell.Io\n', '').replace('FileView {', 'InertFileView {'))
+    (modules/'InertFileView.qml').write_bytes((panels/'InertFileView.qml').read_bytes())
     (modules/'MprisArtwork.qml').write_text('import QtQuick\nItem { property var player; property string source: "" }')
     (modules/'MprisSelect.qml').write_text('''import QtQuick
 Item {
@@ -55,7 +57,8 @@ Item { property var root; property bool ownerActive; property real targetX; prop
 ''')
     theme = []
     colors = {'bg','pillBorder','fillActive','ink','panelBorder','seal','sep','sumi','sumiHi','color01','color03','color04','color05','color06','color07'}
-    for field in sorted(set(re.findall(r'mprisPanel\.root\.(\w+)', text))):
+    contract = text + qml_fixture_text(repo / 'variants/V2/modules/MprisPanelPalette.qml').replace('paletteHelper.root.', 'mprisPanel.root.')
+    for field in sorted(set(re.findall(r'mprisPanel\.root\.(\w+)', contract))):
         if field in colors:
             theme.append(f'property color {field}: "#999999"')
         elif field == 'activePopupScreen':

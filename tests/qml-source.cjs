@@ -4,6 +4,14 @@ const { resolve } = require('node:path');
 function readQmlSource(path, options) {
   let text = readFileSync(path, options);
   if (typeof text !== 'string' || !String(path).endsWith('.qml')) return text;
+  const sharedWidget = text.match(/Shared\.(ClockWidget|ScreenRecordWidget|WallpaperWidget|VoxtypeWidget|ArchUpdaterWidget|BrightnessWidget|BatteryWidget|BluetoothWidget|PowerProfileWidget|NordVPNWidget|TrayWidget|LauncherWidget|ClaudeWidget|MprisWidget)\s*\{/);
+  if (sharedWidget) {
+    text = readFileSync(resolve(__dirname, '../shared/components/' + sharedWidget[1] + '.qml'), 'utf8');
+  }
+  const sharedPanel = text.match(/Shared\.(WallpaperManagerQuickPanel|MprisPanel)\s*\{/);
+  if (sharedPanel) {
+    text = readFileSync(resolve(__dirname, '../shared/panels/' + sharedPanel[1] + '.qml'), 'utf8');
+  }
   if (/Shared\.WeatherWidget\s*\{/.test(text)) {
     const adapter=text;
     text=readFileSync(resolve(__dirname,'../shared/components/WeatherWidget.qml'),'utf8');

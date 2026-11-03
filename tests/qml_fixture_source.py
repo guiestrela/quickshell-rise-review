@@ -36,25 +36,51 @@ def qml_fixture_text(path, *args, **kwargs):
             text = re.sub(r'    (?:required )?property (\w+) ' + field + r'[^\n]*',
                           lambda m: '    property ' + m[1] + ' ' + field + ': ' + value, text)
         source = _ROOT / 'shared/components/WeatherWidget.qml'
+    # Materialize production widget adapters for older flat mock directories.
+    widget_types = {'VoxtypeWidget', 'ArchUpdaterWidget', 'BrightnessWidget',
+                    'BatteryWidget', 'BluetoothWidget', 'PowerProfileWidget',
+                    'NordVPNWidget', 'TrayWidget', 'LauncherWidget', 'ClaudeWidget', 'MprisWidget'}
+    if source.stem in widget_types and re.search(r'^Shared\.' + source.stem + r'\s*\{', text, re.M):
+        adapter = text
+        body = (_ROOT / 'shared/components' / source.name).read_text()
+        ident = re.search(r'    id: (\w+)', body)[1]
+        for field, value in re.findall(r'^    (\w+): (.+)$', adapter, re.M):
+            if field == 'id':
+                continue
+            value = value.replace('widget.', ident + '.')
+            body = re.sub(r'    (?:required )?property (\w+) ' + field + r'(?:[^\n]*)\n',
+                          lambda m: '    property ' + m[1] + ' ' + field + ': ' + value + '\n', body)
+        if '    Component {' in adapter:
+            component = adapter[adapter.index('    Component {'):adapter.rfind('\n}')]
+            body = body[:body.rfind('}')] + component.replace('Native.', '').replace('widget.', ident + '.') + '\n}\n'
+        # Keep the legacy resource spelling expected by flat-copy fixtures.
+        body = body.replace('../assets/', '../../../shared/assets/')
+        body = body.replace('../logic/', '../../../shared/logic/')
+        body = body.replace('../../scripts/', '../../../scripts/')
+        text = body
+        source = _ROOT / 'shared/components' / source.name
     # Older content fixtures need a standalone local type. Materialize the
     # shared content with the real adapter's style bindings in the test copy.
     content_types = {'CpuPanel', 'GpuPanel', 'MemoryPanel', 'PowerProfilePanel',
-                     'WorkspacePanel', 'TrayPanel', 'AiUsagePanel', 'CalendarPopup', 'NordVPNPanel', 'WeatherPanel'}
+                     'MprisPanel', 'WallpaperManagerQuickPanel', 'WorkspacePanel', 'TrayPanel', 'AiUsagePanel', 'CalendarPopup', 'NordVPNPanel', 'WeatherPanel'}
     if source.stem in content_types and re.search(r'^Shared\.' + source.stem + r'\s*\{', text, re.M):
         body = (_ROOT / 'shared/panels' / source.name).read_text()
         ident = re.search(r'    id: (\w+)', body)[1]
         adapter = text
         for field, value in re.findall(r'^    (\w+): (.+)$', adapter, re.M):
-            if field in {'id', 'surfaceComponent'}:
+            if field in {'id', 'surfaceComponent', 'auxiliaryComponent'}:
                 continue
             value = value.replace('panel.', ident + '.')
-            body = re.sub(r'    required property (\w+) ' + field + r'\n',
+            body = re.sub(r'    (?:required )?property (\w+) ' + field + r'[^\n]*\n',
                           lambda m: '    property ' + m[1] + ' ' + field + ': ' + value + '\n', body)
-            body = re.sub(r'    property real ' + field + r': [^\n]+',
-                          '    property real ' + field + ': ' + value, body)
-        surface = adapter.split('    surfaceComponent: Component {', 1)[1].rsplit('\n}', 1)[0]
-        surface = surface.rsplit('    }', 1)[0].replace('Native.', '').replace('panel.', ident + '.')
-        body = body.replace('    property Component surfaceComponent', '    property Component surfaceComponent: Component {' + surface + '    }')
+        for slot in ['surfaceComponent', 'auxiliaryComponent']:
+            marker = '    ' + slot + ': Component {'
+            if marker not in adapter:
+                continue
+            component = adapter.split(marker, 1)[1].split('\n    }', 1)[0]
+            component = component.replace('Native.', '').replace('panel.', ident + '.')
+            body = body.replace('    property Component ' + slot + '\n',
+                                '    property Component ' + slot + ': Component {' + component + '\n    }\n')
         body = body.replace('import QtQuick\n', 'import QtQuick\nimport "../modules"\n', 1)
         text = body
         source = _ROOT / 'shared/panels' / source.name

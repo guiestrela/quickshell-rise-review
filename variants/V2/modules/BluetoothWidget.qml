@@ -1,104 +1,13 @@
+pragma ComponentBehavior: Bound
 import QtQuick
-import Quickshell.Io
-import "../../../shared/logic/IconMap.js" as IconMap
-import "../../../shared/components" as CommonComponents
+import "../../../shared/components" as Shared
 
-Item {
-    id: rootMod
-    required property var root
-    readonly property color contentColor: rootMod.root.widgetContentColor("G15", rootMod.root.ink)
-
-    property bool btOn:       false
-    property bool connected:  false
-    property int  numConnected: 0
-
-    readonly property string iconN: !btOn
-        ? "bluetooth_disabled"
-        : (connected ? "bluetooth_connected" : "bluetooth")
-
-    readonly property string tooltipText: connected
-        ? "Bluetooth · " + numConnected + " connected"
-        : (btOn ? "Bluetooth on" : "Bluetooth off")
-
-    readonly property bool shown: rootMod.root.modBluetooth
-    visible: implicitWidth > 0.5
-    implicitWidth: shown ? row.implicitWidth + 18 : 0
-    implicitHeight: 28
-    opacity: shown ? 1 : 0
-
-    Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-
-    Row {
-        id: row
-        anchors.centerIn: parent
-        spacing: 4
-
-        CommonComponents.IconText {
-            anchors.verticalCenter: parent.verticalCenter
-            text: IconMap.icon(rootMod.iconN)
-            color: rootMod.connected
-                ? (rootMod.root.widgetHasFill("G15") ? rootMod.contentColor : rootMod.root.seal)
-                : Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, rootMod.btOn ? 0.7 : 0.3)
-            font.pixelSize: 14
-            Behavior on color { ColorAnimation { duration: 200 } }
-        }
-
-        CommonComponents.UiText {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: rootMod.connected && !rootMod.root.iconOnly("G15")
-            text: String(rootMod.numConnected)
-            color: rootMod.root.widgetHasFill("G15") ? rootMod.contentColor : rootMod.root.seal
-            font.family: rootMod.root.mono
-            font.pixelSize: 12
-        }
-    }
-
-    Process {
-        id: btProc
-        command: ["bash", "-c",
-            "if bluetoothctl show 2>/dev/null | grep -q 'Powered: yes'; then " +
-            "  COUNT=$(bluetoothctl devices Connected 2>/dev/null | wc -l); " +
-            "  printf 'ON\\t%s\\n' \"$COUNT\"; " +
-            "else echo OFF; fi"
-        ]
-        running: false
-        stdout: SplitParser {
-            onRead: function(line) { btProc.result = line.trim() }
-        }
-        onExited: {
-            var r = btProc.result
-            if (r === "OFF" || r === "") {
-                rootMod.btOn = false; rootMod.connected = false; rootMod.numConnected = 0
-            } else if (r.startsWith("ON\t")) {
-                rootMod.btOn = true
-                const count = parseInt(r.split("\t")[1]) || 0
-                rootMod.numConnected = count
-                rootMod.connected = count > 0
-            }
-            btProc.result = ""
-        }
-        property string result: ""
-    }
-
-    Timer {
-        interval: 5000; running: rootMod.shown; repeat: true; triggeredOnStart: true
-        onTriggered: { btProc.result = ""; btProc.running = false; btProc.running = true }
-    }
-
-    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
-
-    Process { id: clickRunner; command: ["bash", "-c", rootMod.root.launchBtCmd] }
-
-    MouseArea {
-        anchors.fill: parent
-        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
-        onEntered: tip.show()
-        onExited: { tip.hide() }
-        onClicked: (e) => {
-            tip.hide()
-            if (e.button === Qt.RightButton) { clickRunner.running = false; clickRunner.running = true }
-            else rootMod.root.bluetoothVisible = !rootMod.root.bluetoothVisible
-        }
-    }
+Shared.BluetoothWidget {
+    id: widget
+    contentColor: widget.root.widgetContentColor("G15", widget.root.ink)
+    showPrefix: false
+    showCount: !widget.root.iconOnly("G15")
+    rowSpacing: 4
+    iconColor: widget.connected ? (widget.root.widgetHasFill("G15") ? widget.contentColor : widget.root.seal) : Qt.rgba(widget.contentColor.r, widget.contentColor.g, widget.contentColor.b, widget.btOn ? 0.7 : 0.3)
+    countColor: widget.root.widgetHasFill("G15") ? widget.contentColor : widget.root.seal
 }

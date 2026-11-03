@@ -1,131 +1,15 @@
 pragma ComponentBehavior: Bound
-import Quickshell
-import Quickshell.Services.SystemTray
 import QtQuick
-import "../../../shared/logic/TrayWidgetValuesLogic.js" as TrayWidgetValuesLogic
-import "../../../shared/components" as CommonComponents
+import "../../../shared/components" as Shared
 
-Item {
-    id: rootMod
-    required property var root
-    readonly property color contentColor: rootMod.root.widgetContentColor("G3", rootMod.root.ink)
-
-    implicitWidth: trayRow.implicitWidth
-    implicitHeight: rootMod.root.barVertical ? trayRow.implicitHeight : 28
-    visible: trayRow.implicitWidth > 0
-
-    function toggleHide(item) { return TrayWidgetValuesLogic.toggleHide(rootMod, {}, item) }
-
-    Grid {
-        id: trayRow
-        columns: rootMod.root.barVertical ? 1 : trayItems.count + 1
-        anchors.centerIn: parent
-        spacing: rootMod.root.v2IconClusterSpacing
-
-        Repeater {
-            id: trayItems
-            model: SystemTray.items
-
-            delegate: Item {
-                id: trayDelegate
-                required property SystemTrayItem modelData
-
-                // System-tray actions share the bar's compact 24px centre pitch:
-                // 22px action cell plus the surrounding Row's 2px cluster gap.
-                implicitWidth: rootMod.root.v2ActionIconCellWidth
-                implicitHeight: 28
-                visible: rootMod.root.trayPinned.indexOf(modelData.id) >= 0
-
-                Image {
-                    anchors.centerIn: parent
-                    source: modelData.icon
-                    sourceSize.width: 14
-                    sourceSize.height: 14
-                    width: 14
-                    height: 14
-                    fillMode: Image.PreserveAspectFit
-                    smooth: true
-                }
-
-                MouseArea {
-                    id: ma
-                    anchors.fill: parent
-                    acceptedButtons: Qt.LeftButton | Qt.RightButton
-                    hoverEnabled: true
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: (e) => {
-                        if (e.button === Qt.LeftButton)
-                            modelData.activate()
-                        else if (e.button === Qt.RightButton)
-                            rootMod.toggleHide(modelData)
-                    }
-                }
-            }
-        }
-
-        // ── toggle: more_horiz icon + seal count badge ──
-        Item {
-            id: toggleBtn
-            implicitWidth: rootMod.root.v2ActionIconCellWidth
-            implicitHeight: 28
-            visible: hiddenCount > 0
-
-            // count CURRENTLY-EXISTING tray items that are not pinned (= hidden behind this
-            // button), iterating SystemTray.items so stale pinned IDs can't inflate the count
-            readonly property int hiddenCount: {
-                var n = 0, vals = SystemTray.items.values
-                for (var i = 0; i < vals.length; i++) if (rootMod.root.trayPinned.indexOf(vals[i].id) < 0) n++
-                return n
-            }
-            readonly property int totalCount:  SystemTray.items.values.length
-            readonly property string tooltipText: totalCount + (totalCount === 1 ? " app" : " apps")
-                                                  + (hiddenCount > 0 ? " · " + hiddenCount + " hidden" : "")
-
-            CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: toggleBtn; text: toggleBtn.tooltipText }
-
-            CommonComponents.IconText {
-                id: moreIcon
-                anchors.centerIn: parent
-                text: "\uE5D3"   // more_horiz
-                font.pixelSize: 16
-                color: toggleMa.containsMouse
-                    ? rootMod.contentColor
-                    : Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.7)
-                Behavior on color { ColorAnimation { duration: 150 } }
-            }
-
-            // count badge — top-right
-            Rectangle {
-                id: toggleBadge
-                visible: toggleBtn.hiddenCount > 0
-                width: Math.max(12, toggleBadgeTxt.implicitWidth + 6)
-                height: 12
-                radius: 6
-                color: rootMod.root.widgetHasFill("G3") ? rootMod.contentColor : rootMod.root.seal
-                anchors.verticalCenter: moreIcon.verticalCenter
-                anchors.verticalCenterOffset: -6
-                anchors.horizontalCenter: moreIcon.horizontalCenter
-                anchors.horizontalCenterOffset: 7
-                Text {
-                    id: toggleBadgeTxt
-                    anchors.centerIn: parent
-                    text: toggleBtn.hiddenCount
-                    color: rootMod.root.widgetHasFill("G3") ? rootMod.root.widgetAssignedColor("G3") : rootMod.root.paper
-                    font.family: rootMod.root.mono
-                    font.pixelSize: 7
-                    font.weight: Font.Bold
-                }
-            }
-
-            MouseArea {
-                id: toggleMa
-                anchors.fill: parent
-                hoverEnabled: true
-                cursorShape: Qt.PointingHandCursor
-                onEntered: tip.show()
-                onExited: { tip.hide() }
-                onClicked: { tip.hide(); rootMod.root.trayVisible = !rootMod.root.trayVisible }
-            }
-        }
-    }
+Shared.TrayWidget {
+    id: widget
+    reserveHiddenColumns: true
+    contentColor: widget.root.widgetContentColor("G3", widget.root.ink)
+    badgeColor: widget.root.widgetHasFill("G3") ? widget.contentColor : widget.root.seal
+    badgeTextColor: widget.root.widgetHasFill("G3") ? widget.root.widgetAssignedColor("G3") : widget.root.paper
+    verticalLayout: widget.root.barVertical
+    cellWidth: widget.root.v2ActionIconCellWidth
+    toggleWidth: widget.root.v2ActionIconCellWidth
+    cellSpacing: widget.root.v2IconClusterSpacing
 }

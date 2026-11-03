@@ -12,6 +12,7 @@ import Quickshell
 Scope {
     QtObject {
         id: stub
+        property bool barVertical: false
         property bool modWallpapers: true
         property string wallpaperManagerFolder: ""
         property int pillH: 24

@@ -52,3 +52,18 @@ for (const [variant, relative] of [
     assert.doesNotMatch(panel, /WlrLayer\.Background|omarchy-theme-bg-set/);
   });
 }
+
+// Variant adapters must keep presentation only; controls have one production owner.
+test('wallpaper variants share one control implementation', () => {
+  for (const variant of ['V1', 'V2']) {
+    const adapter = readFileSync(join(project, `variants/${variant}/panels/WallpaperManagerQuickPanel.qml`), 'utf8');
+    assert.match(adapter, /Shared\.WallpaperManagerQuickPanel\s*\{/);
+    assert.match(adapter, /surfaceComponent: Component/);
+    assert.doesNotMatch(adapter, /component RiseButton|wallpaper-manager-title|wallpaper-scale-/);
+  }
+});
+
+test('wallpaper connected surface stays behind the controls', () => {
+  const adapter = readFileSync(join(project, 'variants/V2/panels/WallpaperManagerQuickPanel.qml'), 'utf8');
+  assert.match(adapter, /Native\.ConnectedPanelSurface\s*\{\s*parent: panel\.surfaceHost\s*z: -1/);
+});

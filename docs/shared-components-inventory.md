@@ -275,3 +275,19 @@ O reset da seleção ao trocar display e a coordenação após mudanças de perf
 Validação: `tests/run-plugin-checks.sh` retornou `ALL PLUGIN CHECKS PASSED`.
 
 Validação final do lote 9: `ALL PLUGIN CHECKS PASSED`; lint de 168 arquivos QML, 22 avisos e sem falhas. O teste de backend/estilo do updater faz parte da suíte principal; a compilação integrada V1/V2 também passou.
+
+## Wallpaper Manager — interface compartilhada
+
+`shared/panels/WallpaperManagerQuickPanel.qml` passa a ser a única origem dos controles, cabeçalho, seleção por display e integração com o picker. Os adaptadores V1/V2 mantêm somente geometria, raios, moldura, sombra e animação. V1 preserva o contorno com ponta; V2 preserva a superfície conectada e a animação de abertura. Nenhuma preferência ou serviço foi migrado.
+
+## Clock, ScreenRecord e Wallpaper — widgets compartilhados
+
+As implementações estão em `shared/components/ClockWidget.qml`, `ScreenRecordWidget.qml` e `WallpaperWidget.qml`. Os adaptadores de variante fornecem as cores; Wallpaper também recebe o fundo com borda e sombra da variante. Na V1 vertical, o fundo fica desativado para preservar a superfície do rail. Os comandos de timezone/gravação e as ações do wallpaper continuam nos componentes comuns, sem instanciar a variante inativa. A fixture de status verifica formatos 12/24h, tempo de gravação, visibilidade e cores sem executar ações reais.
+
+## Demais widgets e painel MPRIS — conteúdo compartilhado
+
+As implementações de Voxtype, ArchUpdater, Brightness, Battery, Bluetooth, PowerProfile, NordVPN, Tray, Launcher, Claude e Mpris estão em `shared/components/`. Os adaptadores V1/V2 fornecem cores tipadas, visibilidade dos rótulos, espaçamento, modo compacto/full e superfícies. O corpo dos widgets mantém timers e ações únicos por instância da variante ativa. Scripts, imagens e shaders resolvem a partir de `shared/`.
+
+`shared/panels/MprisPanel.qml` mantém controles e ciclo de vida comuns. Os adaptadores preservam a captura CAVA pulse/60 fps da V1 e pipewire/30 fps da V2, os valores de ataque/release e os estilos de superfície. A V2 mantém o resolvedor de capa e `MprisPanelPalette.qml` para ler seu gradiente do tema, sem impor esse contrato à V1. O fundo conectado permanece em `z: -1`.
+
+O Tray preserva a largura das células visíveis do Row da V1 e as colunas reservadas do Grid da V2. A fixture com itens simulados cobre pinagem, remoção e orientação sem conectar ao SystemTray. A comparação de renderização antes/depois usa dados inertes e inclui o tratamento de superfícies verticais da V1; isso não substitui a interação física em todos os monitores.

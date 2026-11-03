@@ -122,7 +122,12 @@ check "V1 notification history" python3 tests/test-notification-history-runtime.
 check "V2 notification history" env RISE_NOTIFICATION_SOURCE=variants/V2 python3 tests/test-notification-history-runtime.py
 check "notification pointer actions" python3 tests/qr-notification-panel-click.py
 check "wallpaper panel controls" python3 tests/test-wallpaper-panel-runtime.py
+check "shared clock and recording widgets" python3 tests/test-shared-status-widgets.py
+check "wallpaper widget actions" env TMPDIR="$tmp" python3 tests/test_qr04w_widget_runtime.py
 check "tray panel actions" python3 tests/test-tray-panel-runtime.py
+check "shared tray geometry" python3 tests/test-shared-tray-layout.py
+check "V1 compact AI and VPN widgets" python3 tests/test-v1-compact-widgets-runtime.py
+check "AI percentage label bindings" python3 tests/ai-percent-binding-runtime.py
 check "V1 media panel" python3 tests/test-mpris-panel-runtime.py
 check "V2 media panel" env RISE_MPRIS_SOURCE=variants/V2 python3 tests/test-mpris-panel-runtime.py
 check "media browser actions" python3 tests/test-media-browser-runtime.py

@@ -22,7 +22,6 @@ V1_MPRIS_WIDGET="$REPO_ROOT/variants/V1/modules/MprisWidget.qml"
 V1_MPRIS_PANEL="$REPO_ROOT/variants/V1/panels/MprisPanel.qml"
 V2_ARCH_UPDATER="$REPO_ROOT/shared/panels/ArchUpdaterPanel.qml"
 V2_BLUETOOTH_PANEL="$REPO_ROOT/shared/panels/BluetoothPanel.qml"
-V2_MPRIS_WIDGET="$REPO_ROOT/variants/V2/modules/MprisWidget.qml"
 V2_MPRIS_PANEL="$REPO_ROOT/variants/V2/panels/MprisPanel.qml"
 WORK="$(mktemp -d /tmp/qs-quattro-runtime-test.XXXXXX)"
 HOST_BIN="$WORK/host-bin"
@@ -1367,14 +1366,14 @@ case_static_contracts() {
   assert_contains 'compactMpris: false' "$REPO_ROOT/variants/V1/modules/V1Defaults.js" "V1 MPRIS shared default"
   assert_contains 'model: ctrlPanel.root.barColorOptions' "$V1_CONTROL_PANEL" "V1 bar palette control"
   assert_contains 'label: "Now playing"' "$V1_CONTROL_PANEL" "V1 MPRIS presentation control"
-  assert_contains 'readonly property bool fullMode: rootMod.root.compactMpris' "$V1_MPRIS_WIDGET" "V1 FULL presentation binding"
+  assert_contains 'property bool fullMode: rootMod.root.compactMpris' "$V1_MPRIS_WIDGET" "V1 FULL presentation binding"
 
   # The analyzer config is supplied over an inherited file descriptor. Keeping
   # exec preserves Quickshell's direct process lifecycle while avoiding the old
   # mktemp + unreachable EXIT-trap leak.
   for mpris_file in \
-    "$V1_MPRIS_WIDGET" "$V1_MPRIS_PANEL" \
-    "$V2_MPRIS_WIDGET" "$V2_MPRIS_PANEL"; do
+    "$REPO_ROOT/shared/components/MprisWidget.qml" "$V1_MPRIS_PANEL" \
+    "$V2_MPRIS_PANEL"; do
     assert_contains "exec cava -p <(printf" "$mpris_file" "CAVA fd-backed config"
     assert_not_contains "cfg=\$(mktemp)" "$mpris_file" "CAVA tempfile leak"
   done

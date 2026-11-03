@@ -291,7 +291,7 @@ PanelWindow {
                     width: parent.width
                     height: 24
                     Text { id: displaySectionLabel; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "DISPLAYS · drag cards to arrange"; color: panel.root.ink; font.family: panel.root.mono; font.pixelSize: 11; font.bold: true }
-                    RiseButton { objectName: panel.connectedStyle ? "display-refresh-v2" : "display-refresh"; anchors.right: parent.right; width: 28; height: 24; text: "↻"; onClicked: { panel.controller.refresh(); panel.controller.refreshWorkspaces() } }
+                    RiseButton { objectName: panel.connectedStyle ? "display-refresh-v2" : "display-refresh"; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; width: 18; height: 18; padding: 0; font.pixelSize: 10; text: "↻"; onClicked: { panel.controller.refresh(); panel.controller.refreshWorkspaces() } }
                 }
                 Text {
                     visible: panel.controller.busy || panel.controller.loading

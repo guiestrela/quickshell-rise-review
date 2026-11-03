@@ -28,14 +28,15 @@ with tempfile.TemporaryDirectory(prefix='rise-wallpanel-', dir='/tmp') as direct
         (controllers / 'WallpaperExternalPicker.qml').write_bytes(
             (repo / 'shared' / 'controllers' / 'WallpaperExternalPicker.qml').read_bytes()
         )
-        text = (source / 'panels/WallpaperManagerQuickPanel.qml').read_text()
-        text = text.replace('../../../shared/logic', '../../shared/logic')
-        text = text.replace('import "../../../shared/controllers" as CommonControllers',
-                            'import "../modules" as CommonControllers')
+        text = qml_fixture_text(source / 'panels/WallpaperManagerQuickPanel.qml')
+        text = text.replace('import QtQuick\n', 'import QtQuick\nimport "../../shared/logic/WallpaperManagerQuickPanelLogic.js" as WallpaperManagerQuickPanelLogic\n', 1)
+        if variant == 'V2':
+            text = text.replace('    id: panel', '    id: panel\n    readonly property int barBottom: panel.root.v2BarHeight\n    readonly property int gap: 6', 1)
         text = re.sub(r'^import Quickshell(?:\.[A-Za-z.]+)?\n','',text,flags=re.M)
         text = text.replace('PanelWindow {','Rectangle {\n width:1000; height:900\n property var screen',1)
         text = re.sub(r'^    (?:anchors \{ top:|exclusionMode:|WlrLayershell\.).*\n','',text,flags=re.M)
         (panels/'WallpaperManagerQuickPanel.qml').write_text(text)
+        (modules/'UiText.qml').write_bytes((repo/'shared/components/UiText.qml').read_bytes())
         (modules/'PillShadow.qml').write_bytes(qml_fixture_bytes(source/'modules/PillShadow.qml'))
         (modules/'SidePanelPositioner.qml').write_bytes(qml_fixture_bytes(source/'modules/SidePanelPositioner.qml'))
         (modules/'ConnectedPanelSurface.qml').write_text('import QtQuick\nItem { property var root; property bool ownerActive; property real targetX; property real reveal }')
@@ -116,7 +117,12 @@ Item {
    compare(theme.wallpaperManagerVisible,true)
    panel.folderPicker.busy=false
    compare(panel.visible,true)
-   panel.dismiss()
+   var title=findChild(panel,"wallpaper-manager-title")
+   var close=findChild(panel,"wallpaper-manager-close")
+   verify(title !== null && close !== null)
+   compare(title.parent,close.parent)
+   verify(close.x >= title.x + title.width)
+   clickButton(close)
    compare(theme.wallpaperManagerVisible,false)
   }
  }

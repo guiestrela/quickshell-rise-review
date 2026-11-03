@@ -1,125 +1,25 @@
+pragma ComponentBehavior: Bound
 import QtQuick
-import Quickshell.Io
-import "../../../shared/logic/IconMap.js" as IconMap
-import "../../../shared/components" as CommonComponents
+import "../../../shared/components" as Shared
+import "." as Native
 
-Item {
-    id: rootMod
-    required property var root
-    readonly property bool verticalCompact: rootMod.root.barVertical === true || rootMod.root.compactBluetooth
-
-    property bool btOn:       false
-    property bool connected:  false
-    property int  numConnected: 0
-
-    readonly property string iconN: !btOn
-        ? "bluetooth_disabled"
-        : (connected ? "bluetooth_connected" : "bluetooth")
-
-    readonly property string tooltipText: connected
-        ? "Bluetooth · " + numConnected + " connected"
-        : (btOn ? "Bluetooth on" : "Bluetooth off")
-
-    readonly property bool shown: rootMod.root.modBluetooth
-    visible: implicitWidth > 0.5
-    implicitWidth: shown ? row.implicitWidth + 18 : 0
-    implicitHeight: 28
-    opacity: shown ? 1 : 0
-
-    Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
-
-    Rectangle {
-        x: 0; anchors.verticalCenter: parent.verticalCenter
-        width: Math.round(row.width) + 18
-        height: rootMod.root.pillH
-        radius: rootMod.root.pillRadius
-        color: rootMod.root.pill
-        border.color: rootMod.root.pillBorder
-        border.width: rootMod.root.pillBorderW
-        PillShadow { theme: rootMod.root }
-    }
-
-    Row {
-        id: row
-        anchors.centerIn: parent
-        spacing: 5
-
-        CommonComponents.UiText {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: !rootMod.verticalCompact
-            text: "BT"
-            color: Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, 0.6)
-            font.family: rootMod.root.mono
-            font.pixelSize: 12
-            font.letterSpacing: 0.5
-        }
-
-        CommonComponents.IconText {
-            anchors.verticalCenter: parent.verticalCenter
-            text: IconMap.icon(rootMod.iconN)
-            color: rootMod.connected
-                ? rootMod.root.seal
-                : Qt.rgba(rootMod.root.ink.r, rootMod.root.ink.g, rootMod.root.ink.b, rootMod.btOn ? 0.7 : 0.3)
-            font.pixelSize: 14
-            Behavior on color { ColorAnimation { duration: 200 } }
-        }
-
-        CommonComponents.UiText {
-            anchors.verticalCenter: parent.verticalCenter
-            visible: rootMod.root.barVertical !== true && rootMod.connected
-            text: String(rootMod.numConnected)
-            color: rootMod.root.seal
-            font.family: rootMod.root.mono
-            font.pixelSize: 12
-        }
-    }
-
-    Process {
-        id: btProc
-        command: ["bash", "-c",
-            "if bluetoothctl show 2>/dev/null | grep -q 'Powered: yes'; then " +
-            "  COUNT=$(bluetoothctl devices Connected 2>/dev/null | wc -l); " +
-            "  printf 'ON\\t%s\\n' \"$COUNT\"; " +
-            "else echo OFF; fi"
-        ]
-        running: false
-        stdout: SplitParser {
-            onRead: function(line) { btProc.result = line.trim() }
-        }
-        onExited: {
-            var r = btProc.result
-            if (r === "OFF" || r === "") {
-                rootMod.btOn = false; rootMod.connected = false; rootMod.numConnected = 0
-            } else if (r.startsWith("ON\t")) {
-                rootMod.btOn = true
-                const count = parseInt(r.split("\t")[1]) || 0
-                rootMod.numConnected = count
-                rootMod.connected = count > 0
-            }
-            btProc.result = ""
-        }
-        property string result: ""
-    }
-
-    Timer {
-        interval: 5000; running: rootMod.shown; repeat: true; triggeredOnStart: true
-        onTriggered: { btProc.result = ""; btProc.running = false; btProc.running = true }
-    }
-
-    CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: rootMod; text: rootMod.tooltipText }
-
-    Process { id: clickRunner; command: ["bash", "-c", rootMod.root.launchBtCmd] }
-
-    MouseArea {
-        anchors.fill: parent
-        hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
-        onEntered: tip.show()
-        onExited: { tip.hide() }
-        onClicked: (e) => {
-            tip.hide()
-            if (e.button === Qt.RightButton) { clickRunner.running = false; clickRunner.running = true }
-            else rootMod.root.bluetoothVisible = !rootMod.root.bluetoothVisible
+Shared.BluetoothWidget {
+    id: widget
+    showPrefix: !(widget.root.barVertical === true || widget.root.compactBluetooth)
+    showCount: widget.root.barVertical !== true
+    rowSpacing: 5
+    iconColor: widget.connected ? widget.root.seal : Qt.rgba(widget.root.ink.r, widget.root.ink.g, widget.root.ink.b, widget.btOn ? 0.7 : 0.3)
+    countColor: widget.root.seal
+    backgroundComponent: widget.root.barVertical === true ? null : pillBackground
+    Component {
+        id: pillBackground
+        Rectangle {
+            anchors.fill: parent
+            radius: widget.root.pillRadius
+            color: widget.root.pill
+            border.color: widget.root.pillBorder
+            border.width: widget.root.pillBorderW
+            Native.PillShadow { theme: widget.root }
         }
     }
 }
