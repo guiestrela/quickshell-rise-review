@@ -28,7 +28,15 @@ check() {
   fi
 }
 
-shell_files=(install.sh uninstall.sh scripts/qs-barctl scripts/qs-proj scripts/*.sh tests/*.sh)
+# Include extensionless helpers and integration scripts as well as *.sh files.
+shell_files=()
+while IFS= read -r -d '' file; do
+  [[ -f "$file" ]] || continue
+  IFS= read -r first_line < "$file" || true
+  if [[ "$file" == *.sh || "$first_line" == '#!/usr/bin/env bash' || "$first_line" == '#!/bin/bash' ]]; then
+    shell_files+=("$file")
+  fi
+done < <(git ls-files -z --cached --others --exclude-standard -- '*.sh' scripts core hooks contrib shared tests)
 check_shell_syntax() {
   local file
   for file in "${shell_files[@]}"; do
@@ -42,6 +50,24 @@ if command -v shellcheck >/dev/null 2>&1; then
 else
   printf 'SKIP: ShellCheck (not installed)\n'
 fi
+
+check_python_syntax() {
+  python3 - <<'PYTHON'
+import ast
+from pathlib import Path
+
+for directory in ('scripts', 'core', 'shared', 'tests'):
+    for source in Path(directory).rglob('*'):
+        if not source.is_file():
+            continue
+        data = source.read_bytes()
+        if source.suffix == '.py' or (data.startswith(b'#!') and b'python3' in data.split(b'\n', 1)[0]):
+            ast.parse(data, filename=str(source))
+PYTHON
+}
+check "Python syntax (including extensionless helpers)" check_python_syntax
+check "AI authentication cache fallback" python3 tests/test-ai-auth-status.py
+check "notification snapshot resilience" python3 tests/test-notification-snapshot.py
 
 if [[ -x /usr/lib/qt6/bin/qmllint ]]; then
   qmllint=/usr/lib/qt6/bin/qmllint
@@ -101,6 +127,7 @@ check "V1 media panel" python3 tests/test-mpris-panel-runtime.py
 check "V2 media panel" env RISE_MPRIS_SOURCE=variants/V2 python3 tests/test-mpris-panel-runtime.py
 check "media browser actions" python3 tests/test-media-browser-runtime.py
 check "AI widget mouse actions" python3 tests/test-ai-widget-click.py
+check "AI panel variants and bundled quotes" python3 tests/test-panel-variant-contracts.py
 
 check "JavaScript regressions" node --test tests/*.test.mjs tests/*.test.cjs tests/test-display-*.cjs
 check "bar style previews" python3 tests/test-bar-style-preview.py

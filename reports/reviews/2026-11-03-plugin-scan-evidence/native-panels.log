@@ -1,0 +1,5 @@
+  INFO: Launching config: "/tmp/rise-native-panels-kep9krkn/shell.qml"
+  INFO: Shell ID: "9c4685a7c81eab0bc4a0a3f99e147d36" Path ID "9c4685a7c81eab0bc4a0a3f99e147d36"
+  INFO: Saving logs to "/run/user/1000/quickshell/by-id/gs82t3gxnt/log.qslog"
+  INFO: Configuration Loaded
+ DEBUG qml: PANEL_WINDOW_RUNTIME_PASS; ALL_15_PANEL_COMPONENTS_READY

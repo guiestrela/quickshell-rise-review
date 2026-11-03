@@ -1,0 +1,3 @@
+PASS real Quickshell fixture: collector drain; fixture-only CLI/reader, zero VPN commands
+PASS real Quickshell fixture: overlapping generations; fixture-only CLI/reader, zero VPN commands
+PASS real Quickshell fixture: disable/re-enable; fixture-only CLI/reader, zero VPN commands

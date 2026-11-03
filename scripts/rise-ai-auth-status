@@ -40,7 +40,13 @@ def native_logged_in(tool):
         return True
     if record.get('limits'):
         return True
-    return any(int(record.get(key) or 0) > 0 for key in ('totalPrompts', 'totalSessions', 'activeDays'))
+    for key in ('totalPrompts', 'totalSessions', 'activeDays'):
+        try:
+            if int(record.get(key) or 0) > 0:
+                return True
+        except (TypeError, ValueError, OverflowError):
+            continue
+    return False
 
 def probe(tool):
     if native_logged_in(tool):

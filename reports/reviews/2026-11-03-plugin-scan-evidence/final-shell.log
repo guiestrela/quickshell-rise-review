@@ -1,0 +1,28 @@
+  INFO: Launching config: "/usr/share/omarchy/shell/shell.qml"
+  INFO: Shell ID: "c0240dfe8c8e8a421e1f8db23a03fc60" Path ID "c0240dfe8c8e8a421e1f8db23a03fc60"
+  INFO: Saving logs to "/run/user/1000/quickshell/by-id/3tt3rlgxnt/log.qslog"
+ DEBUG qml: omarchy-shell paths omarchyPath=/usr/share/omarchy shellDir=/usr/share/omarchy/shell firstPartyPluginsDir=/usr/share/omarchy/shell/plugins defaultsPath=/usr/share/omarchy/config/omarchy/shell.json userConfigPath=/home/guiestrela/.config/omarchy/shell.json
+  INFO: Configuration Loaded
+  WARN scene: QML IpcHandler at @plugins/bar/Bar.qml[1199:3]: Handler was registered but will not be used because another handler is registered for target omarchy.bar
+  WARN qt.qpa.services: Failed to register with host portal QDBusError("org.freedesktop.portal.Error.Failed", "Could not register app ID: Connection already associated with an application ID")
+  WARN quickshell.qmlscanner: Module path "/home/guiestrela/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/core" is outside of the config folder.
+  WARN quickshell.qmlscanner: Module path "/home/guiestrela/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/shared/components" is outside of the config folder.
+  WARN quickshell.qmlscanner: Module path "/home/guiestrela/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/shared/services" is outside of the config folder.
+  WARN quickshell.qmlscanner: Module path "/home/guiestrela/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/variants/V1/modules" is outside of the config folder.
+  WARN quickshell.qmlscanner: Module path "/home/guiestrela/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/shared/controllers" is outside of the config folder.
+  WARN quickshell.qmlscanner: Module path "/home/guiestrela/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/shared/panels" is outside of the config folder.
+  WARN quickshell.qmlscanner: Module path "/home/guiestrela/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/variants/V1/panels" is outside of the config folder.
+  WARN quickshell.qmlscanner: Module path "/home/guiestrela/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/variants/V2/modules" is outside of the config folder.
+  WARN quickshell.qmlscanner: Module path "/home/guiestrela/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/variants/V2/panels" is outside of the config folder.
+  WARN quickshell.qmlscanner: Module path "/home/guiestrela/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/variants/V2" is outside of the config folder.
+  WARN quickshell.qmlscanner: Module path "/home/guiestrela/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/variants/V1" is outside of the config folder.
+  WARN quickshell.qmlscanner: Module path "/home/guiestrela/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise" is outside of the config folder.
+  WARN quickshell.qmlscanner: Module path contains invalid characters for a module name:  "/plugins/image-picker"
+ DEBUG qml: omarchy idle 2026-11-03T13:10:40.875Z service-ready
+ DEBUG qml: omarchy polkit agent registered
+ DEBUG qml: omarchy idle 2026-11-03T13:10:40.935Z stay-awake: disabled state-file
+ DEBUG qml: omarchy idle 2026-11-03T13:10:40.951Z idle-monitor: active
+  INFO qt.multimedia.ffmpeg: Using Qt multimedia with FFmpeg version n9.0.2 GPL version 3 or later
+ DEBUG qml: Local plugin changed, reloading: io.github.guiestrela.quickshell-rise
+ DEBUG qml: Local plugin changed, reloading: io.github.guiestrela.quickshell-rise
+ DEBUG qml: Local plugin changed, reloading: io.github.guiestrela.quickshell-rise

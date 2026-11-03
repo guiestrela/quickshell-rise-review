@@ -17,6 +17,8 @@ def read_entries(folder: Path, active: bool):
                 row = json.loads(path.read_text(encoding="utf-8"))
             except (OSError, ValueError):
                 continue
+            if not isinstance(row, dict):
+                continue
             argv = row.get('execArgv')
             if isinstance(argv, str):
                 try:
@@ -45,9 +47,11 @@ def read_entries(folder: Path, active: bool):
 def process_token(name: str) -> str:
     try:
         pid = subprocess.run(["pidof", name], capture_output=True, text=True, timeout=1, check=True).stdout.split()[0]
-        fields = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8").split()
+        # comm is parenthesized and may itself contain spaces or ')'.
+        # Fields after its final ')' start at field 3 (state).
+        fields = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8").rsplit(')', 1)[1].split()
         boot_id = Path("/proc/sys/kernel/random/boot_id").read_text(encoding="ascii").strip()
-        return f"{boot_id}-{pid}-{fields[21]}"
+        return f"{boot_id}-{pid}-{fields[19]}"
     except (OSError, ValueError, IndexError, subprocess.SubprocessError):
         return ""
 
@@ -84,7 +88,7 @@ def mako_snapshot():
             "active": active,
             "backend": "mako",
             "timestamp": 0,
-        } for row in rows]
+        } for row in rows if isinstance(row, dict)]
 
     return {
         "token": process_token("mako"),
@@ -93,7 +97,12 @@ def mako_snapshot():
     }
 
 
-home = Path(os.environ.get("HOME", str(Path.home())))
-state_home = Path(os.environ.get("XDG_STATE_HOME", str(home / ".local/state")))
-snapshot = omarchy_snapshot(state_home / "omarchy") or mako_snapshot()
-json.dump(snapshot, sys.stdout, separators=(",", ":"))
+def main():
+    home = Path(os.environ.get("HOME", str(Path.home())))
+    state_home = Path(os.environ.get("XDG_STATE_HOME", str(home / ".local/state")))
+    snapshot = omarchy_snapshot(state_home / "omarchy") or mako_snapshot()
+    json.dump(snapshot, sys.stdout, separators=(",", ":"))
+
+
+if __name__ == "__main__":
+    main()

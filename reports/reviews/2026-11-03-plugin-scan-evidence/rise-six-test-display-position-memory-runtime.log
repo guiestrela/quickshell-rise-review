@@ -1,0 +1,3 @@
+POSITION_RUNTIME_PASS capture real FileView saved before inert dispatch
+POSITION_RUNTIME_PASS fresh process restores saved position/mode/scale/rotation
+POSITION_RUNTIME_PASS write failure rejects disable

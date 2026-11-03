@@ -1,0 +1,62 @@
+[
+  {
+    "file": "shared/panels/BatteryPanel.qml",
+    "diagnostic": "Warning: shared/panels/BatteryPanel.qml:9:1: Type PanelWindow is not creatable. [uncreatable-type]"
+  },
+  {
+    "file": "shared/panels/BrightnessPanel.qml",
+    "diagnostic": "Warning: shared/panels/BrightnessPanel.qml:9:1: Type PanelWindow is not creatable. [uncreatable-type]"
+  },
+  {
+    "file": "shared/panels/ThermalsPanel.qml",
+    "diagnostic": "Warning: shared/panels/ThermalsPanel.qml:7:1: Type PanelWindow is not creatable. [uncreatable-type]"
+  },
+  {
+    "file": "shared/panels/StoragePanel.qml",
+    "diagnostic": "Warning: shared/panels/StoragePanel.qml:7:1: Type PanelWindow is not creatable. [uncreatable-type]"
+  },
+  {
+    "file": "shared/panels/CpuPanel.qml",
+    "diagnostic": "Warning: shared/panels/CpuPanel.qml:8:1: Type PanelWindow is not creatable. [uncreatable-type]"
+  },
+  {
+    "file": "shared/panels/GpuPanel.qml",
+    "diagnostic": "Warning: shared/panels/GpuPanel.qml:8:1: Type PanelWindow is not creatable. [uncreatable-type]"
+  },
+  {
+    "file": "shared/panels/MemoryPanel.qml",
+    "diagnostic": "Warning: shared/panels/MemoryPanel.qml:8:1: Type PanelWindow is not creatable. [uncreatable-type]"
+  },
+  {
+    "file": "shared/panels/PowerProfilePanel.qml",
+    "diagnostic": "Warning: shared/panels/PowerProfilePanel.qml:8:1: Type PanelWindow is not creatable. [uncreatable-type]"
+  },
+  {
+    "file": "shared/panels/WorkspacePanel.qml",
+    "diagnostic": "Warning: shared/panels/WorkspacePanel.qml:8:1: Type PanelWindow is not creatable. [uncreatable-type]"
+  },
+  {
+    "file": "shared/panels/CalendarPopup.qml",
+    "diagnostic": "Warning: shared/panels/CalendarPopup.qml:9:1: Type PanelWindow is not creatable. [uncreatable-type]"
+  },
+  {
+    "file": "shared/panels/NordVPNPanel.qml",
+    "diagnostic": "Warning: shared/panels/NordVPNPanel.qml:7:1: Type PanelWindow is not creatable. [uncreatable-type]"
+  },
+  {
+    "file": "shared/panels/TrayMenu.qml",
+    "diagnostic": "Warning: shared/panels/TrayMenu.qml:11:1: Type PanelWindow is not creatable. [uncreatable-type]"
+  },
+  {
+    "file": "shared/panels/TooltipOverlay.qml",
+    "diagnostic": "Warning: shared/panels/TooltipOverlay.qml:7:1: Type PanelWindow is not creatable. [uncreatable-type]"
+  },
+  {
+    "file": "variants/V2/panels/WallpaperManagerQuickPanel.qml",
+    "diagnostic": "Warning: variants/V2/panels/WallpaperManagerQuickPanel.qml:11:1: Type PanelWindow is not creatable. [uncreatable-type]"
+  },
+  {
+    "file": "variants/V1/panels/WallpaperManagerQuickPanel.qml",
+    "diagnostic": "Warning: variants/V1/panels/WallpaperManagerQuickPanel.qml:11:1: Type PanelWindow is not creatable. [uncreatable-type]"
+  }
+]

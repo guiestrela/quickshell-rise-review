@@ -1,0 +1,101 @@
+==> shell syntax
+PASS: shell syntax
+==> ShellCheck
+PASS: ShellCheck
+==> Python syntax (including extensionless helpers)
+PASS: Python syntax (including extensionless helpers)
+==> AI authentication cache fallback
+PASS: AI authentication cache fallback
+==> notification snapshot resilience
+PASS: notification snapshot resilience
+==> QML lint (root entry points, core, shared, and variants)
+PASS: QML lint (189 files; 15 warnings)
+==> source layout and local imports
+PASS: source layout and local imports
+==> variant failure and retry
+PASS: variant failure and retry
+==> network SSID width
+PASS: network SSID width
+==> weather radar lifecycle
+PASS: weather radar lifecycle
+==> shared telemetry and V1/V2 widget parity
+PASS: shared telemetry and V1/V2 widget parity
+==> V1 new widgets layout
+PASS: V1 new widgets layout
+==> shared theme behavior
+PASS: shared theme behavior
+==> shared overlay contracts
+PASS: shared overlay contracts
+==> system panel bindings
+PASS: system panel bindings
+==> energy panel bindings
+PASS: energy panel bindings
+==> connectivity panel bindings and styles
+PASS: connectivity panel bindings and styles
+==> updater panel backend and styles
+PASS: updater panel backend and styles
+==> calendar and workspace panels
+PASS: calendar and workspace panels
+==> storage panel inventory
+PASS: storage panel inventory
+==> thermal panel sensors
+PASS: thermal panel sensors
+==> image carousel selection
+PASS: image carousel selection
+==> V1 notification history
+PASS: V1 notification history
+==> V2 notification history
+PASS: V2 notification history
+==> notification pointer actions
+PASS: notification pointer actions
+==> wallpaper panel controls
+PASS: wallpaper panel controls
+==> tray panel actions
+PASS: tray panel actions
+==> V1 media panel
+PASS: V1 media panel
+==> V2 media panel
+PASS: V2 media panel
+==> media browser actions
+PASS: media browser actions
+==> AI widget mouse actions
+PASS: AI widget mouse actions
+==> AI panel variants and bundled quotes
+PASS: AI panel variants and bundled quotes
+==> JavaScript regressions
+PASS: JavaScript regressions
+==> bar style previews
+PASS: bar style previews
+==> vertical bar layout
+PASS: vertical bar layout
+==> V1 vertical bar layout
+PASS: V1 vertical bar layout
+==> vertical workspaces
+PASS: vertical workspaces
+==> workspace focus and navigation
+PASS: workspace focus and navigation
+==> AI collector installation
+PASS: AI collector installation
+==> Codex cache fallback
+PASS: Codex cache fallback
+==> Codex pipe framing
+PASS: Codex pipe framing
+==> wallpaper scanner
+PASS: wallpaper scanner
+==> qs-arch-update-regression.sh
+PASS: qs-arch-update-regression.sh
+==> qs-barctl-regression.sh
+PASS: qs-barctl-regression.sh
+==> qs-codex-usage-regression.sh
+PASS: qs-codex-usage-regression.sh
+==> qs-copilot-usage-regression.sh
+PASS: qs-copilot-usage-regression.sh
+==> qs-quattro-runtime-regression.sh
+PASS: qs-quattro-runtime-regression.sh
+==> qs-theme-update-regression.sh
+PASS: qs-theme-update-regression.sh
+==> update panel contract/runtime
+PASS: update panel contract/runtime
+==> patch whitespace
+PASS: patch whitespace
+ALL PLUGIN CHECKS PASSED

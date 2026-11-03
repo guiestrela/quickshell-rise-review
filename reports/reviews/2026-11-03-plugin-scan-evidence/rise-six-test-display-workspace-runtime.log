@@ -1,0 +1,1 @@
+EXPLICIT_RUNTIME_PASS workspace3 assigned toB only after Keep; fresh readback; Save real monitors.lua preserves manual assignment over Auto-bind; all compositor calls private/inert

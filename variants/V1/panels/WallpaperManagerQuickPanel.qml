@@ -2,7 +2,6 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import "../../../shared/logic/WallpaperManagerQuickPanelLogic.js" as WallpaperManagerQuickPanelLogic
 import QtQuick.Window
-import QtQuick.Dialogs
 import QtQuick.Controls as Controls
 import Quickshell
 import Quickshell.Wayland

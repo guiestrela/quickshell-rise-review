@@ -1,4 +1,5 @@
 import QtQuick
+import "../integrations/WeatherData.js" as WeatherData
 import "../logic/WeatherPanelValuesLogic.js" as WeatherPanelValuesLogic
 import "../logic/WeatherPanelLogic.js" as WeatherPanelLogic
 import Quickshell
@@ -128,15 +129,35 @@ PanelWindow {
     // data is fetched in °C / km·h; convert on display per root.weatherImperial
     function tConv(c) { return WeatherPanelLogic.tConv(wxPanel, {root: root}, c) }
     function wConv(kmh) { return WeatherPanelLogic.wConv(wxPanel, {root: root}, kmh) }
-    function glyphForCode(code) { return WeatherPanelLogic.glyphForCode(wxPanel, {}, code) }
+    function glyphForCode(code) { return WeatherData.glyphForCode(code, false) }
     function dayLabel(dateStr, index) { return WeatherPanelLogic.dayLabel(wxPanel, {}, dateStr, index) }
     function dayRange(day) { return WeatherPanelLogic.dayRange(wxPanel, {root: root}, day) }
     function chanceOfRain(day) { return WeatherPanelLogic.chanceOfRain(wxPanel, {}, day) }
     function forecastCode(day) { return WeatherPanelLogic.forecastCode(wxPanel, {}, day) }
     function parseReport(raw) {
         var d = JSON.parse(raw)
+        if (!d || typeof d !== "object") return false
         if (d.current && d.current.temperature_2m !== undefined) {
             var openCurrent = d.current
+            // Validate the whole report before replacing any last-known data.
+            var currentFields = ["temperature_2m", "apparent_temperature", "relative_humidity_2m", "wind_speed_10m", "weather_code"]
+            for (var ci = 0; ci < currentFields.length; ci++) {
+                var value = openCurrent[currentFields[ci]]
+                if (typeof value !== "number" || !isFinite(value)) return false
+            }
+            var daily = d.daily
+            if (daily !== undefined) {
+                if (!daily || !Array.isArray(daily.time)) return false
+                var dailyFields = ["temperature_2m_min", "temperature_2m_max", "weather_code", "precipitation_probability_max"]
+                for (var di = 0; di < dailyFields.length; di++) {
+                    var values = daily[dailyFields[di]]
+                    if (!Array.isArray(values)) return false
+                    for (var vi = 0; vi < daily.time.length && vi < 3; vi++) {
+                        if (typeof daily.time[vi] !== "string"
+                                || typeof values[vi] !== "number" || !isFinite(values[vi])) return false
+                    }
+                }
+            }
             var openCode = parseInt(openCurrent.weather_code) || 0
             wxPanel.temp = String(Math.round(openCurrent.temperature_2m))
             wxPanel.feels = String(Math.round(openCurrent.apparent_temperature))
@@ -147,7 +168,7 @@ PanelWindow {
             wxPanel.latitude = parseFloat(String(locationQuery).split(",")[0])
             wxPanel.longitude = parseFloat(String(locationQuery).split(",")[1])
             var openDays = []
-            var daily = d.daily || {}
+            daily = daily || {}
             for (var oi = 0; oi < (daily.time || []).length && oi < 3; oi++) {
                 openDays.push({ date: daily.time[oi], min: daily.temperature_2m_min[oi], max: daily.temperature_2m_max[oi], code: openMeteoWttrCode(daily.weather_code[oi]), rain: daily.precipitation_probability_max[oi] || 0 })
             }
@@ -158,20 +179,18 @@ PanelWindow {
         var area = d.nearest_area && d.nearest_area[0] ? d.nearest_area[0] : null
         if (!current) return false
 
-        wxPanel.temp = current.temp_C || ""
-        wxPanel.feels = current.FeelsLikeC || ""
-        wxPanel.desc = current.weatherDesc && current.weatherDesc[0] ? current.weatherDesc[0].value || "" : ""
-        wxPanel.humidity = current.humidity || ""
-        wxPanel.wind = current.windspeedKmph || ""
-        wxPanel.location = wxPanel.locationDraft !== "" ? wxPanel.locationDraft
-            : (area && area.areaName && area.areaName[0] ? area.areaName[0].value || "" : "")
-        wxPanel.latitude = area ? parseFloat(String(area.latitude || "")) : NaN
-        wxPanel.longitude = area ? parseFloat(String(area.longitude || "")) : NaN
-
         var days = []
-        var reportDays = d.weather || []
+        var reportDays = d.weather === undefined ? [] : d.weather
+        if (!Array.isArray(reportDays)) return false
         for (var i = 0; i < reportDays.length && i < 3; i++) {
             var day = reportDays[i]
+            if (!day || typeof day !== "object") return false
+            if (day.hourly !== undefined) {
+                if (!Array.isArray(day.hourly)) return false
+                for (var hi = 0; hi < day.hourly.length; hi++) {
+                    if (!day.hourly[hi] || typeof day.hourly[hi] !== "object") return false
+                }
+            }
             days.push({
                 date: day.date || "",
                 min: day.mintempC || "",
@@ -181,6 +200,15 @@ PanelWindow {
                 rain: chanceOfRain(day)
             })
         }
+        wxPanel.temp = current.temp_C || ""
+        wxPanel.feels = current.FeelsLikeC || ""
+        wxPanel.desc = current.weatherDesc && current.weatherDesc[0] ? current.weatherDesc[0].value || "" : ""
+        wxPanel.humidity = current.humidity || ""
+        wxPanel.wind = current.windspeedKmph || ""
+        wxPanel.location = wxPanel.locationDraft !== "" ? wxPanel.locationDraft
+            : (area && area.areaName && area.areaName[0] ? area.areaName[0].value || "" : "")
+        wxPanel.latitude = area ? parseFloat(String(area.latitude || "")) : NaN
+        wxPanel.longitude = area ? parseFloat(String(area.longitude || "")) : NaN
         wxPanel.forecastDays = days
         return true
     }

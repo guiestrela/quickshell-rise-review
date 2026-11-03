@@ -60,7 +60,7 @@ In QML, look especially for overlapping processes/timers, access to destroyed ob
 
 ## Review code and QML warnings
 
-For warning reviews, batch fixes, or differences between tests and the installation, read [references/code-review.md](references/code-review.md). Distinguish runtime errors, code warnings, and metadata limitations; a lower count does not prove a fix.
+For warning reviews, batch fixes, shared-panel contracts, or differences between tests and the installation, read [references/code-review.md](references/code-review.md). It also covers isolated fixtures, resource paths, and preserving settings during native checks. Distinguish runtime errors, code warnings, and metadata limitations; a lower count does not prove a fix.
 
 Continue fixes within the already authorized scope without repeating confirmation requests. Group changes by shared behavior and validate before applying. If the user requests batches of approximately 100 warnings, use that size as a guide without artificially splitting a fix between V1/V2. Combine validated changes to avoid unnecessary restarts.
 

@@ -1,0 +1,1 @@
+DISPLAY_POINTER_PASS QtTest events; normal Window fixture; DISPLAY_GEOMETRY_PASS save row; KEYBOARD_PASS toggle/SpinBox/brightness; DISPLAY_DISMISS_PASS V1 Escape/outside/X; DISPLAY_CONFIRMATION_POINTER_PASS countdown/Keep/Revert/pending guards

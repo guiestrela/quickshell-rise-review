@@ -1,0 +1,1 @@
+PASS: primitive lock IPC, filtered idle booleans, exact readonly argv, malformed schemas fail closed; no authentication status requested

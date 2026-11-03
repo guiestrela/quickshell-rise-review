@@ -1,0 +1,4 @@
+EXPLICIT_APPLY_POINTER_PASS V1/V2 drag, mode/scale/rotation, Enable/Disable/Mirror/workspaces stay draft; brightness/font live without timer; typed Apply dispatches once and enables 5s; Keep click; layer Window + controller inert
+MODE_DISPLAY_QML_PASS V1/V2 actual ComboBox displayText live/draft/monitor-switch with zero backend calls
+WORKSPACE_POINTER_PASS below Scale, ten native buttons, selected monitor ownership, zero Apply/timer before click V1
+WORKSPACE_POINTER_PASS below Scale, ten native buttons, selected monitor ownership, zero Apply/timer before click V2

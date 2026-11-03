@@ -1,5 +1,7 @@
 """QR-04W: real folder scan stays within a tree and honors recursion."""
 import importlib.util
+from contextlib import contextmanager
+from unittest.mock import patch
 import json
 import os
 from pathlib import Path
@@ -25,6 +27,28 @@ class WallpaperScanTests(unittest.TestCase):
             self.assertEqual(scanner.scan(str(folder), recursive=False), [str(folder / 'top.jpg')])
             self.assertEqual(set(scanner.scan(str(folder), recursive=True)),
                              {str(folder / 'top.jpg'), str(folder / 'nested' / 'deep.png')})
+
+    def test_entry_limit_bounds_directory_enumeration(self):
+        with tempfile.TemporaryDirectory(prefix='qr04w-scan-', dir=os.environ['TMPDIR']) as temp:
+            folder = Path(temp)
+            for index in range(20):
+                (folder / f'{index}.jpg').write_bytes(b'test')
+            original = os.scandir
+            enumerated = []
+
+            @contextmanager
+            def tracked_scandir(path):
+                with original(path) as iterator:
+                    def entries():
+                        for entry in iterator:
+                            enumerated.append(entry.name)
+                            yield entry
+                    yield entries()
+
+            with patch.object(scanner, 'MAX_ENTRIES', 3), patch.object(scanner.os, 'scandir', tracked_scandir):
+                result = scanner.scan(str(folder))
+            self.assertEqual(len(result), 3)
+            self.assertEqual(len(enumerated), 3, 'the cap must apply before materializing entries')
 
     def test_cli_flat_flag(self):
         with tempfile.TemporaryDirectory(prefix='qr04w-scan-', dir=os.environ['TMPDIR']) as temp:

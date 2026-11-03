@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """Bounded, no-symlink wallpaper discovery for Rise's optional folder manager."""
 import json
+from itertools import islice
 import os
 import stat
 import sys
@@ -23,7 +24,10 @@ def scan(folder, recursive=True):
     while stack and visited < MAX_ENTRIES:
         directory, depth = stack.pop()
         try:
-            entries = list(os.scandir(directory))
+            # Bound enumeration too: materializing a whole directory defeats
+            # the work/memory limit before the processing loop even starts.
+            with os.scandir(directory) as iterator:
+                entries = list(islice(iterator, MAX_ENTRIES - visited))
         except OSError:
             if directory == folder:
                 raise

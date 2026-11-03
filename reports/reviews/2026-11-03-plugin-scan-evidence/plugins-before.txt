@@ -1,0 +1,39 @@
+ID                               STATE     SOURCE      KINDS              NAME
+omarchy.active-window            disabled  first-party bar-widget         Active window
+omarchy.agents                   disabled  first-party bar-widget         Agents
+omarchy.audio                    disabled  first-party bar-widget         Audio
+omarchy.background               disabled  first-party service            Background
+omarchy.bar                      disabled  first-party bar                Bar
+omarchy.battery                  disabled  first-party service            Battery
+omarchy.bluetooth                disabled  first-party bar-widget         Bluetooth
+omarchy.clipboard                disabled  first-party overlay            Clipboard
+omarchy.clock                    disabled  first-party bar-widget         Clock
+omarchy.dev-gallery              disabled  first-party panel              Dev gallery
+omarchy.disk-speedtest           disabled  first-party panel              Disk speed test
+omarchy.monitor                  disabled  first-party bar-widget         Display
+omarchy.dropbox                  disabled  first-party bar-widget         Dropbox
+omarchy.emojis                   disabled  first-party overlay            Emojis
+omarchy.idle                     enabled   first-party service            Idle
+omarchy.image-picker             enabled   first-party overlay            Image picker
+omarchy.indicators               disabled  first-party bar-widget         Indicators
+omarchy.keyboard-layout          disabled  first-party bar-widget         Keyboard layout
+omarchy.lock                     enabled   first-party service            Lock Screen
+omarchy.media                    disabled  first-party service,bar-widget Media
+omarchy.microphone               disabled  first-party bar-widget         Microphone
+omarchy.network                  disabled  first-party bar-widget         Network
+omarchy.nightlight               disabled  first-party service            Night Light
+omarchy.notifications            enabled   first-party service            Notifications
+omarchy.menu                     disabled  first-party menu,bar-widget    Omarchy menu
+omarchy.system-update            disabled  first-party bar-widget         Omarchy update
+omarchy.osd                      enabled   first-party panel              On-screen display
+omarchy.polkit                   enabled   first-party service            Polkit Agent
+omarchy.power                    disabled  first-party bar-widget         Power
+io.github.guiestrela.quickshell-rise enabled   third-party bar                Quickshell Rise
+omarchy.reminders                disabled  first-party overlay            Reminders
+omarchy.spacer                   disabled  first-party bar-widget         Spacer
+omarchy.speedtest                disabled  first-party panel              Speed Test
+omarchy.tray                     disabled  first-party bar-widget         System tray
+omarchy.tailscale                disabled  first-party bar-widget         Tailscale
+omarchy.weather                  disabled  first-party bar-widget         Weather
+omarchy.wifiqr                   enabled   first-party panel              Wi-Fi QR
+omarchy.workspaces               disabled  first-party bar-widget         Workspaces

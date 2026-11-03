@@ -1,0 +1,7 @@
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.12.0, Qt 6.12.0 (x86_64-little_endian-lp64 shared (dynamic) release build; by GCC 16.2.1 20260810), omarchy 4.0.6
+PASS   : qmltestrunner::VariantFailure::initTestCase()
+PASS   : qmltestrunner::VariantFailure::test_failure_stops_and_can_recover()
+PASS   : qmltestrunner::VariantFailure::cleanupTestCase()
+Totals: 3 passed, 0 failed, 0 skipped, 0 blacklisted, 3530ms
+********* Finished testing of qmltestrunner *********

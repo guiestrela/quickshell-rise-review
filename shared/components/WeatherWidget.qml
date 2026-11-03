@@ -123,7 +123,7 @@ Item {
 
     function isNight(sunrise, sunset) { return WeatherWidgetLogic.isNight(rootMod, {}, sunrise, sunset) }
 
-    function glyphForCode(code, night) { return WeatherWidgetLogic.glyphForCode(rootMod, {}, code, night) }
+    function glyphForCode(code, night) { return WeatherData.glyphForCode(code, night) }
 
     Text {
         id: ico

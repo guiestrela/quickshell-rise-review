@@ -1,0 +1,27 @@
+{
+  "date": "2026-11-03",
+  "checkout_steps_passed": 50,
+  "installed_steps_passed": 50,
+  "checkout_qml_files": 189,
+  "installed_qml_files": 234,
+  "qml_warnings_each": 15,
+  "native_panel_components_ready": 15,
+  "applied_files_hash_verified": 24,
+  "unused_adapters_archived": 3,
+  "other_source_files_unchanged": true,
+  "preference_hashes_restored": [
+    "shell.json",
+    "active-variant",
+    "quickshell_widgets",
+    "quickshell_widgets_v2"
+  ],
+  "enabled_plugins_unchanged": true,
+  "monitor_geometry_unchanged": true,
+  "final_variant": "v2",
+  "final_variant_state": "active",
+  "shell_ping": "ok",
+  "final_runtime_errors_searched": 0,
+  "physical_hotplug_tested": false,
+  "display_effects_in_regressions": "simulated",
+  "backup": "/home/guiestrela/.local/state/quickshell-rise/review-backups/2026-11-03-scan-100115"
+}

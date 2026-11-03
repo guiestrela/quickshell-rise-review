@@ -134,7 +134,21 @@ class CrashAction(unittest.TestCase):
             def lookup(argv, **kwargs):
                 calls.append(argv)
                 return SimpleNamespace(returncode=0, stdout='opencode\n' if argv[0].endswith('omarchy-default-agent') else str(binary)+'\n')
-            with patch.object(mod.Path, 'home', return_value=home), patch.object(mod.subprocess, 'run', side_effect=lookup):
+            original_stat = Path.stat
+            def fixture_stat(path, *args, **kwargs):
+                info = original_stat(path, *args, **kwargs)
+                if path in home.parents:
+                    # Simulate trusted ancestors outside the private fixture;
+                    # /tmp and host config permissions are not under test.
+                    fields = list(info)
+                    fields[0] &= ~0o022
+                    fields[4] = 0
+                    return os.stat_result(fields)
+                return info
+            with patch.object(mod.Path, 'home', return_value=home), \
+                    patch.object(mod.Path, 'stat', fixture_stat), \
+                    patch.object(mod.shutil, 'which', return_value=None), \
+                    patch.object(mod.subprocess, 'run', side_effect=lookup):
                 env = mod.crash_environment()
                 self.assertEqual(env['PATH'], '/usr/share/omarchy/bin:/usr/bin:' + str(binary.parent))
                 self.assertEqual(calls, [['/usr/bin/omarchy-default-agent'], ['/usr/bin/mise', 'which', 'opencode']])

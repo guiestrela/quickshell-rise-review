@@ -1,0 +1,1 @@
+EXPLICIT_RUNTIME_PASS before Apply: zero geometry/timer, brightness/font immediate; Apply: one real guarded batch and 5s; Keep: geometry confirmed, settings unchanged, readback; private inert compositor

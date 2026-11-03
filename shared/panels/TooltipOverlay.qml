@@ -54,7 +54,7 @@ PanelWindow {
         // preferred side would leave the screen.
         y: {
             if (overlay.root.barVertical) {
-                var verticalY = overlay.useTooltipYForVertical
+                const verticalY = overlay.useTooltipYForVertical
                     ? overlay.root.tooltipY - height / 2
                     : (overlay.root.tooltipTopY + overlay.root.tooltipBottomY - height) / 2
                 return Math.max(4, Math.min(parent.height - height - 4, verticalY))

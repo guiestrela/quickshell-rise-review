@@ -182,7 +182,7 @@ Item {
         }
     }
 
-    readonly property string quotesPath8: Quickshell.env("HOME") + "/.config/quickshell/bar/quotes.txt"
+    readonly property url quotesPath8: Qt.resolvedUrl("../quotes.txt")
     property var quotes8: [
         { q: "THE ONLY WAY TO DO GREAT WORK IS TO LOVE WHAT YOU DO.", a: "STEVE JOBS" }
     ]

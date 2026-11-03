@@ -139,7 +139,8 @@ PanelWindow {
     readonly property bool   cpHas:       aiPanel.root.aiCpHas
     readonly property bool   showCopilot: availableTools.length > 0 && aiPanel.root.aiTool === "copilot"
 
-    readonly property real reveal: aiPanel.root.aiUsageReveal
+    readonly property real reveal: typeof aiPanel.root.aiUsageReveal === "number"
+        ? aiPanel.root.aiUsageReveal : (aiPanel.root.aiUsageVisible ? 1 : 0)
     visible: reveal > 0.001
     WlrLayershell.keyboardFocus: aiPanel.root.aiUsageVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
