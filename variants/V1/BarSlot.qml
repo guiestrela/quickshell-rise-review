@@ -613,14 +613,6 @@ PanelWindow {
                     height: slot.height
                     x: (slot.cr + slot.pad + slot.width + 6) / 2 - width / 2   // centered in the gap (cr+pad = pill-right, matches gapInterval)
                     z: 30
-                    Text {
-                        anchors.centerIn: parent
-                        text: slot.splitAfter ? "│" : "•"     // │ when split, • else
-                        color: slot.splitAfter ? barSlot.root.seal : barSlot.root.sumi
-                        font.pixelSize: 10; font.family: barSlot.root.mono
-                        opacity: mkMa.containsMouse ? 0.9 : 0.0          // hover-revealed
-                        Behavior on opacity { NumberAnimation { duration: 120 } }
-                    }
                     MouseArea {
                         id: mkMa
                         anchors.fill: parent
@@ -986,14 +978,6 @@ PanelWindow {
             width: 14
             height: island.height
             z: 30
-            Text {
-                anchors.centerIn: parent
-                text: bm.splitOn ? "│" : "•"
-                color: bm.splitOn ? barSlot.root.seal : barSlot.root.sumi
-                font.pixelSize: 10; font.family: barSlot.root.mono
-                opacity: bMa.containsMouse ? 0.9 : 0.0     // hover-revealed
-                Behavior on opacity { NumberAnimation { duration: 120 } }
-            }
             MouseArea {
                 id: bMa
                 anchors.fill: parent
