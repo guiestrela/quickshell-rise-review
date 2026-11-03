@@ -7,7 +7,9 @@ Shared.CpuTemperatureWidget {
     id: widget
     contentColor: widget.root.seal
     compact: widget.root.barVertical === true || widget.root.compactTemperature
-    backgroundComponent: Component {
+    backgroundComponent: widget.root.barVertical === true ? null : pillBackground
+    Component {
+        id: pillBackground
         Rectangle {
             width: parent.width
             height: widget.root.pillH

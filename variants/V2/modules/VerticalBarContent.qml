@@ -199,6 +199,8 @@ Item {
             id: scroll
             anchors.fill: parent
             anchors.margins: 3
+            anchors.leftMargin: 1
+            anchors.rightMargin: 1
             contentHeight: stack.height
             clip: true
             boundsBehavior: Flickable.StopAtBounds

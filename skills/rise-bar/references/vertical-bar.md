@@ -1,9 +1,27 @@
-# V2: orientação, estilos e painéis
+# V1/V2: orientação, estilos e painéis
 
-Use esta referência ao modificar a apresentação lateral da Rise. Confirme os valores atuais no código; a V1 continua horizontal.
+Use esta referência ao modificar a apresentação lateral da Rise. V1 e V2 suportam Top/Bottom/Left/Right. Confirme os valores atuais no código.
 
 Os caminhos `variants/V2/...` são relativos à raiz do repositório. Os demais
 caminhos de módulos são relativos a `variants/V2/`.
+
+## V1: superfícies laterais
+
+A V1 usa `variants/V1/modules/VerticalBarContent.qml`, com superfícies por
+trecho definidas pelos splits salvos, largura visual `pillWidth` de 32 px e
+largura reservada `verticalBarWidth` de 40 px. Preserve agrupamento, bordas e
+efeitos entre os trechos ao alterar os widgets.
+
+`standardizeSurface()` remove fundos e bordas dos filhos diretos dos widgets;
+fundos carregados por um `Loader` não são alcançados por essa função.
+Os wrappers V1 de `CpuTemperatureWidget.qml` e `StorageWidget.qml` usam
+`backgroundComponent: null` quando `barVertical` é verdadeiro para evitar
+moldura dupla. Preserve o fundo próprio no modo horizontal. Ao adicionar
+widgets compartilhados, confira quem desenha a superfície antes de acrescentar
+outro fundo ou borda.
+
+Os IDs diferem entre variantes: temperatura/storage são G20/G21 na V1 e
+G16/G18 na V2. Não transfira ordens ou preferências entre esses IDs.
 
 ## Onde alterar
 
@@ -14,6 +32,12 @@ caminhos de módulos são relativos a `variants/V2/`.
 - `modules/AiPanelSurface.qml`: renderiza o fundo arredondado nas laterais e o contorno conectado no modo horizontal. Ocultar o componente inteiro para remover o conector também remove o fundo de cards transparentes.
 
 ## Contratos visuais e de interação
+
+Na V2, `verticalBarWidth` é 36 px em Full/Dock/Notch e 40 px em Fit.
+O Fit mantém 2 px externos de cada lado; o conteúdo usa margens laterais
+de 1 px, preservando 34 px internos em todos os estilos. Ao alterar a largura,
+confira os widgets, a máscara, a zona exclusiva e as âncoras dos painéis;
+atualize também a geometria e as posições esperadas nas fixtures de teste.
 
 Full ocupa a altura disponível; Fit tem margem externa; Dock encosta na borda; Notch acrescenta curvas nas extremidades. As curvas do Notch precisam caber na máscara de entrada. Alterar a posição preserva o estilo selecionado.
 
@@ -29,6 +53,7 @@ Execute os testes relevantes sem tocar em contas, monitores ou serviços reais:
 
 ```bash
 python3 tests/test-vertical-bar-layout.py
+python3 tests/test-v1-vertical-bar.py
 python3 tests/test-vertical-workspaces.py
 python3 tests/v2-default-layout-regression.py
 node --test tests/bar-style-settings.test.mjs

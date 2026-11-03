@@ -42,7 +42,7 @@ Use `omarchy plugin update io.github.guiestrela.quickshell-rise` to update throu
 - State and preferences live outside the code: `~/.local/state/quickshell-rise/active-variant`, `~/.cache/quickshell_widgets`, and `~/.cache/quickshell_widgets_v2`, plus integration-specific caches. Do not delete these files to fix a failure without investigating their purpose.
 - Preserve notifications, OSD, lock, idle, audio, networking, and other enabled plugins. Do not use `pkill quickshell`, disable plugins in bulk, or edit `/usr/share/omarchy/` to fix Rise.
 
-For V2 geometry, styles, widgets, or side panels, read [references/vertical-bar.md](references/vertical-bar.md). For shared-component changes, also inspect `docs/shared-components-inventory.md` and `docs/shared-components-refactor-plan.md`.
+For V1/V2 vertical geometry, widget surfaces, or side panels, and V2 shell styles, read [references/vertical-bar.md](references/vertical-bar.md). For shared-component changes, also inspect `docs/shared-components-inventory.md` and `docs/shared-components-refactor-plan.md`.
 
 Consult `docs/integrations.md`, `docs/usage.md`, and `docs/fan-control.md` in the checkout as appropriate for the affected integration. Do not invoke services with real accounts for a test that can use fixtures.
 

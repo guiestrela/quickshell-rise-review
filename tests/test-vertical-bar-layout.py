@@ -26,7 +26,7 @@ ShellRoot {
   property string barPosition: "left"
   property bool barVertical: barPosition === "left" || barPosition === "right"
   property string barShellStyle: "full"
-  property int verticalBarWidth: barShellStyle === "fit" ? 44 : 40
+  property int verticalBarWidth: barShellStyle === "fit" ? 40 : 36
   property bool barUnlocked: false
   property bool layoutProtected: false
   property bool modStatus: true
@@ -105,7 +105,7 @@ ShellRoot {
     check(cells[i].y >= cells[i-1].y + cells[i-1].height, "OVERLAPPING_SLOTS_" + cells[i-1].gid + "_" + cells[i].gid)
    var workspace = cells.filter(function(cell) { return cell.gid === "G2" })[0]
    check(workspace && workspace.height === 258, "REAL_WORKSPACE_GEOMETRY")
-   check(card.x === 46, "LEFT_PANEL_POSITION")
+   check(card.x === 42, "LEFT_PANEL_POSITION")
    check(harness.state.anchorsByName.cpu > 0, "MISSING_WIDGET_ANCHOR")
    check(rail.surfaceHeight === 1400, "FULL_HEIGHT")
    var centerCell = cells.filter(function(cell) { return cell.gid === "G8" })[0]
@@ -122,7 +122,7 @@ ShellRoot {
    })
   } else if (harness.step === 1) {
    if (!harness.captured) return
-   check(card.x === 470, "RIGHT_PANEL_POSITION")
+   check(card.x === 474, "RIGHT_PANEL_POSITION")
    check(rail.surfaceHeight < 1400 && rail.surfaceY > 0, "FIT_GEOMETRY")
    check(card.y >= 6 && card.y + card.height <= 1394, "PANEL_CLAMP")
    owner.swapVerticalSlots(0,3,2,0)
@@ -142,13 +142,13 @@ ShellRoot {
    harness.state.barShellStyle = "dock"
    harness.state.clock12h = true
   } else if (harness.step === 6) {
-   check(rail.width === 40 && card.x === 474, "DOCK_WIDTH_AND_PANEL")
+   check(rail.width === 36 && card.x === 478, "DOCK_WIDTH_AND_PANEL")
    var clockCell = rail.layoutSnapshot().filter(function(cell) { return cell.gid === "G8" })[0]
    check(clockCell.height === 64, "TWELVE_HOUR_CLOCK_HEIGHT")
    harness.state.barShellStyle = "notch"
    harness.state.barPosition = "left"
   } else if (harness.step === 7) {
-   check(rail.width === 40 && card.x === 46, "NOTCH_WIDTH_AND_PANEL")
+   check(rail.width === 36 && card.x === 42, "NOTCH_WIDTH_AND_PANEL")
    function findBorder(item) {
     if (item.objectName === "vertical-notch-border") return item
     for (var n=0; n<item.children.length; n++) { var found = findBorder(item.children[n]); if (found) return found }
