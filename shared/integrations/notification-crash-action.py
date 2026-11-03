@@ -58,6 +58,22 @@ def trusted_record(row, uid, boot):
             and plain(row.get('__CURSOR'), 2048))
 
 
+def reference_matches(row, reference):
+    expected = {'pid': row['COREDUMP_PID'], 'comm': row['COREDUMP_COMM'],
+                'exe': row['COREDUMP_EXE'], 'signal': row['COREDUMP_SIGNAL_NAME']}
+    if reference == expected:
+        return True
+    basename = Path(row['COREDUMP_EXE']).name
+    if reference != dict(expected, comm=basename):
+        return False
+    truncated = basename.encode('utf-8')[:15].decode('utf-8', errors='ignore')
+    # Preserve the kernel truncation rule and the fixed Quickshell CLI alias:
+    # /usr/bin/qs launches /usr/bin/quickshell but records COMM as qs.
+    return (row['COREDUMP_COMM'] == truncated
+            or (row['COREDUMP_EXE'] == '/usr/bin/quickshell'
+                and row['COREDUMP_COMM'] == 'qs'))
+
+
 def plan_action(entry, rows, uid, boot):
     if not isinstance(entry, dict) or entry.get('backend', 'omarchy') != 'omarchy':
         raise ActionUnavailable('This notification has no supported crash action.')
@@ -83,22 +99,15 @@ def plan_action(entry, rows, uid, boot):
         if timestamp and not 0 <= timestamp - event_ms <= 120000:
             continue
         matches.append(row)
+    # Use the complete journal-verified identity to disambiguate nearby crashes.
+    reference = entry.get('crashReference')
+    if reference is not None:
+        matches = [row for row in matches if reference_matches(row, reference)]
     # Duplicate journal rows with the same cursor do not add ambiguity.
     unique = {r['__CURSOR']: r for r in matches}
     if len(unique) != 1:
         raise ActionUnavailable('No unique verified crash found. This item cannot be opened safely.')
     row = next(iter(unique.values()))
-    expected = {'pid': row['COREDUMP_PID'], 'comm': row['COREDUMP_COMM'],
-                'exe': row['COREDUMP_EXE'], 'signal': row['COREDUMP_SIGNAL_NAME']}
-    reference = entry.get('crashReference')
-    # Omarchy may report the executable basename; Linux COMM is limited to
-    # 15 bytes. Accept only that exact, journal-derived truncation alias.
-    basename = Path(row['COREDUMP_EXE']).name
-    full_name = dict(expected, comm=basename)
-    truncated_name = basename.encode('utf-8')[:15].decode('utf-8', errors='ignore')
-    if reference is not None and reference != expected:
-        if row['COREDUMP_COMM'] != truncated_name or reference != full_name:
-            raise ActionUnavailable('Notification crash data does not match the journal.')
     # The vendor launcher accepts only PID. Reject PID reuse even when a
     # notification timestamp disambiguates records within this boot.
     if len({r['__CURSOR'] for r in records

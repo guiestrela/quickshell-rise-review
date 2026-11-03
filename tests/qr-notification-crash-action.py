@@ -83,6 +83,27 @@ class CrashAction(unittest.TestCase):
         with self.assertRaises(mod.ActionUnavailable):
             mod.plan_action(entry(), [record(), later], 1000, BOOT)
 
+    def test_exact_reference_selects_one_of_paired_crashes(self):
+        mod = load_helper()
+        first = record('791493', '/usr/bin/quickshell')
+        first['COREDUMP_COMM'] = 'qs'
+        second = record('791495', '/usr/bin/quickshell')
+        second['COREDUMP_COMM'] = 'quickshell'
+        notice = dict(entry(), summary='Process crashed: quickshell',
+                      crashReference={'pid': '791493', 'comm': 'quickshell',
+                                      'exe': '/usr/bin/quickshell', 'signal': 'SIGABRT'})
+        plan = mod.plan_action(notice, [first, second], 1000, BOOT)
+        self.assertEqual(plan['argv'], [mod.LAUNCHER, '791493', 'qs', '/usr/bin/quickshell', 'SIGABRT'])
+        with self.assertRaises(mod.ActionUnavailable):
+            mod.plan_action(dict(notice, crashReference=None), [first, second], 1000, BOOT)
+        for field, value in [('pid', '999'), ('comm', 'fake'), ('exe', '/bin/sh'), ('signal', 'SIGSEGV')]:
+            with self.subTest(field=field), self.assertRaises(mod.ActionUnavailable):
+                mod.plan_action(dict(notice, crashReference=dict(notice['crashReference'], **{field: value})),
+                                [first, second], 1000, BOOT)
+        reused = dict(first, __CURSOR='another-crash-with-same-pid')
+        with self.assertRaises(mod.ActionUnavailable):
+            mod.plan_action(notice, [first, second, reused], 1000, BOOT)
+
     def test_no_record_or_other_app_cannot_open(self):
         mod = load_helper()
         with self.assertRaises(mod.ActionUnavailable):
