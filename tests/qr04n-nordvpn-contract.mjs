@@ -50,7 +50,8 @@ for (const variant of variants) {
     assert.ok(theme.includes("readonly property string vpnState:") && theme.includes("readonly property bool vpnBusy:"), "Theme must expose shared controller state");
     assert.equal((theme.match(/NordVpnController\s*\{/g) || []).length, 1, "Theme must instantiate exactly one controller per root, not per monitor");
     assert.ok(widget.includes('setPanelAnchor("vpn"') && theme.includes('else if (name === "vpn") vpnBarX = x'), "VPN panel must own its bar anchor");
-    assert.ok(vpnPanel.includes("root.vpnBarX") && !vpnPanel.includes("root.networkBarX"), "VPN panel must not depend on the Network anchor");
+    assert.ok(vpnPanelImplementation.includes("root.vpnBarX") && !vpnPanelImplementation.includes("root.networkBarX"), "VPN panel must not depend on the Network anchor");
+    assert.ok(vpnPanel.includes('anchorName: "vpn"'), "V1 vertical panel must retain its independent VPN anchor");
     assert.ok(variantRoot.includes("NetworkPanel { root: theme }") && variantRoot.includes("NordVPNPanel { root: theme; controller: theme.nordVpnStatusController }"), "VariantRoot must wire both actual panels to the shared owner");
     const popupClose = theme.match(/function closePopups\(except\) \{([\s\S]*?)\n    \}/)?.[1] || "";
     assert.ok(popupClose.includes('except !== "networkVisible"') && popupClose.includes('except !== "vpnVisible"'), "network and VPN must participate independently in popup exclusivity");

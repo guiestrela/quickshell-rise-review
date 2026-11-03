@@ -16,7 +16,9 @@ with tempfile.TemporaryDirectory(prefix='rise-v1-vertical-', dir='/tmp') as dire
     source = qml_fixture_text(repo / 'tests/test-vertical-bar-layout.py')
     fixture = source.split("write_text('''import QtQuick", 1)[1].split("'''", 1)[0]
     fixture = 'import QtQuick' + fixture[:fixture.index(' property int step:')]
-    fixture = fixture.replace('barShellStyle === "fit" ? 44 : 40', '40')
+    fixture, width_bindings = re.subn(r'property int verticalBarWidth: [^\n]+',
+                                     'property int verticalBarWidth: 40', fixture)
+    assert width_bindings == 1, 'V1 fixture must define its own bar width'
     fixture = fixture.replace('  property int panelRadius: 6', '''  property int wsPillPad: 2
   property int pillH: 28
   property int pillRadius: 6
