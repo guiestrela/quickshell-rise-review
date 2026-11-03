@@ -1,65 +1,65 @@
-# Revisão de código, lint e regressões
+# Code review, lint, and regressions
 
-## Diagnosticar antes de modificar
+## Diagnose before modifying
 
-Conte os avisos no checkout atual, sem reutilizar totais de uma sessão anterior. Use a mesma versão, imports e opções de `qmllint` antes e depois. Registre arquivos analisados, avisos, categorias e falhas; retorno zero não significa ausência de avisos.
+Count warnings in the current checkout without reusing totals from an earlier session. Use the same `qmllint` version, imports, and options before and after. Record files analyzed, warnings, categories, and failures; a zero exit status does not mean there are no warnings.
 
-O runner do projeto conta linhas de console iniciadas por `Warning:`. O relatório JSON também pode incluir diagnósticos que o console não mostra. Use JSON para localizar sugestões, mas não misture as duas métricas ao apresentar a redução. Não diminua a cobertura nem desative categorias para obter uma contagem menor.
+The project runner counts console lines beginning with `Warning:`. The JSON report may also include diagnostics that the console does not show. Use JSON to locate suggestions, but do not mix the two metrics when reporting a reduction. Do not reduce coverage or disable categories to obtain a lower count.
 
-### `PanelWindow` e metadados
+### `PanelWindow` and metadata
 
-O `PanelWindow` público pode ser resolvido pelo tooling como a interface não instanciável de `Quickshell._Window`, enquanto o runtime seleciona uma implementação da plataforma. Isso pode gerar `Type PanelWindow is not creatable. [uncreatable-type]` em código válido. A documentação do Quickshell registra limitações de resolução de `PanelWindow` no language server:
+Tooling may resolve the public `PanelWindow` type as the non-instantiable `Quickshell._Window` interface, while the runtime selects a platform implementation. This can produce `Type PanelWindow is not creatable. [uncreatable-type]` for valid code. The Quickshell documentation describes language server limitations when resolving `PanelWindow`:
 
 https://quickshell.org/docs/v0.3.2/guide/install-setup/
 
-Não assuma que todo aviso dessa categoria seja falso. Confira os imports, os `.qmltypes` da versão instalada e um exemplo mínimo. Confirme no Wayland com uma janela oculta isolada, sem carregar a barra de produção. Se o exemplo carregar, os testes pertinentes passarem e os logs estiverem saudáveis, relate a limitação do tooling e preserve o componente. Não altere metadados em `/usr/lib`, troque o backend nem adicione supressões apenas para zerar o lint. Não fixe na skill uma quantidade de avisos: ela varia com código e dependências.
+Do not assume every warning in this category is false. Check imports, the installed version's `.qmltypes`, and a minimal example. Confirm on Wayland with an isolated hidden window, without loading the production bar. If the example loads, relevant tests pass, and logs are healthy, report the tooling limitation and preserve the component. Do not modify metadata in `/usr/lib`, switch backends, or add suppressions merely to clear lint. Do not hardcode a warning count in the skill: it varies with code and dependencies.
 
-Em uma revisão ampla, registre quais componentes produzem os avisos e compile esses componentes no runtime. Compilar com `Qt.createComponent` não instancia os serviços do painel; isso e uma janela oculta validam resolução/carregamento, mas não comprovam interação de todos os painéis.
+For a broad review, record which components produce warnings and compile those components in the runtime. Compiling with `Qt.createComponent` does not instantiate panel services; this and a hidden window validate resolution/loading, but do not prove interaction with every panel.
 
-## Corrigir escopo sem mudar comportamento
+## Fix scope without changing behavior
 
-- Qualifique referências de objetos externos com o ID correto, como `notifPanel.root`. Diferencie o ID externo `root` da propriedade `root` de um componente interno; a colisão pode apontar para o objeto errado.
-- Use `pragma ComponentBehavior: Bound` quando componentes internos precisarem dos IDs do contexto de criação. Confira os delegates depois: papéis antes injetados implicitamente pelo modelo podem precisar de `required property var modelData` ou de `required property int index`.
-- Para propriedades de componentes inline e delegates, use IDs locais claros. Não faça substituição global de identificadores sem conferir escopo, comentários, strings e handlers.
-- Sugestões automáticas do lint ajudam a inserir prefixos, mas revise o diff. Offsets JSON são em unidades UTF-16; não os aplique como índices de bytes UTF-8. Inserir um ID em uma declaração de uma linha também exige separador válido.
-- Preserve comandos, argumentos, guardas de visibilidade e timers. Capture dados antes de atualizar modelos que possam destruir o delegate.
+- Qualify external object references with the correct ID, such as `notifPanel.root`. Distinguish the external `root` ID from an internal component's `root` property; a collision may point to the wrong object.
+- Use `pragma ComponentBehavior: Bound` when internal components need IDs from their creation context. Check delegates afterward: roles previously injected implicitly by the model may need `required property var modelData` or `required property int index`.
+- Use clear local IDs for properties in inline components and delegates. Do not globally replace identifiers without checking scope, comments, strings, and handlers.
+- Automatic lint suggestions help insert prefixes, but review the diff. JSON offsets use UTF-16 code units; do not apply them as UTF-8 byte indices. Inserting an ID into a single-line declaration also requires a valid separator.
+- Preserve commands, arguments, visibility guards, and timers. Capture data before updating models that may destroy the delegate.
 
-## Contratos compartilhados, respostas e recursos
+## Shared contracts, responses, and resources
 
-Ao extrair ou corrigir um painel compartilhado, confira o contrato dos roots V1 e V2. Uma propriedade presente apenas em V2, como `aiUsageReveal`, não pode ser exigida implicitamente em V1. Teste abertura/fechamento com ambos os roots e preserve o progresso da animação onde ele existe.
+When extracting or fixing a shared panel, check the V1 and V2 root contracts. A property present only in V2, such as `aiUsageReveal`, must not be implicitly required in V1. Test opening/closing with both roots and preserve animation progress where it exists.
 
-Valide a resposta completa utilizada antes de substituir o estado exibido. Capturar uma exceção depois de atualizar temperatura, localização ou outros campos pode deixar dados novos junto a uma previsão antiga. Cubra JSON válido com estrutura inválida, listas incompletas, entradas nulas e valores zero; não use truthiness como validação numérica.
+Validate the entire response being used before replacing the displayed state. Catching an exception after updating temperature, location, or other fields can leave new data alongside an old forecast. Cover valid JSON with an invalid structure, incomplete lists, null entries, and zero values; do not use truthiness as numeric validation.
 
-Recursos empacotados devem resolver a partir do módulo, por exemplo `Qt.resolvedUrl("../quotes.txt")`, em vez de caminhos da instalação antiga em `~/.config/quickshell`. Preserve a mesma raiz de configuração e estrutura relativa na fixture: um recurso fora da raiz pode virar `qrc:/qs-blackhole` no scanner do Quickshell. Quando a fixture precisa de `FileView` real ou de plugins ligados ao executável Quickshell, use `qs`; `qmltestrunner` sozinho pode não carregar esses plugins.
+Packaged resources should resolve relative to the module, for example `Qt.resolvedUrl("../quotes.txt")`, instead of using old installation paths under `~/.config/quickshell`. Preserve the same configuration root and relative structure in the fixture: a resource outside the root may become `qrc:/qs-blackhole` in the Quickshell scanner. When a fixture needs real `FileView` behavior or plugins linked to the Quickshell executable, use `qs`; `qmltestrunner` alone may not load those plugins.
 
-Para limites de scanners, verifique o trabalho antes de materializar a coleção. Limitar o processamento depois de `list(os.scandir(...))` não limita a enumeração nem a memória. A regressão deve contar entradas consumidas, além dos resultados retornados.
+For scanner limits, check the work before materializing the collection. Limiting processing after `list(os.scandir(...))` does not limit enumeration or memory use. The regression should count consumed entries as well as returned results.
 
-## Escolher testes que realmente exercitem a mudança
+## Choose tests that actually exercise the change
 
-Use fixtures já existentes e amplie-as para V1/V2 e estilos afetados. Para bindings e interação, prefira carregar o conteúdo de produção a duplicar a implementação no teste. Valide o efeito observável: valor selecionado, identidade enviada, confirmação, contagem, parada de worker e resultado tardio após fechar.
+Use existing fixtures and extend them for the affected V1/V2 variants and styles. For bindings and interaction, prefer loading production content over duplicating the implementation in the test. Validate observable effects: selected value, submitted identity, confirmation, count, worker shutdown, and late results after closing.
 
-Uma fixture offscreen pode substituir a janela por um Item/Rectangle e remover propriedades de layer shell. Isso testa o conteúdo, não o backend. Quando necessário, complemente com carregamento Wayland oculto. Não inicie a barra real como probe.
+An offscreen fixture may replace the window with an Item/Rectangle and remove layer-shell properties. This tests the content, not the backend. When needed, supplement it with hidden Wayland loading. Do not start the real bar as a probe.
 
-Simule explicitamente Process, FileView, coletores e limites de serviço antes de instanciar painéis que consultam contas ou estado real. Estar oculto não impede `Component.onCompleted` de iniciar uma consulta. Preserve o contrato necessário dos mocks, como sinais `exited`, `started`, `streamFinished`, propriedades e métodos usados. Falha por mock incompleto não comprova defeito na produção.
+Explicitly mock Process, FileView, collectors, and service boundaries before instantiating panels that query accounts or real state. Being hidden does not prevent `Component.onCompleted` from starting a query. Preserve the necessary mock contract, including `exited`, `started`, and `streamFinished` signals, properties, and methods used. A failure caused by an incomplete mock does not prove a production defect.
 
-Inclua efeitos secundários no isolamento. Simular pacman/sudo sem simular `notify-send` ainda pode enviar notificações reais pelo barramento herdado. Capture essas chamadas numa fixture e verifique o efeito esperado sem acessar a sessão.
+Include secondary effects in isolation. Mocking pacman/sudo without mocking `notify-send` can still send real notifications through the inherited bus. Capture these calls in a fixture and verify the expected effect without accessing the session.
 
-Fixtures de permissões devem controlar a cadeia de confiança simulada. `/tmp` é gravável por outros usuários; diretórios reais de configuração também podem ter permissões diferentes das esperadas. Simule os metadados dos ancestrais externos à fixture, mantendo os checks reais dentro dela, inclusive a rejeição de diretórios graváveis por terceiros. Não altere permissões do usuário ou enfraqueça a validação de produção para fazer o teste passar.
+Permission fixtures must control the simulated chain of trust. `/tmp` is writable by other users; actual configuration directories may also have different permissions than expected. Mock metadata for ancestors outside the fixture while retaining real checks inside it, including rejection of directories writable by third parties. Do not change user permissions or weaken production validation to make a test pass.
 
-Para testes headless, use runtime temporário com modo 0700, `QT_QPA_PLATFORM=offscreen`, backend software e `QT_QPA_PLATFORMTHEME=''`. Falha ao criar socket IPC sob sandbox pode ser restrição ambiental: confirme no contexto autorizado antes de modificar o código. Não ignore `ERROR` nem declare aprovação enquanto o teste estiver bloqueado.
+For headless tests, use a temporary runtime directory with mode 0700, `QT_QPA_PLATFORM=offscreen`, the software backend, and `QT_QPA_PLATFORMTHEME=''`. Failure to create an IPC socket under a sandbox may be an environmental restriction: confirm in the authorized context before modifying code. Do not ignore `ERROR` or declare success while a test is blocked.
 
-Regressões que comparam texto exato podem exigir ajuste após qualificar referências. Preserve a intenção da asserção e mantenha validação de comportamento; não enfraqueça o teste para fazê-lo passar. Considere também diagnósticos de runtime: QtTest pode passar com `ReferenceError`, `TypeError`, `Binding loop` ou `Unable to assign` no log.
+Regressions that compare exact text may need adjustment after qualifying references. Preserve the assertion's intent and retain behavioral validation; do not weaken a test to make it pass. Also consider runtime diagnostics: QtTest may pass with `ReferenceError`, `TypeError`, `Binding loop`, or `Unable to assign` in the log.
 
-## Aplicar sem sobrescrever diferenças locais
+## Apply without overwriting local differences
 
-Compare checkout, base Git e instalação. A instalação pode conter testes antigos e diferenças legítimas mesmo quando o código principal coincide. Construa patches mínimos e faça `git apply --check` no diretório da instalação, não no checkout já editado. Uma falha de contexto exige inspecionar a diferença; não copie o arquivo inteiro por conveniência.
+Compare the checkout, Git base, and installation. The installation may contain old tests and legitimate differences even when the main code matches. Build minimal patches and run `git apply --check` in the installation directory, not in the already edited checkout. A context failure requires inspecting the difference; do not copy the entire file for convenience.
 
-Uma migração local pode deixar caminhos removidos no índice e arquivos novos ainda não versionados. Ao descobrir scripts para validação, considere `git ls-files --cached --others --exclude-standard` e confira se cada arquivo ainda existe. Não interprete uma diferença na contagem de QML como regressão sem comparar os arquivos. Encaminhamentos vazios antigos só devem ser removidos após conferir seus consumidores e preservar uma cópia quando houver backup.
+A local migration may leave removed paths in the index and new files still untracked. When discovering validation scripts, consider `git ls-files --cached --others --exclude-standard` and check that each file still exists. Do not interpret a difference in QML file counts as a regression without comparing files. Old empty adapters should only be removed after checking their consumers and preserving a copy when a backup is available.
 
-Se um teste instalado usa o caminho antigo de um helper, corrija a fixture para uma árvore temporária que preserve os caminhos relativos de produção. Não rode o helper real para compensar um mock no lugar errado. Valide no checkout e repita na instalação os testes pertinentes que foram efetivamente atualizados.
+If an installed test uses an old helper path, fix the fixture to use a temporary tree that preserves production relative paths. Do not run the real helper to compensate for a misplaced mock. Validate in the checkout and repeat relevant tests in the installation when those tests were actually updated.
 
-Só reinicie depois de validar e aplicar as alterações autorizadas. Compare plugins habilitados antes/depois, consulte `omarchy-shell shell ping` e o log do PID correto. Distinga no relatório: testes simulados, carregamento nativo, saúde da sessão atual e limitações restantes. Nenhuma dessas verificações garante ausência de todo defeito futuro.
+Restart only after validating and applying authorized changes. Compare enabled plugins before/after, check `omarchy-shell shell ping`, and inspect the correct PID's log. Distinguish simulated tests, native loading, current session health, and remaining limitations in the report. None of these checks guarantees the absence of every future defect.
 
-Antes de testes nativos autorizados, registre a variante e as preferências relevantes com conteúdo e hashes; guarde o snapshot fora da árvore observada. Leia o handler antes de clicar: o clique esquerdo no relógio alterna `clock12h`, não abre um calendário. Restaure mudanças feitas pelo teste e confira o estado original, preservando alterações concorrentes do usuário. Para capturas de saídas rotacionadas, prefira selecionar o output pelo nome e confira a transformação antes de usar coordenadas globais.
+Before authorized native tests, record the variant and relevant preferences with contents and hashes; keep the snapshot outside the watched tree. Read the handler before clicking: left-clicking the clock toggles `clock12h`; it does not open a calendar. Restore changes made by the test and verify the original state while preserving concurrent user changes. For screenshots of rotated outputs, prefer selecting the output by name and check its transform before using global coordinates.
 
-Em revisões com aplicação à instalação, registre arquivos alterados, backup, resultados do checkout e da instalação e saúde final da sessão. Não reutilize uma aprovação antiga da suíte como se tivesse sido executada após mudanças novas; indique quando apenas testes pertinentes foram repetidos. Mantenha a distinção entre hotplug simulado e desconexão física, sem alterar monitores reais apenas para obter evidência.
+For reviews that apply changes to the installation, record changed files, backups, checkout and installation results, and final session health. Do not reuse an old suite approval as if it ran after new changes; indicate when only relevant tests were repeated. Distinguish simulated hotplug from physical disconnection, without changing real monitors merely to obtain evidence.

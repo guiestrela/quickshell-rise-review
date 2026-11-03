@@ -1,55 +1,55 @@
-# V1/V2: orientação, estilos e painéis
+# V1/V2: orientation, styles, and panels
 
-Use esta referência ao modificar a apresentação lateral da Rise. V1 e V2 suportam Top/Bottom/Left/Right. Confirme os valores atuais no código.
+Use this reference when changing Rise's vertical presentation. Both V1 and V2 support Top/Bottom/Left/Right. Confirm the current values in the code.
 
-Os caminhos `variants/V2/...` são relativos à raiz do repositório. Os demais
-caminhos de módulos são relativos a `variants/V2/`.
+Paths beginning with `variants/V2/...` are relative to the repository root.
+Other module paths are relative to `variants/V2/`.
 
-## V1: superfícies laterais
+## V1: vertical surfaces
 
-A V1 usa `variants/V1/modules/VerticalBarContent.qml`, com superfícies por
-trecho definidas pelos splits salvos, largura visual `pillWidth` de 32 px e
-largura reservada `verticalBarWidth` de 40 px. Preserve agrupamento, bordas e
-efeitos entre os trechos ao alterar os widgets.
+V1 uses `variants/V1/modules/VerticalBarContent.qml`, with surfaces for each
+run defined by the saved splits, a visual `pillWidth` of 32 px, and a reserved
+`verticalBarWidth` of 40 px. Preserve grouping, borders, and effects between
+runs when changing widgets.
 
-`standardizeSurface()` remove fundos e bordas dos filhos diretos dos widgets;
-fundos carregados por um `Loader` não são alcançados por essa função.
-Os wrappers V1 de `CpuTemperatureWidget.qml` e `StorageWidget.qml` usam
-`backgroundComponent: null` quando `barVertical` é verdadeiro para evitar
-moldura dupla. Preserve o fundo próprio no modo horizontal. Ao adicionar
-widgets compartilhados, confira quem desenha a superfície antes de acrescentar
-outro fundo ou borda.
+`standardizeSurface()` removes backgrounds and borders from widgets' direct
+children; it does not reach backgrounds loaded through a `Loader`.
+The V1 wrappers for `CpuTemperatureWidget.qml` and `StorageWidget.qml` use
+`backgroundComponent: null` when `barVertical` is true to avoid double frames.
+Preserve their own backgrounds in horizontal mode. When adding shared widgets,
+check which component draws the surface before adding another background or
+border.
 
-Os IDs diferem entre variantes: temperatura/storage são G20/G21 na V1 e
-G16/G18 na V2. Não transfira ordens ou preferências entre esses IDs.
+IDs differ between variants: temperature/storage use G20/G21 in V1 and
+G16/G18 in V2. Do not transfer orders or preferences between these IDs.
 
-## Onde alterar
+## Where to make changes
 
-- `variants/V2/Theme.qml`: posição persistida em `barPosition`, `barVertical`, largura derivada de `verticalBarWidth`, cores e preferências. O Frost altera `barBg`; fundos de painéis e tooltips usam `bg` para manter legibilidade. Preserve o campo de cache usado anteriormente pelo Notch Frost.
-- `variants/V2/BarSlot.qml`: dono dos modelos de slots, ordem salva, controlador de ciclo de vida e janela por saída. A apresentação horizontal e `modules/VerticalBarContent.qml` reutilizam esses modelos; somente a apresentação ativa instancia os widgets. A largura, `exclusiveZone`, máscara e `VariantRoot.barSize` devem concordar.
-- `VerticalBarContent.qml`: colunas separadas para Left/topo, Center/meio e Right/base. `Instantiator` cria os delegates nas colunas correspondentes; evite reparentear delegates de um Repeater entre pais diferentes. Colunas medem os widgets reais, incluindo workspaces de altura variável. Layouts que excedem a altura disponível rolam sem sobrepor regiões.
-- `modules/SidePanelPositioner.qml`: aplica bindings de X/Y apenas na orientação lateral e restaura os bindings horizontais ao sair dela. Todo novo painel ligado à barra precisa dessa adaptação, incluindo componentes compartilhados com V1 que exponham um `surfaceHost`.
-- `modules/AiPanelSurface.qml`: renderiza o fundo arredondado nas laterais e o contorno conectado no modo horizontal. Ocultar o componente inteiro para remover o conector também remove o fundo de cards transparentes.
+- `variants/V2/Theme.qml`: persisted position in `barPosition`, `barVertical`, width derived from `verticalBarWidth`, colors, and preferences. Frost changes `barBg`; panel and tooltip backgrounds use `bg` to remain readable. Preserve the cache field previously used by Notch Frost.
+- `variants/V2/BarSlot.qml`: owns slot models, saved order, lifecycle controller, and the window for each output. The horizontal presentation and `modules/VerticalBarContent.qml` reuse these models; only the active presentation instantiates widgets. Width, `exclusiveZone`, the mask, and `VariantRoot.barSize` must agree.
+- `VerticalBarContent.qml`: separate columns for Left/top, Center/middle, and Right/bottom. `Instantiator` creates delegates in their corresponding columns; avoid reparenting Repeater delegates between different parents. Columns measure actual widgets, including workspaces with variable heights. Layouts exceeding the available height scroll without overlapping regions.
+- `modules/SidePanelPositioner.qml`: applies X/Y bindings only in vertical orientation and restores horizontal bindings when leaving it. Every new panel attached to the bar needs this adaptation, including components shared with V1 that expose a `surfaceHost`.
+- `modules/AiPanelSurface.qml`: renders the rounded background on the sides and the connected outline in horizontal mode. Hiding the entire component to remove the connector also removes the background of transparent cards.
 
-## Contratos visuais e de interação
+## Visual and interaction contracts
 
-Na V2, `verticalBarWidth` é 36 px em Full/Dock/Notch e 40 px em Fit.
-O Fit mantém 2 px externos de cada lado; o conteúdo usa margens laterais
-de 1 px, preservando 34 px internos em todos os estilos. Ao alterar a largura,
-confira os widgets, a máscara, a zona exclusiva e as âncoras dos painéis;
-atualize também a geometria e as posições esperadas nas fixtures de teste.
+In V2, `verticalBarWidth` is 36 px for Full/Dock/Notch and 40 px for Fit.
+Fit keeps an outer gap of 2 px on each side; content uses side margins of
+1 px, preserving 34 px internally across all styles. When changing the width,
+check widgets, the mask, the exclusive zone, and panel anchors; also update
+the geometry and expected positions in test fixtures.
 
-Full ocupa a altura disponível; Fit tem margem externa; Dock encosta na borda; Notch acrescenta curvas nas extremidades. As curvas do Notch precisam caber na máscara de entrada. Alterar a posição preserva o estilo selecionado.
+Full occupies the available height; Fit has an outer margin; Dock touches the edge; Notch adds curves at the ends. Notch curves must fit within the input mask. Changing position preserves the selected style.
 
-O grupo G8 lateral usa clima somente com ícone e relógio compacto. Publique âncoras Y distintas para clima e calendário, conforme a posição real dos filhos. Respeite `clock12h` e `widgetContentColor` para que hora e clima sigam o contraste do grupo. Não acrescente temperatura ou outros elementos sem considerar a escolha do usuário.
+The vertical G8 group uses icon-only weather and a compact clock. Publish distinct Y anchors for weather and calendar based on the actual child positions. Respect `clock12h` and `widgetContentColor` so time and weather follow the group's contrast. Do not add temperature or other elements without considering the user's choice.
 
-Workspaces reutilizam `WorkspaceWidget.qml`: coluna nas laterais, linha em Top/Bottom; preservam os estilos e modos 5/10/ativos. O frame animado precisa seguir o eixo correto. Não sobrescreva configurações salvas de compactação para obter o modo lateral: derive a apresentação de `barVertical`.
+Workspaces reuse `WorkspaceWidget.qml`: a column on the sides and a row in Top/Bottom; preserve styles and the 5/10/active modes. The animated frame must follow the correct axis. Do not overwrite saved compactness settings to achieve vertical mode: derive the presentation from `barVertical`.
 
-Arraste captura origem e destino antes de alterar os modelos: a alteração pode destruir o delegate. Não acesse o delegate depois do swap. Preserve isolamento das âncoras e recuperação das janelas por saída.
+Drag operations capture source and destination before changing models: the change may destroy the delegate. Do not access the delegate after the swap. Preserve anchor isolation and window recovery for each output.
 
-## Evidência e testes
+## Evidence and tests
 
-Execute os testes relevantes sem tocar em contas, monitores ou serviços reais:
+Run relevant tests without touching real accounts, monitors, or services:
 
 ```bash
 python3 tests/test-vertical-bar-layout.py
@@ -57,9 +57,9 @@ python3 tests/test-v1-vertical-bar.py
 python3 tests/test-vertical-workspaces.py
 python3 tests/v2-default-layout-regression.py
 node --test tests/bar-style-settings.test.mjs
-python3 tests/test-bar-style-preview.py
+python3 tests/test-bar-style-preview.py´
 ```
 
-O teste de layout usa o workspace e a superfície de painel reais, com widgets de serviço inertes. Valida sobreposição, redimensionamento, Full/Fit/Dock/Notch, âncoras e restauração horizontal. A amostragem do fundo renderizado usa `magick`. Os demais testes precisam de `qs`, Qt/QML e Node conforme o runner. Rejeite também `ERROR qml:`: um `Qt.quit()` posterior pode mascarar um `Qt.exit(1)` anterior.
+The layout test uses the real workspace and panel surface with inert service widgets. It validates overlap, resizing, Full/Fit/Dock/Notch, anchors, and horizontal restoration. Rendered background sampling uses `magick`. Other tests require `qs`, Qt/QML, and Node as specified by the runner. Also reject `ERROR qml:`: a later `Qt.quit()` can mask an earlier `Qt.exit(1)`.
 
-Lint e fixtures offscreen não comprovam interação física, múltiplas saídas ou arraste real. Após aplicar à instalação, valide o plugin, confira `omarchy-shell shell ping` e o log próprio do PID. Relate separadamente o que foi testado e o que ainda exige conferência visual; não altere preferências do usuário só para obter evidência.
+Lint and offscreen fixtures do not prove physical interaction, multiple outputs, or actual dragging. After applying changes to the installation, validate the plugin, check `omarchy-shell shell ping`, and inspect the PID's own log. Report separately what was tested and what still requires visual inspection; do not change user preferences merely to obtain evidence.
