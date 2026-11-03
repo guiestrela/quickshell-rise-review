@@ -1349,7 +1349,7 @@ PanelWindow {
                 // user-set separator after this widget: extra width is part of BOTH
                 // width recipes so the narrow-stage budget stays stage-independent.
                 readonly property bool sepOn: occupied && barSlot.root.sepAfter(gid)
-                readonly property int sepW: 15
+                readonly property int sepW: 24
                 readonly property real naturalSlotWidth: placeholderShown
                     ? 28
                     : Math.round(ldr.implicitWidth) + 2 * pad + (sepOn && hasContent ? sepW : 0)
@@ -1689,7 +1689,7 @@ PanelWindow {
                 // thin vertical divider, centered in the widened right gap
                 Rectangle {
                     visible: slot.sepOn && slot.hasContent && slot.autoShown
-                    x: slot.width - slot.pad - 5
+                    x: slot.width - slot.pad - slot.sepW / 2
                     width: 1
                     height: 14
                     anchors.verticalCenter: parent.verticalCenter
@@ -1781,7 +1781,7 @@ PanelWindow {
                         text: "•"
                         color: barSlot.root.sumi
                         font.pixelSize: 10; font.family: barSlot.root.mono
-                        opacity: sepMa.containsMouse ? 0.9 : 0.0          // hover-revealed
+                        opacity: sepMa.containsMouse ? 0.9 : 0.35
                         Behavior on opacity { NumberAnimation { duration: 120 } }
                     }
                     MouseArea {
@@ -1789,7 +1789,7 @@ PanelWindow {
                         anchors.fill: parent
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
-                        onClicked: if (!barSlot.root.layoutProtected || barSlot.root.barUnlocked) barSlot.root.toggleSep(slot.gid)
+                        onClicked: barSlot.root.toggleSep(slot.gid)
                     }
                 }
             }
