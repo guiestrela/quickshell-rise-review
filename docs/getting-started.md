@@ -13,9 +13,12 @@ standalone installer do not run when the plugin manager adds Rise.
 Install the required packages:
 
 ```bash
-sudo pacman -S \
+(pacman -Q ttf-jetbrains-mono-nerd-basic >/dev/null 2>&1 || \
+  pacman -Q ttf-jetbrains-mono-nerd >/dev/null 2>&1 || \
+  omarchy pkg add ttf-jetbrains-mono-nerd) && \
+sudo pacman -S --needed \
   quickshell git jq curl pacman-contrib coreutils util-linux procps-ng \
-  ttf-jetbrains-mono-nerd ttf-material-symbols-variable
+  ttf-material-symbols-variable
 ```
 
 Optional packages enable hardware controls and individual widgets:

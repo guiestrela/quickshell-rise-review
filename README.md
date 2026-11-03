@@ -15,7 +15,8 @@ folders. Its bar styling and interactions follow the Quickshell Rise design.
 
 - Omarchy with the Quickshell plugin system and `omarchy-shell`.
 - Quickshell dependencies used by the selected Rise widgets.
-- Required fonts: `ttf-jetbrains-mono-nerd` and `ttf-material-symbols-variable`.
+- Required fonts: JetBrainsMono Nerd Font (`ttf-jetbrains-mono-nerd-basic` or
+  `ttf-jetbrains-mono-nerd`) and `ttf-material-symbols-variable`.
 - `cava` with PipeWire support for the Muse/full media audio visualizer (see below).
 - Optional integrations require their respective tools or accounts. See
   [Integrated services](docs/integrations.md).
@@ -26,7 +27,11 @@ For a complete installation with one command, including fonts, `cava`, Rise,
 AI usage collectors, the post-update recovery hook, and a shell restart, run:
 
 ```bash
-omarchy pkg add ttf-jetbrains-mono-nerd ttf-material-symbols-variable cava && \
+(pacman -Q ttf-jetbrains-mono-nerd-basic >/dev/null 2>&1 || \
+  pacman -Q ttf-jetbrains-mono-nerd >/dev/null 2>&1 || \
+  omarchy pkg add ttf-jetbrains-mono-nerd) && \
+omarchy pkg add ttf-material-symbols-variable cava && \
+  fc-cache -f && \
   omarchy plugin add https://github.com/guiestrela/quickshell-rise-review.git --enable && \
   "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/scripts/install-ai-backends" \
     "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise" && \
@@ -34,6 +39,10 @@ omarchy pkg add ttf-jetbrains-mono-nerd ttf-material-symbols-variable cava && \
     "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/contrib/post-boot.d/quickshell-rise" && \
   omarchy restart shell
 ```
+
+The command keeps an installed JetBrains Mono Nerd font, including Omarchy’s
+`ttf-jetbrains-mono-nerd-basic`, and installs the full package only if neither
+variant is installed. Do not install both variants: they conflict.
 
 Confirm the repository when Omarchy asks. Each step runs only if the previous
 step succeeds. The first step also installs `cava`, which is required for the
@@ -68,18 +77,24 @@ plugin files.
 Install the required fonts **before enabling the plugin**:
 
 ```bash
-omarchy pkg add ttf-jetbrains-mono-nerd ttf-material-symbols-variable
+(pacman -Q ttf-jetbrains-mono-nerd-basic >/dev/null 2>&1 || \
+  pacman -Q ttf-jetbrains-mono-nerd >/dev/null 2>&1 || \
+  omarchy pkg add ttf-jetbrains-mono-nerd) && \
+omarchy pkg add ttf-material-symbols-variable && \
+  fc-cache -f
 ```
 
 The plugin manager does not run `install.sh` or install these font dependencies.
 Without **Material Symbols Rounded**, icon names such as `planner_review` and
 `graphic_eq` appear as text and overlap neighboring widgets.
 
-If Rise was already running when the fonts were installed, reload its font
-selection by restarting the shell:
+If icons appear as names such as `planner_review` or `graphic_eq`, install
+Material Symbols, refresh the font cache, and restart the shell:
 
 ```bash
-omarchy restart shell
+omarchy pkg add ttf-material-symbols-variable && \
+  fc-cache -f && \
+  omarchy restart shell
 ```
 
 The plugin replaces the built-in bar while enabled. Disable it to return to the

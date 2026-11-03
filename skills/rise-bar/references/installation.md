@@ -6,7 +6,11 @@ For a complete installation with one command, including fonts, `cava`, Rise,
 AI usage collectors, the post-update recovery hook, and a shell restart, run:
 
 ```bash
-omarchy pkg add ttf-jetbrains-mono-nerd ttf-material-symbols-variable cava && \
+(pacman -Q ttf-jetbrains-mono-nerd-basic >/dev/null 2>&1 || \
+  pacman -Q ttf-jetbrains-mono-nerd >/dev/null 2>&1 || \
+  omarchy pkg add ttf-jetbrains-mono-nerd) && \
+omarchy pkg add ttf-material-symbols-variable cava && \
+  fc-cache -f && \
   omarchy plugin add https://github.com/guiestrela/quickshell-rise-review.git --enable && \
   "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/scripts/install-ai-backends" \
     "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise" && \
@@ -15,6 +19,10 @@ omarchy pkg add ttf-jetbrains-mono-nerd ttf-material-symbols-variable cava && \
   omarchy restart shell
 ```
 
+
+The command keeps an installed JetBrains Mono Nerd font, including Omarchy’s
+`ttf-jetbrains-mono-nerd-basic`, and installs the full package only if neither
+variant is installed. Do not install both variants: they conflict.
 
 Confirm the repository when Omarchy asks. The commands are joined with `&&`, so later steps run only after the preceding step succeeds. The last command restarts the Omarchy shell.
 
