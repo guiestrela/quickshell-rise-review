@@ -584,6 +584,7 @@ PanelWindow {
                     WidgetStateTile { gid: "G16"; width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Temperature";   shown: ctrlPanel.root.modCpuTemperature;  supportsCompact: true; compact: ctrlPanel.root.iconOnly("G16"); onVisibilityToggled: ctrlPanel.root.modCpuTemperature = !ctrlPanel.root.modCpuTemperature; onModeToggled: ctrlPanel.root.toggleIconOnly("G16") }
                     WidgetStateTile { gid: "G17"; width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "GPU load";      shown: ctrlPanel.root.modGpu;             supportsCompact: true; compact: ctrlPanel.root.iconOnly("G17"); onVisibilityToggled: ctrlPanel.root.modGpu = !ctrlPanel.root.modGpu; onModeToggled: ctrlPanel.root.toggleIconOnly("G17") }
                     WidgetStateTile { gid: "G18"; width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "HDD";           shown: ctrlPanel.root.modStorage;         supportsCompact: true; compact: ctrlPanel.root.iconOnly("G18"); onVisibilityToggled: ctrlPanel.root.modStorage = !ctrlPanel.root.modStorage; onModeToggled: ctrlPanel.root.toggleIconOnly("G18") }
+                    WidgetStateTile { gid: "G22"; width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "OneDrive"; shown: ctrlPanel.root.modOneDrive; supportsCompact: true; compact: ctrlPanel.root.iconOnly("G22"); onVisibilityToggled: ctrlPanel.root.modOneDrive = !ctrlPanel.root.modOneDrive; onModeToggled: ctrlPanel.root.toggleIconOnly("G22") }
                 }
 
                 Rectangle {

@@ -291,3 +291,15 @@ As implementações de Voxtype, ArchUpdater, Brightness, Battery, Bluetooth, Pow
 `shared/panels/MprisPanel.qml` mantém controles e ciclo de vida comuns. Os adaptadores preservam a captura CAVA pulse/60 fps da V1 e pipewire/30 fps da V2, os valores de ataque/release e os estilos de superfície. A V2 mantém o resolvedor de capa e `MprisPanelPalette.qml` para ler seu gradiente do tema, sem impor esse contrato à V1. O fundo conectado permanece em `z: -1`.
 
 O Tray preserva a largura das células visíveis do Row da V1 e as colunas reservadas do Grid da V2. A fixture com itens simulados cobre pinagem, remoção e orientação sem conectar ao SystemTray. A comparação de renderização antes/depois usa dados inertes e inclui o tratamento de superfícies verticais da V1; isso não substitui a interação física em todos os monitores.
+
+## OneDrive integration
+
+OmaOneDrive 1.7.1 replaces Cloud in the G22 slot. The original account model,
+coordinator, helpers, icon and composed panel live once under
+`shared/integrations/onedrive/`. `shared/services/OneDriveService.qml` owns
+shared preferences and IPC; `OneDriveWidget` renders the aggregate badge and
+`OneDrivePanel` hosts the original UI inside the existing V1/V2 surfaces.
+There is one coordinator per active variant, not one per screen. Polling is
+disabled while the widget and panel are disabled. Account commands close the
+Rise panel before launching another window. Saved G22 order and enablement
+are retained without changing any Cloud/rclone data or mount.

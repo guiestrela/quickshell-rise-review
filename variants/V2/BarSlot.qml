@@ -725,10 +725,10 @@ PanelWindow {
     readonly property int rightBaseSlotCount: 7
     // Both side regions can reach the same total capacity. The right side has
     // fewer built-in groups, so it receives three more optional slots.
-    readonly property int sideSlotCapacity: 13
+    readonly property int sideSlotCapacity: 20
     readonly property int leftExtraSlotLimit: sideSlotCapacity - leftBaseSlotCount
     readonly property int rightExtraSlotLimit: sideSlotCapacity - rightBaseSlotCount
-    readonly property int centerExtraSlotLimit: 3
+    readonly property int centerExtraSlotLimit: 7
     property bool _orderLoaded: false
     function modelContains(m, gid) {
         for (var i = 0; i < m.count; i++) if (m.get(i).gid === gid) return true
@@ -816,7 +816,7 @@ PanelWindow {
         c = wallpaperMigrated.center
         r = wallpaperMigrated.right
 
-        if (r.every(function(entry) { return entry.gid !== "G21" })) {
+        if (!l.concat(c, r).some(function(entry) { return entry.gid === "G21" })) {
             var emptySlot = -1
             for (var emptyIndex = 0; emptyIndex < r.length; emptyIndex++)
                 if (r[emptyIndex].gid === "") { emptySlot = emptyIndex; break }
@@ -825,7 +825,25 @@ PanelWindow {
                 r.push({ gid: "G21", extra: true })
         }
 
-        // Only accept a complete permutation of G1..G20. Empty slots are legal,
+        if (!l.concat(c, r).some(function(entry) { return entry.gid === "G22" })) {
+            var added = false
+            for (var slot = 0; slot < r.length; slot++) {
+                if (r[slot].gid === "") { r[slot].gid = "G22"; added = true; break }
+            }
+            if (!added && r.length < rightBaseSlotCount + rightExtraSlotLimit) {
+                r.push({ gid: "G22", extra: true }); added = true
+            }
+            var regions = [l, c]
+            for (var region = 0; region < regions.length && !added; region++) {
+                for (var vacant = 0; vacant < regions[region].length; vacant++) {
+                    if (regions[region][vacant].gid === "") {
+                        regions[region][vacant].gid = "G22"; added = true; break
+                    }
+                }
+            }
+        }
+
+        // Only accept a complete permutation of G1..G22. Empty slots are legal,
         // but each registered widget must still occur exactly once.
         var all = l.concat(c, r), seen = {}
         for (var i = 0; i < all.length; i++) {
@@ -883,7 +901,7 @@ PanelWindow {
     function resetOrder() {
         var dL = ["G1","G2","G3","","G5","G6","G4","G7","",""]
         var dR = ["G9","G10","G20","G14","G12","G13","G11",
-                  "G18","G19","G16","G17","G15","G21"]
+                  "G18","G19","G16","G17","G15","G21","G22"]
         resetModel(leftModel, dL, leftBaseSlotCount)
         resetModel(centerModel, ["G8"], centerBaseSlotCount)
         resetModel(rightModel, dR, rightBaseSlotCount)
@@ -929,6 +947,7 @@ PanelWindow {
     }
 
     // ─────────────────────────── group registry ───────────────────────────
+    Component { id: compOneDrive; CommonComponents.OneDriveWidget { root: barSlot.root; contentColor: barSlot.root.widgetContentColor("G22", barSlot.root.widgetIconColor) } }
     Component {
         id: compLauncher
         LauncherWidget {
@@ -1274,7 +1293,7 @@ PanelWindow {
     }
 
     readonly property var registry: ({
-        "G1": compLauncher, "G2": compWorkspace, "G3": compStatus,
+        "G22": compOneDrive, "G1": compLauncher, "G2": compWorkspace, "G3": compStatus,
         "G4": compMem, "G5": compCpu, "G6": compVol, "G7": compClaude,
         "G8": compCenter,
         "G9": compMpris, "G10": compQuick, "G11": compNetwork,
@@ -2002,6 +2021,7 @@ PanelWindow {
             ListElement { gid: "G11"; extra: false } ListElement { gid: "G18"; extra: true }  ListElement { gid: "G19"; extra: true }
             ListElement { gid: "G16"; extra: true }  ListElement { gid: "G17"; extra: true }  ListElement { gid: "G15"; extra: true }
             ListElement { gid: "G21"; extra: true }
+            ListElement { gid: "G22"; extra: true }
         }
 
         SlotRow {
@@ -2101,6 +2121,7 @@ PanelWindow {
                 cpu:          island.groupX("G5",  0.5),
                 gpu:          island.groupX("G17", 0.5),
                 thermal:      island.groupX("G16", 0.5),
+                oneDrive:        island.groupX("G22", 0.5),
                 storage:      island.groupX("G18", 0.5),
                 ai:           island.groupX("G7",  0.5),
                 workspace:    island.groupX("G2",  0.5),

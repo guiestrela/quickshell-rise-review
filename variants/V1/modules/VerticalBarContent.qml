@@ -74,7 +74,7 @@ Item {
         G8: ["calendar", "weather"], G9: ["mpris"], G10: ["quickActions"],
         G11: ["network"], G12: ["battery"], G13: ["brightness"], G14: ["power"],
         G15: ["bluetooth"], G16: ["vpn"], G17: ["wallpaperManager"],
-        G18: ["displayManager"], G19: ["gpu"], G20: ["thermal"], G21: ["storage"]
+        G18: ["displayManager"], G19: ["gpu"], G20: ["thermal"], G21: ["storage"], G22: ["oneDrive"]
     })
     function cells() { return VerticalBarContentLogic.cells(rail, {models: models}) }
     readonly property var regionColumns: [topRegion, centerRegion, bottomRegion]
@@ -242,6 +242,17 @@ Item {
                             sourceComponent: cell.gid === "G2" ? workspace
                                 : cell.gid === "G3" ? statusGroupComponent : cell.gid === "G8" ? clock
                                 : cell.gid === "G10" ? quick : rail.registry[cell.gid] || null
+                        }
+                        Rectangle {
+                            anchors.centerIn: parent
+                            width: 28
+                            height: 28
+                            visible: cell.gid === "" && rail.root.barUnlocked
+                            radius: rail.root.tileRadius
+                            color: rail.root.fillIdle
+                            border.color: rail.root.sep
+                            border.width: 1
+                            Text { anchors.centerIn: parent; text: "·"; color: rail.root.sumi; font.family: rail.root.mono; font.pixelSize: 14 }
                         }
                         MouseArea {
                             anchors.fill: parent

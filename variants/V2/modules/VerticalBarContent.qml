@@ -29,7 +29,7 @@ Item {
             aiUsage: "ai", mem: "memory", vol: "volume", network: "network",
             vpn: "vpn", bluetooth: "bluetooth", battery: "battery",
             brightness: "brightness", mpris: "mpris", notif: "notif",
-            powerProfile: "power", storage: "storage", arch: "arch", tray: "tray",
+            oneDrive: "oneDrive", powerProfile: "power", storage: "storage", arch: "arch", tray: "tray",
             displayManager: "displayManager", wallpaperManager: "wallpaperManager"}
         for (var name in names)
             if (root[name + "Visible"] === true) return names[name]
@@ -46,7 +46,7 @@ Item {
         G8: ["calendar", "weather"], G9: ["mpris"], G10: ["quickActions"],
         G11: ["network"], G12: ["battery"], G13: ["brightness"], G14: ["power"],
         G15: ["bluetooth"], G16: ["thermal"], G17: ["gpu"], G18: ["storage"],
-        G19: ["vpn"], G20: ["wallpaperManager"], G21: ["displayManager"]
+        G19: ["vpn"], G20: ["wallpaperManager"], G21: ["displayManager"], G22: ["oneDrive"]
     })
     function cells() { return VerticalBarContentLogic.cells(rail, {models: models}) }
     readonly property var regionColumns: [topRegion, centerRegion, bottomRegion]

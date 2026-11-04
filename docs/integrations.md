@@ -105,3 +105,38 @@ background from the primary display for lock-screen use. Middle-click the
 palette widget for the next set. Set `RISE_WALLPAPER_INTERVAL` to at least 60
 seconds to enable automatic shuffling. `RISE_WALLPAPER_DIR` overrides the saved
 folder.
+
+## OneDrive (V1 and V2)
+
+Enable **OneDrive** in Control Panel → Widgets. This replaces the Cloud/rclone
+widget in G22 and retains that slot's saved position and enabled setting.
+The panel follows the installed abraunegg OneDrive client and its systemd
+services: multiple accounts, sync progress, storage, recent activity,
+pause/resume, timed pauses, login, reauthentication and guided resync repair.
+The original OmaOneDrive panel is retained with a Rise frame and theme.
+
+OneDrive must already be installed and configured. The widget never installs,
+logs in, performs a resync or changes service state automatically. Login and
+repair open the client's interactive terminal flow. Routine refreshes stay
+local; storage and full sync checks contact Microsoft only when requested,
+plus the original stale failed storage retry when opening the panel.
+
+Preferences (Full/Compact, local refresh interval, recent file limit and
+notifications) are shared across variants in
+`~/.cache/quickshell-rise-onedrive.json`. IPC retains the source plugin's
+`io.github.salemsayed.omaonedrive` target, including account selection and
+notification actions. Do not enable the standalone OmaOneDrive plugin at the
+same time, since it owns the same IPC target.
+
+Left click opens the panel, middle click opens the badged account's folder,
+and right click checks its storage. Keyboard: arrows, Enter, R for storage,
+F for sync verification, P for pause/resume, O for folder, W for web,
+Shift+L for login and Escape to close.
+
+Code lives in `shared/integrations/onedrive/`, with one shared service,
+widget and panel host; variants only supply surfaces and registration.
+Based on OmaOneDrive 1.7.1 by Salem Sayed; MIT license retained. The local UI
+compatibility components adapt Omarchy's MIT components so the original panel
+does not depend on a particular shell import root. The source plugin's backend
+fixtures are retained; Rise's runtime fixture validates the adapted panel.
+Previous Cloud settings, rclone credentials and existing mounts are untouched.

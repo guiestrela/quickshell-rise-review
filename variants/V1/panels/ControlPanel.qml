@@ -649,6 +649,7 @@ PanelWindow {
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "GPU";         active: ctrlPanel.root.modGpu;     onActivated: ctrlPanel.root.modGpu = !ctrlPanel.root.modGpu }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Temperature"; active: ctrlPanel.root.modCpuTemperature; onActivated: ctrlPanel.root.modCpuTemperature = !ctrlPanel.root.modCpuTemperature }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Storage"; active: ctrlPanel.root.modStorage; onActivated: ctrlPanel.root.modStorage = !ctrlPanel.root.modStorage }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "OneDrive"; active: ctrlPanel.root.modOneDrive; onActivated: ctrlPanel.root.modOneDrive = !ctrlPanel.root.modOneDrive }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Volume";      active: ctrlPanel.root.modVolume;  onActivated: ctrlPanel.root.modVolume = !ctrlPanel.root.modVolume }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Now playing"; active: ctrlPanel.root.modMpris;   onActivated: ctrlPanel.root.modMpris = !ctrlPanel.root.modMpris }
                 WidgetStateTile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Battery"; visible: ctrlPanel.root.hasBattery; shown: true; canHide: false; compact: ctrlPanel.root.compactBattery; onModeToggled: ctrlPanel.root.compactBattery = !ctrlPanel.root.compactBattery }

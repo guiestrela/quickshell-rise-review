@@ -263,6 +263,7 @@ Item {
     GpuPanel { root: theme }
     ThermalsPanel { root: theme }
     StoragePanel { root: theme }
+    OneDrivePanel { root: theme }
     AiUsagePanel { root: theme }
     VolumePanel { root: theme }
     TrayPanel { root: theme }

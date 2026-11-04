@@ -1,0 +1,18 @@
+#!/bin/bash
+set -euo pipefail
+export PATH="/usr/bin:/bin:$PATH"
+root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+node --test "$root/tests/Model.test.js" "$root/tests/Commands.test.js" \
+  "$root/tests/Aggregate.test.js" "$root/tests/Discovery.test.js" \
+  "$root/tests/Notifications.test.js" "$root/tests/Scheduler.test.js"
+qml_runner=${OMAONEDRIVE_QML_RUNNER:-/usr/lib/qt6/bin/qml}
+qml_output=$(mktemp)
+trap 'rm -f -- "$qml_output"' EXIT
+QT_FORCE_STDERR_LOGGING=1 QT_QPA_PLATFORM=offscreen QT_QPA_PLATFORMTHEME='' QT_QUICK_BACKEND=software \
+  "$qml_runner" -I "$root/tests/qmlstubs" "$root/tests/qml/Harness.qml" >"$qml_output" 2>&1 || { cat "$qml_output"; exit 1; }
+cat "$qml_output"
+grep -q 'QML harness: all checks passed' "$qml_output"
+checks=$(sed -n 's/^.*QML harness: \([0-9]*\) checks executed.*$/\1/p' "$qml_output" | tail -1)
+[[ ${checks:-0} -ge 305 ]]
+python3 "$root/tests/Journal.test.py"
+"$root/tests/Status.test.sh"

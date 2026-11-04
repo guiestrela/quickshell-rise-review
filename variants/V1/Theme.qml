@@ -219,7 +219,7 @@ Item {
     property var barLayoutControllers: ({})
     property bool _barLayoutSyncing: false
 
-    readonly property bool anyPopupVisible: calendarVisible || cpuVisible || gpuVisible || thermalVisible || storageVisible || aiUsageVisible
+    readonly property bool anyPopupVisible: oneDriveVisible || calendarVisible || cpuVisible || gpuVisible || thermalVisible || storageVisible || aiUsageVisible
         || memVisible || volVisible || controlVisible || networkVisible || bluetoothVisible
         || batteryVisible || brightnessVisible || mprisVisible || weatherVisible
         || workspaceVisible || vpnVisible || imagePickerVisible || mediaBrowserVisible || notifVisible
@@ -337,6 +337,7 @@ Item {
         else if (name === "cpu") cpuBarX = x
         else if (name === "gpu") gpuBarX = x
         else if (name === "thermal") thermalBarX = x
+        else if (name === "oneDrive") oneDriveBarX = x
         else if (name === "storage") storageBarX = x
         else if (name === "ai") aiBarX = x
         else if (name === "workspace") workspaceBarX = x
@@ -362,6 +363,7 @@ Item {
         if (except !== "cpuVisible") cpuVisible = false
         if (except !== "gpuVisible") gpuVisible = false
         if (except !== "thermalVisible") thermalVisible = false
+        if (except !== "oneDriveVisible") oneDriveVisible = false
         if (except !== "storageVisible") storageVisible = false
         if (except !== "aiUsageVisible") aiUsageVisible = false
         if (except !== "memVisible") memVisible = false
@@ -937,6 +939,18 @@ Item {
     onCompactStorageChanged: if (_widgetsLoaded) saveWidgets()
     onBarTemperatureSourceChanged: if (_widgetsLoaded) saveWidgets()
     property bool modCpuTemperature: false
+    property bool modOneDrive: false
+    onModOneDriveChanged: if (_widgetsLoaded) saveWidgets()
+    property string oneDriveOpenTarget: ""
+    property bool oneDriveVisible: false
+    onOneDriveVisibleChanged: popupOpened("oneDriveVisible")
+    property real oneDriveBarX: 0
+    readonly property alias oneDriveService: oneDriveServiceInstance
+    CommonServices.OneDriveService {
+        id: oneDriveServiceInstance
+        owner: theme
+        pollingEnabled: theme._widgetsLoaded && (theme.modOneDrive || theme.oneDriveVisible)
+    }
     property bool modStorage: false
     property bool compactTemperature: false
     property bool compactStorage: false
@@ -1413,7 +1427,8 @@ Item {
                  + (modStorage ? "1" : "0") + " " // +43 Storage (V1 G21)
                  + (compactTemperature ? "1" : "0") + " " // +44
                  + (compactStorage ? "1" : "0") + " " // +45
-                 + barTemperatureSource // +46, V1 schema
+                 + barTemperatureSource + " " // +46, V1 schema
+                 + (modOneDrive ? "1" : "0") // +47 OneDrive
         widgetSaveProc.command = ["bash", "-c",
             "echo '" + line + "' > '" + widgetsCachePath + "'"]
         widgetSaveProc.running = false
@@ -1540,6 +1555,7 @@ Item {
                     if (parts.length > wsField + 39) theme.modGpu = parts[wsField + 39] !== "0"
                     if (parts.length > wsField + 40) theme.compactGpu = parts[wsField + 40] === "1"
                     if (parts.length > wsField + 42) theme.modCpuTemperature = parts[wsField + 42] === "1"
+                    if (parts.length > wsField + 47) theme.modOneDrive = parts[wsField + 47] === "1"
                     if (parts.length > wsField + 43) theme.modStorage = parts[wsField + 43] === "1"
                     if (parts.length > wsField + 44) theme.compactTemperature = parts[wsField + 44] === "1"
                     if (parts.length > wsField + 45) theme.compactStorage = parts[wsField + 45] === "1"

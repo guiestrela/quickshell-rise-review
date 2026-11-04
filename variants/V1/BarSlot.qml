@@ -106,7 +106,8 @@ PanelWindow {
                 var it = rep.itemAt(k)
                 if (!it || !it.visible || !it.autoShown) continue
                 var p = it.mapToItem(null, 0, 0)
-                if (wx >= p.x && wx <= p.x + it.width && wy >= p.y && wy <= p.y + it.height)
+                var end = it.mapToItem(null, it.width, it.height)
+                if (wx >= p.x && wx <= end.x && wy >= p.y && wy <= end.y)
                     return { model: rows[r].rmodel, index: k }
             }
         }
@@ -146,7 +147,7 @@ PanelWindow {
     }
     function applyTo(m, gids) {
         if (gids.length !== m.count) return                       // stale cache → keep default
-        for (var i = 0; i < m.count; i++) if (registry[gids[i]]) m.setProperty(i, "gid", gids[i])
+        for (var i = 0; i < m.count; i++) if (gids[i] === "" || registry[gids[i]]) m.setProperty(i, "gid", gids[i])
     }
     function applyOrder(str) {
         var parts = str.split("|")
@@ -156,17 +157,23 @@ PanelWindow {
         if (migrated) { l = migrated.left; c = migrated.center; r = migrated.right }
         migrated = WallpaperLayout.migrateV1Order(l, c, r)
         if (migrated) { l = migrated.left; c = migrated.center; r = migrated.right }
-        if (r.indexOf("G18") < 0 && r.length + 1 === rightModel.count) r.push("G18")
-        if (l.concat(c, r).indexOf("G19") < 0 && l.length + 1 === leftModel.count - 2) l.push("G19")
+        if (r.indexOf("G18") < 0 && r.length === 9) r.push("G18")
+        if (l.concat(c, r).indexOf("G19") < 0 && l.length === 7) l.push("G19")
         // Append optional feature slots without moving any existing widget.
         if (l.concat(c,r).indexOf("G20") < 0) l.push("G20")
         if (l.concat(c,r).indexOf("G21") < 0) l.push("G21")
+        if (l.concat(c,r).indexOf("G22") < 0) l.push("G22")
         // F12: only apply a cache that is a valid permutation of all registry ids (correct region
         // sizes, every id known, no duplicate, none missing) — a corrupt cache would otherwise
         // duplicate one widget and silently drop another. On reject, keep the default order.
-        if (l.length !== leftModel.count || c.length !== centerModel.count || r.length !== rightModel.count) return
+        if (l.length > leftModel.count || c.length > centerModel.count || r.length > rightModel.count) return
+        // Empty slots are legal drop targets; pad older layouts in place.
+        while (l.length < leftModel.count) l.push("")
+        while (c.length < centerModel.count) c.push("")
+        while (r.length < rightModel.count) r.push("")
         var all = l.concat(c, r), seen = {}
         for (var i = 0; i < all.length; i++) {
+            if (all[i] === "") continue
             if (!registry[all[i]] || seen[all[i]]) return
             seen[all[i]] = true
         }
@@ -284,6 +291,7 @@ PanelWindow {
     }
 
     // ─────────────────────────── group registry ───────────────────────────
+    Component { id: compOneDrive; OneDriveWidget { root: barSlot.root } }
     Component { id: compLauncher;  LauncherWidget  { root: barSlot.root } }
     Component { id: compWorkspace; WorkspaceWidget { root: barSlot.root } }
     Component {
@@ -356,7 +364,7 @@ PanelWindow {
                 // very side-row width that centerAvail is measured from, and the
                 // stage delta (~weather+date) exceeds the 24/48px hysteresis window
                 // → boundary-width flutter. As a side widget G8 stays at normal.
-                if (centerModel.count < 1 || centerModel.get(0).gid !== "G8") {
+                if (barSlot.gidsOf(centerModel).indexOf("G8") < 0) {
                     if (stage !== 0) stage = 0
                     return
                 }
@@ -501,7 +509,7 @@ PanelWindow {
     Component { id: compBluetooth;  BluetoothWidget    { root: barSlot.root } }
 
     readonly property var registry: ({
-        "G1": compLauncher, "G2": compWorkspace, "G3": compStatus,
+        "G22": compOneDrive, "G1": compLauncher, "G2": compWorkspace, "G3": compStatus,
         "G4": compMem, "G5": compCpu, "G6": compVol, "G7": compClaude,
         "G8": compCenter,
         "G9": compMpris, "G10": compQuick, "G11": compNetwork,
@@ -539,7 +547,9 @@ PanelWindow {
                 // workspace draws a pill 4px wider than its implicitWidth on each
                 // side; pad its slot symmetrically so inter-group gaps stay uniform.
                 readonly property int pad: slot.gid === "G2" ? barSlot.root.wsPillPad : 0
-                readonly property bool hasContent: Math.round(ldr.implicitWidth) > 0.5
+                readonly property bool occupied: gid !== "" && barSlot.registry[gid] !== undefined
+                readonly property bool placeholderShown: !occupied && barSlot.root.barUnlocked
+                readonly property bool hasContent: occupied && Math.round(ldr.implicitWidth) > 0.5
                 readonly property bool hasGapAfter: splitsArr ? (index < splitsArr.length) : false
                 // split AFTER this slot → grow it so the group separates (gap opens).
                 // ONLY for widgets with content — a 0-width widget (battery/brightness on
@@ -549,20 +559,20 @@ PanelWindow {
                 readonly property real cr: pad + Math.round(ldr.implicitWidth)
                 // display width: follows the stage (grow via splitAfter is
                 // autoShown-aware so hidden slots also drop their split growth)
-                readonly property real naturalSlotWidth: Math.round(ldr.implicitWidth) + 2 * pad + grow
+                readonly property real naturalSlotWidth: placeholderShown ? 32 : occupied ? Math.round(ldr.implicitWidth) + 2 * pad + grow : 0
                 // budget width: the ONLY width the narrow-stage decision may read.
                 // MUST stay stage-independent (no autoShown/lastVisibleIndex terms,
                 // which flip with the stage): a stage-dependent budget feeds back
                 // into its own decision and oscillates once ≥2 split-grows (2×16px)
                 // exceed the 24px hysteresis window. Conservative: counts the split
                 // grow even for hidden/trailing slots (≤16px overestimate, fail-safe).
-                readonly property real budgetSlotWidth: Math.round(ldr.implicitWidth) + 2 * pad
-                    + ((hasGapAfter && splitsArr[index] && hasContent) ? 16 : 0)
+                readonly property real budgetSlotWidth: placeholderShown ? 32 : occupied ? Math.round(ldr.implicitWidth) + 2 * pad
+                    + ((hasGapAfter && splitsArr[index] && hasContent) ? 16 : 0) : 0
                 readonly property bool autoShown: island.groupVisibleAtStage(slot.gid, island.narrowStage)
                 onBudgetSlotWidthChanged: island.scheduleNarrowUpdate()
                 width: autoShown ? naturalSlotWidth : 0
                 height: 32
-                visible: hasContent && (autoShown || width > 0.5)   // stays visible while collapsing
+                visible: placeholderShown || (hasContent && (autoShown || width > 0.5))   // stays visible while collapsing
                 opacity: autoShown ? 1 : 0
                 Behavior on opacity { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
                 Behavior on width { NumberAnimation { duration: 200; easing.type: Easing.OutCubic } }
@@ -570,14 +580,31 @@ PanelWindow {
                     id: ldr
                     x: slot.pad
                     anchors.verticalCenter: parent.verticalCenter
-                    sourceComponent: !barSlot.root.barVertical ? barSlot.registry[slot.gid] : null
+                    sourceComponent: !barSlot.root.barVertical && slot.occupied ? barSlot.registry[slot.gid] : null
                     // dim the original while its ghost is being dragged
                     opacity: (barSlot.dragItem === ldr && barSlot.dragActive) ? 0.25 : 1.0
+                }
+                Rectangle {
+                    anchors.centerIn: parent
+                    width: 28
+                    height: 24
+                    visible: slot.placeholderShown
+                    radius: barSlot.root.tileRadius
+                    color: barSlot.root.fillIdle
+                    border.color: barSlot.root.sep
+                    border.width: 1
+                    Text {
+                        anchors.centerIn: parent
+                        text: "·"
+                        color: barSlot.root.sumi
+                        font.family: barSlot.root.mono
+                        font.pixelSize: 14
+                    }
                 }
                 // ── drag-catcher: only in unlock mode, overlays the widget ──
                 MouseArea {
                     anchors.fill: parent
-                    enabled: barSlot.root.barUnlocked && slot.autoShown
+                    enabled: barSlot.root.barUnlocked && slot.autoShown && slot.hasContent
                     visible: barSlot.root.barUnlocked && slot.autoShown
                     z: 25
                     preventStealing: true
@@ -608,7 +635,7 @@ PanelWindow {
                 }
                 // ── split toggle for the gap AFTER this slot (child of slot → tracks it) ──
                 Item {
-                    visible: slot.autoShown && slot.hasGapAfter && slot.index < lastVisibleIndex
+                    visible: slot.hasContent && slot.autoShown && slot.hasGapAfter && slot.index < lastVisibleIndex
                     width: 14
                     height: slot.height
                     x: (slot.cr + slot.pad + slot.width + 6) / 2 - width / 2   // centered in the gap (cr+pad = pill-right, matches gapInterval)
@@ -675,8 +702,8 @@ PanelWindow {
         }
 
         // ── split state (positional, per within-region gap) ──
-        property var leftSplits:  [true, true, true, true, true, true, true, false, false]   // gaps in leftModel
-        property var rightSplits: [true, true, true, true, true, true, true, true]   // gaps in rightModel
+        property var leftSplits:  [true, true, true, true, true, true, true, false, false, false, false, false, false, false]   // gaps in leftModel
+        property var rightSplits: [true, true, true, true, true, true, true, true, false, false, false, false, false]   // gaps in rightModel
         property var boundarySplits: [true, true]   // [left↔center, center↔right]
 
         readonly property real lcBoundaryX: leftRowItem.x + leftRowItem.width + 9    // just right of Claude
@@ -710,7 +737,7 @@ PanelWindow {
             var sum = 0, n = 0
             for (var k = 0; k < row.rep.count; k++) {
                 var it = row.rep.itemAt(k)
-                if (!it || !it.hasContent) continue
+                if (!it || (!it.hasContent && !it.placeholderShown)) continue
                 if (!groupVisibleAtStage(it.gid, stage)) continue
                 sum += it.budgetSlotWidth; n++
             }
@@ -738,12 +765,13 @@ PanelWindow {
         function applySplits(str) {
             var p = str.split("|")
             if (p.length !== 3) return
-            if (p[0].length === leftSplits.length)     leftSplits     = _s2b(p[0], leftSplits.length)
-            else if (p[0].length === leftSplits.length - 2) leftSplits = _s2b(p[0], leftSplits.length - 2).concat([false, false])
-            else if (p[0].length === leftSplits.length - 3) leftSplits = _s2b(p[0], leftSplits.length - 3).concat([true, false, false])
-            if (p[1].length === rightSplits.length)    rightSplits    = _s2b(p[1], rightSplits.length)
-            else if (p[1].length === rightSplits.length - 1) rightSplits = _s2b(p[1], rightSplits.length - 1).concat([false])
-            else if (p[1].length === rightSplits.length - 2) rightSplits = _s2b(p[1], rightSplits.length - 2).concat([false, false])
+            if (/^[01]+$/.test(p[0]) && p[0].length <= leftSplits.length) {
+                var left = _s2b(p[0], p[0].length)
+                if (left.length === 6) left.push(true) // legacy GPU boundary
+                leftSplits = left.concat(Array(leftSplits.length - left.length).fill(false))
+            }
+            if (/^[01]+$/.test(p[1]) && p[1].length <= rightSplits.length)
+                rightSplits = _s2b(p[1], p[1].length).concat(Array(rightSplits.length - p[1].length).fill(false))
             if (p[2].length === boundarySplits.length) boundarySplits = _s2b(p[2], boundarySplits.length)
         }
         function saveSplits() {
@@ -876,14 +904,16 @@ PanelWindow {
             id: leftModel
             ListElement { gid: "G1" } ListElement { gid: "G2" } ListElement { gid: "G3" }
             ListElement { gid: "G4" } ListElement { gid: "G5" } ListElement { gid: "G6" }
-            ListElement { gid: "G7" } ListElement { gid: "G19" } ListElement { gid: "G20" } ListElement { gid: "G21" }
+            ListElement { gid: "G7" } ListElement { gid: "G19" } ListElement { gid: "G20" } ListElement { gid: "G21" } ListElement { gid: "G22" }
+            ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" }
         }
-        ListModel { id: centerModel; ListElement { gid: "G8" } }
+        ListModel { id: centerModel; ListElement { gid: "G8" } ListElement { gid: "" } ListElement { gid: "" } }
         ListModel {
             id: rightModel
             ListElement { gid: "G9" }  ListElement { gid: "G10" } ListElement { gid: "G17" }
             ListElement { gid: "G14" } ListElement { gid: "G12" } ListElement { gid: "G13" }
             ListElement { gid: "G11" } ListElement { gid: "G16" } ListElement { gid: "G15" } ListElement { gid: "G18" }
+            ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" }
         }
 
         SlotRow {
@@ -945,6 +975,7 @@ PanelWindow {
                 cpu:          island.groupX("G5",  0.5),
                 gpu:          island.groupX("G19", 0.5),
                 thermal:      island.groupX("G20", 0.5),
+                oneDrive:        island.groupX("G22", 0.5),
                 storage:      island.groupX("G21", 0.5),
                 ai:           island.groupX("G7",  0.5),
                 workspace:    island.groupX("G2",  0.5),

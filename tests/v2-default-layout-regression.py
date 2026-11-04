@@ -8,7 +8,7 @@ import subprocess
 import unittest
 
 SOURCE = Path(__file__).resolve().parents[1] / 'variants/V2/BarSlot.qml'
-EXPECTED = 'B:G1,B:G2,B:G3,B:_,B:G5,B:G6,B:G4,B:G7,B:_,B:_|B:G8|B:G9,B:G10,B:G20,B:G14,B:G12,B:G13,B:G11,E:G18,E:G19,E:G16,E:G17,E:G15,E:G21'
+EXPECTED = 'B:G1,B:G2,B:G3,B:_,B:G5,B:G6,B:G4,B:G7,B:_,B:_|B:G8|B:G9,B:G10,B:G20,B:G14,B:G12,B:G13,B:G11,E:G18,E:G19,E:G16,E:G17,E:G15,E:G21,E:G22'
 
 def function(source, name):
     start = re.search(r'function ' + name + r'\([^)]*\)\s*\{', source)

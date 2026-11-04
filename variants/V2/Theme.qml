@@ -217,7 +217,7 @@ Item {
     property var barLayoutControllers: ({})
     property bool _barLayoutSyncing: false
 
-    readonly property bool anyPopupVisible: calendarVisible || cpuVisible || gpuVisible
+    readonly property bool anyPopupVisible: oneDriveVisible || calendarVisible || cpuVisible || gpuVisible
         || thermalVisible || aiUsageVisible
         || memVisible || volVisible || controlVisible || networkVisible || vpnVisible || bluetoothVisible
         || batteryVisible || brightnessVisible || mprisVisible || weatherVisible
@@ -295,6 +295,7 @@ Item {
         else if (name === "cpu") cpuBarX = x
         else if (name === "gpu") gpuBarX = x
         else if (name === "thermal") thermalBarX = x
+        else if (name === "oneDrive") oneDriveBarX = x
         else if (name === "storage") storageBarX = x
         else if (name === "ai") aiBarX = x
         else if (name === "workspace") workspaceBarX = x
@@ -338,6 +339,7 @@ Item {
         if (except !== "mediaBrowserVisible") mediaBrowserVisible = false
         if (except !== "notifVisible") notifVisible = false
         if (except !== "powerProfileVisible") powerProfileVisible = false
+        if (except !== "oneDriveVisible") oneDriveVisible = false
         if (except !== "storageVisible") storageVisible = false
         if (except !== "archVisible") archVisible = false
         if (except !== "trayVisible") trayVisible = false
@@ -868,6 +870,18 @@ Item {
     property bool modCpu:        true
     property bool modCpuTemperature: true
     property bool modGpu:        true
+    property bool modOneDrive: false
+    onModOneDriveChanged: if (_widgetsLoaded) saveWidgets()
+    property string oneDriveOpenTarget: ""
+    property bool oneDriveVisible: false
+    onOneDriveVisibleChanged: popupOpened("oneDriveVisible")
+    property real oneDriveBarX: 0
+    readonly property alias oneDriveService: oneDriveServiceInstance
+    CommonServices.OneDriveService {
+        id: oneDriveServiceInstance
+        owner: theme
+        pollingEnabled: theme._widgetsLoaded && (theme.modOneDrive || theme.oneDriveVisible)
+    }
     property bool modStorage:    true
     property bool modVolume:     true
     property bool modWeather:    true
@@ -1292,7 +1306,7 @@ Item {
     }
     function serializeWidgetSurfaceStyles() {
         var out = []
-        for (var n = 1; n <= 21; n++) {
+        for (var n = 1; n <= 22; n++) {
             var gid = "G" + n
             if (!widgetSurfaceStyles[gid]) continue
             var style = widgetSurfaceStyle(gid)
@@ -1323,7 +1337,7 @@ Item {
         var m = String(gid || "").match(/^G(\d{1,2})$/)
         if (!m) return false
         var n = Number(m[1])
-        return n >= 1 && n <= 21
+        return n >= 1 && n <= 22
     }
     function widgetColorModeValid(mode) {
         return mode === "fill" || mode === "border" || mode === "both"
@@ -1398,7 +1412,7 @@ Item {
         var next = {}
         var changed = false
 
-        for (var n = 1; n <= 21; n++) {
+        for (var n = 1; n <= 22; n++) {
             var gid = "G" + n
             var style = widgetColorStyle(gid)
 
@@ -1454,7 +1468,7 @@ Item {
     }
     function serializeWidgetColorStyles() {
         var out = []
-        for (var n = 1; n <= 21; n++) {
+        for (var n = 1; n <= 22; n++) {
             var gid = "G" + n
             var style = widgetColorStyle(gid)
             if (style.color !== "inherit" || style.mode === "border")
@@ -1577,7 +1591,8 @@ Item {
                  + (displayManagerAutoWorkspaces ? "1" : "0") + " " // +48 Display Manager workspace preference
                  + (barFrost ? "1" : "0") + " " // +49 V2 Frost (same field as legacy Notch Frost)
                  + (layoutProtected ? "1" : "0") + " " // +50 layout protection
-                 + serializeWidgetSurfaceStyles() // +51 widget surface geometry
+                 + serializeWidgetSurfaceStyles() + " " // +51 widget surface geometry
+                 + (modOneDrive ? "1" : "0") // +52 OneDrive
         widgetSaveProc.command = ["bash", "-c",
             "echo '" + line + "' > '" + widgetsCachePath + "'"]
         widgetSaveProc.running = false
@@ -1688,6 +1703,7 @@ Item {
                         theme.barColor = theme.normalizedPaletteId(parts[wsField + 32])
                     if (parts.length > wsField + 33) theme.modGpu = parts[wsField + 33] !== "0"
                     if (parts.length > wsField + 34) theme.modCpuTemperature = parts[wsField + 34] !== "0"
+                    if (parts.length > wsField + 52) theme.modOneDrive = parts[wsField + 52] === "1"
                     if (parts.length > wsField + 35) theme.modStorage = parts[wsField + 35] !== "0"
                     if (parts.length > wsField + 36) theme.barSeps      = theme.parseGidCsv(parts[wsField + 36])
                     if (parts.length > wsField + 37) theme.iconOnlyGids = theme.parseGidCsv(parts[wsField + 37])
@@ -1970,7 +1986,7 @@ Item {
 
     // One connected popover at a time: the active panel publishes the exact
     // bar-widget center used by both the caret and the small border opening.
-    readonly property bool anchoredPanelVisible: calendarVisible || cpuVisible || gpuVisible
+    readonly property bool anchoredPanelVisible: oneDriveVisible || calendarVisible || cpuVisible || gpuVisible
         || thermalVisible || aiUsageVisible
         || memVisible || volVisible || controlVisible || networkVisible || vpnVisible || bluetoothVisible
         || batteryVisible || brightnessVisible || mprisVisible || weatherVisible

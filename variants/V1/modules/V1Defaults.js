@@ -3,16 +3,16 @@
 
 function defaultOrder() {
     return {
-        left: ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "G19", "G20", "G21"],
-        center: ["G8"],
-        right: ["G9", "G10", "G17", "G14", "G12", "G13", "G11", "G16", "G15", "G18"]
+        left: ["G1", "G2", "G3", "G4", "G5", "G6", "G7", "G19", "G20", "G21", "G22", "", "", "", ""],
+        center: ["G8", "", ""],
+        right: ["G9", "G10", "G17", "G14", "G12", "G13", "G11", "G16", "G15", "G18", "", "", "", ""]
     }
 }
 
 function defaultSplits() {
     return {
-        left: [true, true, true, true, true, true, true, false, false],
-        right: [true, true, true, true, true, true, true, true],
+        left: [true, true, true, true, true, true, true, false, false, false, false, false, false, false],
+        right: [true, true, true, true, true, true, true, true, false, false, false, false, false],
         boundary: [true, true]
     }
 }

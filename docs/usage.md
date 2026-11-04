@@ -137,3 +137,15 @@ hyprctl reload
 Read [Maintain and recover Quickshell Rise](maintenance-and-recovery.md) for status, restart, update, log, and recovery commands.
 
 [Back to the project README](../README.md)
+
+## Extra positions for customization
+
+Unlock the bar to reveal empty drop targets, then drag a widget into one to
+move it between regions. V1 has 32 positions: 15 on the left, 3 in the center
+and 14 on the right, including ten empty positions in the default layout.
+Empty positions disappear when the bar is locked; existing saved widget order
+and split settings are migrated in place. Escape locks the bar again.
+
+V2 supports up to 20 positions per side and 8 in the center. Use the `+` control
+in edit mode to add a slot. Only empty additional slots can be removed; moving
+a widget into a slot preserves all other slot positions.

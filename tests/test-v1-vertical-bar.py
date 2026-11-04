@@ -19,7 +19,10 @@ with tempfile.TemporaryDirectory(prefix='rise-v1-vertical-', dir='/tmp') as dire
     fixture, width_bindings = re.subn(r'property int verticalBarWidth: [^\n]+',
                                      'property int verticalBarWidth: 40', fixture)
     assert width_bindings == 1, 'V1 fixture must define its own bar width'
-    fixture = fixture.replace('  property int panelRadius: 6', '''  property int wsPillPad: 2
+    fixture = fixture.replace('  property int panelRadius: 6', '''  property int tileRadius: 10
+  property color fillIdle: "#222222"
+  property color sumi: "#999999"
+  property int wsPillPad: 2
   property int pillH: 28
   property int pillRadius: 6
   property bool styleBorder: true

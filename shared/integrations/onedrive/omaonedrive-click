@@ -1,0 +1,102 @@
+#!/usr/bin/env python3
+"""Raise one notification carrying a real click action, and stay alive to serve it.
+
+Omarchy's own notification service reads a toast's click command straight out
+of the ``omarchy-exec-argv`` hint, so a sender can fire and forget. Every other
+freedesktop daemon — omapager, dunst, mako — expects a libnotify ``default``
+action instead, and an action exists only while its sender is still on the bus
+to receive ``ActionInvoked``. So this helper outlives the send: it waits for the
+click and runs the command itself.
+
+Usage: omaonedrive-click '<exec-argv-json>' '<notify-argv-json>'
+
+Both arguments are JSON arrays of strings. Nothing is passed through a shell,
+so a status line or a folder name can never become a command word.
+"""
+
+from __future__ import annotations
+
+import json
+import os
+import selectors
+import subprocess
+import sys
+
+
+def argv_from_json(raw: str, what: str) -> list[str]:
+    try:
+        parsed = json.loads(raw)
+    except ValueError as error:
+        raise SystemExit(f"omaonedrive-click: {what} is not JSON: {error}")
+    if not isinstance(parsed, list) or not all(isinstance(word, str) for word in parsed):
+        raise SystemExit(f"omaonedrive-click: {what} must be an array of strings")
+    return parsed
+
+
+def read_line(descriptor: int) -> str:
+    """One line off a pipe, or "" if the writer closes without sending one."""
+    collected = b""
+    selector = selectors.DefaultSelector()
+    selector.register(descriptor, selectors.EVENT_READ)
+    try:
+        while True:
+            if not selector.select(None):
+                return ""
+            chunk = os.read(descriptor, 64)
+            if not chunk:
+                break
+            collected += chunk
+            if b"\n" in collected:
+                break
+    except OSError:
+        return ""
+    finally:
+        selector.close()
+    return collected.decode("utf-8", "replace").strip()
+
+
+def main() -> int:
+    if len(sys.argv) != 3:
+        raise SystemExit(__doc__)
+    exec_argv = argv_from_json(sys.argv[1], "the click command")
+    notify_argv = argv_from_json(sys.argv[2], "the notify-send command")
+    if not exec_argv or not notify_argv:
+        raise SystemExit("omaonedrive-click: both commands must have at least one word")
+
+    action_read, action_write = os.pipe()
+    # "Open" is what a daemon that draws its actions as buttons calls this one.
+    # omapager and Omarchy's own service read "default" as the whole-card click
+    # and never draw it; dunst lists it in a menu, which is why it needs a word.
+    command = notify_argv + ["--selected-action-fd", str(action_write),
+                             "--action", "default=Open"]
+    try:
+        process = subprocess.Popen(command, pass_fds=(action_write,),
+                                   stdout=subprocess.DEVNULL)
+    except (OSError, ValueError) as error:
+        print(str(error), file=sys.stderr)
+        os.close(action_write)
+        os.close(action_read)
+        return 127
+    # The parent's copy must go, or the read below never sees EOF.
+    os.close(action_write)
+
+    # Blocks for as long as the toast is on screen. EOF means it was closed or
+    # expired without being clicked, and there is nothing to run.
+    chosen = read_line(action_read)
+    os.close(action_read)
+    if chosen == "default":
+        try:
+            subprocess.Popen(exec_argv, start_new_session=True,
+                             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        except OSError as error:
+            print(str(error), file=sys.stderr)
+            return 126
+    try:
+        process.wait(timeout=5)
+    except subprocess.TimeoutExpired:
+        process.kill()
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

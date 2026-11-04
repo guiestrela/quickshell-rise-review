@@ -18,18 +18,18 @@ test('V1 GPU is registered, controllable and persisted without renumbering',()=>
 
 test('V1 default layout retains GPU and legacy split flags',()=>{
  const d=read('modules/V1Defaults.js');assert.match(d,/"G7", "G19"/);
- assert.match(read('BarSlot.qml'),/leftSplits.length - 3.*concat\(\[true, false, false\]\)/);
+ assert.match(read('BarSlot.qml'),/left.length === 6.*left.push\(true\)/);
 });
 
 test('legacy order migration adds GPU once without resetting customized order', async()=>{
  const vm=await import('node:vm');const source=read('BarSlot.qml');
  const fn=source.slice(source.indexOf('    function applyOrder('),source.indexOf('    function saveOrder('));
- const calls=[];const registry=Object.fromEntries(Array.from({length:21},(_,i)=>['G'+(i+1),true]));
- const c=vm.createContext({leftModel:{count:10},centerModel:{count:1},rightModel:{count:10},registry,
+ const calls=[];const registry=Object.fromEntries(Array.from({length:22},(_,i)=>['G'+(i+1),true]));
+ const c=vm.createContext({leftModel:{count:15},centerModel:{count:3},rightModel:{count:14},registry,
  NordVpnLayout:{migrateV1Order:()=>null},WallpaperLayout:{migrateV1Order:()=>null},applyTo:(m,g)=>calls.push(Array.from(g))});
  vm.runInContext(fn,c);
  const old='G1,G2,G5,G4,G3,G6,G7|G8|G9,G10,G17,G14,G12,G13,G11,G16,G15,G18';
- c.applyOrder(old);assert.equal(calls.length,3);assert.deepEqual(calls[0],['G1','G2','G5','G4','G3','G6','G7','G19','G20','G21']);
+ c.applyOrder(old);assert.equal(calls.length,3);assert.deepEqual(calls[0],['G1','G2','G5','G4','G3','G6','G7','G19','G20','G21','G22','','','','']);
  const current=calls.map(x=>x.join(',')).join('|');calls.length=0;c.applyOrder(current);assert.equal(calls.length,3);assert.equal(calls.flat().filter(x=>x==='G19').length,1);
  calls.length=0;c.applyOrder(old.replace('G7','G6'));assert.equal(calls.length,0);
 });
