@@ -8,7 +8,7 @@ Item {
     required property var root
     required property color contentColor
     property real slotWidth: 28
-    property real iconPixelSize: 13
+    property real iconPixelSize: 14
     property bool showStatusBadge: true
     property Component backgroundComponent
     Loader {

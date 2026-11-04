@@ -950,7 +950,7 @@ PanelWindow {
     Component { id: compOneDrive; CommonComponents.OneDriveWidget {
         root: barSlot.root
         contentColor: barSlot.root.widgetContentColor("G22", barSlot.root.widgetIconColor)
-        iconPixelSize: 11
+        iconPixelSize: 14
     } }
     Component {
         id: compLauncher
