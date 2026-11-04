@@ -1304,6 +1304,9 @@ Item {
         var radius = widgetSurfaceStyle(gid).radius
         return radius === "square" ? 0 : radius === "soft" ? 6 : radius === "round" ? 12 : panelButtonRadius
     }
+    function widgetSurfaceHeight(gid) {
+        return gid === "G22" ? 22 : 24
+    }
     function serializeWidgetSurfaceStyles() {
         var out = []
         for (var n = 1; n <= 22; n++) {

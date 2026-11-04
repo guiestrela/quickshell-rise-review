@@ -947,7 +947,11 @@ PanelWindow {
     }
 
     // ─────────────────────────── group registry ───────────────────────────
-    Component { id: compOneDrive; CommonComponents.OneDriveWidget { root: barSlot.root; contentColor: barSlot.root.widgetContentColor("G22", barSlot.root.widgetIconColor) } }
+    Component { id: compOneDrive; CommonComponents.OneDriveWidget {
+        root: barSlot.root
+        contentColor: barSlot.root.widgetContentColor("G22", barSlot.root.widgetIconColor)
+        iconPixelSize: 11
+    } }
     Component {
         id: compLauncher
         LauncherWidget {
@@ -1434,7 +1438,7 @@ PanelWindow {
                     width: Math.round(ldr.implicitWidth) + 2 * slot.surfacePadding
                     // Keep every optional fill/border surface slightly inset from
                     // the bar edges so all widget treatments share one geometry.
-                    height: 24
+                    height: barSlot.root.widgetSurfaceHeight(slot.gid)
                     radius: barSlot.root.widgetSurfaceRadius(slot.gid)
                     opacity: barSlot.root.widgetSurfaceStyle(slot.gid).opacity
                     clip: true

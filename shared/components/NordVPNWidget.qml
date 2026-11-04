@@ -54,9 +54,9 @@ Item {
     function activate() { return NordVPNWidgetLogic.activate(nordVpnWidget, {root: root}) }
 
     Loader {
-        x: 0; anchors.verticalCenter: parent.verticalCenter
+        anchors.centerIn: parent
         width: Math.round(row.width) + 18
-        height: 22
+        height: nordVpnWidget.root.pillH
         sourceComponent: nordVpnWidget.backgroundComponent
     }
 

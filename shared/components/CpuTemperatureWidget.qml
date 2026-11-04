@@ -7,7 +7,12 @@ Item {
     required property color contentColor
     property bool compact: false
     property Component backgroundComponent
-    Loader { anchors.fill: parent; sourceComponent: rootMod.backgroundComponent }
+    Loader {
+        anchors.centerIn: parent
+        width: parent.width
+        height: rootMod.root.pillH
+        sourceComponent: rootMod.backgroundComponent
+    }
 
     readonly property int temperature: rootMod.root.barTemperatureC
     readonly property string sourceLabel: rootMod.root.barTemperatureSourceLabel(rootMod.root.barTemperatureSource)

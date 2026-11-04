@@ -12,8 +12,7 @@ Shared.CpuTemperatureWidget {
         id: pillBackground
         Rectangle {
             width: parent.width
-            height: widget.root.pillH
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.fill: parent
             radius: widget.root.pillRadius
             color: widget.root.pill
             border.color: widget.root.pillBorder

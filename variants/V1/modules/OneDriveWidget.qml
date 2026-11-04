@@ -7,13 +7,14 @@ Shared.OneDriveWidget {
     id: widget
     contentColor: widget.root.seal
     slotWidth: 28
+    iconPixelSize: 11
+    showStatusBadge: false
     backgroundComponent: widget.root.barVertical === true ? null : pillBackground
     Component {
         id: pillBackground
         Rectangle {
             width: parent.width
-            height: 22
-            anchors.verticalCenter: parent.verticalCenter
+            anchors.fill: parent
             radius: widget.root.pillRadius
             color: widget.root.fillIdle
             border.color: widget.root.pillBorder

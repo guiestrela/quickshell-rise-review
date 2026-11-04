@@ -7,9 +7,16 @@ Item {
     id: widget
     required property var root
     required property color contentColor
-    property real slotWidth: 34
+    property real slotWidth: 28
+    property real iconPixelSize: 13
+    property bool showStatusBadge: true
     property Component backgroundComponent
-    Loader { anchors.fill: parent; sourceComponent: widget.backgroundComponent }
+    Loader {
+        anchors.centerIn: parent
+        width: parent.width
+        height: widget.root.pillH
+        sourceComponent: widget.backgroundComponent
+    }
     readonly property var service: root.oneDriveService
     readonly property var aggregate: service.aggregate
     readonly property var barState: Model.barState(aggregate)
@@ -21,33 +28,16 @@ Item {
         anchors.centerIn: parent
         text: String.fromCodePoint(0xF0160)
         font.family: widget.root.mono
-        font.pixelSize: 13
+        font.pixelSize: widget.iconPixelSize
         color: widget.contentColor
         opacity: widget.barState.active ? 1 : 0.55
-    }
-    Rectangle {
-        anchors.right: parent.right
-        anchors.rightMargin: 4
-        anchors.bottom: parent.bottom
-        anchors.bottomMargin: 5
-        width: 4
-        height: 4
-        radius: 2
-        visible: widget.barState.active && widget.badgeKind === ""
-        color: widget.barState.syncing ? widget.root.seal : widget.contentColor
-        SequentialAnimation on opacity {
-            running: widget.barState.syncing
-            loops: Animation.Infinite
-            NumberAnimation { to: 0.25; duration: 500 }
-            NumberAnimation { to: 1; duration: 500 }
-        }
     }
     OneDrive.StatusBadge {
         anchors.right: parent.right
         anchors.rightMargin: 4
         anchors.bottom: parent.bottom
         anchors.bottomMargin: 5
-        visible: widget.badgeKind !== ""
+        visible: widget.showStatusBadge && widget.badgeKind !== ""
         badgeSize: 8
         glyph: Model.badgeGlyph(widget.badgeKind)
         glyphColor: widget.badgeKind === "login" || widget.badgeKind === "attention" ? "#e06c75" : widget.root.seal
