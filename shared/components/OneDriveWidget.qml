@@ -7,18 +7,21 @@ Item {
     id: widget
     required property var root
     required property color contentColor
+    property real slotWidth: 34
     property Component backgroundComponent
     Loader { anchors.fill: parent; sourceComponent: widget.backgroundComponent }
     readonly property var service: root.oneDriveService
     readonly property var aggregate: service.aggregate
     readonly property var barState: Model.barState(aggregate)
     readonly property string badgeKind: Model.badgeKind(aggregate.kind)
-    implicitWidth: root.modOneDrive ? 34 : 0
+    implicitWidth: root.modOneDrive ? slotWidth : 0
     implicitHeight: 28
     visible: implicitWidth > 0
-    OneDrive.OneDriveIcon {
+    UiText {
         anchors.centerIn: parent
-        iconSize: 12
+        text: String.fromCodePoint(0xF0160)
+        font.family: widget.root.mono
+        font.pixelSize: 13
         color: widget.contentColor
         opacity: widget.barState.active ? 1 : 0.55
     }
