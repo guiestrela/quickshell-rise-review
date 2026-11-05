@@ -53,14 +53,22 @@ PanelWindow {
     property bool cacheLoaded: false
     property string lastSaved: ""
 
-    // pending = not dismissed → drives both the list and the badge
+    // The tray shows only live alerts. Closed host history remains in the local
+    // archive, but must not keep reappearing as a pending notification.
     readonly property var pending: {
         var out = []
         for (var i = 0; i < recent.length; i++)
-            if (!dismissed[recent[i].key]) out.push(recent[i])
+            if (recent[i].active === true && !dismissed[recent[i].key]) out.push(recent[i])
         return out
     }
-    readonly property int unreadCount: pending.length
+    // The retained archive is useful when opening the panel, but old history
+    // must not inflate the unread badge after the host has closed those alerts.
+    readonly property int unreadCount: {
+        var count = 0
+        for (var i = 0; i < pending.length; i++)
+            if (pending[i].active === true) count++
+        return count
+    }
     // scrollable list height cap, clamped to the monitor
     readonly property int listCap: Math.max(120, Math.min(420, notifPanel.height - 220))
 
