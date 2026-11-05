@@ -119,7 +119,7 @@ PanelWindow {
             onStreamFinished: {
                 var d
                 try { d = JSON.parse(this.text) } catch (e) { return }
-                notifPanel.merge(d.token || "", d.list || [], d.history || [])
+                if (d.valid !== false) notifPanel.merge(d.token || "", d.list || [], d.history || [], d.store === true)
             }
         }
     }
@@ -129,7 +129,7 @@ PanelWindow {
     }
 
     // merge this poll's active(list) + history into our retained history
-    function merge(token, listArr, histArr) {
+    function merge(token, listArr, histArr, store) {
         // session / generation
         if (token !== "" && token !== notifPanel.sessionToken) {
             if (notifPanel.sessionToken !== "") notifPanel.generation += 1
@@ -141,33 +141,42 @@ PanelWindow {
         var incoming = {}
         for (var i = 0; i < listArr.length; i++) {
             var n = listArr[i]
-            incoming[n.id] = { appName: n.app_name || "", summary: n.summary || "", body: n.body || "", active: true, backend: n.backend || "", timestamp: n.timestamp || 0, actionKind: n.actionKind, crashReference: n.crashReference }
+            incoming[n.sourceKey || n.id] = { id: n.id, sourceKey: n.sourceKey, appName: n.app_name || "", summary: n.summary || "", body: n.body || "", active: true, backend: n.backend || "", timestamp: n.timestamp || 0, actionKind: n.actionKind, crashReference: n.crashReference }
         }
         for (var j = 0; j < histArr.length; j++) {
             var h = histArr[j]
-            if (incoming[h.id] === undefined)
-                incoming[h.id] = { appName: h.app_name || "", summary: h.summary || "", body: h.body || "", active: false, backend: h.backend || "", timestamp: h.timestamp || 0, actionKind: h.actionKind, crashReference: h.crashReference }
+            if (incoming[h.sourceKey || h.id] === undefined)
+                incoming[h.sourceKey || h.id] = { id: h.id, sourceKey: h.sourceKey, appName: h.app_name || "", summary: h.summary || "", body: h.body || "", active: false, backend: h.backend || "", timestamp: h.timestamp || 0, actionKind: h.actionKind, crashReference: h.crashReference }
         }
 
         // existing entries by composite key
         var byKey = {}
-        for (var k = 0; k < notifPanel.recent.length; k++) byKey[notifPanel.recent[k].key] = notifPanel.recent[k]
+        for (var k = 0; k < notifPanel.recent.length; k++) {
+            var retained = notifPanel.recent[k]
+            // The modern store owns retention/redaction. Never retain a modern
+            // message after the host has removed it from both live and history.
+            if (store && retained.sourceKey && incoming[retained.sourceKey] === undefined) continue
+            byKey[retained.key] = retained
+        }
 
         // update-or-create current-gen entries; oldest id first so newest gets the largest seq
         var ids = []
-        for (var idk in incoming) ids.push(parseInt(idk))
-        ids.sort(function(a, b) { return a - b })
+        for (var idk in incoming) ids.push(idk)
+        ids.sort(function(a, b) {
+            return incoming[a].timestamp - incoming[b].timestamp || Number(a) - Number(b) || a.localeCompare(b)
+        })
         for (var m = 0; m < ids.length; m++) {
             var id = ids[m]
-            var key = gen + ":" + id
             var src = incoming[id]
+            var key = src.sourceKey ? "omarchy:" + src.sourceKey : gen + ":" + id
             if (byKey[key] !== undefined) {
                 var e = byKey[key]
                 e.appName = src.appName; e.summary = src.summary; e.body = src.body
                 e.backend = src.backend; e.timestamp = src.timestamp
+                e.sourceKey = src.sourceKey; e.id = src.id; e.gen = gen
                 e.actionKind = src.actionKind; e.crashReference = src.crashReference
             } else {
-                byKey[key] = { key: key, id: id, gen: gen,
+                byKey[key] = { key: key, id: src.id, sourceKey: src.sourceKey, gen: gen,
                     appName: src.appName, summary: src.summary, body: src.body,
                     backend: src.backend, timestamp: src.timestamp,
                     actionKind: src.actionKind, crashReference: src.crashReference,
@@ -179,7 +188,8 @@ PanelWindow {
         var out = []
         for (var ek in byKey) {
             var ee = byKey[ek]
-            ee.active = (ee.gen === gen && incoming[ee.id] !== undefined && incoming[ee.id].active === true)
+            var sourceId = ee.sourceKey || ee.id
+            ee.active = (ee.gen === gen && incoming[sourceId] !== undefined && incoming[sourceId].active === true)
             out.push(ee)
         }
         out.sort(function(a, b) { return b.firstSeen - a.firstSeen })
@@ -200,11 +210,6 @@ PanelWindow {
 
     // ── actions ──
     Process { id: actionProc; command: ["true"] }
-    Process {
-        id: clearHistoryProc
-        command: ["omarchy-shell", "notifications", "clear"]
-        onExited: function() { }
-    }
     function runNotificationAction(argv) {
         actionProc.command = argv
         actionProc.running = false; actionProc.running = true
@@ -216,7 +221,7 @@ PanelWindow {
         nd[entry.key] = true
         notifPanel.dismissed = nd                // reassign → bindings update
         var id = parseInt(entry.id)              // normalize before it touches a shell
-        if (entry.active && id > 0) {
+        if (entry.active && id > 0 && !entry.sourceKey) {
             if (notifPanel.root._notifOmarchyShellBackend)
                 notifPanel.runNotificationAction(["omarchy-shell", "notifications", "dismiss", String(entry.summary || "")])
             else
@@ -233,7 +238,6 @@ PanelWindow {
         notifPanel.recent = []                   // clear own history; re-merged entries stay dismissed-filtered
         if (notifPanel.root._notifOmarchyShellBackend) {
             notifPanel.runNotificationAction(["omarchy-shell", "notifications", "dismissAll"])
-            clearHistoryProc.running = false; clearHistoryProc.running = true
         } else {
             notifPanel.runNotificationAction(["makoctl", "dismiss", "-h", "--all"])
         }
@@ -537,6 +541,7 @@ PanelWindow {
 
                                 CommonComponents.UiText {
                                     text: notificationRow.modelData.appName || "App"
+                                    textFormat: Text.PlainText
                                     color: notifPanel.root.sumiHi
                                     font.family: notifPanel.root.mono
                                     font.pixelSize: 10
@@ -546,6 +551,7 @@ PanelWindow {
                                 }
                                 CommonComponents.UiText {
                                     text: notificationRow.modelData.summary || ""
+                                    textFormat: Text.PlainText
                                     color: notifPanel.root.ink
                                     font.family: notifPanel.root.mono
                                     font.pixelSize: 11
@@ -555,6 +561,7 @@ PanelWindow {
                                 }
                                 CommonComponents.UiText {
                                     text: notificationRow.modelData.body || ""
+                                    textFormat: Text.PlainText
                                     color: Qt.rgba(notifPanel.root.ink.r, notifPanel.root.ink.g, notifPanel.root.ink.b, 0.6)
                                     font.family: notifPanel.root.mono
                                     font.pixelSize: 10

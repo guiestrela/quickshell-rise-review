@@ -56,6 +56,13 @@ class ScreenshotAction(unittest.TestCase):
             record = state/f'{entry["timestamp"]}-7.json'; record.write_text(json.dumps(row))
             self.assertEqual(mod.plan_screenshot_action(entry,state,pictures)['argv'],
                              ['/usr/bin/tensaku-edit',str(capture)])
+            record.unlink()
+            modern = dict(row, key='native-screenshot', ts=entry['timestamp']/1000)
+            (state/'live.json').write_text(json.dumps([modern]))
+            self.assertEqual(mod.plan_screenshot_action(entry,state,pictures)['argv'],
+                             ['/usr/bin/tensaku-edit',str(capture)])
+            (state/'live.json').unlink()
+            record.write_text(json.dumps(row))
             for bad in [['bash','-c'], ['tensaku-edit',str(Path(tmp)/capture.name)],
                         ['tensaku-edit',str(capture),'extra'], ['tensaku-edit','--help']]:
                 with self.subTest(callback=bad):
@@ -80,10 +87,13 @@ class ScreenshotAction(unittest.TestCase):
     def test_editor_failure_is_not_reported_as_success(self):
         from unittest.mock import patch
         mod = module()
-        with patch.object(mod.subprocess, 'Popen') as spawn:
+        with patch.object(mod.subprocess, 'Popen') as spawn, \
+                patch.object(mod.Path, 'resolve', return_value=Path('/usr/bin/true')), \
+                patch.object(mod.os, 'access', return_value=True):
             spawn.return_value.wait.return_value = 1
             with self.assertRaises(mod.ActionUnavailable):
                 mod.launch_screenshot_action({'argv':['/usr/bin/tensaku-edit','/fixture/image.png']})
+            spawn.assert_called_once()
 
 if __name__ == '__main__':
     unittest.main()

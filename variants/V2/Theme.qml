@@ -929,7 +929,8 @@ Item {
     property bool _notifBackendChecked: false
     property bool _notifOmarchyShellBackend: false
     property bool _notifOmarchyShellSystem: false
-    readonly property string notificationsStatePath: Quickshell.env("HOME") + "/.local/state/omarchy/notifications.json"
+    property bool _notifQuietStateAvailable: false
+    readonly property string notificationsStatePath: Quickshell.env("HOME") + "/.local/state/omarchy/notifications/quiet.json"
     property bool screenRecording: false
     property int screenRecordingElapsed: 0
     property string _screenRecordingPid: ""
@@ -1010,11 +1011,24 @@ Item {
         printErrors: false
         onFileChanged: notificationsStateFile.reload()
         onLoaded: {
+            theme._notifQuietStateAvailable = true
             if (theme._notifOmarchyShellSystem) theme.parseNotificationsState(notificationsStateFile.text())
         }
         onLoadFailed: {
-            if (theme._notifOmarchyShellSystem) theme.notifSilenced = false
+            theme._notifQuietStateAvailable = false
+            notificationsLegacyStateFile.reload()
         }
+    }
+    FileView {
+        id: notificationsLegacyStateFile
+        path: Quickshell.env("HOME") + "/.local/state/omarchy/notifications.json"
+        watchChanges: theme._notifOmarchyShellSystem && !theme._notifQuietStateAvailable
+        printErrors: false
+        onFileChanged: if (!theme._notifQuietStateAvailable) reload()
+        onLoaded: if (theme._notifOmarchyShellSystem && !theme._notifQuietStateAvailable)
+            theme.parseNotificationsState(notificationsLegacyStateFile.text())
+        onLoadFailed: if (theme._notifOmarchyShellSystem && !theme._notifQuietStateAvailable)
+            theme.notifSilenced = false
     }
 
     Timer {

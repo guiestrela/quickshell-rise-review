@@ -123,9 +123,11 @@ function parseNotificationsState(riseOwner, riseEnvironment, text) {
 
         try {
             var parsed = JSON.parse(String(text || "{}"))
-            riseState.notifSilenced = parsed && parsed.dnd === true
+            if (!parsed || Array.isArray(parsed) || typeof parsed.dnd !== "boolean") return false
+            riseState.notifSilenced = parsed.dnd
+            return true
         } catch (e) {
-            riseState.notifSilenced = false
+            return false
         }
     }
 

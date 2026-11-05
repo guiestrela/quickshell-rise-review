@@ -150,6 +150,19 @@ V2 supports up to 20 positions per side and 8 in the center. Use the `+` control
 in edit mode to add a slot. Only empty additional slots can be removed; moving
 a widget into a slot preserves all other slot positions.
 
+## Notification history on Omarchy 4.5
+
+Rise reads the native `notifications/live.json` and `history.json` stores and
+the `quiet.json` do-not-disturb state. Native keys keep entries stable across
+shell restarts, and modern entries disappear from Rise when the host removes
+them through retention. The Rise panel displays up to 50 recent entries.
+
+Closing an entry hides it in Rise. **Clear all** hides the retained Rise entries
+and dismisses native popups; Omarchy continues to manage its own stored history.
+The notification action buttons provided by applications remain available on
+the native Omarchy popups. Rise retains its supported app-opening and verified
+action fallbacks; it does not replay arbitrary commands from stored messages.
+
 ## Native Omarchy indicators
 
 The clock group includes passwordless-sudo status, screen recording, remote

@@ -7,7 +7,9 @@ Historical app launch does not recover the original message.
 import argparse
 import configparser
 import json
+import math
 import os
+import re
 from pathlib import Path
 import stat
 import subprocess
@@ -16,24 +18,70 @@ import sys
 
 APP_COMMANDS={'Thunderbird': ['/usr/bin/thunderbird']}
 GIO='/usr/bin/gio'
+IMAGE_OPENER='/usr/bin/xdg-open'
 
 class Unavailable(ValueError):
     pass
 
-def read_owned(path,system=False):
+def read_owned(path,system=False,maximum=524288):
     fd=os.open(path,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
     with os.fdopen(fd,'rb') as file:
         info=os.fstat(file.fileno())
         owners={0,os.getuid()} if system else {os.getuid()}
         if info.st_uid not in owners or info.st_mode&0o022 or not stat.S_ISREG(info.st_mode):
             raise Unavailable('The notification reference cannot be read safely.')
-        raw=file.read(524289)
-        if len(raw)>524288:
+        raw=file.read(maximum+1)
+        if len(raw)>maximum:
             raise Unavailable('The notification reference is too large.')
         return raw
 
-def read_json(path):
-    return json.loads(read_owned(path))
+def read_json(path,maximum=524288):
+    return json.loads(read_owned(path,maximum=maximum))
+
+def capture_path(value):
+    if not isinstance(value,str) or len(value)>4096:
+        raise Unavailable('The saved screenshot path is invalid.')
+    image=Path(value)
+    directories=[Path.home()/'Pictures/Screenshots',Path.home()/'Pictures']
+    for key in ('OMASNAP_SCREENSHOT_DIR','OMARCHY_SCREENSHOT_DIR'):
+        configured=os.environ.get(key)
+        if configured:directories.append(Path(configured).expanduser())
+    if (not image.is_absolute() or image.parent.resolve() not in [d.resolve() for d in directories]
+            or not re.fullmatch(r'screenshot-[0-9]{4}-[0-9]{2}-[0-9]{2}_[0-9]{2}-[0-9]{2}-[0-9]{2}(?:-[^/\\\x00-\x1f]{1,200})?\.png',image.name)):
+        raise Unavailable('The screenshot is outside the capture directory.')
+    fd=os.open(image,os.O_RDONLY|os.O_NOFOLLOW|os.O_NONBLOCK)
+    with os.fdopen(fd,'rb') as stream:
+        info=os.fstat(stream.fileno())
+        if (info.st_uid!=os.getuid() or info.st_mode&0o022 or not stat.S_ISREG(info.st_mode)
+                or stream.read(8)!=b'\x89PNG\r\n\x1a\n'):
+            raise Unavailable('The saved screenshot is not a safe PNG file.')
+    return str(image)
+
+def plan_capture(entry,state_dir):
+    # An Omasnap launcher starts a capture. Its notification instead names the
+    # existing image; re-read that selected native record and allow only Open.
+    matches=[]
+    for filename in ('live.json','history.json'):
+        path=Path(state_dir)/filename
+        if not (path.exists() or path.is_symlink()):continue
+        rows=read_json(path,2097152)
+        if not isinstance(rows,list):raise Unavailable('The notification store is invalid.')
+        for row in rows[:100]:
+            if (not isinstance(row,dict) or not isinstance(row.get('app'),str)
+                    or row['app'].lower()!='omasnap'):continue
+            ts=row.get('ts')
+            if (type(ts) not in (int,float) or not math.isfinite(ts) or not 0<ts<1e12
+                    or row.get('originalId')!=entry['id'] or round(ts*1000)!=entry['timestamp']):continue
+            if row.get('summary')!=entry['summary'] or row.get('body')!=entry['body']:
+                raise Unavailable('The selected screenshot notification has changed.')
+            matches.append(row)
+    if len(matches)!=1:raise Unavailable('The saved screenshot notification is unavailable or ambiguous.')
+    argv=matches[0].get('execArgv')
+    if isinstance(argv,str):argv=json.loads(argv)
+    if (not isinstance(argv,list) or len(argv)!=2
+            or argv[0] not in ('xdg-open',IMAGE_OPENER)):
+        raise Unavailable('This screenshot has no supported image-opening action.')
+    return [IMAGE_OPENER,capture_path(argv[1])]
 
 def desktop_dirs():
     home=Path.home()
@@ -80,6 +128,8 @@ def plan_open(entry,state_dir,cache):
             or not isinstance(entry.get('summary'),str) or not isinstance(entry.get('body'),str)
             or len(entry['body'])>8192):
         raise Unavailable('This app has no approved fixed launcher.')
+    if entry['appName'].lower()=='omasnap':
+        return plan_capture(entry,state_dir)
     filename=str(int(entry['timestamp']))+'-'+str(entry['id'])+'.json'
     native=[]
     for d in (Path(state_dir),Path(state_dir)/'history'):
@@ -110,7 +160,9 @@ def plan_open(entry,state_dir,cache):
     return desktop_command(entry['appName'])
 
 def launch(argv):
-    if argv not in APP_COMMANDS.values():
+    if len(argv)==2 and argv[0]==IMAGE_OPENER:
+        capture_path(argv[1])
+    elif argv not in APP_COMMANDS.values():
         if len(argv)!=3 or argv[:2]!=[GIO,'launch']:
             raise Unavailable('Unknown app command is not allowed.')
         path=Path(argv[2])

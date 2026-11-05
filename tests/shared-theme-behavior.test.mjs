@@ -6,6 +6,17 @@ function library(name) {
  const source=readFileSync(new URL(`../shared/logic/${name}.js`,import.meta.url),'utf8').replace(/^\.pragma library\s*/m,'');
  const context=vm.createContext({}); vm.runInContext(source,context); return context;
 }
+test('quiet state updates DND and malformed state preserves the last known value',()=>{
+ const api=library('ThemeIntegrations'), owner={notifSilenced:false};
+ assert.equal(api.parseNotificationsState(owner,{},'{"dnd":true}'),true);
+ assert.equal(owner.notifSilenced,true);
+ for (const raw of ['{','null','[]','{}','{"dnd":"false"}']) {
+  assert.equal(api.parseNotificationsState(owner,{},raw),false);
+  assert.equal(owner.notifSilenced,true);
+ }
+ api.parseNotificationsState(owner,{},'{"dnd":false}');
+ assert.equal(owner.notifSilenced,false);
+});
 test('tooltip ownership is independent of the active variant and caller',()=>{
  const api=library('ThemePanels'), first={}, second={}, a={}, b={};
  api.showTooltip(first,{},'CPU',20,10,30,a);

@@ -147,40 +147,42 @@ class CrashAction(unittest.TestCase):
         from types import SimpleNamespace
         from unittest.mock import patch
         mod = load_helper()
-        with tempfile.TemporaryDirectory() as directory:
-            home = Path(directory)
-            binary = home / '.local/share/mise/installs/opencode/1.0/opencode'
-            binary.parent.mkdir(parents=True); binary.write_text('fixture'); binary.chmod(0o755)
-            calls = []
-            def lookup(argv, **kwargs):
-                calls.append(argv)
-                return SimpleNamespace(returncode=0, stdout='opencode\n' if argv[0].endswith('omarchy-default-agent') else str(binary)+'\n')
-            original_stat = Path.stat
-            def fixture_stat(path, *args, **kwargs):
-                info = original_stat(path, *args, **kwargs)
-                if path in home.parents:
-                    # Simulate trusted ancestors outside the private fixture;
-                    # /tmp and host config permissions are not under test.
-                    fields = list(info)
-                    fields[0] &= ~0o022
-                    fields[4] = 0
-                    return os.stat_result(fields)
-                return info
-            with patch.object(mod.Path, 'home', return_value=home), \
-                    patch.object(mod.Path, 'stat', fixture_stat), \
-                    patch.object(mod.shutil, 'which', return_value=None), \
-                    patch.object(mod.subprocess, 'run', side_effect=lookup):
-                env = mod.crash_environment()
-                self.assertEqual(env['PATH'], '/usr/share/omarchy/bin:/usr/bin:' + str(binary.parent))
-                self.assertEqual(calls, [['/usr/bin/omarchy-default-agent'], ['/usr/bin/mise', 'which', 'opencode']])
-                binary.parent.chmod(0o777)
-                with self.assertRaises(mod.ActionUnavailable): mod.crash_environment()
-                binary.parent.chmod(0o755)
-                outside = home/'opencode'; outside.write_text('fixture'); outside.chmod(0o755)
-                def escape(argv, **kwargs):
-                    return SimpleNamespace(returncode=0, stdout='opencode\n' if argv[0].endswith('omarchy-default-agent') else str(outside)+'\n')
-                with patch.object(mod.subprocess, 'run', side_effect=escape):
-                    with self.assertRaises(mod.ActionUnavailable): mod.crash_environment()
+        for agent in ('opencode', 'copilot'):
+            with self.subTest(agent=agent):
+                with tempfile.TemporaryDirectory() as directory:
+                    home = Path(directory)
+                    binary = home / '.local/share/mise/installs' / agent / '1.0' / agent
+                    binary.parent.mkdir(parents=True); binary.write_text('fixture'); binary.chmod(0o755)
+                    calls = []
+                    def lookup(argv, **kwargs):
+                        calls.append(argv)
+                        return SimpleNamespace(returncode=0, stdout=agent+'\n' if argv[0].endswith('omarchy-default-agent') else str(binary)+'\n')
+                    original_stat = Path.stat
+                    def fixture_stat(path, *args, **kwargs):
+                        info = original_stat(path, *args, **kwargs)
+                        if path in home.parents:
+                            # Simulate trusted ancestors outside the private fixture;
+                            # /tmp and host config permissions are not under test.
+                            fields = list(info)
+                            fields[0] &= ~0o022
+                            fields[4] = 0
+                            return os.stat_result(fields)
+                        return info
+                    with patch.object(mod.Path, 'home', return_value=home), \
+                            patch.object(mod.Path, 'stat', fixture_stat), \
+                            patch.object(mod.shutil, 'which', return_value=None), \
+                            patch.object(mod.subprocess, 'run', side_effect=lookup):
+                        env = mod.crash_environment()
+                        self.assertEqual(env['PATH'], '/usr/share/omarchy/bin:/usr/bin:' + str(binary.parent))
+                        self.assertEqual(calls, [['/usr/bin/omarchy-default-agent'], ['/usr/bin/mise', 'which', agent]])
+                        binary.parent.chmod(0o777)
+                        with self.assertRaises(mod.ActionUnavailable): mod.crash_environment()
+                        binary.parent.chmod(0o755)
+                        outside = home/agent; outside.write_text('fixture'); outside.chmod(0o755)
+                        def escape(argv, **kwargs):
+                            return SimpleNamespace(returncode=0, stdout=agent+'\n' if argv[0].endswith('omarchy-default-agent') else str(outside)+'\n')
+                        with patch.object(mod.subprocess, 'run', side_effect=escape):
+                            with self.assertRaises(mod.ActionUnavailable): mod.crash_environment()
 
     def test_full_executable_name_reference_accepts_kernel_truncation(self):
         mod = load_helper()

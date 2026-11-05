@@ -68,6 +68,7 @@ PYTHON
 check "Python syntax (including extensionless helpers)" check_python_syntax
 check "AI authentication cache fallback" python3 tests/test-ai-auth-status.py
 check "notification snapshot resilience" python3 tests/test-notification-snapshot.py
+check "notification DND state V1/V2" python3 tests/test-notification-dnd-runtime.py
 
 if [[ -x /usr/lib/qt6/bin/qmllint ]]; then
   qmllint=/usr/lib/qt6/bin/qmllint

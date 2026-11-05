@@ -9,6 +9,7 @@ import argparse
 import fcntl
 import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import re
@@ -165,25 +166,26 @@ def crash_environment():
         raise ActionUnavailable('Choose an installed default coding agent first.')
     if shutil.which(agent, path=env['PATH']):
         return env
-    if agent != 'opencode':
+    if agent not in ('opencode', 'copilot'):
         raise ActionUnavailable('The default agent is unavailable in the restricted launcher environment.')
     # Resolve an already installed binary, never execute an auto-install shim.
     home = Path.home()
-    result = subprocess.run(['/usr/bin/mise', 'which', 'opencode'], capture_output=True,
+    label = {'opencode': 'OpenCode', 'copilot': 'Copilot'}[agent]
+    result = subprocess.run(['/usr/bin/mise', 'which', agent], capture_output=True,
         text=True, timeout=3, env=env, cwd=home / 'Work' if (home / 'Work').is_dir() else home)
     raw = result.stdout.strip()
     if result.returncode != 0 or not plain(raw) or ':' in raw:
-        raise ActionUnavailable('OpenCode is not installed or cannot be resolved safely.')
+        raise ActionUnavailable(label + ' is not installed or cannot be resolved safely.')
     binary = Path(raw).resolve(strict=True)
-    root = home / '.local/share/mise/installs/opencode'
-    if not binary.is_relative_to(root) or binary.name != 'opencode':
-        raise ActionUnavailable('OpenCode resolved outside its installed package.')
+    root = home / '.local/share/mise/installs' / agent
+    if not binary.is_relative_to(root) or binary.name != agent:
+        raise ActionUnavailable(label + ' resolved outside its installed package.')
     for path in (binary, *binary.parents):
         info = path.stat()
         if info.st_uid not in (0, os.getuid()) or info.st_mode & 0o022:
-            raise ActionUnavailable('OpenCode installation is writable by other users.')
+            raise ActionUnavailable(label + ' installation is writable by other users.')
     if not binary.is_file() or not os.access(binary, os.X_OK):
-        raise ActionUnavailable('OpenCode executable is unavailable.')
+        raise ActionUnavailable(label + ' executable is unavailable.')
     env['PATH'] += ':' + str(binary.parent)
     return env
 
@@ -236,14 +238,40 @@ SCREENSHOT_BODY = 'Edit with Super + Alt + , (or click this)'
 SCREENSHOT_EDITOR = '/usr/bin/tensaku-edit'
 
 
-def read_owned_json(path):
+def read_owned_json(path, maximum=65536):
     fd = os.open(path, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK)
     with os.fdopen(fd, 'r') as source:
         info = os.fstat(source.fileno())
         if (info.st_uid != os.getuid() or info.st_mode & 0o022
-                or not stat.S_ISREG(info.st_mode) or info.st_size > 65536):
+                or not stat.S_ISREG(info.st_mode) or info.st_size > maximum):
             raise ActionUnavailable('Notification record is not safe to read.')
         return json.load(source)
+
+
+def native_records(state_dir, identity, timestamp):
+    records = []
+    filename = str(int(timestamp)) + '-' + str(identity) + '.json'
+    for directory in (Path(state_dir), Path(state_dir) / 'history'):
+        path = directory / filename
+        if path.exists() or path.is_symlink():
+            records.append(read_owned_json(path))
+    for filename in ('live.json', 'history.json'):
+        path = Path(state_dir) / filename
+        if not (path.exists() or path.is_symlink()):
+            continue
+        rows = read_owned_json(path, 2097152)
+        if not isinstance(rows, list):
+            raise ActionUnavailable('Notification store is invalid.')
+        for row in rows[:100]:
+            if not isinstance(row, dict) or row.get('originalId') != identity:
+                continue
+            ts = row.get('ts')
+            if (isinstance(ts, bool) or not isinstance(ts, (int, float))
+                    or not math.isfinite(ts) or abs(ts) > 1e12
+                    or round(ts * 1000) != timestamp):
+                continue
+            records.append(dict(row, timestamp=timestamp))
+    return records
 
 
 def plan_screenshot_action(entry, state_dir, pictures):
@@ -261,12 +289,7 @@ def plan_screenshot_action(entry, state_dir, pictures):
         raise ActionUnavailable('Screenshot notification identity is missing.')
     if not 0 < timestamp < 1e15 or timestamp != int(timestamp):
         raise ActionUnavailable('Screenshot notification identity is missing.')
-    filename = str(int(timestamp)) + '-' + str(identity) + '.json'
-    records = []
-    for directory in (Path(state_dir), Path(state_dir) / 'history'):
-        path = directory / filename
-        if path.exists() or path.is_symlink():
-            records.append(read_owned_json(path))
+    records = native_records(state_dir, identity, timestamp)
     if len(records) != 1:
         raise ActionUnavailable('The selected screenshot notification is unavailable or ambiguous.')
     row = records[0]
@@ -319,12 +342,7 @@ def browser_windows(entry, state_dir, clients):
             or isinstance(entry['timestamp'], bool) or not 0 < entry['timestamp'] < 1e15
             or entry['timestamp'] != int(entry['timestamp'])):
         raise ActionUnavailable('This notification has no supported browser fallback.')
-    filename = str(int(entry['timestamp'])) + '-' + str(entry['id']) + '.json'
-    rows = []
-    for directory in (Path(state_dir), Path(state_dir) / 'history'):
-        path = directory / filename
-        if path.exists() or path.is_symlink():
-            rows.append(read_owned_json(path))
+    rows = native_records(state_dir, entry['id'], entry['timestamp'])
     if len(rows) != 1:
         raise ActionUnavailable('The selected browser notification is unavailable or ambiguous.')
     row = rows[0]

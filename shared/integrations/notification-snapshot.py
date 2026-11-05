@@ -3,6 +3,9 @@
 
 import json
 import os
+import math
+import re
+import time
 from pathlib import Path
 import subprocess
 import sys
@@ -56,8 +59,75 @@ def process_token(name: str) -> str:
         return ""
 
 
+def read_store(path: Path, active: bool):
+    try:
+        with path.open('rb') as stream:
+            raw = stream.read(2_097_153)
+        if len(raw) > 2_097_152:
+            return None
+        rows = json.loads(raw)
+    except FileNotFoundError:
+        return []
+    except (OSError, ValueError):
+        return None
+    if not isinstance(rows, list):
+        return None
+    entries = []
+    now = time.time()
+    seen = set()
+    for row in rows:
+        if len(entries) >= 100:
+            break
+        if not isinstance(row, dict):
+            continue
+        key = row.get('key')
+        ts = row.get('ts')
+        if (not isinstance(key, str) or not re.fullmatch(r'[A-Za-z0-9_-]{1,120}', key)
+                or key in seen or isinstance(ts, bool) or not isinstance(ts, (int, float))
+                or not math.isfinite(ts) or ts <= 0 or ts > 1e12):
+            continue
+        if not active:
+            closed = row.get('closed_ts')
+            if (isinstance(closed, bool) or not isinstance(closed, (int, float))
+                    or not math.isfinite(closed) or closed <= now - 86400):
+                continue
+        seen.add(key)
+        argv = row.get('execArgv')
+        if isinstance(argv, str):
+            try:
+                argv = json.loads(argv)
+            except ValueError:
+                argv = None
+        crash = (isinstance(argv, list) and len(argv) == 5
+                 and argv[0] in ('omarchy-agent-crash', '/usr/bin/omarchy-agent-crash')
+                 and all(isinstance(arg, str) for arg in argv))
+        def text(field, limit):
+            value = row.get(field)
+            return value[:limit] if isinstance(value, str) else ''
+        identity = row.get('originalId', 0)
+        entries.append({
+            'id': identity if type(identity) is int and 0 < identity < 2147483648 else 0,
+            'sourceKey': key, 'app_name': text('app', 512),
+            'summary': text('summary', 4096), 'body': text('body', 16384),
+            'active': active, 'timestamp': round(ts * 1000), 'backend': 'omarchy',
+            'actionKind': 'omarchy-crash' if crash else 'unsupported',
+            'crashReference': ({'pid': argv[1], 'comm': argv[2], 'exe': argv[3], 'signal': argv[4]} if crash else None),
+        })
+    return entries
+
+
 def omarchy_snapshot(state: Path):
     notifications = state / "notifications"
+    live = notifications / 'live.json'
+    stored_history = notifications / 'history.json'
+    if live.exists() or stored_history.exists() or (notifications / 'quiet.json').exists():
+        active = read_store(live, True)
+        history = read_store(stored_history, False)
+        return {
+            'token': 'omarchy-store-v1', 'store': True,
+            'valid': active is not None and history is not None,
+            'list': active or [], 'history': history or [],
+        }
     history = notifications / "history"
     if not history.is_dir():
         return None
