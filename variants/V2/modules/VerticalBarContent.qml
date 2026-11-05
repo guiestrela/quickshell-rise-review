@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "../../../shared/components" as CommonComponents
 import "../../../shared/logic/VerticalBarContentValuesLogic.js" as VerticalBarContentValuesLogic
 import "../../../shared/logic/VerticalBarContentLogic.js" as VerticalBarContentLogic
 import QtQuick.Shapes
@@ -337,6 +338,7 @@ Item {
     Component {
         id: clock
         Item {
+            HoverHandler { id: indicatorHover }
             implicitWidth: 34
             implicitHeight: clockColumn.implicitHeight
             readonly property real clockCenterY: time.y + time.height / 2
@@ -362,6 +364,14 @@ Item {
                     implicitHeight: rail.root.clock12h ? 44 : 32
                     onActivated: rail.root.calendarVisible = !rail.root.calendarVisible
                     onSecondaryActivated: rail.root.weatherVisible = !rail.root.weatherVisible
+                }
+                CommonComponents.OmarchyIndicatorsWidget {
+                    root: rail.root
+                    coordinator: rail.root.omarchyIndicators
+                    contentColor: rail.root.widgetContentColor("G8", rail.root.seal)
+                    vertical: true
+                    revealInactive: indicatorHover.hovered
+                    anchors.horizontalCenter: parent.horizontalCenter
                 }
             }
         }

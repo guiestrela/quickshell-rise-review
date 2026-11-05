@@ -14,6 +14,8 @@ with tempfile.TemporaryDirectory(prefix='rise-vertical-', dir='/tmp') as directo
     (base / 'runtime').mkdir(mode=0o700)
     for name in ['VerticalBarContent.qml', 'SidePanelPositioner.qml', 'AiPanelSurface.qml', 'WorkspaceWidget.qml']:
         copy_qml_fixture(repo / 'variants/V2/modules' / name, base)
+    for name in ['OmarchyIndicatorsWidget.qml', 'UiText.qml', 'TooltipMixin.qml']:
+        copy_qml_fixture(repo / 'shared/components' / name, base)
     for name in ['ArchUpdaterWidget', 'TrayWidget', 'NotificationWidget', 'IdleInhibitorWidget', 'MediaBrowserWidget', 'ThemeDisplayWidget']:
         (base / (name + '.qml')).write_text('import QtQuick\nItem { property var root; property var screen; implicitWidth: 30; implicitHeight: 28 }\n')
     (base / 'WeatherWidget.qml').write_text('import QtQuick\nItem { property var root; property bool weatherLoaded: true; property string weatherTempStr: "25°C"; implicitWidth: 32; implicitHeight: 28 }\n')
@@ -33,6 +35,11 @@ ShellRoot {
   property bool modQuick: true
   property bool modWeather: true
   property bool clock12h: false
+  property var omarchyIndicators: null
+  property var tooltipOwner: null
+  property string tooltipText: ""
+  function showTooltip(text, x, y, bottom, owner) {}
+  function hideTooltip(owner) {}
   property color bg: Qt.rgba(0.1, 0.1, 0.1, 0.98)
   property int panelRadius: 6
   property int panelOuterBorderW: 1

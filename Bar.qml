@@ -38,6 +38,7 @@ Item {
 
     VariantHost {
         id: variantController
+        omarchyShell: root.shell
         stateService: variantState
         wallpaperWakeAvailable: wakeBridge.available
         wallpaperSessionLocked: wakeBridge.locked

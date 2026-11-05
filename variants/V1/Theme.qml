@@ -22,6 +22,13 @@ import "../../shared/services" as CommonServices
 Item {
     id: theme
     property var variantHost: null
+    readonly property alias omarchyIndicators: indicators
+    CommonServices.OmarchyIndicators {
+        id: indicators
+        root: theme
+        shell: theme.variantHost && theme.variantHost.omarchyShell !== undefined
+            ? theme.variantHost.omarchyShell : null
+    }
     signal reactorTest(string kind, string arg)
 
     property string omarchyCurrentRoot: Quickshell.env("HOME") + "/.config/omarchy/current"

@@ -9,6 +9,7 @@ with tempfile.TemporaryDirectory(prefix='rise-v1-vertical-', dir='/tmp') as dire
     runtime = base / 'runtime'; runtime.mkdir(mode=0o700)
     for name in ['VerticalBarContent.qml', 'SidePanelPositioner.qml', 'WorkspaceWidget.qml', 'PillShadow.qml', 'CpuWidget.qml', 'MemoryWidget.qml', 'MprisWidget.qml', 'UiText.qml', 'IconText.qml', 'TooltipMixin.qml']:
         copy_qml_fixture(qml_fixture_source(repo / 'variants/V1/modules' / name), base)
+    copy_qml_fixture(repo / 'shared/components/OmarchyIndicatorsWidget.qml', base)
     for name in ['ArchUpdaterWidget', 'TrayWidget', 'NotificationWidget', 'IdleInhibitorWidget', 'MediaBrowserWidget', 'ThemeDisplayWidget', 'WeatherWidget']:
         (base / (name + '.qml')).write_text('import QtQuick\nItem { property var root; property var screen; implicitWidth: 30; implicitHeight: 28 }\n')
     (base / 'MprisSelect.qml').write_text('import QtQuick\nItem { property var player: ({trackTitle:"Long song name",trackArtist:"Artist",canGoPrevious:true,canGoNext:true}); property bool active: true; property bool playing: false }')
@@ -56,7 +57,6 @@ with tempfile.TemporaryDirectory(prefix='rise-v1-vertical-', dir='/tmp') as dire
   property int systemMemPercent: 45
   property real systemMemUsedGiB: 13.1
   property real systemMemTotalGiB: 32
-  property var tooltipOwner: null
   property bool memVisible: false
   property bool gpuVisible: false
   property bool mprisVisible: false

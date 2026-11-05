@@ -149,3 +149,21 @@ and split settings are migrated in place. Escape locks the bar again.
 V2 supports up to 20 positions per side and 8 in the center. Use the `+` control
 in edit mode to add a slot. Only empty additional slots can be removed; moving
 a widget into a slot preserves all other slot positions.
+
+## Native Omarchy indicators
+
+The clock group includes passwordless-sudo status, screen recording, remote
+sessions, reminders, night light, notification silencing and stay-awake mode.
+Active indicators remain visible. Hover over the clock group to reveal inactive
+controls. Remote sessions appear only while connected. Click an indicator to
+run its native Omarchy action; the remote-session icon is informational.
+
+V1 and V2 use the same coordinator and retain their own group colors and
+surfaces, including vertical bars. The group replaces the old inline idle,
+notification-silence and recording icons, without adding another plugin or
+changing saved slot order. Voice-input and update indicators remain alongside it.
+
+The full set requires Rise running as an Omarchy full-bar plugin. Standalone
+mode retains existing idle, notification and recording status; host-only
+controls are unavailable. Passwordless sudo opens Omarchy's interactive flow
+when inactive and revokes access when active.

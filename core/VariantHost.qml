@@ -3,6 +3,9 @@ import QtQuick
 Item {
     id: host
 
+    // Public full-bar facade supplied by Omarchy; absent in standalone mode.
+    property var omarchyShell: null
+
     // Only event state crosses the wallpaper boundary; not the shell/services.
     property bool wallpaperWakeAvailable: false
     property bool wallpaperSessionLocked: false

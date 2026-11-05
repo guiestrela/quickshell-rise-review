@@ -336,6 +336,7 @@ PanelWindow {
         id: compCenter                                   // G8: weather·clock·date·indicators
         Item {
             id: g8
+            HoverHandler { id: indicatorHover }
             implicitWidth: Math.round(centerRow.implicitWidth) + 18
             implicitHeight: 28
 
@@ -348,7 +349,7 @@ PanelWindow {
             property int stage: 0                        // 0 normal · 1 compact · 2 minimal
             readonly property bool showWeather: stage <= 1
             readonly property bool showDate:    stage === 0
-            readonly property bool showIcons:   iconsRow.hasActive
+            readonly property bool showIcons:   iconsRow.hasActive || indicatorHover.hovered
             // needed widths per stage: reactive bindings over the UNCOLLAPSED content
             // (the stage-gated wrapper widths shrink and would mislead the upshift
             // decision). 18 = pill padding, 8 = row spacing per visible neighbour.
@@ -455,15 +456,18 @@ PanelWindow {
                         id: iconsRow
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 8
-                        readonly property bool hasActive: idleInd.awake
-                            || dndInd.silenced
-                            || screenRecInd.recording
+                        readonly property bool hasActive: nativeIndicators.hasActive
                             || voxInd.state === "recording"
                             || voxInd.state === "transcribing"
                             || omarchyUpdateInd.updateAvailable
-                        IdleWidget               { id: idleInd;          root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
-                        NotificationSilenceWidget{ id: dndInd;           root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
-                        ScreenRecordWidget       { id: screenRecInd;     root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
+                        CommonComponents.OmarchyIndicatorsWidget {
+                            id: nativeIndicators
+                            root: barSlot.root
+                            coordinator: barSlot.root.omarchyIndicators
+                            contentColor: barSlot.root.seal
+                            revealInactive: indicatorHover.hovered
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
                         VoxtypeWidget            { id: voxInd;           root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
                         UpdateWidget             { id: omarchyUpdateInd; root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
                     }
