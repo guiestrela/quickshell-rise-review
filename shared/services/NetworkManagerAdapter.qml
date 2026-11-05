@@ -9,6 +9,14 @@ Item {
     property bool panelOpen: false
 
     readonly property bool backendAvailable: Networking.backend === NetworkBackendType.NetworkManager
+    readonly property string connectivityState: {
+        if (!backendAvailable || !Networking.canCheckConnectivity || !Networking.connectivityCheckEnabled) return "unknown"
+        if (Networking.connectivity === NetworkConnectivity.Portal) return "portal"
+        if (Networking.connectivity === NetworkConnectivity.Limited) return "limited"
+        if (Networking.connectivity === NetworkConnectivity.Full) return "full"
+        if (Networking.connectivity === NetworkConnectivity.None) return "none"
+        return "unknown"
+    }
     readonly property var networkDevices: Networking.devices ? Networking.devices.values : []
     readonly property var wifiDevice: findDevice(DeviceType.Wifi)
     readonly property var wifiNetworkObjects: wifiDevice && wifiDevice.networks ? wifiDevice.networks.values : []
@@ -294,7 +302,11 @@ Item {
         syncNetworks()
     }
 
-    onPanelOpenChanged: refresh()
+    onPanelOpenChanged: {
+        refresh()
+        if (panelOpen && backendAvailable && Networking.canCheckConnectivity && Networking.connectivityCheckEnabled)
+            Networking.checkConnectivity()
+    }
     onNetworkDevicesChanged: refresh()
     onWifiDeviceChanged: refresh()
     onWifiNetworkObjectsChanged: syncNetworks()

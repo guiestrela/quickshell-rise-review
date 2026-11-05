@@ -163,6 +163,28 @@ The notification action buttons provided by applications remain available on
 the native Omarchy popups. Rise retains its supported app-opening and verified
 action fallbacks; it does not replay arbitrary commands from stored messages.
 
+## Network diagnostics, bands and sign-in
+
+The Network panel in V1 and V2 includes router/internet latency and ICMP
+packet-loss measurements. Samples are collected only while the panel is open;
+latency averages successful replies among the last five samples, and loss
+uses up to 24 samples. Changing interface resets the measurements.
+
+For a connected Wi-Fi network with multiple bands, choose **Auto**, **2.4 GHz**,
+**5 GHz** or **6 GHz**, according to the bands the native helper reports.
+Changing band reconnects Wi-Fi. The Omarchy helper attempts to restore the old
+setting if reconnection fails, and the panel displays any failure.
+
+When NetworkManager detects a captive portal, **Sign in to network** opens the
+native Omarchy login flow. That flow temporarily pauses a Tailscale exit node
+when necessary and restores it afterwards. Limited connectivity alone does not
+show a login button. Disabled NetworkManager connectivity checks are treated
+as unknown, without an additional HTTP probe from Rise.
+
+The commands `omarchy-network-status`, `omarchy-network-band` and
+`omarchy-network-captive-portal` must be available. These additions share one
+implementation across V1/V2 and do not install another Network plugin.
+
 ## Native Omarchy indicators
 
 The clock group includes passwordless-sudo status, screen recording, remote
