@@ -497,7 +497,6 @@ PanelWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 x: Math.round((parent.width - width) / 2)
                 spacing: 4
-                IdleInhibitorWidget { root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
                 MediaBrowserWidget  { root: barSlot.root; screen: barSlot.screen; anchors.verticalCenter: parent.verticalCenter }
                 ThemeDisplayWidget  { root: barSlot.root; screen: barSlot.screen; anchors.verticalCenter: parent.verticalCenter }
             }

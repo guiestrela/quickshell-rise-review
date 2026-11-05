@@ -378,7 +378,6 @@ Item {
                 id: column
                 width: parent.width
                 spacing: 6
-                IdleInhibitorWidget { root: rail.root; anchors.horizontalCenter: parent.horizontalCenter }
                 MediaBrowserWidget { root: rail.root; screen: rail.barWindow.screen; anchors.horizontalCenter: parent.horizontalCenter }
                 ThemeDisplayWidget { root: rail.root; screen: rail.barWindow.screen; anchors.horizontalCenter: parent.horizontalCenter }
             }
