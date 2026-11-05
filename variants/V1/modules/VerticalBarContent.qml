@@ -5,6 +5,7 @@ import "../../../shared/logic/VerticalBarContentValuesLogic.js" as VerticalBarCo
 import "../../../shared/logic/VerticalBarContentLogic.js" as VerticalBarContentLogic
 import QtQml.Models
 import Quickshell
+import Quickshell.Hyprland
 
 Item {
     id: rail
@@ -308,7 +309,7 @@ Item {
     }
     Component {
         id: workspace
-        WorkspaceWidget { root: rail.root }
+        WorkspaceWidget { root: rail.root; monitor: Hyprland.monitorFor(rail.barWindow.screen) }
     }
     Component {
         id: clock
@@ -340,12 +341,14 @@ Item {
                     onActivated: rail.root.calendarVisible = !rail.root.calendarVisible
                     onSecondaryActivated: rail.root.weatherVisible = !rail.root.weatherVisible
                 }
-                CommonComponents.OmarchyIndicatorsWidget {
+                CommonComponents.IndicatorsWidget {
+                    id: verticalIndicators
                     root: rail.root
                     coordinator: rail.root.omarchyIndicators
                     contentColor: rail.root.seal
                     vertical: true
                     revealInactive: indicatorHover.hovered
+                    visible: rail.root.modIndicators
                     anchors.horizontalCenter: parent.horizontalCenter
                 }
             }

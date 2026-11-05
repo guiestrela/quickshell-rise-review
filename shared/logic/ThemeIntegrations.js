@@ -185,11 +185,19 @@ function updateScreenRecordingElapsed(riseOwner, riseEnvironment) {
         riseState.screenRecordingElapsed = riseState._screenRecordingBaseElapsed + Math.floor((Date.now() - riseState._screenRecordingBaseMs) / 1000)
     }
 
-function gotoWorkspace(riseOwner, riseEnvironment, id) {
+function gotoWorkspace(riseOwner, riseEnvironment, id, monitorName) {
     var riseState = riseOwner;
 
-        if (riseState.hyprUsesLua)
-            riseEnvironment.Hyprland.dispatch("hl.dsp.focus({ workspace = " + id + " })")
+        if (riseState.omarchyPerMonitorWorkspaces && monitorName) {
+            var safeMonitorName = JSON.stringify(String(monitorName))
+            riseEnvironment.Quickshell.execDetached([
+                "hyprctl", "dispatch",
+                "o.workspaces.focus(" + Number(id) + ", " + safeMonitorName + ")"
+            ])
+        } else if (riseState.hyprUsesLua)
+            riseEnvironment.Quickshell.execDetached([
+                "hyprctl", "dispatch", "hl.dsp.focus({ workspace = " + Number(id) + " })"
+            ])
         else
             riseEnvironment.Hyprland.dispatch("workspace " + id)
     }

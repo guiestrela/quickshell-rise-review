@@ -11,7 +11,7 @@ function context() {
   leftBaseSlotCount:10, centerBaseSlotCount:1, rightBaseSlotCount:7,
   leftExtraSlotLimit:4, centerExtraSlotLimit:3, rightExtraSlotLimit:7,
   NordVpnLayout:helper('NordVpnLayout'), WallpaperLayout:helper('WallpaperLayout'),
-  registry:Object.fromEntries(Array.from({length:22},(_,i)=>['G'+(i+1),true])),
+  registry:Object.fromEntries(Array.from({length:23},(_,i)=>['G'+(i+1),true])),
   leftModel:model(),centerModel:model(),rightModel:model()
  };
  vm.createContext(c);vm.runInContext(functions,c);return c;
@@ -21,7 +21,7 @@ const prior = 'B:G1,B:G2,B:G3,B:_,B:G5,B:G6,B:G4,B:G7,B:_,B:_|B:G8|B:G9,B:G10,B:
 const serialize = c => [c.leftModel,c.centerModel,c.rightModel].map(m=>m.rows.map(e=>(e.extra?'E:':'B:')+(e.gid||'_')).join(',')).join('|');
 test('OneDrive appends to a full V2 right region and round-trips customized order',()=>{
  const c=context();assert.equal(c.applyOrder(prior),true);
- assert.equal(serialize(c),prior+',E:G22');
+ assert.equal(serialize(c),prior.replace('|B:G8|','|B:G8,E:G23|')+',E:G22');
  // A moved OneDrive and Display Manager remain in their selected slots.
  const customized=serialize(c).replace('B:_','B:G22').replace('E:G22','E:_')
   .replace('B:G1','B:G21').replace('E:G21','E:G1');

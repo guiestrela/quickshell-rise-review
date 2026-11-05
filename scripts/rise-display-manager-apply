@@ -55,7 +55,12 @@ def quote_lua(value):
     return json.dumps(value)
 
 
-def build_block(data):
+def has_native_per_monitor_workspaces():
+    omarchy_root = Path(os.environ.get("OMARCHY_PATH") or "/usr/share/omarchy")
+    return (omarchy_root / "default/hypr/monitor-workspaces.lua").is_file()
+
+
+def build_block(data, *, native_per_monitor_workspaces=False):
     if not isinstance(data, dict) or not isinstance(data.get("monitors"), list):
         raise ValueError("Layout requires a monitors array")
     monitors = data["monitors"]
@@ -101,7 +106,7 @@ def build_block(data):
             raise ValueError("Mirror target must be another independent active display")
         lines.extend([f"hl.monitor({{ output = {quote_lua(name)}, disabled = false, mode = {quote_lua(mode)}, position = {quote_lua(position)}, scale = {scale:g}, transform = {transform}," + (f" mirror = {quote_lua(require_name(mirror, 'mirror target'))}," if mirror else "") + " })"])
     lines.extend(['hl.monitor({ output = "", disabled = false, mode = "preferred", position = "auto", scale = 1 })'])
-    if data.get("manageWorkspaces") is True:
+    if data.get("manageWorkspaces") is True and not native_per_monitor_workspaces:
         workspaces = data.get("workspaces", [])
         if not isinstance(workspaces, list) or len(workspaces) > 10:
             raise ValueError("Invalid workspace assignments")
@@ -114,12 +119,12 @@ def build_block(data):
             if target not in independent:
                 raise ValueError("Workspace references unknown monitor")
         if workspaces:
-            lines.extend(["hl.config({", "  workspace = {"])
             defaults = set()
             for ws in workspaces:
-                lines.append(f'    "{ws["workspace"]}, monitor:{require_name(ws["monitor"])}' + (", default:true" if ws["monitor"] not in defaults else "") + '",')
+                target = require_name(ws["monitor"])
+                is_default = target not in defaults
+                lines.append(f'hl.workspace_rule({{ workspace = "{ws["workspace"]}", monitor = {quote_lua(target)}, default = {str(is_default).lower()}, persistent = true }})')
                 defaults.add(ws["monitor"])
-            lines.extend(["  },", "})"])
     lines.append(END)
     return "\n".join(lines)
 
@@ -174,7 +179,7 @@ def config_directory():
 
 
 def save_layout(data, *, reload=False):
-    block = build_block(data)
+    block = build_block(data, native_per_monitor_workspaces=has_native_per_monitor_workspaces())
     if reload:
         values = normalize_monitors(json.loads(run(["hyprctl", "monitors", "all", "-j"], capture=True).stdout))
         if not isinstance(values, list) or any(not isinstance(m, dict) for m in values):
@@ -364,17 +369,19 @@ def workspace_state():
     spaces = json.loads(run(['hyprctl', 'workspaces', '-j'], capture=True).stdout)
     if not isinstance(rules, list) or len(rules) > 1024 or not isinstance(spaces, list) or len(spaces) > 256:
         raise ValueError('Invalid workspace state')
-    bindings, overrides = {}, {}
+    bindings, live_bindings, overrides = {}, {}, {}
     for entry in spaces:
         number, target = entry.get('id'), entry.get('monitor')
         if type(number) is int and 1 <= number <= 10 and isinstance(target, str) and NAME.fullmatch(target):
-            bindings[str(number)] = target
+            key = str(number)
+            bindings[key] = target
+            live_bindings[key] = target
     for rule in rules:
         number, target = str(rule.get('workspaceString', '')), rule.get('monitor')
         if number.isdigit() and 1 <= int(number) <= 10 and isinstance(target, str) and NAME.fullmatch(target):
             bindings[str(int(number))] = target
             overrides[str(int(number))] = target
-    return {'bindings': bindings, 'overrides': overrides, 'rules': rules}
+    return {'bindings': bindings, 'liveBindings': live_bindings, 'overrides': overrides, 'rules': rules}
 
 
 def workspace_command(entries, monitors, rules):
@@ -390,10 +397,10 @@ def workspace_command(entries, monitors, rules):
             raise ValueError('Workspace needs a unique ID 1–10 and an active independent monitor')
         seen.add(number)
         original = next((r for r in rules if str(r.get('workspaceString', '')) == str(number)), {})
-        if set(original) - {'workspaceString', 'monitor', 'enabled', 'default'} or original.get('enabled') is False:
+        if set(original) - {'workspaceString', 'monitor', 'enabled', 'default', 'persistent'} or original.get('enabled') is False:
             raise ValueError('This workspace has custom rules; preserve them with a manual configuration')
         default = ', default = ' + ('true' if original['default'] else 'false') if type(original.get('default')) is bool else ''
-        lines.append(f'hl.workspace_rule({{ workspace = "{number}", monitor = {quote_lua(target)}{default} }})')
+        lines.append(f'hl.workspace_rule({{ workspace = "{number}", monitor = {quote_lua(target)}{default}, persistent = true }})')
     return '\n'.join(lines)
 
 
@@ -441,6 +448,9 @@ def main():
         elif args.action == "workspaces":
             if not args.payload or len(args.payload) > 4096:
                 raise ValueError('Invalid workspace payload size')
+            if has_native_per_monitor_workspaces():
+                print('Omarchy manages workspaces 1–10 independently on each monitor; no global workspace rules were written')
+                return 0
             entries = json.loads(args.payload)
             state = workspace_state()
             monitors = normalize_monitors(json.loads(run(['hyprctl', 'monitors', 'all', '-j'], capture=True).stdout))
@@ -448,8 +458,19 @@ def main():
             result = run(['hyprctl', 'eval', code], capture=True)
             if result.stdout.strip() != 'ok':
                 raise ValueError('Workspace assignment rejected')
-            after = workspace_state()['overrides']
-            if any(after.get(str(entry['workspace'])) != entry['monitor'] for entry in entries):
+            for entry in entries:
+                key = str(entry['workspace'])
+                current_monitor = state['liveBindings'].get(key)
+                if current_monitor and current_monitor != entry['monitor']:
+                    moved = run(['hyprctl', 'dispatch', 'moveworkspacetomonitor',
+                                 f"{entry['workspace']} {entry['monitor']}"], capture=True)
+                    if moved.stdout.strip() != 'ok':
+                        raise ValueError(f"Workspace {entry['workspace']} could not be moved to {entry['monitor']}")
+            after = workspace_state()
+            if any(after['overrides'].get(str(entry['workspace'])) != entry['monitor']
+                   or (str(entry['workspace']) in state['liveBindings']
+                       and after['liveBindings'].get(str(entry['workspace'])) != entry['monitor'])
+                   for entry in entries):
                 raise ValueError('Workspace assignment readback did not match')
             print('Workspace assignments applied and verified')
         elif args.action == "preview":

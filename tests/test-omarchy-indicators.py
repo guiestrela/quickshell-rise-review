@@ -18,7 +18,7 @@ with tempfile.TemporaryDirectory(prefix='rise-indicators-', dir='/tmp') as tmp:
     source = source.replace('StdioCollector {', 'TestCollector {')
     source = source.replace('Quickshell.execDetached', 'service.root.launch')
     (folder / 'OmarchyIndicators.qml').write_text(source)
-    for name in ('OmarchyIndicatorsWidget.qml', 'UiText.qml', 'TooltipMixin.qml'):
+    for name in ('IndicatorsWidget.qml', 'UiText.qml', 'TooltipMixin.qml'):
         shutil.copyfile(repo / 'shared/components' / name, folder / name)
     (folder / 'TestProcess.qml').write_text('''import QtQuick
 Item {
@@ -74,8 +74,8 @@ Scope {
   function firstPartyServiceFor(id) { return native }
  }
  OmarchyIndicators { id: coordinator; root: theme }
- OmarchyIndicatorsWidget { id: horizontal; root: theme; coordinator: coordinator; contentColor: "#e99870" }
- OmarchyIndicatorsWidget { id: vertical; root: theme; coordinator: coordinator; contentColor: "#77bbdd"; vertical: true }
+ IndicatorsWidget { id: horizontal; root: theme; coordinator: coordinator; contentColor: "#e99870" }
+ IndicatorsWidget { id: vertical; root: theme; coordinator: coordinator; contentColor: "#77bbdd"; vertical: true }
  function check(ok, message) { if (!ok) throw new Error(message) }
  function process(name) {
   for (var child of coordinator.children) if (child.objectName === name) return child

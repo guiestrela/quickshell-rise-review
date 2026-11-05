@@ -47,7 +47,7 @@ Item {
         G8: ["calendar", "weather"], G9: ["mpris"], G10: ["quickActions"],
         G11: ["network"], G12: ["battery"], G13: ["brightness"], G14: ["power"],
         G15: ["bluetooth"], G16: ["thermal"], G17: ["gpu"], G18: ["storage"],
-        G19: ["vpn"], G20: ["wallpaperManager"], G21: ["displayManager"], G22: ["oneDrive"]
+        G19: ["vpn"], G20: ["wallpaperManager"], G21: ["displayManager"], G22: ["oneDrive"], G23: []
     })
     function cells() { return VerticalBarContentLogic.cells(rail, {models: models}) }
     readonly property var regionColumns: [topRegion, centerRegion, bottomRegion]
@@ -333,7 +333,7 @@ Item {
     }
     Component {
         id: workspace
-        WorkspaceWidget { root: rail.root }
+        WorkspaceWidget { root: rail.root; monitor: Hyprland.monitorFor(rail.barWindow.screen) }
     }
     Component {
         id: clock
@@ -364,14 +364,6 @@ Item {
                     implicitHeight: rail.root.clock12h ? 44 : 32
                     onActivated: rail.root.calendarVisible = !rail.root.calendarVisible
                     onSecondaryActivated: rail.root.weatherVisible = !rail.root.weatherVisible
-                }
-                CommonComponents.OmarchyIndicatorsWidget {
-                    root: rail.root
-                    coordinator: rail.root.omarchyIndicators
-                    contentColor: rail.root.widgetContentColor("G8", rail.root.seal)
-                    vertical: true
-                    revealInactive: indicatorHover.hovered
-                    anchors.horizontalCenter: parent.horizontalCenter
                 }
             }
         }

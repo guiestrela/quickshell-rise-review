@@ -9,6 +9,7 @@ import QtQuick.Shapes
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
+import Quickshell.Hyprland
 import "modules"
 import "../../shared/logic/NordVpnLayout.js" as NordVpnLayout
 import "../../shared/logic/WallpaperLayout.js" as WallpaperLayout
@@ -843,7 +844,16 @@ PanelWindow {
             }
         }
 
-        // Only accept a complete permutation of G1..G22. Empty slots are legal,
+        if (!l.concat(c, r).some(function(entry) { return entry.gid === "G23" })) {
+            var centerEmpty = -1
+            for (var centerSlot = 0; centerSlot < c.length; centerSlot++)
+                if (c[centerSlot].gid === "") { centerEmpty = centerSlot; break }
+            if (centerEmpty >= 0) c[centerEmpty].gid = "G23"
+            else if (c.length < centerBaseSlotCount + centerExtraSlotLimit) c.push({ gid: "G23", extra: true })
+            else return false
+        }
+
+        // Only accept a complete permutation of G1..G23. Empty slots are legal,
         // but each registered widget must still occur exactly once.
         var all = l.concat(c, r), seen = {}
         for (var i = 0; i < all.length; i++) {
@@ -903,7 +913,7 @@ PanelWindow {
         var dR = ["G9","G10","G20","G14","G12","G13","G11",
                   "G18","G19","G16","G17","G15","G21","G22"]
         resetModel(leftModel, dL, leftBaseSlotCount)
-        resetModel(centerModel, ["G8"], centerBaseSlotCount)
+        resetModel(centerModel, ["G8", "G23"], centerBaseSlotCount)
         resetModel(rightModel, dR, rightBaseSlotCount)
         if (_orderLoaded) saveOrder()
     }
@@ -964,6 +974,7 @@ PanelWindow {
         id: compWorkspace
         WorkspaceWidget {
             root: barSlot.root
+            monitor: Hyprland.monitorFor(barSlot.screen)
             readonly property real barContentLeftInset: 0
             readonly property real barContentRightInset: 0
         }
@@ -1186,18 +1197,9 @@ PanelWindow {
                         id: iconsRow
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: barSlot.root.v2InlineSpacing
-                        readonly property bool hasActive: nativeIndicators.hasActive
-                            || voxInd.state === "recording"
+                        readonly property bool hasActive: voxInd.state === "recording"
                             || voxInd.state === "transcribing"
                             || omarchyUpdateInd.updateAvailable
-                        CommonComponents.OmarchyIndicatorsWidget {
-                            id: nativeIndicators
-                            root: barSlot.root
-                            coordinator: barSlot.root.omarchyIndicators
-                            contentColor: barSlot.root.widgetContentColor("G8", barSlot.root.seal)
-                            revealInactive: indicatorHover.hovered
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
                         VoxtypeWidget            { id: voxInd;           root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
                         UpdateWidget             { id: omarchyUpdateInd; root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
                     }
@@ -1206,6 +1208,27 @@ PanelWindow {
         }
     }
 
+    Component {
+        id: compIndicators
+        Item {
+            visible: barSlot.root.modIndicators
+            // Keep a small hover target while all indicators are inactive. If
+            // this collapses to zero, the widget can never reveal available
+            // indicators on hover.
+            implicitWidth: barSlot.root.modIndicators ? Math.max(barSlot.root.barVertical ? 32 : 24,
+                indicatorContent.implicitWidth) : 0
+            implicitHeight: barSlot.root.barVertical ? indicatorContent.implicitHeight : 24
+            CommonComponents.IndicatorsWidget {
+                id: indicatorContent
+                anchors.fill: parent
+                root: barSlot.root
+                coordinator: barSlot.root.omarchyIndicators
+                contentColor: barSlot.root.widgetContentColor("G23", barSlot.root.widgetIconColor)
+                vertical: barSlot.root.barVertical
+                revealInactive: false
+            }
+        }
+    }
     Component {
         id: compMpris
         MprisWidget {
@@ -1300,7 +1323,7 @@ PanelWindow {
     }
 
     readonly property var registry: ({
-        "G22": compOneDrive, "G1": compLauncher, "G2": compWorkspace, "G3": compStatus,
+        "G23": compIndicators, "G22": compOneDrive, "G1": compLauncher, "G2": compWorkspace, "G3": compStatus,
         "G4": compMem, "G5": compCpu, "G6": compVol, "G7": compClaude,
         "G8": compCenter,
         "G9": compMpris, "G10": compQuick, "G11": compNetwork,
@@ -1952,7 +1975,7 @@ PanelWindow {
             if (stage <= 0) return true
             if (stage === 1) return ["G7", "G9", "G10"].indexOf(gid) < 0         // drop AI · MPRIS · Quick
             if (stage === 2) return ["G4", "G7", "G9", "G10", "G17", "G18"].indexOf(gid) < 0   // also MEM · GPU · HDD
-            return ["G1", "G2", "G6", "G8", "G11", "G14"].indexOf(gid) >= 0      // emergency whitelist
+            return ["G1", "G2", "G6", "G8", "G11", "G14", "G23"].indexOf(gid) >= 0 // emergency whitelist keeps indicators visible
         }
         function sideNaturalWidth(row, stage) {
             var sum = 0, n = 0
@@ -2020,7 +2043,7 @@ PanelWindow {
             ListElement { gid: "G4"; extra: false } ListElement { gid: "G7"; extra: false } ListElement { gid: ""; extra: false }
             ListElement { gid: ""; extra: false }
         }
-        ListModel { id: centerModel; ListElement { gid: "G8"; extra: false } }
+        ListModel { id: centerModel; ListElement { gid: "G8"; extra: false } ListElement { gid: "G23"; extra: true } }
         ListModel {
             id: rightModel
             ListElement { gid: "G9"; extra: false }  ListElement { gid: "G10"; extra: false } ListElement { gid: "G20"; extra: false }

@@ -1,12 +1,13 @@
 import QtQuick
 import QtQuick.Shapes
+import "ui" as Tokens
 import "ui"
 
 Item {
   id: root
 
   property real iconSize: Style.font.icon
-  property color color: Color.foreground
+  property color color: Tokens.Color.foreground
 
   width: iconSize * 1.3
   height: iconSize

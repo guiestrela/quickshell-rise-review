@@ -25,9 +25,10 @@ with tempfile.TemporaryDirectory(prefix='apply-pointer-',dir=os.environ['TMPDIR'
  fixture=fixture.replace('function monitor(name) { return null }','function monitor(name) { for(var m of monitors) if(m.name===name)return m;return null }')
  fixture=fixture.replace('property bool busy: false','property bool busy: false\n property bool rollbackPending:false\n property int rollbackSeconds:0\n property bool confirmationBusy:false\n property bool displayStateReady:true\n property var savedDisplayStates:({})\n property var positions:({})\n property var mirrorReturnStates:({})\n property int backendCalls:0\n function confirmChanges(){rollbackPending=false}\n function revertChanges(){rollbackPending=false}')
  fixture=fixture.replace('property bool brightnessAvailable: false','property bool brightnessAvailable: true').replace('property int brightnessPercent: 0','property int brightnessPercent: 70')
- for name in ['applyMonitor','disableMonitor','setBrightness','setTextSize']:
+ for name in ['applyMonitor','setBrightness','setTextSize']:
   fixture=fixture.replace('function '+name+'() { }','function '+name+'() { backendCalls++ }')
- fixture=fixture.replace('function enableMonitor() { }',method('enableMonitor'))
+ fixture=fixture.replace('function disableMonitor() { }','function disableMonitor(name) { backendCalls++;var copy=Object.assign({},drafts);copy[name]=Object.assign({},copy[name]||{},{disabled:true});drafts=copy }')
+ fixture=fixture.replace('function enableMonitor() { }','function enableMonitor(name) { backendCalls++;var copy=Object.assign({},drafts);copy[name]=Object.assign({},copy[name]||{});delete copy[name].disabled;drafts=copy }')
  fixture=fixture.replace('function refresh() { refreshCount++ }',method('toggleMirror')+'\n function refresh() { refreshCount++ }')
  fixture=fixture.replace('function applyDrafts() { applyCalls.push','function applyDrafts() { rollbackPending=true;rollbackSeconds=5;applyCalls.push')
  fixture=fixture.replace('id: productionPanel\n','id: productionPanel; visible: true\n')
@@ -82,7 +83,7 @@ with tempfile.TemporaryDirectory(prefix='apply-pointer-',dir=os.environ['TMPDIR'
     var toggle=find(productionPanel.contentItem,"display-workspaces");mouseClick(toggle);wait(40)
     verify(fakeRoot.displayManagerAutoWorkspaces);verify(!productionPanel.draftAutoWorkspaces)
     var mirror=find(productionPanel.contentItem,"display-mirror");mouseClick(mirror);wait(40);mouseClick(mirror);wait(40)
-    var disable=find(productionPanel.contentItem,"display-disable"),enable=find(productionPanel.contentItem,"display-enable");mouseClick(disable);wait(40);verify(fakeController.previewMonitor("DP-2").disabled);compare(fakeController.monitors[1].disabled,false);mouseClick(enable);wait(40);verify(!fakeController.previewMonitor("DP-2").disabled)
+    var disable=find(productionPanel.contentItem,"display-disable"),enable=find(productionPanel.contentItem,"display-enable");fakeController.backendCalls=0;fakeController.loading=true;verify(disable.enabled,"Disable remains clickable while a monitor query is loading");mouseClick(disable);wait(30);compare(productionPanel.pendingDisableMonitor,"DP-2");wait(120);fakeController.loading=false;wait(120);verify(fakeController.previewMonitor("DP-2").disabled);compare(fakeController.monitors[1].disabled,false);mouseClick(enable);wait(40);verify(!fakeController.previewMonitor("DP-2").disabled);compare(fakeController.backendCalls,2)
     compare(fakeController.backendCalls,2);compare(fakeController.applyCalls.length,0);compare(fakeController.rollbackSeconds,0);verify(!fakeController.rollbackPending)
     verify(!find(productionPanel.contentItem,"display-save").enabled)
     var apply=find(productionPanel.contentItem,"display-position-apply"),spinY=apply.parent.children[2]

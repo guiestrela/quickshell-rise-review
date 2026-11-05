@@ -29,8 +29,9 @@ Item {
         {id: "StayAwake", glyph: "", active: coordinator ? coordinator.awake : false,
             available: coordinator ? !!coordinator.idle : false, label: "Stay awake", activeLabel: "Allow idle lock"}
     ]
-    readonly property var displayedEntries: entries.filter(function(entry) { return entry.active })
-        .concat(revealed ? entries.filter(function(entry) { return !entry.active && entry.available }) : [])
+    readonly property var displayedEntries: entries.filter(function(entry) {
+        return entry.active || (revealed && entry.available)
+    })
     readonly property int count: displayedEntries.length
     // Rise's existing tooltip host uses AutoText. Keep helper/peer text from
     // becoming markup there without changing other widgets' tooltip contracts.
@@ -39,9 +40,9 @@ Item {
     }
     // Derive size from the model, not Grid's deferred polish: a collapsed
     // ancestor must not prevent newly active icons from obtaining geometry.
-    implicitWidth: count === 0 ? 0 : vertical ? 28 : count * 20 + (count - 1) * iconSpacing
-    implicitHeight: vertical ? (count === 0 ? 0 : count * 24 + (count - 1) * iconSpacing) : 28
-    visible: count > 0
+    implicitWidth: vertical ? 28 : (count > 0 ? count * 20 + (count - 1) * iconSpacing : 0)
+    implicitHeight: vertical ? (count > 0 ? count * 24 + (count - 1) * iconSpacing : 0) : 28
+    visible: true
     HoverHandler { id: hover }
     Grid {
         id: grid

@@ -276,6 +276,9 @@ Item {
         target: Hyprland
 
         function onFocusedMonitorChanged() {
+            // Enabling/disabling an output can move Hyprland focus while the
+            // guarded display change is waiting for the user's confirmation.
+            if (theme.displayManagerVisible) return
             if (!theme.keyboardPopupVisible || theme.activePopupScreenName === "") return
 
             var monitor = Hyprland.focusedMonitor
@@ -873,6 +876,7 @@ Item {
 
     // ── module enable flags (controlled by ControlPanel) ──
     property bool modStatus:     true
+    property bool modIndicators: true
     property bool modMemory:     true
     property bool modCpu:        true
     property bool modCpuTemperature: true
@@ -1331,7 +1335,7 @@ Item {
     }
     function serializeWidgetSurfaceStyles() {
         var out = []
-        for (var n = 1; n <= 22; n++) {
+        for (var n = 1; n <= 23; n++) {
             var gid = "G" + n
             if (!widgetSurfaceStyles[gid]) continue
             var style = widgetSurfaceStyle(gid)
@@ -1362,7 +1366,7 @@ Item {
         var m = String(gid || "").match(/^G(\d{1,2})$/)
         if (!m) return false
         var n = Number(m[1])
-        return n >= 1 && n <= 22
+        return n >= 1 && n <= 23
     }
     function widgetColorModeValid(mode) {
         return mode === "fill" || mode === "border" || mode === "both"
@@ -1437,7 +1441,7 @@ Item {
         var next = {}
         var changed = false
 
-        for (var n = 1; n <= 22; n++) {
+        for (var n = 1; n <= 23; n++) {
             var gid = "G" + n
             var style = widgetColorStyle(gid)
 
@@ -1493,7 +1497,7 @@ Item {
     }
     function serializeWidgetColorStyles() {
         var out = []
-        for (var n = 1; n <= 22; n++) {
+        for (var n = 1; n <= 23; n++) {
             var gid = "G" + n
             var style = widgetColorStyle(gid)
             if (style.color !== "inherit" || style.mode === "border")
@@ -1537,6 +1541,7 @@ Item {
     onModDisplayManagerChanged: if (_widgetsLoaded) saveWidgets()
     onDisplayManagerAutoWorkspacesChanged: if (_widgetsLoaded) saveWidgets()
     onModStatusChanged:     if (_widgetsLoaded) saveWidgets()
+    onModIndicatorsChanged: if (_widgetsLoaded) saveWidgets()
     onModQuickChanged:      if (_widgetsLoaded) saveWidgets()
     onModCpuChanged:        if (_widgetsLoaded) saveWidgets()
     onModVolumeChanged:     if (_widgetsLoaded) saveWidgets()
@@ -1619,7 +1624,8 @@ Item {
                  + (layoutProtected ? "1" : "0") + " " // +50 layout protection
                  + serializeWidgetSurfaceStyles() + " " // +51 widget surface geometry
                  + (modOneDrive ? "1" : "0") + " " // +52 OneDrive
-                 + (spacerDotsEnabled ? "1" : "0") // +53 hover spacer dots
+                 + (spacerDotsEnabled ? "1" : "0") + " " // +53 hover spacer dots
+                 + (modIndicators ? "1" : "0") // +54 Indicators widget
         widgetSaveProc.command = ["bash", "-c",
             "echo '" + line + "' > '" + widgetsCachePath + "'"]
         widgetSaveProc.running = false
@@ -1762,6 +1768,7 @@ Item {
                 if (parts.length > wsField + 50) theme.layoutProtected = parts[wsField + 50] === "1"
                 if (parts.length > wsField + 51) theme.widgetSurfaceStyles = theme.parseWidgetSurfaceStyles(parts[wsField + 51])
                 if (parts.length > wsField + 53) theme.spacerDotsEnabled = parts[wsField + 53] !== "0"
+                if (parts.length > wsField + 54) theme.modIndicators = parts[wsField + 54] !== "0"
                 theme._widgetsLoaded = true
             }
         }
@@ -1832,15 +1839,22 @@ Item {
     // "hl.dsp" alone yields the Lua error "hl.dispatch: expected a dispatcher"
     // under Lua, or "Invalid dispatcher" under classic — neither switches.
     property bool hyprUsesLua: false
+    property bool omarchyPerMonitorWorkspaces: false
+    property bool hyprDispatchModeReady: false
     Process {
         id: hyprDispatchProbe
-        command: ["bash", "-c", "hyprctl dispatch 'hl.dsp' 2>&1 | grep -qi 'hl\\.dispatch' && echo lua || echo classic"]
+        command: ["bash", "-c", "if hyprctl dispatch 'hl.dsp' 2>&1 | grep -qi 'hl\\.dispatch'; then if [ -r \"${OMARCHY_PATH:-/usr/share/omarchy}/default/hypr/monitor-workspaces.lua\" ]; then echo lua-per-monitor; else echo lua; fi; else echo classic; fi"]
         running: true
         stdout: StdioCollector {
-            onStreamFinished: { theme.hyprUsesLua = (this.text.trim() === "lua") }
+            onStreamFinished: {
+                var mode = this.text.trim()
+                theme.hyprUsesLua = mode.indexOf("lua") === 0
+                theme.omarchyPerMonitorWorkspaces = (mode === "lua-per-monitor")
+                theme.hyprDispatchModeReady = true
+            }
         }
     }
-    function gotoWorkspace(id) { return ThemeIntegrations.gotoWorkspace(theme, {Hyprland: Hyprland}, id) }
+    function gotoWorkspace(id, monitorName) { return ThemeIntegrations.gotoWorkspace(theme, {Hyprland: Hyprland, Quickshell: Quickshell}, id, monitorName) }
 
     // ── Arch Updater state ──
     property bool archVisible: false

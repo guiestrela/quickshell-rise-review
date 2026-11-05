@@ -9,6 +9,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
+import Quickshell.Hyprland
 import "modules"
 import "../../shared/logic/NordVpnLayout.js" as NordVpnLayout
 import "../../shared/logic/WallpaperLayout.js" as WallpaperLayout
@@ -163,6 +164,11 @@ PanelWindow {
         if (l.concat(c,r).indexOf("G20") < 0) l.push("G20")
         if (l.concat(c,r).indexOf("G21") < 0) l.push("G21")
         if (l.concat(c,r).indexOf("G22") < 0) l.push("G22")
+        // G23 is V2-only. Drop it from an in-progress saved layout while
+        // preserving the position as an empty slot.
+        l = l.map(function(gid) { return gid === "G23" ? "" : gid })
+        c = c.map(function(gid) { return gid === "G23" ? "" : gid })
+        r = r.map(function(gid) { return gid === "G23" ? "" : gid })
         // F12: only apply a cache that is a valid permutation of all registry ids (correct region
         // sizes, every id known, no duplicate, none missing) — a corrupt cache would otherwise
         // duplicate one widget and silently drop another. On reject, keep the default order.
@@ -293,7 +299,7 @@ PanelWindow {
     // ─────────────────────────── group registry ───────────────────────────
     Component { id: compOneDrive; OneDriveWidget { root: barSlot.root } }
     Component { id: compLauncher;  LauncherWidget  { root: barSlot.root } }
-    Component { id: compWorkspace; WorkspaceWidget { root: barSlot.root } }
+    Component { id: compWorkspace; WorkspaceWidget { root: barSlot.root; monitor: Hyprland.monitorFor(barSlot.screen) } }
     Component {
         id: compStatus                                   // G3: arch · tray · notif
         Item {
@@ -456,17 +462,24 @@ PanelWindow {
                         id: iconsRow
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 8
-                        readonly property bool hasActive: nativeIndicators.hasActive
+                        readonly property bool hasActive: (barSlot.root.modIndicators && nativeIndicators.hasActive)
                             || voxInd.state === "recording"
                             || voxInd.state === "transcribing"
                             || omarchyUpdateInd.updateAvailable
-                        CommonComponents.OmarchyIndicatorsWidget {
-                            id: nativeIndicators
-                            root: barSlot.root
-                            coordinator: barSlot.root.omarchyIndicators
-                            contentColor: barSlot.root.seal
-                            revealInactive: indicatorHover.hovered
-                            anchors.verticalCenter: parent.verticalCenter
+                        Item {
+                            id: nativeIndicatorsContainer
+                            visible: barSlot.root.modIndicators && nativeIndicators.implicitWidth > 0
+                            width: barSlot.root.modIndicators ? nativeIndicators.implicitWidth : 0
+                            implicitWidth: width
+                            height: 28
+                            CommonComponents.IndicatorsWidget {
+                                id: nativeIndicators
+                                anchors.fill: parent
+                                root: barSlot.root
+                                coordinator: barSlot.root.omarchyIndicators
+                                contentColor: barSlot.root.seal
+                                revealInactive: indicatorHover.hovered
+                            }
                         }
                         VoxtypeWidget            { id: voxInd;           root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
                         UpdateWidget             { id: omarchyUpdateInd; root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }

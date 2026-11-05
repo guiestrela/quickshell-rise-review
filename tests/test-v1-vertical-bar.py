@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Production V1 vertical layout with inert service widgets; no live actions."""
-from qml_fixture_source import copy_qml_fixture, qml_fixture_source, qml_fixture_text
+from qml_fixture_source import copy_qml_fixture, qml_fixture_source, qml_fixture_text, write_hyprland_stub
 from pathlib import Path
 import os, re, shutil, subprocess, tempfile
 repo = Path(__file__).resolve().parents[1]
@@ -9,11 +9,21 @@ with tempfile.TemporaryDirectory(prefix='rise-v1-vertical-', dir='/tmp') as dire
     runtime = base / 'runtime'; runtime.mkdir(mode=0o700)
     for name in ['VerticalBarContent.qml', 'SidePanelPositioner.qml', 'WorkspaceWidget.qml', 'PillShadow.qml', 'CpuWidget.qml', 'MemoryWidget.qml', 'MprisWidget.qml', 'UiText.qml', 'IconText.qml', 'TooltipMixin.qml']:
         copy_qml_fixture(qml_fixture_source(repo / 'variants/V1/modules' / name), base)
-    copy_qml_fixture(repo / 'shared/components/OmarchyIndicatorsWidget.qml', base)
+    copy_qml_fixture(repo / 'shared/logic/MonitorWorkspaces.js', base)
+    for module_name in ['VerticalBarContent.qml', 'WorkspaceWidget.qml']:
+        module_path = base / module_name
+        module_path.write_text(module_path.read_text().replace(
+            'import Quickshell.Hyprland', 'import "."'))
+    workspace_source = base / 'WorkspaceWidget.qml'
+    workspace_source.write_text(workspace_source.read_text().replace(
+        'import "../../../shared/logic/MonitorWorkspaces.js" as MonitorWorkspaces',
+        'import "MonitorWorkspaces.js" as MonitorWorkspaces'))
+    copy_qml_fixture(repo / 'shared/components/IndicatorsWidget.qml', base)
     for name in ['ArchUpdaterWidget', 'TrayWidget', 'NotificationWidget', 'IdleInhibitorWidget', 'MediaBrowserWidget', 'ThemeDisplayWidget', 'WeatherWidget']:
         (base / (name + '.qml')).write_text('import QtQuick\nItem { property var root; property var screen; implicitWidth: 30; implicitHeight: 28 }\n')
     (base / 'MprisSelect.qml').write_text('import QtQuick\nItem { property var player: ({trackTitle:"Long song name",trackArtist:"Artist",canGoPrevious:true,canGoNext:true}); property bool active: true; property bool playing: false }')
     (base / 'ParticleStream.qml').write_text('import QtQuick\nItem { objectName: "vertical-gap-effect"; property var theme; property var layout; property int mode; property bool active; property string monitor }')
+    write_hyprland_stub(base)
     source = qml_fixture_text(repo / 'tests/test-vertical-bar-layout.py')
     fixture = source.split("write_text('''import QtQuick", 1)[1].split("'''", 1)[0]
     fixture = 'import QtQuick' + fixture[:fixture.index(' property int step:')]

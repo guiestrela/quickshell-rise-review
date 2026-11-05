@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Exercise the real vertical layout and side-panel bindings with inert widget boundaries."""
-from qml_fixture_source import copy_qml_fixture
+from qml_fixture_source import copy_qml_fixture, write_hyprland_stub
 from pathlib import Path
 import os
 import shutil
@@ -14,11 +14,21 @@ with tempfile.TemporaryDirectory(prefix='rise-vertical-', dir='/tmp') as directo
     (base / 'runtime').mkdir(mode=0o700)
     for name in ['VerticalBarContent.qml', 'SidePanelPositioner.qml', 'AiPanelSurface.qml', 'WorkspaceWidget.qml']:
         copy_qml_fixture(repo / 'variants/V2/modules' / name, base)
-    for name in ['OmarchyIndicatorsWidget.qml', 'UiText.qml', 'TooltipMixin.qml']:
+    copy_qml_fixture(repo / 'shared/logic/MonitorWorkspaces.js', base)
+    for module_name in ['VerticalBarContent.qml', 'WorkspaceWidget.qml']:
+        module_path = base / module_name
+        module_path.write_text(module_path.read_text().replace(
+            'import Quickshell.Hyprland', 'import "."'))
+    workspace_source = base / 'WorkspaceWidget.qml'
+    workspace_source.write_text(workspace_source.read_text().replace(
+        'import "../../../shared/logic/MonitorWorkspaces.js" as MonitorWorkspaces',
+        'import "MonitorWorkspaces.js" as MonitorWorkspaces'))
+    for name in ['IndicatorsWidget.qml', 'UiText.qml', 'TooltipMixin.qml']:
         copy_qml_fixture(repo / 'shared/components' / name, base)
     for name in ['ArchUpdaterWidget', 'TrayWidget', 'NotificationWidget', 'IdleInhibitorWidget', 'MediaBrowserWidget', 'ThemeDisplayWidget']:
         (base / (name + '.qml')).write_text('import QtQuick\nItem { property var root; property var screen; implicitWidth: 30; implicitHeight: 28 }\n')
     (base / 'WeatherWidget.qml').write_text('import QtQuick\nItem { property var root; property bool weatherLoaded: true; property string weatherTempStr: "25°C"; implicitWidth: 32; implicitHeight: 28 }\n')
+    write_hyprland_stub(base)
     (base / 'shell.qml').write_text('''import QtQuick
 import QtQuick.Window
 import Quickshell
@@ -34,6 +44,7 @@ ShellRoot {
   property bool modStatus: true
   property bool modQuick: true
   property bool modWeather: true
+  property bool modIndicators: true
   property bool clock12h: false
   property var omarchyIndicators: null
   property var tooltipOwner: null

@@ -320,6 +320,9 @@ Item {
         target: Hyprland
 
         function onFocusedMonitorChanged() {
+            // Enabling/disabling an output can move Hyprland focus while the
+            // guarded display change is waiting for the user's confirmation.
+            if (theme.displayManagerVisible) return
             if (!theme.keyboardPopupVisible || theme.activePopupScreenName === "") return
 
             var monitor = Hyprland.focusedMonitor
@@ -959,6 +962,7 @@ Item {
         pollingEnabled: theme._widgetsLoaded && (theme.modOneDrive || theme.oneDriveVisible)
     }
     property bool modStorage: false
+    property bool modIndicators: true
     property bool compactTemperature: false
     property bool compactStorage: false
     property bool thermalVisible: false
@@ -1449,7 +1453,8 @@ Item {
                  + (compactTemperature ? "1" : "0") + " " // +44
                  + (compactStorage ? "1" : "0") + " " // +45
                  + barTemperatureSource + " " // +46, V1 schema
-                 + (modOneDrive ? "1" : "0") // +47 OneDrive
+                 + (modOneDrive ? "1" : "0") + " " // +47 OneDrive
+                 + (modIndicators ? "1" : "0") // +48 Indicators; append-only
         widgetSaveProc.command = ["bash", "-c",
             "echo '" + line + "' > '" + widgetsCachePath + "'"]
         widgetSaveProc.running = false
@@ -1577,6 +1582,7 @@ Item {
                     if (parts.length > wsField + 40) theme.compactGpu = parts[wsField + 40] === "1"
                     if (parts.length > wsField + 42) theme.modCpuTemperature = parts[wsField + 42] === "1"
                     if (parts.length > wsField + 47) theme.modOneDrive = parts[wsField + 47] === "1"
+                    if (parts.length > wsField + 48) theme.modIndicators = parts[wsField + 48] !== "0"
                     if (parts.length > wsField + 43) theme.modStorage = parts[wsField + 43] === "1"
                     if (parts.length > wsField + 44) theme.compactTemperature = parts[wsField + 44] === "1"
                     if (parts.length > wsField + 45) theme.compactStorage = parts[wsField + 45] === "1"
@@ -1654,15 +1660,22 @@ Item {
     // "hl.dsp" alone yields the Lua error "hl.dispatch: expected a dispatcher"
     // under Lua, or "Invalid dispatcher" under classic — neither switches.
     property bool hyprUsesLua: false
+    property bool omarchyPerMonitorWorkspaces: false
+    property bool hyprDispatchModeReady: false
     Process {
         id: hyprDispatchProbe
-        command: ["bash", "-c", "hyprctl dispatch 'hl.dsp' 2>&1 | grep -qi 'hl\\.dispatch' && echo lua || echo classic"]
+        command: ["bash", "-c", "if hyprctl dispatch 'hl.dsp' 2>&1 | grep -qi 'hl\\.dispatch'; then if [ -r \"${OMARCHY_PATH:-/usr/share/omarchy}/default/hypr/monitor-workspaces.lua\" ]; then echo lua-per-monitor; else echo lua; fi; else echo classic; fi"]
         running: true
         stdout: StdioCollector {
-            onStreamFinished: { theme.hyprUsesLua = (this.text.trim() === "lua") }
+            onStreamFinished: {
+                var mode = this.text.trim()
+                theme.hyprUsesLua = mode.indexOf("lua") === 0
+                theme.omarchyPerMonitorWorkspaces = (mode === "lua-per-monitor")
+                theme.hyprDispatchModeReady = true
+            }
         }
     }
-    function gotoWorkspace(id) { return ThemeIntegrations.gotoWorkspace(theme, {Hyprland: Hyprland}, id) }
+    function gotoWorkspace(id, monitorName) { return ThemeIntegrations.gotoWorkspace(theme, {Hyprland: Hyprland, Quickshell: Quickshell}, id, monitorName) }
 
     // ── Arch Updater state ──
     property bool archVisible: false
