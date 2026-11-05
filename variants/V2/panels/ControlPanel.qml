@@ -908,6 +908,12 @@ PanelWindow {
                 }
                 Tile {
                     width: parent.width
+                    label: "Spacer Dots"
+                    active: ctrlPanel.root.spacerDotsEnabled
+                    onActivated: ctrlPanel.root.spacerDotsEnabled = !ctrlPanel.root.spacerDotsEnabled
+                }
+                Tile {
+                    width: parent.width
                     label: "Panel & Tooltip Border"
                     active: ctrlPanel.root.panelTooltipBorderEnabled
                     onActivated: ctrlPanel.root.panelTooltipBorderEnabled = !ctrlPanel.root.panelTooltipBorderEnabled

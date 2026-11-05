@@ -1227,6 +1227,7 @@ Item {
     // notch = attached content-width surface with desktop-facing side wings
     property string barShellStyle: "full"
     property bool barBorderEnabled: true
+    property bool spacerDotsEnabled: true
     property bool panelTooltipBorderEnabled: true
     function barShellStyleValid(value) {
         return value === "full" || value === "fit"
@@ -1547,6 +1548,7 @@ Item {
     onLayoutProtectedChanged: if (_widgetsLoaded) saveWidgets()
     onBarShellStyleChanged:    if (_widgetsLoaded) saveWidgets()
     onBarBorderEnabledChanged: if (_widgetsLoaded) saveWidgets()
+    onSpacerDotsEnabledChanged: if (_widgetsLoaded) saveWidgets()
     onPanelTooltipBorderEnabledChanged: if (_widgetsLoaded) saveWidgets()
     onBarColorChanged:         if (_widgetsLoaded) saveWidgets()
     onWidgetIconsForegroundChanged: if (_widgetsLoaded) saveWidgets()
@@ -1602,7 +1604,8 @@ Item {
                  + (barFrost ? "1" : "0") + " " // +49 V2 Frost (same field as legacy Notch Frost)
                  + (layoutProtected ? "1" : "0") + " " // +50 layout protection
                  + serializeWidgetSurfaceStyles() + " " // +51 widget surface geometry
-                 + (modOneDrive ? "1" : "0") // +52 OneDrive
+                 + (modOneDrive ? "1" : "0") + " " // +52 OneDrive
+                 + (spacerDotsEnabled ? "1" : "0") // +53 hover spacer dots
         widgetSaveProc.command = ["bash", "-c",
             "echo '" + line + "' > '" + widgetsCachePath + "'"]
         widgetSaveProc.running = false
@@ -1744,6 +1747,7 @@ Item {
                 if (parts.length > wsField + 49) theme.barFrost = parts[wsField + 49] === "1"
                 if (parts.length > wsField + 50) theme.layoutProtected = parts[wsField + 50] === "1"
                 if (parts.length > wsField + 51) theme.widgetSurfaceStyles = theme.parseWidgetSurfaceStyles(parts[wsField + 51])
+                if (parts.length > wsField + 53) theme.spacerDotsEnabled = parts[wsField + 53] !== "0"
                 theme._widgetsLoaded = true
             }
         }

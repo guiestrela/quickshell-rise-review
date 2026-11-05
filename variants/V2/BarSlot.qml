@@ -1792,7 +1792,7 @@ PanelWindow {
                 // ── separator toggle for the gap AFTER this slot (hover-revealed,
                 //    V1 split-point pattern — click sets/clears the thin divider) ──
                 Item {
-                    visible: slot.autoShown && slot.hasContent && slot.index < slotRow.lastVisibleIndex
+                    visible: barSlot.root.spacerDotsEnabled && slot.autoShown && slot.hasContent && slot.index < slotRow.lastVisibleIndex
                     width: 14
                     height: slot.height
                     // The active handle sits exactly over the rendered divider.
@@ -1808,7 +1808,7 @@ PanelWindow {
                         text: "•"
                         color: barSlot.root.sumi
                         font.pixelSize: 10; font.family: barSlot.root.mono
-                        opacity: sepMa.containsMouse ? 0.9 : 0.35
+                        opacity: sepMa.containsMouse ? 0.9 : 0
                         Behavior on opacity { NumberAnimation { duration: 120 } }
                     }
                     MouseArea {
