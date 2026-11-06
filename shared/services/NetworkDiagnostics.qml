@@ -13,6 +13,7 @@ Item {
     property var internetSamples: []
     property real routerMs: -1
     property real internetMs: -1
+    property real lastInternetPingMs: -1
     property int packetLoss: -1
     property string currentBand: ""
     property string selectedBand: "auto"
@@ -45,7 +46,7 @@ Item {
     }
     function resetSamples() {
         routerSamples = []; internetSamples = []
-        routerMs = -1; internetMs = -1; packetLoss = -1
+        routerMs = -1; internetMs = -1; lastInternetPingMs = -1; packetLoss = -1
     }
     function acceptStatus(raw) {
         var data = fields(raw)
@@ -54,8 +55,10 @@ Item {
         if (!iface) { resetSamples(); return }
         if (data.router_ping_ms !== undefined)
             routerSamples = routerSamples.concat([sample(data.router_ping_ms)]).slice(-24)
-        if (data.internet_ping_ms !== undefined)
-            internetSamples = internetSamples.concat([sample(data.internet_ping_ms)]).slice(-24)
+        if (data.internet_ping_ms !== undefined) {
+            lastInternetPingMs = sample(data.internet_ping_ms)
+            internetSamples = internetSamples.concat([lastInternetPingMs]).slice(-24)
+        }
         routerMs = average(routerSamples)
         internetMs = average(internetSamples)
         packetLoss = internetSamples.length

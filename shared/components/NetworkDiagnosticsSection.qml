@@ -8,15 +8,17 @@ Column {
     property bool panelOpen: false
     property string networkMode: "none"
     property string connectivity: "unknown"
+    readonly property string displayedConnectivity: connectivity === "limited"
+        && diagnostics.lastInternetPingMs >= 0 ? "full" : connectivity
     property real buttonRadius: theme.tileRadius
     readonly property alias controller: diagnostics
     spacing: 6
-    visible: networkMode !== "none" || diagnostics.bandBusy || connectivity === "portal" || connectivity === "limited"
+    visible: networkMode !== "none" || diagnostics.bandBusy || displayedConnectivity === "portal" || displayedConnectivity === "limited"
     Services.NetworkDiagnostics {
         id: diagnostics
         panelOpen: section.panelOpen
         networkMode: section.networkMode
-        connectivity: section.connectivity
+        connectivity: section.displayedConnectivity
         onPortalOpening: section.theme.networkVisible = false
     }
     function latency(value) { return value >= 0 ? value.toFixed(1) + " ms" : "—" }
@@ -45,14 +47,14 @@ Column {
     }
     UiText {
         width: parent.width
-        visible: section.connectivity === "portal" || section.connectivity === "limited"
-        text: section.connectivity === "portal" ? "Sign in to this network to access the internet" : "Limited internet connectivity"
+        visible: section.displayedConnectivity === "portal" || section.displayedConnectivity === "limited"
+        text: section.displayedConnectivity === "portal" ? "Sign in to this network to access the internet" : "Limited internet connectivity"
         textFormat: Text.PlainText; wrapMode: Text.WordWrap
         font.family: section.theme.mono; font.pixelSize: 11; color: section.theme.seal
     }
     Chip {
         objectName: "network-portal-login"
-        width: parent.width; visible: section.connectivity === "portal"
+        width: parent.width; visible: section.displayedConnectivity === "portal"
         label: "Sign in to network"
         onActivated: diagnostics.openPortal()
     }
