@@ -649,6 +649,7 @@ PanelWindow {
     property int  srcIndex: -1
     property var  dropModel: null          // current drop-target model + index
     property int  dropIndex: -1
+    property bool dropTray: false
     property real ghostW: 0
     property real ghostH: 0
     property real ghostHomeX: 0
@@ -658,7 +659,9 @@ PanelWindow {
     function beginDrag(item, hx, hy, w, h, sm, si) {
         dragItem = item; ghostW = w; ghostH = h; ghostHomeX = hx; ghostHomeY = hy
         ghostX = hx; ghostY = hy; srcModel = sm; srcIndex = si
-        dropModel = null; dropIndex = -1; dragActive = true; dragging = true
+        dropModel = null; dropIndex = -1; dropTray = false; dragActive = true; dragging = true
+        barSlot.root.trayDragActive = true
+        barSlot.root.trayVisible = true
     }
     // which slot (model+index) is under a window-point?
     function slotAt(wx, wy) {
@@ -673,6 +676,11 @@ PanelWindow {
                     return { model: rows[r].rmodel, index: k }
             }
         }
+        var trayRect = barSlot.root.trayDropRectsByScreen[barSlot.screenName]
+        if (barSlot.root.trayVisible && trayRect
+                && wx >= trayRect.x && wx <= trayRect.x + trayRect.width
+                && wy >= trayRect.y && wy <= trayRect.y + trayRect.height)
+            return { tray: true }
         return null
     }
     function moveDrag(wx, wy) {
@@ -680,14 +688,20 @@ PanelWindow {
         var hit = slotAt(wx, wy)
         dropModel = hit ? hit.model : null
         dropIndex = hit ? hit.index : -1
+        dropTray = !!(hit && hit.tray)
+        barSlot.root.trayDropActive = dropTray
     }
     function endDrag() {
         dragActive = false
         var swapped = false
-        if (dropModel && dropIndex >= 0 && !(dropModel === srcModel && dropIndex === srcIndex)) {
+        if (dropTray && srcModel && dropIndex < 0) {
+            swapped = moveSlotToTray(srcModel, srcIndex)
+        } else if (dropModel && dropIndex >= 0 && !(dropModel === srcModel && dropIndex === srcIndex)) {
             swapped = NordVpnLayout.swapModels(srcModel, dropModel, srcIndex, dropIndex)
         }
-        dropModel = null; dropIndex = -1
+        dropModel = null; dropIndex = -1; dropTray = false
+        barSlot.root.trayDragActive = false
+        barSlot.root.trayDropActive = false
         if (swapped) { if (_orderLoaded) saveOrder(); dragging = false }   // content swapped in place + persist
         else { ghostX = ghostHomeX; ghostY = ghostHomeY; snapTimer.restart() }   // snap back
     }
@@ -697,7 +711,9 @@ PanelWindow {
     function cancelDrag() {
         snapTimer.stop()
         dragActive = false; dragging = false; dragItem = null
-        dropModel = null; dropIndex = -1
+        dropModel = null; dropIndex = -1; dropTray = false
+        barSlot.root.trayDragActive = false
+        barSlot.root.trayDropActive = false
     }
 
     Loader {
@@ -746,6 +762,7 @@ PanelWindow {
     }
     function serializeOrder() {
         return serializeModel(leftModel) + "|" + serializeModel(centerModel) + "|" + serializeModel(rightModel)
+            + "|" + barSlot.root.trayWidgets.join(",")
     }
     function parseRegion(raw, baseCount, maxExtraCount, legacy) {
         var tokens = raw === "" ? [] : raw.split(",")
@@ -775,7 +792,8 @@ PanelWindow {
     }
     function applyOrder(str) {
         var parts = str.split("|")
-        if (parts.length !== 3) return false
+        if (parts.length !== 3 && parts.length !== 4) return false
+        var tray = parts.length === 4 && parts[3] !== "" ? parts[3].split(",") : []
 
         // Accept the initial fixed-width V2 cache once, then write the slot-aware
         // B:/E: format on the next edit. Every new cache must keep the immutable
@@ -862,12 +880,44 @@ PanelWindow {
             if (!registry[gid] || seen[gid]) return false
             seen[gid] = true
         }
+        for (var t = 0; t < tray.length; t++) {
+            var trayGid = tray[t]
+            if (!registry[trayGid] || trayGid === "G3" || seen[trayGid]) return false
+            seen[trayGid] = true
+        }
         if (Object.keys(seen).length !== Object.keys(registry).length) return false
 
         applyEntries(leftModel, l)
         applyEntries(centerModel, c)
         applyEntries(rightModel, r)
+        barSlot.root.trayWidgets = tray
         return true
+    }
+    function moveSlotToTray(model, index) {
+        if (!model || index < 0 || index >= model.count) return false
+        var gid = String(model.get(index).gid || "")
+        if (!gid || gid === "G3" || barSlot.root.trayWidgets.indexOf(gid) >= 0) return false
+        model.setProperty(index, "gid", "")
+        barSlot.root.trayWidgets = barSlot.root.trayWidgets.concat([gid])
+        return true
+    }
+    function restoreTrayWidget(gid) {
+        var trayIndex = barSlot.root.trayWidgets.indexOf(gid)
+        if (trayIndex < 0) return false
+        var models = [leftModel, centerModel, rightModel]
+        for (var r = 0; r < models.length; r++) {
+            var model = models[r]
+            for (var i = 0; i < model.count; i++) {
+                if (model.get(i).gid !== "") continue
+                model.setProperty(i, "gid", gid)
+                var next = barSlot.root.trayWidgets.slice()
+                next.splice(trayIndex, 1)
+                barSlot.root.trayWidgets = next
+                if (_orderLoaded) saveOrder()
+                return true
+            }
+        }
+        return false
     }
     function saveOrder() {
         var serialized = serializeOrder()
@@ -915,6 +965,7 @@ PanelWindow {
         resetModel(leftModel, dL, leftBaseSlotCount)
         resetModel(centerModel, ["G8", "G23"], centerBaseSlotCount)
         resetModel(rightModel, dR, rightBaseSlotCount)
+        barSlot.root.trayWidgets = []
         if (_orderLoaded) saveOrder()
     }
 
@@ -923,12 +974,14 @@ PanelWindow {
             return barSlot._orderLoaded && barSlot.backingWindowVisible
         },
         defaultLayout: function () { barSlot.resetOrder() },
+        restoreTrayWidget: function (gid) { return barSlot.restoreTrayWidget(gid) },
         applyOrder: function (serialized) { barSlot.applyOrder(serialized) }
     })
 
     Component.onCompleted: {
         if (!barSlot.root.activePopupScreenName) barSlot.root.activatePopupScreen(barSlot.screen)
         barSlot.root.registerBarLayoutController(barSlot.screenName, barSlot.layoutController)
+        barSlot.root.registerTrayWidgetRegistry(barSlot.screenName, barSlot.registry)
     }
 
     Component.onDestruction: {
@@ -938,6 +991,8 @@ PanelWindow {
             barSlot.root.closePopups()
         }
         barSlot.root.unregisterBarLayoutController(barSlot.screenName, barSlot.layoutController)
+        barSlot.root.unregisterTrayWidgetRegistry(barSlot.screenName, barSlot.registry)
+        barSlot.root.removeTrayDropRect(barSlot.screenName)
     }
 
     ShaderEffectSource {

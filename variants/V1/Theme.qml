@@ -225,6 +225,10 @@ Item {
     property bool _closingPopups: false
     property var barLayoutControllers: ({})
     property bool _barLayoutSyncing: false
+    property var trayWidgetRegistriesByScreen: ({})
+    property var trayDropRectsByScreen: ({})
+    property bool trayDragActive: false
+    property bool trayDropActive: false
 
     readonly property bool anyPopupVisible: oneDriveVisible || calendarVisible || cpuVisible || gpuVisible || thermalVisible || storageVisible || aiUsageVisible
         || memVisible || volVisible || controlVisible || networkVisible || bluetoothVisible
@@ -237,6 +241,41 @@ Item {
     function registerBarLayoutController(screenName, controller) { return ThemePanels.registerBarLayoutController(theme, {}, screenName, controller) }
 
     function unregisterBarLayoutController(screenName, controller) { return ThemePanels.unregisterBarLayoutController(theme, {}, screenName, controller) }
+
+    function registerTrayWidgetRegistry(screenName, registry) {
+        var next = Object.assign({}, trayWidgetRegistriesByScreen)
+        next[screenName] = registry
+        trayWidgetRegistriesByScreen = next
+    }
+
+    function unregisterTrayWidgetRegistry(screenName, registry) {
+        if (trayWidgetRegistriesByScreen[screenName] !== registry) return
+        var next = Object.assign({}, trayWidgetRegistriesByScreen)
+        delete next[screenName]
+        trayWidgetRegistriesByScreen = next
+    }
+
+    function trayWidgetRegistryForScreen(screenName) {
+        return trayWidgetRegistriesByScreen[screenName] || ({})
+    }
+
+    function restoreTrayWidget(gid) {
+        var controller = barLayoutControllers[activePopupScreenName]
+        return controller && controller.restoreTrayWidget
+            ? controller.restoreTrayWidget(gid) : false
+    }
+
+    function setTrayDropRect(screenName, rect) {
+        var next = Object.assign({}, trayDropRectsByScreen)
+        next[screenName] = rect
+        trayDropRectsByScreen = next
+    }
+
+    function removeTrayDropRect(screenName) {
+        var next = Object.assign({}, trayDropRectsByScreen)
+        delete next[screenName]
+        trayDropRectsByScreen = next
+    }
 
     function barLayoutControllerScreenValid(screenName) { return ThemeIntegrations.barLayoutControllerScreenValid(theme, {Quickshell: Quickshell}, screenName) }
 
@@ -1822,15 +1861,16 @@ Item {
     onTrayVisibleChanged: popupOpened("trayVisible")
     property bool trayHovering: false
     property var trayPinned: []
+    property var trayWidgets: []
     property real trayBarX: 10
     onTrayHoveringChanged: {
         if (trayHovering) trayHoverCloseTimer.stop()
-        else if (trayVisible) trayHoverCloseTimer.restart()
+        else if (trayVisible && !trayDragActive) trayHoverCloseTimer.restart()
     }
     Timer {
         id: trayHoverCloseTimer
         interval: 260
-        onTriggered: if (!theme.trayHovering) theme.trayVisible = false
+        onTriggered: if (!theme.trayHovering && !theme.trayDragActive) theme.trayVisible = false
     }
 
     // ── slot-aware panel X anchors (center-X of each group; set by BarSlot) ──
