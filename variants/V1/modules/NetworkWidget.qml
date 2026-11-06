@@ -228,22 +228,7 @@ Item {
 
     Process {
         id: netProc
-        command: ["bash", "-c",
-            "IFACE=$(ip route get 1.1.1.1 2>/dev/null | awk '{for(i=1;i<=NF;i++) if($i==\"dev\"){print $(i+1); exit}}'); " +
-            "if [ -z \"$IFACE\" ]; then echo NONE; exit; fi; " +
-            "RX=$(awk -v i=\"$IFACE:\" '$1==i{print $2}' /proc/net/dev 2>/dev/null); " +
-            "TX=$(awk -v i=\"$IFACE:\" '$1==i{print $10}' /proc/net/dev 2>/dev/null); " +
-            "if [ -d \"/sys/class/net/$IFACE/wireless\" ]; then " +
-            "  LINK=$(iw dev \"$IFACE\" link 2>/dev/null); " +
-            "  SSID=$(printf '%s\\n' \"$LINK\" | sed -n 's/^\\s*SSID: //p' | head -1); " +
-            "  if [[ \"$SSID\" =~ \\\\(x[0-9A-Fa-f]{2}|[0-7]{3}) ]]; then SSID=$(printf '%b' \"$SSID\"); fi; " +
-            "  SIG=$(printf '%s\\n' \"$LINK\" | awk '/signal:/ {print int($2); exit}'); " +
-            "  QUAL=$(awk -v s=\"$SIG\" 'BEGIN{q=int((s+110)*100/70);if(q<0)q=0;if(q>100)q=100;print q}'); " +
-            "  printf 'WIFI\\t%s\\t%s\\t%s\\t%s\\n' \"$SSID\" \"$QUAL\" \"$RX\" \"$TX\"; " +
-            "else " +
-            "  printf 'ETHERNET\\t%s\\t%s\\t%s\\n' \"$IFACE\" \"$RX\" \"$TX\"; " +
-            "fi"
-        ]
+        command: ["bash", "-c", NetworkWidgetLogic.probeCommand()]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
