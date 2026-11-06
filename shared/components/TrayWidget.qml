@@ -135,11 +135,25 @@ Item {
             MouseArea {
                 id: toggleMa
                 anchors.fill: parent
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onEntered: tip.show()
-                onExited: { tip.hide() }
-                onClicked: { tip.hide(); rootMod.root.trayVisible = !rootMod.root.trayVisible }
+                onEntered: {
+                    tip.show()
+                    rootMod.root.trayHovering = true
+                    rootMod.root.trayVisible = true
+                }
+                onExited: {
+                    tip.hide()
+                    rootMod.root.trayHovering = false
+                }
+                onClicked: (event) => {
+                    tip.hide()
+                    if (event.button === Qt.RightButton)
+                        rootMod.root.trayVisible = true
+                    else
+                        rootMod.root.trayVisible = !rootMod.root.trayVisible
+                }
             }
         }
     }

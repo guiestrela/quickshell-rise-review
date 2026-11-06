@@ -1999,9 +1999,19 @@ Item {
     // ── Tray state ──
     property bool trayVisible: false
     onTrayVisibleChanged: popupOpened("trayVisible")
+    property bool trayHovering: false
     property var trayPinned: []
     property real trayBarX: 10
     property real trayCaretBarX: trayBarX
+    onTrayHoveringChanged: {
+        if (trayHovering) trayHoverCloseTimer.stop()
+        else if (trayVisible) trayHoverCloseTimer.restart()
+    }
+    Timer {
+        id: trayHoverCloseTimer
+        interval: 260
+        onTriggered: if (!theme.trayHovering) theme.trayVisible = false
+    }
 
     // ── slot-aware panel X anchors (center-X of each group; set by BarSlot) ──
     property real volumeBarX:     0

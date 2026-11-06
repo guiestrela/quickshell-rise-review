@@ -76,6 +76,10 @@ PanelWindow {
         opacity: trayPanel.reveal
         focus: trayPanel.root.trayVisible
 
+        HoverHandler {
+            onHoveredChanged: trayPanel.root.trayHovering = hovered
+        }
+
         Keys.onPressed: function(event) {
             if (event.key === Qt.Key_Escape) {
                 trayPanel.root.trayVisible = false
