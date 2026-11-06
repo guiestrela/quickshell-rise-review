@@ -38,8 +38,8 @@ if sys.argv[1]=='--apply':
  args=json.loads(sys.argv[2])
  if args[args.index('--mode')+1]!='preferred':
   time.sleep(.15);print('fixture operation denied',file=sys.stderr);sys.exit(1)
- if sys.argv[-1]!='5':print('Expected five-second confirmation',file=sys.stderr);sys.exit(1)
- data=dict(token=token,status='pending',remaining=5,deadline=time.monotonic()+1.2)
+ if sys.argv[-1]!='15':print('Expected fifteen-second confirmation',file=sys.stderr);sys.exit(1)
+ data=dict(token=token,status='pending',remaining=15,deadline=time.monotonic()+1.2)
 elif sys.argv[1]=='--confirm':data=dict(token=token,status='confirmed',remaining=0)
 elif sys.argv[1]=='--revert':data=dict(token=token,status='reverted',remaining=0)
 else:
@@ -64,7 +64,7 @@ Scope {
  property int ticks: 0
  property var components: []
  FileView { id: gate; path: Quickshell.env("DISPLAY_QUERY_GATE"); printErrors: false }
- QtObject { id: theme; property bool displayManagerAutoWorkspaces: true }
+ QtObject { id: theme; property bool displayManagerAutoWorkspaces: true; property bool omarchyPerMonitorWorkspaces: false }
  Modules.DisplayManagerController { id: c; theme: theme }
  function fail(message) { console.error("DISPLAY_INTEGRATION_FAIL " + message); Qt.quit() }
  Component.onCompleted: {
@@ -114,7 +114,7 @@ Scope {
     c.actionTimeoutMs=15000
     c.applyMonitor("DP-1","preferred",0,0,1,0,"none"); test.phase=6
    } else if(test.phase===6 && !c.busy && !c.loading) {
-    if(c.rollbackPending!==true || c.rollbackSeconds!==5) { test.fail("missing confirmation timer"); return }
+    if(c.rollbackPending!==true || c.rollbackSeconds!==15) { test.fail("missing confirmation timer"); return }
     if(c.saveLayout() || c.applyMonitor("DP-1","preferred",0,0,1,0,"none")) { test.fail("pending guard allows changes/save"); return }
     c.confirmChanges(); test.phase=7
    } else if(test.phase===7 && !c.confirmationBusy && !c.rollbackPending && !c.loading) {

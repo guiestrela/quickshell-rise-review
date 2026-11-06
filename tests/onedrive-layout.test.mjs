@@ -12,7 +12,8 @@ function context() {
   leftExtraSlotLimit:4, centerExtraSlotLimit:3, rightExtraSlotLimit:7,
   NordVpnLayout:helper('NordVpnLayout'), WallpaperLayout:helper('WallpaperLayout'),
   registry:Object.fromEntries(Array.from({length:23},(_,i)=>['G'+(i+1),true])),
-  leftModel:model(),centerModel:model(),rightModel:model()
+  leftModel:model(),centerModel:model(),rightModel:model(),
+  barSlot:{root:{trayWidgets:[]}}
  };
  vm.createContext(c);vm.runInContext(functions,c);return c;
 }
@@ -26,6 +27,21 @@ test('OneDrive appends to a full V2 right region and round-trips customized orde
  const customized=serialize(c).replace('B:_','B:G22').replace('E:G22','E:_')
   .replace('B:G1','B:G21').replace('E:G21','E:G1');
  assert.equal(c.applyOrder(customized),true);assert.equal(serialize(c),customized);
+});
+test('V2 restores standalone Indicators in the tray without adding a duplicate',()=>{
+ const initial=context();assert.equal(initial.applyOrder(prior),true);
+ const saved=serialize(initial).replace('E:G23','E:_')+'|G23';
+ const restored=context();
+ assert.equal(restored.applyOrder(saved),true,'Indicators already in the tray must not be migrated back into the center');
+ assert.equal(serialize(restored)+'|'+restored.barSlot.root.trayWidgets.join(','),saved);
+ assert.equal(restored.centerModel.rows.some(e=>e.gid==='G23'),false);
+});
+test('V2 still rejects Indicators duplicated between center and tray',()=>{
+ const c=context();assert.equal(c.applyOrder(prior),true);
+ const before=serialize(c);
+ assert.equal(c.applyOrder(before+'|G23'),false);
+ assert.equal(serialize(c),before);
+ assert.equal(c.barSlot.root.trayWidgets.length,0);
 });
 test('OneDrive reuses a vacant slot without changing existing widgets or accepting duplicates',()=>{
  const c=context();const cached=prior.replace('B:_','B:G21').replace(',E:G21',',E:_');

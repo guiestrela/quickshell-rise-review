@@ -185,11 +185,22 @@ PanelWindow {
         if (l.concat(c,r).indexOf("G20") < 0) l.push("G20")
         if (l.concat(c,r).indexOf("G21") < 0) l.push("G21")
         if (l.concat(c,r).indexOf("G22") < 0) l.push("G22")
-        // G23 is V2-only. Drop it from an in-progress saved layout while
-        // preserving the position as an empty slot.
-        l = l.map(function(gid) { return gid === "G23" ? "" : gid })
-        c = c.map(function(gid) { return gid === "G23" ? "" : gid })
-        r = r.map(function(gid) { return gid === "G23" ? "" : gid })
+        // Add Indicators to the first vacant saved slot without moving existing widgets.
+        if (l.concat(c, r, tray).indexOf("G23") < 0) {
+            var regions = [
+                { items: c, limit: centerModel.count },
+                { items: l, limit: leftModel.count },
+                { items: r, limit: rightModel.count }
+            ]
+            var placed = false
+            for (var region = 0; region < regions.length && !placed; region++) {
+                var items = regions[region].items
+                var empty = items.indexOf("")
+                if (empty >= 0) { items[empty] = "G23"; placed = true }
+                else if (items.length < regions[region].limit) { items.push("G23"); placed = true }
+            }
+            if (!placed) return
+        }
         // F12: only apply a cache that is a valid permutation of all registry ids (correct region
         // sizes, every id known, no duplicate, none missing) — a corrupt cache would otherwise
         // duplicate one widget and silently drop another. On reject, keep the default order.
@@ -391,12 +402,12 @@ PanelWindow {
     Component { id: compGpu;    GpuWidget    { root: barSlot.root } }
     Component { id: compVol;    AudioWidget  { root: barSlot.root } }
     Component { id: compClaude; ClaudeWidget { root: barSlot.root } }
+    Component { id: compIndicators; IndicatorsWidget { root: barSlot.root } }
 
     Component {
-        id: compCenter                                   // G8: weather·clock·date·indicators
+        id: compCenter                                   // G8: weather·clock·date
         Item {
             id: g8
-            HoverHandler { id: indicatorHover }
             implicitWidth: Math.round(centerRow.implicitWidth) + 18
             implicitHeight: 28
 
@@ -409,7 +420,7 @@ PanelWindow {
             property int stage: 0                        // 0 normal · 1 compact · 2 minimal
             readonly property bool showWeather: stage <= 1
             readonly property bool showDate:    stage === 0
-            readonly property bool showIcons:   iconsRow.hasActive || indicatorHover.hovered
+            readonly property bool showIcons:   iconsRow.hasActive
             // needed widths per stage: reactive bindings over the UNCOLLAPSED content
             // (the stage-gated wrapper widths shrink and would mislead the upshift
             // decision). 18 = pill padding, 8 = row spacing per visible neighbour.
@@ -516,25 +527,9 @@ PanelWindow {
                         id: iconsRow
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 8
-                        readonly property bool hasActive: (barSlot.root.modIndicators && nativeIndicators.hasActive)
-                            || voxInd.state === "recording"
+                        readonly property bool hasActive: voxInd.state === "recording"
                             || voxInd.state === "transcribing"
                             || omarchyUpdateInd.updateAvailable
-                        Item {
-                            id: nativeIndicatorsContainer
-                            visible: barSlot.root.modIndicators && nativeIndicators.implicitWidth > 0
-                            width: barSlot.root.modIndicators ? nativeIndicators.implicitWidth : 0
-                            implicitWidth: width
-                            height: 28
-                            CommonComponents.IndicatorsWidget {
-                                id: nativeIndicators
-                                anchors.fill: parent
-                                root: barSlot.root
-                                coordinator: barSlot.root.omarchyIndicators
-                                contentColor: barSlot.root.seal
-                                revealInactive: indicatorHover.hovered
-                            }
-                        }
                         VoxtypeWidget            { id: voxInd;           root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
                         UpdateWidget             { id: omarchyUpdateInd; root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
                     }
@@ -584,7 +579,7 @@ PanelWindow {
         "G8": compCenter,
         "G9": compMpris, "G10": compQuick, "G11": compNetwork,
         "G12": compBattery, "G13": compBrightness, "G14": compPower, "G15": compBluetooth,
-        "G16": compNordVpn, "G17": compWallpapers, "G18": compDisplayManager, "G19": compGpu, "G20": compTemperature, "G21": compStorage
+        "G16": compNordVpn, "G17": compWallpapers, "G18": compDisplayManager, "G19": compGpu, "G20": compTemperature, "G21": compStorage, "G23": compIndicators
     })
 
     // ───────────────────── reusable region row of slots ─────────────────────
@@ -977,7 +972,7 @@ PanelWindow {
             ListElement { gid: "G7" } ListElement { gid: "G19" } ListElement { gid: "G20" } ListElement { gid: "G21" } ListElement { gid: "G22" }
             ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" }
         }
-        ListModel { id: centerModel; ListElement { gid: "G8" } ListElement { gid: "" } ListElement { gid: "" } }
+        ListModel { id: centerModel; ListElement { gid: "G8" } ListElement { gid: "G23" } ListElement { gid: "" } }
         ListModel {
             id: rightModel
             ListElement { gid: "G9" }  ListElement { gid: "G10" } ListElement { gid: "G17" }

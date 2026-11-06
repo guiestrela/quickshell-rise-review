@@ -105,7 +105,7 @@ check_qml() {
 check_qml
 check "source layout and local imports" python3 tests/test-source-layout.py
 check "Omarchy native indicators" python3 tests/test-omarchy-indicators.py
-check "V2 inline indicators and visibility toggle" python3 tests/test-v2-inline-indicators.py
+check "independent Indicators module V1/V2" python3 tests/test-v2-inline-indicators.py
 
 check "variant failure and retry" python3 tests/test-variant-failure-runtime.py
 check "network SSID width" python3 tests/test-network-ssid-width.py

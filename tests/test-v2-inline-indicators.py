@@ -1,36 +1,48 @@
 #!/usr/bin/env python3
-"""V2 Omarchy indicators live in the clock group and keep their visibility toggle."""
+"""Indicators are a configurable G23 module, independent of the clock, in V1/V2."""
 from pathlib import Path
 
 repo = Path(__file__).resolve().parents[1]
-bar = (repo / 'variants/V2/BarSlot.qml').read_text()
-theme = (repo / 'variants/V2/Theme.qml').read_text()
-control = (repo / 'variants/V2/panels/ControlPanel.qml').read_text()
+for variant in ('V1', 'V2'):
+    base = repo / 'variants' / variant
+    bar = (base / 'BarSlot.qml').read_text()
+    theme = (base / 'Theme.qml').read_text()
+    control = (base / 'panels/ControlPanel.qml').read_text()
+    module = (base / 'modules/IndicatorsWidget.qml').read_text()
 
-center_start = bar.index('id: compCenter')
-center_end = bar.index('    Component {\n        id: compIndicators', center_start)
-center = bar[center_start:center_end]
-assert center.index('ClockWidget') < center.index('CommonComponents.IndicatorsWidget')
-assert 'coordinator: barSlot.root.omarchyIndicators' in center
-assert 'HoverHandler { id: indicatorHover }' in center[:center.index('id: nativeIndicatorsContainer')]
-assert 'revealInactive: indicatorHover.hovered' in center
-assert '(barSlot.root.modIndicators && nativeIndicators.hasActive)' in center
-assert 'visible: barSlot.root.modIndicators && nativeIndicators.implicitWidth > 0' in center
-assert 'width: barSlot.root.modIndicators ? nativeIndicators.implicitWidth : 0' in center
-assert 'width: g8.showIcons ? iconsRow.implicitWidth : 0' in center
-assert 'contentColor: g8.contentColor' in center
-assert 'contentColor: barSlot.root.seal' not in center
-date_start = center.index('id: dateLabel')
-date_end = center.index('MouseArea {', date_start)
-assert 'color: Qt.rgba(g8.contentColor.r, g8.contentColor.g, g8.contentColor.b, 0.5)' in center[date_start:date_end], 'Date text must keep its prior half-opacity color'
+    center_start = bar.index('id: compCenter')
+    center_end = bar.index('id: compMpris', center_start)
+    center = bar[center_start:center_end]
+    assert 'CommonComponents.IndicatorsWidget' not in center
+    assert 'nativeIndicators' not in center
+    assert 'modIndicators' not in center
+    assert 'width: g8.showIcons ? iconsRow.implicitWidth : 0' in center
 
-legacy_start = center_end
-legacy_end = bar.index('    Component {\n        id: compMpris', legacy_start)
-legacy = bar[legacy_start:legacy_end]
-assert 'visible: false' in legacy and 'implicitWidth: 0' in legacy and 'implicitHeight: 0' in legacy
-assert 'G23 remains registered' in legacy, 'Keep existing saved V2 layouts loadable'
+    assert '"G23": compIndicators' in bar
+    assert 'Component { id: compIndicators; IndicatorsWidget { root: barSlot.root } }' in bar
+    assert 'Shared.IndicatorsWidget {' in module
+    assert 'root.modIndicators' in module
+    assert 'coordinator: module.root.omarchyIndicators' in module
+    assert 'revealInactive: reveal.hovered' in module
+    assert 'vertical: module.vertical' in module
+    assert 'objectName: "indicators-empty-marker"' in module
+    assert 'text: ">"' in module
+    assert 'anchors.centerIn: parent' in module
+    assert 'visible: module.root.modIndicators && !indicators.hasActive && !indicators.revealed' in module
 
-assert 'gid: "G23"' in control and 'label: "Indicators"' in control
-assert 'onVisibilityToggled: ctrlPanel.root.modIndicators = !ctrlPanel.root.modIndicators' in control
-assert 'onModIndicatorsChanged: if (_widgetsLoaded) saveWidgets()' in theme
-print('V2_INLINE_INDICATORS_PASS clock grouping, hover reveal, legacy layout loading and disable toggle')
+    assert 'label: "Indicators"' in control
+    assert 'modIndicators = !ctrlPanel.root.modIndicators' in control
+    if variant == 'V2':
+        assert 'gid: "G23"' in control
+    else:
+        assert 'objectName: "indicators-widget-toggle"' in control
+    assert 'onModIndicatorsChanged: if (_widgetsLoaded) saveWidgets()' in theme
+
+v1_defaults = (repo / 'variants/V1/modules/V1Defaults.js').read_text()
+v1_order = (repo / 'variants/V1/BarSlot.qml').read_text()
+v2_order = (repo / 'variants/V2/BarSlot.qml').read_text()
+assert 'center: ["G8", "G23", ""]' in v1_defaults
+assert 'id: centerModel; ListElement { gid: "G8" } ListElement { gid: "G23" }' in v1_order
+assert 'ListElement { gid: "G8"; extra: false } ListElement { gid: "G23"; extra: true }' in v2_order
+assert 'if (l.concat(c, r, tray).indexOf("G23") < 0)' in v1_order, 'Migrate old V1 layouts without moving existing widgets'
+print('INDEPENDENT_INDICATORS_PASS: V1/V2 G23 registry, clock separation, persisted visibility, hover, and vertical module')

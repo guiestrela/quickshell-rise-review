@@ -865,7 +865,7 @@ PanelWindow {
             }
         }
 
-        if (!l.concat(c, r).some(function(entry) { return entry.gid === "G23" })) {
+        if (tray.indexOf("G23") < 0 && !l.concat(c, r).some(function(entry) { return entry.gid === "G23" })) {
             var centerEmpty = -1
             for (var centerSlot = 0; centerSlot < c.length; centerSlot++)
                 if (c[centerSlot].gid === "") { centerEmpty = centerSlot; break }
@@ -1128,10 +1128,9 @@ PanelWindow {
     }
 
     Component {
-        id: compCenter                                   // G8: weather·clock·date·indicators
+        id: compCenter                                   // G8: weather·clock·date
         Item {
             id: g8
-            HoverHandler { id: indicatorHover }
             readonly property real barContentLeftInset: 9
             readonly property real barContentRightInset: 9
             readonly property color contentColor:
@@ -1152,7 +1151,7 @@ PanelWindow {
             property int stage: 0                        // 0 normal · 1 compact · 2 minimal
             readonly property bool showWeather: stage <= 1
             readonly property bool showDate:    stage === 0
-            readonly property bool showIcons:   iconsRow.hasActive || indicatorHover.hovered
+            readonly property bool showIcons:   iconsRow.hasActive
             // needed widths per stage: reactive bindings over the UNCOLLAPSED content
             // (the stage-gated wrapper widths shrink and would mislead the upshift
             // decision). 18 = pill padding, 8 = row spacing per visible neighbour.
@@ -1255,25 +1254,9 @@ PanelWindow {
                         id: iconsRow
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: barSlot.root.v2InlineSpacing
-                        readonly property bool hasActive: (barSlot.root.modIndicators && nativeIndicators.hasActive)
-                            || voxInd.state === "recording"
+                        readonly property bool hasActive: voxInd.state === "recording"
                             || voxInd.state === "transcribing"
                             || omarchyUpdateInd.updateAvailable
-                        Item {
-                            id: nativeIndicatorsContainer
-                            visible: barSlot.root.modIndicators && nativeIndicators.implicitWidth > 0
-                            width: barSlot.root.modIndicators ? nativeIndicators.implicitWidth : 0
-                            implicitWidth: width
-                            height: 28
-                            CommonComponents.IndicatorsWidget {
-                                id: nativeIndicators
-                                anchors.fill: parent
-                                root: barSlot.root
-                                coordinator: barSlot.root.omarchyIndicators
-                                contentColor: g8.contentColor
-                                revealInactive: indicatorHover.hovered
-                            }
-                        }
                         VoxtypeWidget            { id: voxInd;           root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
                         UpdateWidget             { id: omarchyUpdateInd; root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
                     }
@@ -1282,17 +1265,7 @@ PanelWindow {
         }
     }
 
-    Component {
-        id: compIndicators
-        Item {
-            // G23 remains registered so saved V2 layouts from before Indicators
-            // moved into the G8 clock group still load. The widget now renders
-            // inline with ClockWidget in G8 and is controlled by modIndicators.
-            visible: false
-            implicitWidth: 0
-            implicitHeight: 0
-        }
-    }
+    Component { id: compIndicators; IndicatorsWidget { root: barSlot.root } }
     Component {
         id: compMpris
         MprisWidget {

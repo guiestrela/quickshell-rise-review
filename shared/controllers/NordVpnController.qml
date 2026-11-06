@@ -267,7 +267,7 @@ Item {
             var legacyTarget = key === "technology"
                 ? value === "OPENVPN" ? "OpenVPN (" + String(vpnSettings.protocol || "UDP").toUpperCase() + ")" : value
                 : "OpenVPN (" + value + ")"
-            return _runProtocolChange([cli, allowed[key][0], value], legacyTarget)
+            return _runProtocolChange([cli, "set", allowed[key][0], value], legacyTarget)
         }
         vpnMessage = ""
         vpnActionMessage = key === "threat-protection-lite" ? "Updating Real-time Protection…"

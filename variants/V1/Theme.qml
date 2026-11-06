@@ -1002,6 +1002,7 @@ Item {
     }
     property bool modStorage: false
     property bool modIndicators: true
+    onModIndicatorsChanged: if (_widgetsLoaded) saveWidgets()
     property bool compactTemperature: false
     property bool compactStorage: false
     property bool thermalVisible: false

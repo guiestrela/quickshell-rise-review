@@ -5,6 +5,7 @@ import json
 import os
 from pathlib import Path
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -13,6 +14,54 @@ repo = Path(__file__).resolve().parents[1]
 native = '--native' in sys.argv
 with tempfile.TemporaryDirectory(prefix='rise-energy-panels-', dir='/tmp') as directory:
     temp = Path(directory)
+    battery_panel = repo / 'shared/panels/BatteryPanel.qml'
+    battery_match = re.search(
+        r'command:\s*\["python3",\s*(?:decodeURIComponent\(String\()?Qt\.resolvedUrl\("([^"]+)"\)',
+        battery_panel.read_text())
+    assert battery_match, 'BatteryPanel must resolve its helper from Qt.resolvedUrl'
+    battery_helper = (battery_panel.parent / battery_match.group(1)).resolve()
+    expected_helper = repo / 'scripts/rise-battery-status.py'
+    assert battery_helper == expected_helper and battery_helper.is_file(), (
+        f'BatteryPanel helper must resolve to {expected_helper}, got {battery_helper}')
+
+    fixture_helper = temp / 'scripts/rise-battery-status.py'
+    fixture_helper.parent.mkdir()
+    shutil.copy2(battery_helper, fixture_helper)
+    fake_bin = temp / 'fake-battery-bin'
+    fake_bin.mkdir()
+    fake_upower = fake_bin / 'upower'
+    fake_upower.write_text(f'''#!{sys.executable}
+import sys
+args=sys.argv[1:]
+if args==["-i","/org/freedesktop/UPower/devices/DisplayDevice"]:
+ print("""type: battery
+percentage: 83.4%
+state: discharging
+time to empty: 2.5 hours
+energy-rate: 12.5 W
+energy-full: 80.0 Wh""")
+elif args==["-e"]:
+ print("/org/freedesktop/UPower/devices/battery_BAT0")
+elif args==["-i","/org/freedesktop/UPower/devices/battery_BAT0"]:
+ print("""type: battery
+charge-cycles: 47
+energy-full: 72.0 Wh
+energy-full-design: 80.0 Wh""")
+else:
+ print("unexpected fixture call", file=sys.stderr); sys.exit(2)
+''')
+    fake_upower.chmod(0o700)
+    helper_env = dict(os.environ, PATH=str(fake_bin) + os.pathsep + os.environ.get('PATH', ''))
+    helper_run = subprocess.run([sys.executable, str(battery_helper)], env=helper_env,
+                                capture_output=True, text=True, timeout=10)
+    assert helper_run.returncode == 0, helper_run.stderr
+    battery_data = json.loads(helper_run.stdout)
+    assert battery_data == {
+        'schema': 1, 'batteryId': 'BAT0', 'percentage': 83, 'status': 'discharging',
+        'timeLabel': 'Time left', 'timeText': '2h 30m', 'powerRate': '12.5',
+        'sizeText': '80 Wh', 'healthText': '90%', 'cycles': 47,
+    }, battery_data
+    fixture_helper_path = str(fixture_helper.resolve())
     runtime = temp / 'runtime'
     runtime.mkdir(mode=0o700)
     for variant, path in [('V1', 'variants/V1'), ('V2', 'variants/V2')]:
@@ -168,7 +217,9 @@ Item {
             compare(volume.pendingOutputVolume,-1)
             compare(outputRunner.command,["timeout","4","wpctl","set-volume","@DEFAULT_AUDIO_SINK@","0.200"])
             var batteryReader = findChild(battery, "batData")
-            batteryReader.stdout.text = "BAT0|73|charging|Time to full|1h|20 W|50 Wh|95%|100"
+            compare(batteryReader.command[0], "python3")
+            compare(batteryReader.command[1], EXPECTED_BATTERY_HELPER)
+            batteryReader.stdout.text = JSON.stringify({schema:1,batteryId:"BAT0",percentage:73,status:"charging",timeLabel:"Time to full",timeText:"1h",powerRate:"20",sizeText:"50 Wh",healthText:"95%",cycles:100})
             batteryReader.stdout.streamFinished()
             compare(battery.percent, 73); verify(battery.charging)
             compare(battery.cycles, 100); compare(battery.healthLabel, "Health (BAT0)")
@@ -202,6 +253,7 @@ Item {
 }
 '''
         qml = qml.replace('VARIANT',variant).replace('THEME','\n'.join(theme)).replace('BODIES',bodies)
+        qml = qml.replace('EXPECTED_BATTERY_HELPER', json.dumps(fixture_helper_path))
         probe = temp / f'{"native" if native else "tst"}_{variant}.qml'
         probe.write_text(qml)
         env = dict(os.environ, QT_QUICK_BACKEND='software', QT_QPA_PLATFORMTHEME='')

@@ -197,7 +197,7 @@ PanelWindow {
 
     Process {
         id: batData
-        command: ["python3", Qt.resolvedUrl("../scripts/rise-battery-status.py")]
+        command: ["python3", decodeURIComponent(String(Qt.resolvedUrl("../../scripts/rise-battery-status.py")).replace(/^(file|qs):\/\//, ""))]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {

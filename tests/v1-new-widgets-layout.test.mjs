@@ -7,13 +7,14 @@ const functionText=(name,next)=>source.slice(source.indexOf('    function '+name
 test('new widgets migrate after the saved order and reject corrupt permutations',()=>{
  const applied=[];
  const context={leftModel:{count:15},centerModel:{count:3},rightModel:{count:14},
-  registry:Object.fromEntries(Array.from({length:22},(_,i)=>['G'+(i+1),true])),
+  registry:Object.fromEntries(Array.from({length:23},(_,i)=>['G'+(i+1),true])),barSlot:{root:{trayWidgets:[]}},
   NordVpnLayout:{migrateV1Order:()=>null},WallpaperLayout:{migrateV1Order:()=>null},
   applyTo:(model,ids)=>applied.push(Array.from(ids))};
  vm.createContext(context); vm.runInContext(functionText('applyOrder','saveOrder'),context);
  const old='G19,G7,G6,G5,G4,G3,G2,G1|G8|G18,G15,G16,G11,G13,G12,G14,G17,G10,G9';
  context.applyOrder(old);
  assert.deepEqual(applied[0],['G19','G7','G6','G5','G4','G3','G2','G1','G20','G21','G22','','','','']);
+ assert.deepEqual(applied[1],['G8','G23','']);
  const saved=applied.map(a=>a.join(',')).join('|');applied.length=0;
  context.applyOrder(saved);assert.equal(applied.length,3);assert.equal(applied.flat().length,32);
  applied.length=0;context.applyOrder(old.replace('G7','G6'));assert.equal(applied.length,0);
