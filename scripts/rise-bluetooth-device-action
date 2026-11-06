@@ -1,0 +1,66 @@
+#!/usr/bin/env python3
+"""Run one bluetoothctl device action against the device's owning adapter."""
+import re
+import subprocess
+import sys
+
+
+def main():
+    if len(sys.argv) != 4:
+        print("Bluetooth action arguments are invalid.", file=sys.stderr)
+        return 2
+
+    phase, adapter, mac = sys.argv[1:]
+    if phase not in {"trust", "pair", "connect", "disconnect", "info"}:
+        print("Bluetooth action is not supported.", file=sys.stderr)
+        return 2
+    if not re.fullmatch(r"hci[0-9]+", adapter):
+        print("Bluetooth adapter is unavailable.", file=sys.stderr)
+        return 2
+    if not re.fullmatch(r"(?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}", mac):
+        print("Bluetooth device address is invalid.", file=sys.stderr)
+        return 2
+
+    commands = f"select {adapter}\n{phase} {mac}\nquit\n"
+    try:
+        result = subprocess.run(
+            ["/usr/bin/bluetoothctl"],
+            input=commands,
+            text=True,
+            capture_output=True,
+            timeout=12,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        print(f"Bluetooth {phase} timed out.", file=sys.stderr)
+        return 124
+    except OSError as error:
+        print(f"Could not run bluetoothctl: {error}", file=sys.stderr)
+        return 127
+
+    output = re.sub(r"\x1b\[[0-?]*[ -/]*[@-~]", "", result.stdout + "\n" + result.stderr)
+    output = output.replace("\r", "").replace("\b", "")
+    lines = [line.strip() for line in output.splitlines() if line.strip()]
+    relevant = [
+        line for line in lines
+        if not line.startswith(("[CHG]", "[NEW]", "[DEL]", "[bluetooth]", "Waiting to connect"))
+        and not re.fullmatch(r"\[[^]]+\]>?", line)
+    ]
+
+    error_lines = [
+        line for line in relevant
+        if re.search(r"failed|not available|not ready|not connected|no default controller|invalid device|org\.bluez\.error|unknown command", line, re.I)
+    ]
+    if result.returncode != 0 or error_lines:
+        print(error_lines[-1] if error_lines else (relevant[-1] if relevant else "Bluetooth action failed."), file=sys.stderr)
+        return result.returncode or 1
+
+    if phase == "info":
+        print("\n".join(relevant))
+    else:
+        print(relevant[-1] if relevant else "Bluetooth command completed.")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

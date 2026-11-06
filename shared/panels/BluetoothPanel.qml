@@ -46,10 +46,12 @@ PanelWindow {
         return n
     }
     property string connMac: ""
+    property string connAdapterId: ""
     property string connPhase: ""
     property string connVerifyPhase: ""
     property string connFailureMessage: ""
     property string connectionNotice: ""
+    readonly property string deviceActionScript: decodeURIComponent(String(Qt.resolvedUrl("../../scripts/rise-bluetooth-device-action")).replace(/^(file|qs):\/\//, ""))
     property string expandedDeviceKey: ""
     readonly property bool connectionBusy: connProc.running || connVerify.running || connPhase !== ""
     readonly property bool actionBusy: forgetBusy || trustPending || connectionBusy
@@ -175,8 +177,16 @@ PanelWindow {
         if (!device || btPanel.connectionBusy || btPanel.actionBusy) return
         var mac = String(device.mac || "")
         if (!/^([0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2}$/.test(mac)) return
+        var adapterId = String(device.adapterId || "")
+        if (!/^hci[0-9]+$/.test(adapterId) && Bluetooth.defaultAdapter)
+            adapterId = String(Bluetooth.defaultAdapter.adapterId || "")
+        if (!/^hci[0-9]+$/.test(adapterId)) {
+            connectionNotice = "Bluetooth adapter is unavailable. Refresh the device list and try again."
+            return
+        }
         connectionNotice = ""
         connMac = mac
+        connAdapterId = adapterId
         if (device.connected) {
             connPhase = "disconnect"
         } else if (device.paired) {
@@ -193,6 +203,7 @@ PanelWindow {
         connectionTimeout.stop()
         connPhase = ""
         connVerifyPhase = ""
+        connAdapterId = ""
         connFailureMessage = ""
         if (message) connectionNotice = message
         refresh()
@@ -837,7 +848,7 @@ PanelWindow {
     Process {
         id: connProc
         property string output: ""
-        command: ["/usr/bin/timeout", "12s", "bluetoothctl", btPanel.connPhase, btPanel.connMac]
+        command: ["/usr/bin/python3", btPanel.deviceActionScript, btPanel.connPhase, btPanel.connAdapterId, btPanel.connMac]
         running: false
         stdout: StdioCollector {
             onStreamFinished: connProc.output = String(this.text || "").trim()
@@ -891,7 +902,7 @@ PanelWindow {
     Process {
         id: connVerify
         property string output: ""
-        command: ["/usr/bin/timeout", "6s", "bluetoothctl", "info", btPanel.connMac]
+        command: ["/usr/bin/timeout", "8s", "/usr/bin/python3", btPanel.deviceActionScript, "info", btPanel.connAdapterId, btPanel.connMac]
         running: false
         stdout: StdioCollector {
             onStreamFinished: connVerify.output = String(this.text || "")
@@ -899,9 +910,9 @@ PanelWindow {
         onExited: (exitCode) => {
             var phase = btPanel.connVerifyPhase
             var detail = String(connVerify.output || "")
-            var paired = detail.indexOf("\tPaired: yes") >= 0 || detail.indexOf(" Paired: yes") >= 0
-            var trusted = detail.indexOf("\tTrusted: yes") >= 0 || detail.indexOf(" Trusted: yes") >= 0
-            var connected = detail.indexOf("\tConnected: yes") >= 0 || detail.indexOf(" Connected: yes") >= 0
+            var paired = /(?:^|\s)Paired: yes(?:\s|$)/m.test(detail)
+            var trusted = /(?:^|\s)Trusted: yes(?:\s|$)/m.test(detail)
+            var connected = /(?:^|\s)Connected: yes(?:\s|$)/m.test(detail)
             if (exitCode === 0 && phase === "disconnect" && !connected) {
                 btPanel.finishConnection("")
             } else if (exitCode === 0 && connected && phase !== "disconnect") {
