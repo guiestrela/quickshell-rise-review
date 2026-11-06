@@ -99,7 +99,10 @@ PanelWindow {
         ghostX = hx; ghostY = hy; srcModel = sm; srcIndex = si
         dropModel = null; dropIndex = -1; dropTray = false; dragActive = true; dragging = true
         barSlot.root.trayDragActive = true
-        barSlot.root.trayVisible = true
+        // Keep the tray closed while a drag starts. Opening its full-screen
+        // click-outside surface here can steal pointer events from this window
+        // and cancel the drag before the user can reorder a widget. Users can
+        // still drag into the tray when it was already open.
     }
     // which slot (model+index) is under a window-point?
     function slotAt(wx, wy) {

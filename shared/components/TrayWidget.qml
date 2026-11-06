@@ -144,6 +144,11 @@ Item {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 onEntered: {
+                    if (rootMod.root.barUnlocked) {
+                        tip.hide()
+                        rootMod.root.trayHovering = false
+                        return
+                    }
                     tip.show()
                     rootMod.root.trayHovering = true
                     rootMod.root.trayVisible = true
