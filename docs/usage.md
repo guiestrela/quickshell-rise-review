@@ -156,6 +156,8 @@ Rise reads the native `notifications/live.json` and `history.json` stores and
 the `quiet.json` do-not-disturb state. Native keys keep entries stable across
 shell restarts, and modern entries disappear from Rise when the host removes
 them through retention. The Rise panel displays up to 50 recent entries.
+On Omarchy 4.5, file-change watching refreshes the badge and panel as the native
+service writes notification state.
 
 Closing an entry hides it in Rise. **Clear all** hides the retained Rise entries
 and dismisses native popups; Omarchy continues to manage its own stored history.

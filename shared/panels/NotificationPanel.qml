@@ -52,6 +52,11 @@ PanelWindow {
     property int seq: 0                  // monotonic first-seen counter (ordering)
     property bool cacheLoaded: false
     property string lastSaved: ""
+    readonly property string nativeStorePath: Quickshell.env("HOME") + "/.local/state/omarchy/notifications"
+    property bool nativeLiveStoreLoaded: false
+    property bool nativeHistoryStoreLoaded: false
+    readonly property bool nativeStoreWatchAvailable: notifPanel.root._notifOmarchyShellBackend
+        && nativeLiveStoreLoaded && nativeHistoryStoreLoaded
 
     // The tray shows only live alerts. Closed host history remains in the local
     // archive, but must not keep reappearing as a pending notification.
@@ -134,6 +139,43 @@ PanelWindow {
     function poll() {
         if (!notifPanel.cacheLoaded) return
         pollProc.running = false; pollProc.running = true
+    }
+
+    Timer {
+        id: nativeStoreRefresh
+        interval: 40
+        repeat: false
+        onTriggered: notifPanel.poll()
+    }
+    FileView {
+        id: nativeLiveStore
+        path: notifPanel.root._notifOmarchyShellBackend ? notifPanel.nativeStorePath + "/live.json" : ""
+        watchChanges: notifPanel.root._notifOmarchyShellBackend
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            notifPanel.nativeLiveStoreLoaded = true
+            nativeStoreRefresh.restart()
+        }
+        onLoadFailed: {
+            notifPanel.nativeLiveStoreLoaded = false
+            nativeStoreRefresh.restart()
+        }
+    }
+    FileView {
+        id: nativeHistoryStore
+        path: notifPanel.root._notifOmarchyShellBackend ? notifPanel.nativeStorePath + "/history.json" : ""
+        watchChanges: notifPanel.root._notifOmarchyShellBackend
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: {
+            notifPanel.nativeHistoryStoreLoaded = true
+            nativeStoreRefresh.restart()
+        }
+        onLoadFailed: {
+            notifPanel.nativeHistoryStoreLoaded = false
+            nativeStoreRefresh.restart()
+        }
     }
 
     // merge this poll's active(list) + history into our retained history
@@ -407,12 +449,11 @@ PanelWindow {
         }
     }
 
-    // ── poll cadence: fast while open, much slower when closed.
-    // Opening the panel still triggers an immediate refresh below; the closed
-    // cadence only keeps the badge/history roughly warm without parsing mako
-    // JSON every few seconds in idle.
+    // Native Omarchy updates arrive from watched store files. Keep a slow
+    // safety poll for that backend, and retain the existing cadence for Mako
+    // or older notification services without the native store contract.
     Timer {
-        interval: notifPanel.visible ? 1500 : 10000
+        interval: notifPanel.nativeStoreWatchAvailable ? 60000 : (notifPanel.visible ? 1500 : 10000)
         running: notifPanel.cacheLoaded; repeat: true; triggeredOnStart: true
         onTriggered: notifPanel.poll()
     }
