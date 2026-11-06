@@ -85,10 +85,7 @@ Scope {
     env.pop('DISPLAY', None)
     env.update(HOME=str(home), QT_QPA_PLATFORM='wayland', RISE_DISPLAY_MANAGER_APPLY='/usr/bin/false', RISE_DISPLAY_MANAGER_GUARD='/usr/bin/false')
     same_content = home / '.cache/quickshell-rise/display-return-states.json'
-    same_content.write_text('{"DP-2":{"x":2579,"y":-50,"width":2560,"height":1440,"scale":1.25,"transform":1,"refreshRate":59.951}}')
     for mode in ['capture', 'restore', 'same-content', 'write-failure']:
-        if mode != 'same-content' and same_content.exists():
-            same_content.unlink()
         if mode == 'same-content':
             same_content.write_text('{"DP-2":{"x":2579,"y":-50,"width":2560,"height":1440,"scale":1.25,"transform":1,"refreshRate":59.951}}')
         env['MEMORY_TEST_MODE'] = mode

@@ -1197,9 +1197,25 @@ PanelWindow {
                         id: iconsRow
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: barSlot.root.v2InlineSpacing
-                        readonly property bool hasActive: voxInd.state === "recording"
+                        readonly property bool hasActive: (barSlot.root.modIndicators && nativeIndicators.hasActive)
+                            || voxInd.state === "recording"
                             || voxInd.state === "transcribing"
                             || omarchyUpdateInd.updateAvailable
+                        Item {
+                            id: nativeIndicatorsContainer
+                            visible: barSlot.root.modIndicators && nativeIndicators.implicitWidth > 0
+                            width: barSlot.root.modIndicators ? nativeIndicators.implicitWidth : 0
+                            implicitWidth: width
+                            height: 28
+                            CommonComponents.IndicatorsWidget {
+                                id: nativeIndicators
+                                anchors.fill: parent
+                                root: barSlot.root
+                                coordinator: barSlot.root.omarchyIndicators
+                                contentColor: g8.contentColor
+                                revealInactive: indicatorHover.hovered
+                            }
+                        }
                         VoxtypeWidget            { id: voxInd;           root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
                         UpdateWidget             { id: omarchyUpdateInd; root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
                     }
@@ -1211,22 +1227,12 @@ PanelWindow {
     Component {
         id: compIndicators
         Item {
-            visible: barSlot.root.modIndicators
-            // Keep a small hover target while all indicators are inactive. If
-            // this collapses to zero, the widget can never reveal available
-            // indicators on hover.
-            implicitWidth: barSlot.root.modIndicators ? Math.max(barSlot.root.barVertical ? 32 : 24,
-                indicatorContent.implicitWidth) : 0
-            implicitHeight: barSlot.root.barVertical ? indicatorContent.implicitHeight : 24
-            CommonComponents.IndicatorsWidget {
-                id: indicatorContent
-                anchors.fill: parent
-                root: barSlot.root
-                coordinator: barSlot.root.omarchyIndicators
-                contentColor: barSlot.root.widgetContentColor("G23", barSlot.root.widgetIconColor)
-                vertical: barSlot.root.barVertical
-                revealInactive: false
-            }
+            // G23 remains registered so saved V2 layouts from before Indicators
+            // moved into the G8 clock group still load. The widget now renders
+            // inline with ClockWidget in G8 and is controlled by modIndicators.
+            visible: false
+            implicitWidth: 0
+            implicitHeight: 0
         }
     }
     Component {
