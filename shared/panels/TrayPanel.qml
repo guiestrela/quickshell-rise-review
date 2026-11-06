@@ -108,7 +108,10 @@ PanelWindow {
         focus: trayPanel.root.trayVisible
 
         HoverHandler {
-            onHoveredChanged: trayPanel.root.trayHovering = hovered
+            onHoveredChanged: {
+                trayPanel.root.trayHovering = hovered
+                if (hovered) trayPanel.root.trayPanelHoverEntered = true
+            }
         }
 
         Keys.onPressed: function(event) {

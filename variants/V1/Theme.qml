@@ -431,7 +431,7 @@ Item {
         if (except !== "notifVisible") notifVisible = false
         if (except !== "powerProfileVisible") powerProfileVisible = false
         if (except !== "archVisible") archVisible = false
-        if (except !== "trayVisible") trayVisible = false
+        if (except !== "trayVisible" && except !== "trayMenuVisible") trayVisible = false
         if (except !== "trayMenuVisible") trayMenuVisible = false
         if (except !== "wallpaperManagerVisible") wallpaperManagerVisible = false
         if (except !== "displayManagerVisible") displayManagerVisible = false
@@ -1858,8 +1858,13 @@ Item {
 
     // ── Tray state ──
     property bool trayVisible: false
-    onTrayVisibleChanged: popupOpened("trayVisible")
+    onTrayVisibleChanged: {
+        if (trayVisible) trayPanelHoverEntered = false
+        else trayHoverCloseTimer.stop()
+        popupOpened("trayVisible")
+    }
     property bool trayHovering: false
+    property bool trayPanelHoverEntered: false
     property var trayPinned: []
     property var trayWidgets: []
     property real trayBarX: 10
@@ -1869,8 +1874,10 @@ Item {
     }
     Timer {
         id: trayHoverCloseTimer
-        interval: 260
-        onTriggered: if (!theme.trayHovering && !theme.trayDragActive) theme.trayVisible = false
+        interval: 220
+        onTriggered: if (theme.trayPanelHoverEntered && !theme.trayHovering
+                && !theme.trayMenuVisible
+                && !theme.trayDragActive) theme.trayVisible = false
     }
 
     // ── slot-aware panel X anchors (center-X of each group; set by BarSlot) ──
@@ -1893,7 +1900,11 @@ Item {
 
     // ── Tray context-menu state (themed menu, rendered by TrayMenu.qml) ──
     property bool trayMenuVisible: false
-    onTrayMenuVisibleChanged: popupOpened("trayMenuVisible")
+    onTrayMenuVisibleChanged: {
+        if (trayMenuVisible) trayHoverCloseTimer.stop()
+        else if (trayVisible && !trayHovering) trayHoverCloseTimer.restart()
+        popupOpened("trayMenuVisible")
+    }
     property var  trayMenuHandle: null   // the QsMenuHandle of the clicked item
     property real trayMenuX: 0           // global x to anchor the menu under the icon
     property string trayMenuTitle: ""
