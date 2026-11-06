@@ -3,7 +3,6 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import Quickshell.Wayland
-import "../logic/OmarchyPower.js" as OmarchyPower
 import "../components" as CommonComponents
 
 PanelWindow {
@@ -198,22 +197,23 @@ PanelWindow {
 
     Process {
         id: batData
-        command: ["bash", "-c", OmarchyPower.batteryDataCmd]
+        command: ["python3", Qt.resolvedUrl("../scripts/rise-battery-status.py")]
         running: false
         stdout: StdioCollector {
             onStreamFinished: {
-                var parts = this.text.trim().split("|")
-                if (parts.length >= 9) {
-                    batPanel.batteryId = parts[0] || ""
-                    batPanel.percent = parseInt(parts[1]) || 0
-                    batPanel.status = parts[2] || "unknown"
-                    batPanel.timeLabel = parts[3] || "Time left"
-                    batPanel.timeText = parts[4] || ""
-                    batPanel.powerRate = parts[5] || ""
-                    batPanel.sizeText = parts[6] || ""
-                    batPanel.healthText = parts[7] || ""
-                    batPanel.cycles = parseInt(parts[8]) || 0
-                }
+                var data
+                try { data = JSON.parse(this.text) }
+                catch (error) { return }
+                if (!data || data.schema !== 1 || !Number.isFinite(Number(data.percentage))) return
+                batPanel.batteryId = String(data.batteryId || "")
+                batPanel.percent = Math.max(0, Math.min(100, Math.round(Number(data.percentage))))
+                batPanel.status = String(data.status || "unknown")
+                batPanel.timeLabel = String(data.timeLabel || "Time left")
+                batPanel.timeText = String(data.timeText || "")
+                batPanel.powerRate = String(data.powerRate || "")
+                batPanel.sizeText = String(data.sizeText || "")
+                batPanel.healthText = String(data.healthText || "")
+                batPanel.cycles = Math.max(0, parseInt(data.cycles, 10) || 0)
             }
         }
     }
