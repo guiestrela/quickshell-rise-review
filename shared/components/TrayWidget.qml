@@ -149,9 +149,9 @@ Item {
                         rootMod.root.trayHovering = false
                         return
                     }
-                    tip.show()
+                    // The drawer is click-to-open. Hover only tracks pointer
+                    // presence so an already-open drawer can remain available.
                     rootMod.root.trayHovering = true
-                    rootMod.root.trayVisible = true
                 }
                 onExited: {
                     tip.hide()
