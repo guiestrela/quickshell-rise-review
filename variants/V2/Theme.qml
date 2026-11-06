@@ -1711,7 +1711,7 @@ Item {
                     if (parts.length > wsField + 15) theme.modMpris  = parts[wsField + 15] !== "0"
                     if (parts.length > wsField + 16) {
                         var at = parts[wsField + 16]
-                        if (at === "claude" || at === "codex" || at === "opencode") theme.aiTool = at
+                        if (at === "claude" || at === "codex" || at === "opencode" || at === "copilot") theme.aiTool = at
                     }
                     // +17 is the retired transparent/frost field.
                     if (parts.length > wsField + 18) {
