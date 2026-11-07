@@ -30,6 +30,9 @@ with tempfile.TemporaryDirectory(prefix='rise-v1-vertical-', dir=os.environ.get(
     fixture, width_bindings = re.subn(r'property int verticalBarWidth: [^\n]+',
                                      'property int verticalBarWidth: 40', fixture)
     assert width_bindings == 1, 'V1 fixture must define its own bar width'
+    fixture, surface_bindings = re.subn(r'property int verticalModuleSurfaceWidth: .*',
+                                        'property int verticalModuleSurfaceWidth: 32', fixture)
+    assert surface_bindings == 1, 'V1 fixture must use the Control Center surface width'
     fixture = fixture.replace('  property int panelRadius: 6', '''  property int tileRadius: 10
   property color fillIdle: "#222222"
   property color sumi: "#999999"
@@ -115,6 +118,10 @@ with tempfile.TemporaryDirectory(prefix='rise-v1-vertical-', dir=os.environ.get(
    var borders = []
    descendants(rail, function(item) { if (item.objectName === "vertical-run-surface") borders.push(item) })
    check(borders.length > 0, "split surfaces instantiated")
+   for (var b=0; b<borders.length; b++) {
+    check(Math.abs(borders[b].width - harness.state.verticalModuleSurfaceWidth) < 0.01, "V1_MODULE_WIDTH_" + borders[b].width)
+    check(Math.abs(borders[b].x + borders[b].width / 2 - borders[b].parent.width / 2) < 0.51, "V1_MODULE_CENTER")
+   }
    harness.state.styleBorder = false
    for (var b=0; b<borders.length; b++) check(borders[b].border.width === 0, "Border off")
    harness.state.styleBorder = true

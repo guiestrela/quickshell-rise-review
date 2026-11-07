@@ -1378,6 +1378,7 @@ Item {
     property string barPosition: "top"   // top, bottom, left, right
     readonly property bool barVertical: barPosition === "left" || barPosition === "right"
     readonly property int verticalBarWidth: 40
+    readonly property int verticalModuleSurfaceWidth: 32
     property var verticalAnchorsByScreen: ({})
     function verticalAnchorY(name) { return ThemePanels.verticalAnchorY(theme, {}, name) }
     function publishVerticalAnchors(screenName, values) { return ThemePanels.publishVerticalAnchors(theme, {}, screenName, values) }

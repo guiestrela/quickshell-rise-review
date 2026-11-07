@@ -106,6 +106,7 @@ check_qml
 check "source layout and local imports" python3 tests/test-source-layout.py
 check "Omarchy native indicators" python3 tests/test-omarchy-indicators.py
 check "independent Indicators module V1/V2" python3 tests/test-v2-inline-indicators.py
+check "active Indicators visual centering" python3 tests/test-indicators-visible-centering.py
 
 check "variant failure and retry" python3 tests/test-variant-failure-runtime.py
 check "network SSID width" python3 tests/test-network-ssid-width.py
@@ -144,7 +145,9 @@ check "AI panel variants and bundled quotes" python3 tests/test-panel-variant-co
 check "JavaScript regressions" node --test tests/*.test.mjs tests/*.test.cjs tests/test-display-*.cjs
 check "bar style previews" python3 tests/test-bar-style-preview.py
 check "vertical bar layout" python3 tests/test-vertical-bar-layout.py
+check "V2 vertical slot pointer interactions" python3 tests/test-v2-vertical-slot-interaction.py
 check "V1 vertical bar layout" python3 tests/test-v1-vertical-bar.py
+check "vertical module external widths" python3 tests/test-vertical-module-widths.py
 check "vertical workspaces" python3 tests/test-vertical-workspaces.py
 check "workspace focus and navigation" python3 tests/test-workspace-focus-runtime.py
 check "AI collector installation" bash tests/install-ai-backends-integration.sh

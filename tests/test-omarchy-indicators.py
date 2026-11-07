@@ -134,11 +134,15 @@ function process(name) {
      for (var emptyModule of [v1Module, v2Module]) {
       var marker = test.markerFor(emptyModule)
       test.check(marker && marker.text === ">" && marker.visible, "empty module shows literal marker")
+      test.check(marker.rotation === 0, "horizontal empty marker points right")
       test.centered(marker, emptyModule, "empty marker")
      }
      theme.barVertical = true
-     for (var railModule of [v1Module, v2Module])
-      test.centered(test.markerFor(railModule), railModule, "vertical empty marker")
+     for (var railModule of [v1Module, v2Module]) {
+      var railMarker = test.markerFor(railModule)
+      test.check(railMarker.rotation === 90, "vertical empty marker points down")
+      test.centered(railMarker, railModule, "vertical empty marker")
+     }
      theme.barVertical = false
      coordinator.passwordless = true
      for (var oneModule of [v1Module, v2Module]) {
@@ -221,6 +225,7 @@ function process(name) {
      for (var emptyRail of [v1Module, v2Module]) {
       var restored = test.markerFor(emptyRail)
       test.check(restored.visible && restored.text === ">", "empty marker returns after all indicators deactivate")
+      test.check(restored.rotation === 90, "restored vertical marker points down")
       test.centered(restored, emptyRail, "restored vertical marker")
      }
      theme.modIndicators = false

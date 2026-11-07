@@ -17,6 +17,8 @@ Item {
     readonly property real surfaceY: Math.max(0, surface.y - notchWing)
     readonly property real surfaceHeight: Math.min(height, surface.height + 2 * notchWing)
     property int revision: 0
+    property bool pendingUnlockTap: false
+    property point pendingUnlockTapPosition: Qt.point(0, 0)
     property int sourceRegion: -1
     property int sourceIndex: -1
     readonly property bool fit: rail.root.barShellStyle !== "full"
@@ -49,10 +51,94 @@ Item {
         G15: ["bluetooth"], G16: ["thermal"], G17: ["gpu"], G18: ["storage"],
         G19: ["vpn"], G20: ["wallpaperManager"], G21: ["displayManager"], G22: ["oneDrive"], G23: []
     })
+    function regionBaseSlotCount(region) {
+        if (region === 0) return barWindow.leftBaseSlotCount
+        if (region === 1) return barWindow.centerBaseSlotCount
+        return barWindow.rightBaseSlotCount
+    }
+    function regionExtraSlotLimit(region) {
+        if (region === 0) return barWindow.leftExtraSlotLimit
+        if (region === 1) return barWindow.centerExtraSlotLimit
+        return barWindow.rightExtraSlotLimit
+    }
+    function regionBaseColumnVisible(region) {
+        void(rail.revision)
+        if (region < 0 || region >= models.length) return false
+        if (rail.root.barUnlocked) return true
+        var baseCount = regionBaseSlotCount(region)
+        for (var i = 0; i < Math.min(baseCount, models[region].count); i++)
+            if (models[region].get(i).gid !== "") return true
+        return false
+    }
+    function regionExtraColumnVisible(region) {
+        void(rail.revision)
+        if (region < 0 || region >= models.length) return false
+        var baseCount = regionBaseSlotCount(region)
+        if (models[region].count <= baseCount) return false
+        if (rail.root.barUnlocked) return true
+        for (var i = baseCount; i < models[region].count; i++)
+            if (models[region].get(i).gid !== "") return true
+        return false
+    }
+    function canAddExtraSlot(region) {
+        void(rail.revision)
+        if (region < 0 || region >= models.length) return false
+        return Math.max(0, models[region].count - regionBaseSlotCount(region)) < regionExtraSlotLimit(region)
+    }
+    function addExtraSlot(region) {
+        if (region < 0 || region >= models.length) return
+        barWindow.addExtraSlot(models[region], regionBaseSlotCount(region), regionExtraSlotLimit(region))
+    }
+    function removeExtraSlot(region, index) {
+        if (region < 0 || region >= models.length) return
+        barWindow.removeExtraSlot(models[region], index, regionBaseSlotCount(region))
+    }
     function cells() { return VerticalBarContentLogic.cells(rail, {models: models}) }
+    function slotAtGlobalPoint(globalX, globalY) {
+        var clipStart = scroll.mapToGlobal(0, 0)
+        var clipEnd = scroll.mapToGlobal(scroll.width, scroll.height)
+        var clipLeft = Math.min(clipStart.x, clipEnd.x), clipRight = Math.max(clipStart.x, clipEnd.x)
+        var clipTop = Math.min(clipStart.y, clipEnd.y), clipBottom = Math.max(clipStart.y, clipEnd.y)
+        if (globalX < clipLeft || globalX > clipRight || globalY < clipTop || globalY > clipBottom)
+            return null
+        for (var i = 0; i < items.count; i++) {
+            var cell = items.objectAt(i)
+            if (!cell || !cell.modelData || !cell.visible || cell.height <= 0) continue
+            var start = cell.mapToGlobal(0, 0)
+            var end = cell.mapToGlobal(cell.width, cell.height)
+            var left = Math.min(start.x, end.x), right = Math.max(start.x, end.x)
+            var top = Math.min(start.y, end.y), bottom = Math.max(start.y, end.y)
+            if (globalX >= left && globalX <= right && globalY >= top && globalY <= bottom)
+                return {model: rail.models[cell.modelData.region], index: cell.modelData.index}
+        }
+        return null
+    }
     readonly property var regionColumns: [topRegion, centerRegion, bottomRegion]
-    function regionHeight(region) { return VerticalBarContentValuesLogic.regionHeight(rail, {}, region) }
-    function regionStart(region) { return VerticalBarContentLogic.regionStart(rail, {stack: stack}, region) }
+    readonly property var regionBaseColumns: [topBaseSlots, centerBaseSlots, bottomBaseSlots]
+    readonly property var regionExtraColumns: [topExtraSlots, centerExtraSlots, bottomExtraSlots]
+    function regionHeight(region) {
+        return VerticalBarContentValuesLogic.regionHeight(rail, {}, region)
+    }
+    function regionAnchorHeight(region) {
+        return rail.regionBaseColumns[region].implicitHeight
+            + (rail.root.barUnlocked && rail.canAddExtraSlot(region) ? 32 : 0)
+    }
+    function regionLayoutHeight() {
+        return rail.fit
+            ? rail.regionAnchorHeight(0) + rail.regionAnchorHeight(1) + rail.regionAnchorHeight(2) + 24
+            : scroll.height
+    }
+    function regionStart(region) {
+        if (region === 0) return 0
+        var layoutHeight = rail.regionLayoutHeight()
+        if (region === 1) {
+            var topEnd = rail.regionColumns[0].y + rail.regionColumns[0].implicitHeight
+            var centerBaseHeight = rail.regionAnchorHeight(1)
+            return Math.max(topEnd + 12, Math.max(0, (layoutHeight - centerBaseHeight) / 2))
+        }
+        var centerEnd = rail.regionColumns[1].y + rail.regionColumns[1].implicitHeight
+        return Math.max(centerEnd + 12, layoutHeight - rail.regionHeight(2))
+    }
     function publishAnchors() {
         var values = {}
         var xs = {}
@@ -80,7 +166,11 @@ Item {
     Connections { target: rail.models[2]; function onDataChanged() { rail.revision++ } function onCountChanged() { rail.revision++ } }
     Connections {
         target: rail.root
-        function onBarUnlockedChanged() { rail.sourceRegion = -1; rail.sourceIndex = -1 }
+        function onBarUnlockedChanged() {
+            rail.sourceRegion = -1
+            rail.sourceIndex = -1
+            rail.revision++
+        }
         function onBarPositionChanged() { anchorTimer.restart() }
     }
     focus: rail.root.barUnlocked
@@ -212,10 +302,44 @@ Item {
                 target: null
                 onWheel: function(event) { scroll.contentY = Math.max(0, Math.min(scroll.contentHeight - scroll.height, scroll.contentY - event.angleDelta.y / 2)) }
             }
+            Timer {
+                id: unlockTapTimer
+                interval: 400
+                repeat: false
+                onTriggered: rail.pendingUnlockTap = false
+            }
+            TapHandler {
+                enabled: !rail.root.barUnlocked
+                acceptedButtons: Qt.LeftButton
+                gesturePolicy: TapHandler.DragThreshold
+                onTapped: function(eventPoint, button) {
+                    if (button !== Qt.LeftButton || rail.root.layoutProtected) {
+                        rail.pendingUnlockTap = false
+                        unlockTapTimer.stop()
+                        return
+                    }
+                    var point = eventPoint.position
+                    var dx = point.x - rail.pendingUnlockTapPosition.x
+                    var dy = point.y - rail.pendingUnlockTapPosition.y
+                    if (rail.pendingUnlockTap && dx * dx + dy * dy <= 256) {
+                        rail.pendingUnlockTap = false
+                        unlockTapTimer.stop()
+                        rail.root.barUnlocked = true
+                    } else {
+                        rail.pendingUnlockTap = true
+                        rail.pendingUnlockTapPosition = point
+                        unlockTapTimer.restart()
+                    }
+                }
+            }
             Item {
                 id: stack
                 width: scroll.width
-                implicitHeight: rail.regionHeight(0) + rail.regionHeight(1) + rail.regionHeight(2) + 24
+                implicitHeight: Math.max(
+                    rail.regionColumns[0].y + rail.regionHeight(0),
+                    rail.regionColumns[1].y + rail.regionHeight(1),
+                    rail.regionColumns[2].y + rail.regionHeight(2)
+                ) + 24
                 height: Math.max(scroll.height, implicitHeight)
                 onImplicitHeightChanged: anchorTimer.restart()
                 onHeightChanged: anchorTimer.restart()
@@ -224,6 +348,21 @@ Item {
                     width: parent.width
                     spacing: 4
                     onImplicitHeightChanged: layoutTimer.restart()
+                    Column {
+                        id: topBaseSlots
+                        width: parent.width
+                        visible: rail.regionBaseColumnVisible(0)
+                        spacing: 4
+                        onImplicitHeightChanged: layoutTimer.restart()
+                    }
+                    AddSlotButton { owner: rail; region: 0; anchors.horizontalCenter: parent.horizontalCenter }
+                    Column {
+                        id: topExtraSlots
+                        width: parent.width
+                        visible: rail.regionExtraColumnVisible(0)
+                        spacing: 4
+                        onImplicitHeightChanged: layoutTimer.restart()
+                    }
                 }
                 Column {
                     id: centerRegion
@@ -232,6 +371,21 @@ Item {
                     spacing: 4
                     onYChanged: anchorTimer.restart()
                     onImplicitHeightChanged: layoutTimer.restart()
+                    Column {
+                        id: centerBaseSlots
+                        width: parent.width
+                        visible: rail.regionBaseColumnVisible(1)
+                        spacing: 4
+                        onImplicitHeightChanged: layoutTimer.restart()
+                    }
+                    AddSlotButton { owner: rail; region: 1; anchors.horizontalCenter: parent.horizontalCenter }
+                    Column {
+                        id: centerExtraSlots
+                        width: parent.width
+                        visible: rail.regionExtraColumnVisible(1)
+                        spacing: 4
+                        onImplicitHeightChanged: layoutTimer.restart()
+                    }
                 }
                 Column {
                     id: bottomRegion
@@ -240,6 +394,21 @@ Item {
                     spacing: 4
                     onYChanged: anchorTimer.restart()
                     onImplicitHeightChanged: layoutTimer.restart()
+                    Column {
+                        id: bottomBaseSlots
+                        width: parent.width
+                        visible: rail.regionBaseColumnVisible(2)
+                        spacing: 4
+                        onImplicitHeightChanged: layoutTimer.restart()
+                    }
+                    Column {
+                        id: bottomExtraSlots
+                        width: parent.width
+                        visible: rail.regionExtraColumnVisible(2)
+                        spacing: 4
+                        onImplicitHeightChanged: layoutTimer.restart()
+                    }
+                    AddSlotButton { owner: rail; region: 2; anchors.horizontalCenter: parent.horizontalCenter }
                 }
                 Instantiator {
                     id: items
@@ -250,16 +419,25 @@ Item {
                         id: cell
                         required property var modelData
                         readonly property string gid: modelData.gid
+                        readonly property bool emptySlot: gid === ""
+                        readonly property bool extraSlot: {
+                            if (modelData.index < 0 || modelData.index >= rail.models[modelData.region].count)
+                                return false
+                            return rail.models[modelData.region].get(modelData.index).extra === true
+                        }
                         readonly property var contentItem: loader.item
-                        parent: rail.regionColumns[modelData.region]
+                        parent: cell.modelData.index < rail.regionBaseSlotCount(cell.modelData.region)
+            ? rail.regionBaseColumns[cell.modelData.region]
+            : rail.regionExtraColumns[cell.modelData.region]
                         width: parent.width
                         height: loader.item && loader.item.implicitWidth > 0 ? Math.max(32, loader.item.implicitHeight) + (rail.root.sepAfter(gid) ? 8 : 0) : rail.root.barUnlocked ? 32 : 0
                         visible: height > 0
                         onYChanged: anchorTimer.restart()
                         onHeightChanged: layoutTimer.restart()
                         Rectangle {
+                            objectName: "vertical-module-surface"
                             anchors.horizontalCenter: parent.horizontalCenter
-                            width: Math.min(parent.width, loader.implicitWidth + 2 * rail.root.widgetSurfacePadding(cell.gid))
+                            width: Math.min(parent.width, rail.root.verticalModuleSurfaceWidth)
                             height: Math.min(parent.height, loader.implicitHeight)
                             radius: rail.root.widgetSurfaceRadius(cell.gid)
                             color: rail.root.widgetFillColor(cell.gid)
@@ -269,6 +447,9 @@ Item {
                         }
                         Loader {
                             id: loader
+                            opacity: rail.barWindow.dragging
+                                && rail.barWindow.srcModel === rail.models[cell.modelData.region]
+                                && rail.barWindow.srcIndex === cell.modelData.index ? 0.35 : 1
                             onLoaded: layoutTimer.restart()
                             anchors.horizontalCenter: parent.horizontalCenter
                             sourceComponent: cell.gid === "G2" ? workspace
@@ -282,35 +463,111 @@ Item {
                         }
                         MouseArea {
                             anchors.fill: parent
-                            enabled: rail.root.barUnlocked
+                            enabled: rail.root.barUnlocked && !rail.root.layoutProtected
+                                && !cell.emptySlot && loader.item && loader.item.implicitWidth > 0
+                            visible: enabled
                             preventStealing: true
-                            onPressed: { rail.sourceRegion = cell.modelData.region; rail.sourceIndex = cell.modelData.index }
-                            onReleased: function(mouse) {
-                                var point = mapToItem(stack, mouse.x, mouse.y)
-                                var sourceRegion = rail.sourceRegion, sourceIndex = rail.sourceIndex
-                                var targetRegion = -1, targetIndex = -1
-                                for (var i = 0; i < items.count; i++) {
-                                    var candidate = items.objectAt(i) as Item
-                                    var candidateData = items.model[i]
-                                    if (candidate && candidateData && candidate.visible && point.y >= candidate.mapToItem(stack, 0, 0).y && point.y <= candidate.mapToItem(stack, 0, candidate.height).y) {
-                                        targetRegion = candidateData.region; targetIndex = candidateData.index; break
-                                    }
-                                }
-                                rail.sourceRegion = -1; rail.sourceIndex = -1
-                                // Swapping can destroy this delegate. Do not touch it afterwards.
-                                if (sourceRegion >= 0 && targetRegion >= 0)
-                                    rail.barWindow.swapVerticalSlots(sourceRegion, sourceIndex, targetRegion, targetIndex)
+                            z: 1
+                            cursorShape: Qt.OpenHandCursor
+                            onPressed: {
+                                var origin = loader.mapToItem(null, 0, 0)
+                                rail.barWindow.beginDrag(loader, origin.x, origin.y,
+                                    Math.max(1, Math.round(loader.implicitWidth)), Math.max(1, cell.height),
+                                    rail.models[cell.modelData.region], cell.modelData.index)
                             }
-                            onCanceled: { rail.sourceRegion = -1; rail.sourceIndex = -1 }
+                            onPositionChanged: function(event) {
+                                if (!rail.barWindow.dragActive) return
+                                var local = mapToItem(null, event.x, event.y)
+                                var global = mapToGlobal(event.x, event.y)
+                                rail.barWindow.moveDrag(local.x, local.y, global.x, global.y)
+                            }
+                            onReleased: rail.barWindow.endDrag()
+                            onCanceled: rail.barWindow.cancelDrag()
+                        }
+                        Rectangle {
+                            objectName: "vertical-drop-target-" + cell.modelData.region + "-" + cell.modelData.index
+                            anchors.fill: parent
+                            radius: rail.root.widgetSurfaceRadius(cell.gid)
+                            color: Qt.rgba(rail.barWindow.accent.r, rail.barWindow.accent.g,
+                                rail.barWindow.accent.b, 0.18)
+                            border.color: rail.barWindow.accent
+                            border.width: 2
+                            z: 4
+                            visible: rail.barWindow.dragging
+                                && rail.barWindow.dropModel === rail.models[cell.modelData.region]
+                                && rail.barWindow.dropIndex === cell.modelData.index
+                                && !(rail.barWindow.srcModel === rail.models[cell.modelData.region]
+                                    && rail.barWindow.srcIndex === cell.modelData.index)
+                        }
+                        Rectangle {
+                            objectName: cell.emptySlot && rail.root.barUnlocked
+                                ? "vertical-empty-slot-" + cell.modelData.region + "-" + cell.modelData.index : ""
+                            function activate() {
+                                if (cell.extraSlot)
+                                    rail.removeExtraSlot(cell.modelData.region, cell.modelData.index)
+                            }
+                            visible: cell.emptySlot && rail.root.barUnlocked
+                            z: 2
+                            anchors.centerIn: parent
+                            width: 28; height: 28
+                            radius: rail.root.tileRadius
+                            color: removeMouse.containsMouse ? rail.root.fillHover : rail.root.fillIdle
+                            border.color: removeMouse.containsMouse ? rail.root.seal : rail.root.sep
+                            border.width: 1
+                            Text {
+                                anchors.centerIn: parent
+                                text: cell.extraSlot ? "×" : "·"
+                                color: removeMouse.containsMouse ? rail.root.seal : rail.root.sumi
+                                font.family: rail.root.mono
+                                font.pixelSize: cell.extraSlot ? 12 : 14
+                            }
+                            MouseArea {
+                                id: removeMouse
+                                objectName: "vertical-slot-remove-action-" + cell.modelData.region + "-" + cell.modelData.index
+                                anchors.fill: parent
+                                z: 5
+                                enabled: cell.extraSlot
+                                hoverEnabled: enabled
+                                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                                onClicked: parent.activate()
+                            }
                         }
                     }
                 }
             }
         }
+    }
+    component AddSlotButton: Rectangle {
+        id: addSlotButton
+        required property var owner
+        required property int region
+        objectName: "vertical-slot-add-cell-" + region
+        visible: owner.root.barUnlocked && owner.revision >= 0 && owner.canAddExtraSlot(region)
+        implicitWidth: visible ? 28 : 0
+        implicitHeight: visible ? 28 : 0
+        width: 28; height: 28
+        anchors.horizontalCenter: parent.horizontalCenter
+        z: 5
+        radius: owner.root.tileRadius
+        color: addMouse.containsMouse ? owner.root.fillActive : owner.root.fillIdle
+        border.color: addMouse.containsMouse ? owner.root.seal : owner.root.sep
+        border.width: 1
+        function activate() { owner.addExtraSlot(region) }
+        Text {
+            anchors.centerIn: parent
+            text: "+"
+            color: addMouse.containsMouse ? addSlotButton.owner.root.seal : addSlotButton.owner.root.ink
+            font.family: addSlotButton.owner.root.mono
+            font.pixelSize: 14
+        }
         MouseArea {
+            id: addMouse
+            objectName: "vertical-slot-add-action-" + parent.region
             anchors.fill: parent
-            z: -1
-            onDoubleClicked: if (!rail.root.layoutProtected) rail.root.barUnlocked = true
+            z: 5
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: parent.activate()
         }
     }
     component Action: Item {

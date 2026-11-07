@@ -40,12 +40,15 @@ Item {
     }
     // Derive size from the model, not Grid's deferred polish: a collapsed
     // ancestor must not prevent newly active icons from obtaining geometry.
+    // Grid's implicitWidth includes a trailing spacing cell; constrain its
+    // horizontal extent to the model width so anchors.centerIn centers the icons.
     implicitWidth: vertical ? 28 : (count > 0 ? count * 20 + (count - 1) * iconSpacing : 0)
     implicitHeight: vertical ? (count > 0 ? count * 24 + (count - 1) * iconSpacing : 0) : 28
     visible: true
     HoverHandler { id: hover }
     Grid {
         id: grid
+        width: widget.vertical ? implicitWidth : widget.implicitWidth
         columns: widget.vertical ? 1 : 7
         spacing: widget.iconSpacing
         anchors.centerIn: parent

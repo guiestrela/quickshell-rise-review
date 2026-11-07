@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 
 repo=Path(__file__).resolve().parents[1]
-with tempfile.TemporaryDirectory(prefix='rise-tray-',dir='/tmp') as directory:
+with tempfile.TemporaryDirectory(prefix='rise-tray-', dir=os.environ.get('TMPDIR')) as directory:
     base=Path(directory)
     runtime=base/'runtime'
     runtime.mkdir(mode=0o700)

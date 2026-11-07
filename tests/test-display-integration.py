@@ -62,9 +62,11 @@ Scope {
  id: test
  property int phase: 0
  property int ticks: 0
+ property int perMonitorSignalCount: 0
  property var components: []
  FileView { id: gate; path: Quickshell.env("DISPLAY_QUERY_GATE"); printErrors: false }
  QtObject { id: theme; property bool displayManagerAutoWorkspaces: true; property bool omarchyPerMonitorWorkspaces: false }
+ Connections { target: theme; function onOmarchyPerMonitorWorkspacesChanged() { test.perMonitorSignalCount++ } }
  Modules.DisplayManagerController { id: c; theme: theme }
  function fail(message) { console.error("DISPLAY_INTEGRATION_FAIL " + message); Qt.quit() }
  Component.onCompleted: {
@@ -73,6 +75,9 @@ Scope {
    components.push(component)
    if (component.status === Component.Error) { fail(component.errorString()); return }
   }
+  theme.omarchyPerMonitorWorkspaces = true
+  theme.omarchyPerMonitorWorkspaces = false
+  if (test.perMonitorSignalCount !== 2) { fail("omarchyPerMonitorWorkspaces notify signal missing"); return }
   c.positions=({"DP-1":{x:999,y:999},"DISCONNECTED":{x:0,y:0}})
   c.refresh()
  }
@@ -82,6 +87,7 @@ Scope {
    test.ticks++
    if(test.ticks>200) { test.fail("bounded fixture timeout phase="+test.phase+" error="+c.error); return }
    if(test.phase===0 && !c.loading) {
+    if(c.confirmationSeconds!==15) { test.fail("confirmation contract must be fifteen seconds"); return }
     if(c.monitors.length!==1 || c.monitors[0].refreshRate!==59.95 || !c.brightnessAvailable) { test.fail("real query lifecycle: "+c.error); return }
     if(c.positions["DP-1"].x!==0 || c.positions["DISCONNECTED"]!==undefined) { test.fail("stale positions survive refresh"); return }
     if(!c.applyMonitor("DP-1","2560x1440@59.95Hz",0,0,1,0,"none")) { test.fail("dispatch"); return }

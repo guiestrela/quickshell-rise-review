@@ -41,6 +41,8 @@ Item {
         anchors.centerIn: parent
         text: ">"
         textFormat: Text.PlainText
+        transformOrigin: Item.Center
+        rotation: module.vertical ? 90 : 0
         font.family: module.root.mono
         font.pixelSize: 13
         color: module.root.seal

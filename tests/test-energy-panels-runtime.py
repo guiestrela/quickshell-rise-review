@@ -12,7 +12,7 @@ import tempfile
 
 repo = Path(__file__).resolve().parents[1]
 native = '--native' in sys.argv
-with tempfile.TemporaryDirectory(prefix='rise-energy-panels-', dir='/tmp') as directory:
+with tempfile.TemporaryDirectory(prefix='rise-energy-panels-', dir=os.environ.get('TMPDIR')) as directory:
     temp = Path(directory)
     battery_panel = repo / 'shared/panels/BatteryPanel.qml'
     battery_match = re.search(
@@ -61,7 +61,7 @@ else:
         'timeLabel': 'Time left', 'timeText': '2h 30m', 'powerRate': '12.5',
         'sizeText': '80 Wh', 'healthText': '90%', 'cycles': 47,
     }, battery_data
-    fixture_helper_path = str(fixture_helper.resolve())
+    fixture_helper_path = str(fixture_helper)
     runtime = temp / 'runtime'
     runtime.mkdir(mode=0o700)
     for variant, path in [('V1', 'variants/V1'), ('V2', 'variants/V2')]:

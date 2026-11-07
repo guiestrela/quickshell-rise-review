@@ -666,17 +666,26 @@ PanelWindow {
         // and cancel the drag before the user can reorder a widget. Users can
         // still drag into the tray when it was already open.
     }
-    // which slot (model+index) is under a window-point?
+    // which slot (model+index) is under a desktop-global pointer point?
     function slotAt(wx, wy) {
-        var rows = [leftRowItem, centerRowItem, rightRowItem]
-        for (var r = 0; r < rows.length; r++) {
-            var rep = rows[r].rep
-            for (var k = 0; k < rep.count; k++) {
-                var it = rep.itemAt(k)
-                if (!it || !it.visible || !it.autoShown) continue
-                var p = it.mapToItem(null, 0, 0)
-                if (wx >= p.x && wx <= p.x + it.width && wy >= p.y && wy <= p.y + it.height)
-                    return { model: rows[r].rmodel, index: k }
+        if (barSlot.root.barVertical) {
+            var verticalHit = verticalLoader.item
+                ? verticalLoader.item.slotAtGlobalPoint(wx, wy) : null
+            if (verticalHit) return verticalHit
+        } else {
+            var rows = [leftRowItem, centerRowItem, rightRowItem]
+            for (var r = 0; r < rows.length; r++) {
+                var rep = rows[r].rep
+                for (var k = 0; k < rep.count; k++) {
+                    var it = rep.itemAt(k)
+                    if (!it || !it.visible || !it.autoShown) continue
+                    var p = it.mapToGlobal(0, 0)
+                    var end = it.mapToGlobal(it.width, it.height)
+                    var left = Math.min(p.x, end.x), right = Math.max(p.x, end.x)
+                    var top = Math.min(p.y, end.y), bottom = Math.max(p.y, end.y)
+                    if (wx >= left && wx <= right && wy >= top && wy <= bottom)
+                        return { model: rows[r].rmodel, index: k }
+                }
             }
         }
         var trayRect = barSlot.root.trayDropRectsByScreen[barSlot.screenName]
@@ -686,11 +695,12 @@ PanelWindow {
             return { tray: true }
         return null
     }
-    function moveDrag(wx, wy) {
-        ghostX = wx - ghostW / 2; ghostY = wy - ghostH / 2
-        var hit = slotAt(wx, wy)
+    function moveDrag(localX, localY, globalX, globalY) {
+        ghostX = localX - ghostW / 2; ghostY = localY - ghostH / 2
+        var hit = slotAt(globalX === undefined ? localX : globalX,
+            globalY === undefined ? localY : globalY)
         dropModel = hit ? hit.model : null
-        dropIndex = hit ? hit.index : -1
+        dropIndex = hit && hit.index !== undefined ? hit.index : -1
         dropTray = !!(hit && hit.tray)
         barSlot.root.trayDropActive = dropTray
     }
@@ -722,6 +732,7 @@ PanelWindow {
     Loader {
         id: verticalLoader
         anchors.fill: parent
+        z: 2 // Above the edit-mode dim backdrop so vertical controls receive input.
         active: barSlot.root.barVertical
         sourceComponent: Component {
             VerticalBarContent {
@@ -732,12 +743,6 @@ PanelWindow {
             }
         }
     }
-    function swapVerticalSlots(sourceRegion, sourceIndex, targetRegion, targetIndex) {
-        var models = [leftModel, centerModel, rightModel]
-        if (NordVpnLayout.swapModels(models[sourceRegion], models[targetRegion], sourceIndex, targetIndex)
-                && _orderLoaded) saveOrder()
-    }
-
     // ── order persistence (survives restart) ──
     readonly property string orderCachePath: Quickshell.env("HOME") + "/.cache/quickshell_barorder_v2"
     readonly property int leftBaseSlotCount: 10
@@ -1830,7 +1835,8 @@ PanelWindow {
                     onPositionChanged: (e) => {
                         if (!barSlot.dragging) return
                         var w = mapToItem(null, e.x, e.y)
-                        barSlot.moveDrag(w.x, w.y)
+                        var g = mapToGlobal(e.x, e.y)
+                        barSlot.moveDrag(w.x, w.y, g.x, g.y)
                     }
                     onReleased: barSlot.endDrag()
                     onCanceled: barSlot.cancelDrag()

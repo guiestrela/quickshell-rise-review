@@ -1274,6 +1274,10 @@ Item {
     property string barPosition: "top"   // top, bottom, left, right
     readonly property bool barVertical: barPosition === "left" || barPosition === "right"
     readonly property int verticalBarWidth: barShellStyle === "fit" ? 40 : 36
+    // Match every vertical module's external surface to the Control Center pill.
+    // Keep its per-widget padding preference as the shared reference and cap it
+    // to the common 34px content width available in each shell style.
+    readonly property int verticalModuleSurfaceWidth: Math.min(34, 24 + 2 * widgetSurfacePadding("G1"))
     property var verticalAnchorsByScreen: ({})
     function verticalAnchorY(name) { return ThemePanels.verticalAnchorY(theme, {}, name) }
     function publishVerticalAnchors(screenName, values) { return ThemePanels.publishVerticalAnchors(theme, {}, screenName, values) }

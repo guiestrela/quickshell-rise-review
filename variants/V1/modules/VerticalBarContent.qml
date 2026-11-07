@@ -49,7 +49,7 @@ Item {
     }
     readonly property real surfaceY: surface.y
     readonly property real surfaceHeight: surface.height
-    readonly property int pillWidth: 32
+    readonly property int pillWidth: rail.root.verticalModuleSurfaceWidth
     // These delegates exist only in the vertical loader; horizontal bindings
     // are recreated independently when orientation changes.
     function standardizeSurface(widget) {
@@ -79,6 +79,25 @@ Item {
         G18: ["displayManager"], G19: ["gpu"], G20: ["thermal"], G21: ["storage"], G22: ["oneDrive"]
     })
     function cells() { return VerticalBarContentLogic.cells(rail, {models: models}) }
+    function slotAtGlobalPoint(globalX, globalY) {
+        var clipStart = scroll.mapToGlobal(0, 0)
+        var clipEnd = scroll.mapToGlobal(scroll.width, scroll.height)
+        var clipLeft = Math.min(clipStart.x, clipEnd.x), clipRight = Math.max(clipStart.x, clipEnd.x)
+        var clipTop = Math.min(clipStart.y, clipEnd.y), clipBottom = Math.max(clipStart.y, clipEnd.y)
+        if (globalX < clipLeft || globalX > clipRight || globalY < clipTop || globalY > clipBottom)
+            return null
+        for (var i = 0; i < items.count; i++) {
+            var cell = items.objectAt(i)
+            if (!cell || !cell.modelData || !cell.visible || cell.height <= 0) continue
+            var start = cell.mapToGlobal(0, 0)
+            var end = cell.mapToGlobal(cell.width, cell.height)
+            var left = Math.min(start.x, end.x), right = Math.max(start.x, end.x)
+            var top = Math.min(start.y, end.y), bottom = Math.max(start.y, end.y)
+            if (globalX >= left && globalX <= right && globalY >= top && globalY <= bottom)
+                return {model: rail.models[cell.modelData.region], index: cell.modelData.index}
+        }
+        return null
+    }
     readonly property var regionColumns: [topRegion, centerRegion, bottomRegion]
     function regionHeight(region) { return VerticalBarContentValuesLogic.regionHeight(rail, {}, region) }
     function regionStart(region) { return VerticalBarContentLogic.regionStart(rail, {stack: stack}, region) }
@@ -237,6 +256,9 @@ Item {
                         }
                         Loader {
                             id: loader
+                            opacity: rail.barWindow.dragging
+                                && rail.barWindow.srcModel === rail.models[cell.modelData.region]
+                                && rail.barWindow.srcIndex === cell.modelData.index ? 0.35 : 1
                             onLoaded: { rail.standardizeSurface(item); layoutTimer.restart() }
                             anchors.horizontalCenter: parent.horizontalCenter
                             anchors.verticalCenter: parent.verticalCenter
@@ -259,25 +281,40 @@ Item {
                         MouseArea {
                             anchors.fill: parent
                             enabled: rail.root.barUnlocked && !rail.root.layoutProtected
+                                && cell.gid !== "" && loader.item && loader.item.implicitWidth > 0
+                            visible: enabled
                             preventStealing: true
-                            onPressed: { rail.sourceRegion = cell.modelData.region; rail.sourceIndex = cell.modelData.index }
-                            onReleased: function(mouse) {
-                                var point = mapToItem(stack, mouse.x, mouse.y)
-                                var sourceRegion = rail.sourceRegion, sourceIndex = rail.sourceIndex
-                                var targetRegion = -1, targetIndex = -1
-                                for (var i = 0; i < items.count; i++) {
-                                    var candidate = items.objectAt(i) as Item
-                                    var candidateData = items.model[i]
-                                    if (candidate && candidateData && candidate.visible && point.y >= candidate.mapToItem(stack, 0, 0).y && point.y <= candidate.mapToItem(stack, 0, candidate.height).y) {
-                                        targetRegion = candidateData.region; targetIndex = candidateData.index; break
-                                    }
-                                }
-                                rail.sourceRegion = -1; rail.sourceIndex = -1
-                                // Swapping can destroy this delegate. Do not touch it afterwards.
-                                if (sourceRegion >= 0 && targetRegion >= 0)
-                                    rail.barWindow.swapVerticalSlots(sourceRegion, sourceIndex, targetRegion, targetIndex)
+                            z: 25
+                            cursorShape: Qt.OpenHandCursor
+                            onPressed: {
+                                var origin = loader.mapToItem(null, 0, 0)
+                                rail.barWindow.beginDrag(loader, origin.x, origin.y,
+                                    Math.max(1, Math.round(loader.implicitWidth)), Math.max(1, cell.height),
+                                    rail.models[cell.modelData.region], cell.modelData.index)
                             }
-                            onCanceled: { rail.sourceRegion = -1; rail.sourceIndex = -1 }
+                            onPositionChanged: function(event) {
+                                if (!rail.barWindow.dragActive) return
+                                var local = mapToItem(null, event.x, event.y)
+                                var global = mapToGlobal(event.x, event.y)
+                                rail.barWindow.moveDrag(local.x, local.y, global.x, global.y)
+                            }
+                            onReleased: rail.barWindow.endDrag()
+                            onCanceled: rail.barWindow.cancelDrag()
+                        }
+                        Rectangle {
+                            objectName: "vertical-drop-target-" + cell.modelData.region + "-" + cell.modelData.index
+                            anchors.fill: parent
+                            radius: rail.root.pillRadius
+                            color: Qt.rgba(rail.barWindow.accent.r, rail.barWindow.accent.g,
+                                rail.barWindow.accent.b, 0.18)
+                            border.color: rail.barWindow.accent
+                            border.width: 2
+                            z: 26
+                            visible: rail.barWindow.dragging
+                                && rail.barWindow.dropModel === rail.models[cell.modelData.region]
+                                && rail.barWindow.dropIndex === cell.modelData.index
+                                && !(rail.barWindow.srcModel === rail.models[cell.modelData.region]
+                                    && rail.barWindow.srcIndex === cell.modelData.index)
                         }
                     }
                 }

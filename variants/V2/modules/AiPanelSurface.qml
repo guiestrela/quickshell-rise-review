@@ -37,7 +37,7 @@ Item {
             aiUsage: "ai", mem: "memory", vol: "volume", network: "network",
             vpn: "vpn", bluetooth: "bluetooth", battery: "battery",
             brightness: "brightness", mpris: "mpris", notif: "notif",
-            powerProfile: "power", storage: "storage", arch: "arch", tray: "tray",
+            oneDrive: "oneDrive", powerProfile: "power", storage: "storage", arch: "arch", tray: "tray",
             displayManager: "displayManager", wallpaperManager: "wallpaperManager"}
         for (var name in names)
             if (root[name + "Visible"] === true)

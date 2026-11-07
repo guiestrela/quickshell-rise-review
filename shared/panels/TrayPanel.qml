@@ -74,8 +74,13 @@ PanelWindow {
 
     function publishDropRect() {
         if (!trayPanel.screen || !trayPanel.root.activePopupScreenName) return
+        var topLeft = card.mapToGlobal(0, 0)
+        var bottomRight = card.mapToGlobal(card.width, card.height)
         trayPanel.root.setTrayDropRect(trayPanel.screen.name, {
-            x: card.x, y: card.y, width: card.width, height: card.height
+            x: Math.min(topLeft.x, bottomRight.x),
+            y: Math.min(topLeft.y, bottomRight.y),
+            width: Math.abs(bottomRight.x - topLeft.x),
+            height: Math.abs(bottomRight.y - topLeft.y)
         })
     }
     Timer { id: dropRectTimer; interval: 0; onTriggered: trayPanel.publishDropRect() }
