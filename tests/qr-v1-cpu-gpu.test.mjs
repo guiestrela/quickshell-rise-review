@@ -24,7 +24,7 @@ test('V1 default layout retains GPU and legacy split flags',()=>{
 test('legacy order migration adds GPU once without resetting customized order', async()=>{
  const vm=await import('node:vm');const source=read('BarSlot.qml');
  const fn=source.slice(source.indexOf('    function applyOrder('),source.indexOf('    function saveOrder('));
- const calls=[];const registry=Object.fromEntries(Array.from({length:23},(_,i)=>['G'+(i+1),true]));
+ const calls=[];const registry=Object.fromEntries(Array.from({length:24},(_,i)=>['G'+(i+1),true]));
  const c=vm.createContext({leftModel:{count:15},centerModel:{count:8},rightModel:{count:14},registry,
  barSlot:{root:{trayWidgets:[]}},
  NordVpnLayout:{migrateV1Order:()=>null},WallpaperLayout:{migrateV1Order:()=>null},applyTo:(m,g)=>calls.push(Array.from(g))});

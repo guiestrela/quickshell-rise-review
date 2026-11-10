@@ -47,7 +47,7 @@ test('V1 restores independent Indicators in the tray without relocating other wi
  assert.equal(restored.serializeOrder(),saved);
  assert.equal(restored.barSlot.root.trayWidgets.join(','),'G23');
 });
-test('V1 full defaults are a unique widget permutation with eight empty drop targets',()=>{
+test('V1 default layout exposes thirteen empty drop targets including six center targets',()=>{
  const values=[...defaults.left,...defaults.center,...defaults.right];
  assert.equal(values.length,37);assert.equal(values.filter(x=>x==='').length,13);
  assert.equal(new Set(values.filter(Boolean)).size,24);

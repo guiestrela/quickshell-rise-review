@@ -7,11 +7,11 @@ const source = readFileSync(new URL('../variants/V1/modules/V1Defaults.js', impo
   .replace(/^\.pragma library\s*/m, '');
 const defaults = vm.runInNewContext(`${source}\n({ defaultOrder, defaultSplits, defaultCompact, compactCacheFields, parseCompactCacheFields })`);
 
-test('V1 default order matches the approved current layout', () => {
+test('V1 default order preserves existing placements and adds center targets', () => {
   assert.deepEqual(JSON.parse(JSON.stringify(defaults.defaultOrder())), {
     left: ['G1','G2','G3','G4','G5','G6','G7','G19','G20','G21','G22','','','',''],
     center: ['G8','G23','','','','','',''],
-    right: ['G9','G10','G17','G14','G12','G13','G11','G16','G15','G18','','','','']
+    right: ['G9','G10','G17','G14','G12','G13','G11','G16','G15','G18','G24','','','']
   });
 });
 
