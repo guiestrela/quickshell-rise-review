@@ -1,0 +1,444 @@
+pragma ComponentBehavior: Bound
+import QtQuick
+import QtQuick.Controls
+import "../components" as SharedComponents
+import "../integrations/elsewhen/GlobeModel.js" as Globe
+
+Item {
+    id: panel
+    required property var root
+    required property var service
+    property string searchText: ""
+    property string statusMessage: ""
+    property real globeSpin: 0
+    property real globeDragX: 0
+    property bool timezoneConfirmationVisible: false
+    property string timezoneTarget: service.clockRows.length ? service.clockRows[0].id : service.localZone
+    readonly property var searchResults: service.searchZones(searchText, 8)
+    readonly property real contentHeight: contentColumn.implicitHeight
+    property alias refreshButton: refreshAction
+    property alias hour24Button: hour24Action
+    property alias zoneSearchInput: zoneSearchInput
+    property alias cityList: cityList
+    property alias searchList: searchList
+    property alias addZoneButton: addZoneAction
+    property alias scrollArea: flick
+    property alias globeCanvas: globeCanvasItem
+    property alias globeToggleButton: globeToggleAction
+    property alias globeDragArea: globeDragArea
+    property alias changeTimezoneButton: changeTimezoneAction
+    property alias confirmTimezoneButton: confirmTimezoneAction
+
+    function globePaintRadius(width, height) {
+        var w = Number(width)
+        var h = Number(height)
+        if (!isFinite(w) || !isFinite(h) || w <= 0 || h <= 0) return 0
+        return Math.min(w, h) * 0.45
+    }
+
+    component ActionButton: Rectangle {
+        id: action
+        property string label: ""
+        property bool highlighted: false
+        property bool available: true
+        signal clicked()
+        width: Math.max(46, label.length * 7 + 18)
+        height: 28
+        radius: panel.root.tileRadius !== undefined ? panel.root.tileRadius : 7
+        color: action.available ? (action.highlighted ? panel.root.seal : panel.root.fillIdle) : panel.root.bg
+        border.color: panel.root.sep
+        border.width: 1
+        opacity: action.available ? 1 : 0.45
+        SharedComponents.UiText {
+            anchors.centerIn: parent
+            text: action.label
+            color: action.highlighted ? panel.root.bg : panel.root.ink
+            font.family: panel.root.mono
+            font.pixelSize: 11
+        }
+        MouseArea {
+            anchors.fill: parent
+            enabled: action.available
+            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+            onClicked: action.clicked()
+        }
+    }
+
+    Flickable {
+        id: flick
+        anchors.fill: parent
+        contentWidth: width
+        contentHeight: contentColumn.implicitHeight
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+        Column {
+            id: contentColumn
+            width: flick.width
+            spacing: 10
+
+            Row {
+                width: parent.width
+                height: 28
+                spacing: 8
+                SharedComponents.UiText {
+                    width: parent.width - refreshAction.width - 8
+                    height: parent.height
+                    text: "World clock"
+                    color: panel.root.ink
+                    font.pixelSize: 14
+                    font.bold: true
+                    verticalAlignment: Text.AlignVCenter
+                }
+                ActionButton {
+                    id: refreshAction
+                    label: "Refresh"
+                    onClicked: {
+                        if (!panel.service.refresh()) panel.statusMessage = panel.service.lastError
+                    }
+                }
+            }
+
+            ListView {
+                id: cityList
+                objectName: "elsewhen-city-list"
+                width: parent.width
+                height: Math.min(contentHeight, 144)
+                implicitHeight: height
+                clip: true
+                interactive: contentHeight > height
+                model: panel.service.clockRows || []
+                delegate: Rectangle {
+                    required property var modelData
+                    required property int index
+                    property alias moveUpButton: moveUpAction
+                    property alias moveDownButton: moveDownAction
+                    property alias removeButton: removeAction
+                    width: cityList.width
+                    height: 44
+                    color: index % 2 === 0 ? panel.root.fillIdle : "transparent"
+                    radius: 5
+                    Row {
+                        anchors.fill: parent
+                        anchors.leftMargin: 8
+                        anchors.rightMargin: 6
+                        spacing: 8
+                        Column {
+                            width: parent.width - 180
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 2
+                            SharedComponents.UiText {
+                                width: parent.width
+                                text: modelData.label
+                                color: panel.root.ink
+                                font.pixelSize: 12
+                                elide: Text.ElideRight
+                            }
+                            SharedComponents.UiText {
+                                width: parent.width
+                                text: (modelData.abbr || modelData.id) + (modelData.relative ? "  " + modelData.relative : "")
+                                color: panel.root.seal
+                                font.pixelSize: 9
+                                elide: Text.ElideRight
+                            }
+                        }
+                        SharedComponents.UiText {
+                            width: 70
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: modelData.ready === false ? "··:··" : (modelData.time || "··:··")
+                            color: panel.root.ink
+                            font.family: panel.root.mono
+                            font.pixelSize: 13
+                            horizontalAlignment: Text.AlignRight
+                        }
+                        ActionButton {
+                            id: moveUpAction
+                            width: 26
+                            label: "↑"
+                            available: index > 0
+                            onClicked: panel.service.moveCity(index, index - 1)
+                        }
+                        ActionButton {
+                            id: moveDownAction
+                            width: 26
+                            label: "↓"
+                            available: index < cityList.count - 1
+                            onClicked: panel.service.moveCity(index, index + 1)
+                        }
+                        ActionButton {
+                            id: removeAction
+                            width: 26
+                            label: "×"
+                            available: cityList.count > 1
+                            onClicked: {
+                                if (!panel.service.removeCity(index)) panel.statusMessage = panel.service.lastError
+                            }
+                        }
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        z: -1
+                        onClicked: panel.timezoneTarget = modelData.id
+                    }
+                }
+            }
+
+            Row {
+                width: parent.width
+                spacing: 7
+                TextField {
+                    id: zoneSearchInput
+                    objectName: "elsewhen-zone-search"
+                    width: parent.width - 104
+                    height: 32
+                    placeholderText: "Search IANA time zones"
+                    selectByMouse: true
+                    color: panel.root.ink
+                    placeholderTextColor: panel.root.sep
+                    font.pixelSize: 11
+                    onTextChanged: {
+                        panel.searchText = text
+                        panel.statusMessage = ""
+                    }
+                    background: Rectangle {
+                        radius: 6
+                        color: panel.root.fillIdle
+                        border.color: zoneSearchInput.activeFocus ? panel.root.seal : panel.root.sep
+                        border.width: 1
+                    }
+                }
+                ActionButton {
+                    id: addZoneAction
+                    label: "Add zone"
+                    available: panel.searchResults.length > 0
+                    onClicked: panel.addSearchResult(panel.searchResults[0])
+                }
+            }
+
+            ListView {
+                id: searchList
+                objectName: "elsewhen-search-results"
+                width: parent.width
+                height: visible ? Math.min(contentHeight, 116) : 0
+                visible: panel.searchText.trim().length >= 2 && count > 0
+                clip: true
+                interactive: contentHeight > height
+                model: panel.searchResults
+                delegate: Rectangle {
+                    required property var modelData
+                    required property int index
+                    width: searchList.width
+                    height: 32
+                    color: resultMouse.containsMouse ? panel.root.fillHover : panel.root.fillIdle
+                    radius: 4
+                    SharedComponents.UiText {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 8
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: modelData.label + "  ·  " + modelData.value
+                        color: panel.root.ink
+                        font.pixelSize: 10
+                        elide: Text.ElideRight
+                    }
+                    MouseArea {
+                        id: resultMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        onClicked: panel.addSearchResult(modelData)
+                    }
+                }
+            }
+
+            Row {
+                width: parent.width
+                spacing: 7
+                ActionButton {
+                    id: hour24Action
+                    label: panel.service.preferenceData.hour24 ? "24-hour" : "12-hour"
+                    highlighted: panel.service.preferenceData.hour24 === true
+                    onClicked: panel.service.updateSetting("hour24", panel.service.preferenceData.hour24 !== true)
+                }
+                ActionButton {
+                    id: globeToggleAction
+                    label: panel.service.preferenceData.globeEnabled === false ? "Show globe" : "Hide globe"
+                    highlighted: panel.service.preferenceData.globeEnabled !== false
+                    onClicked: panel.service.updateSetting("globeEnabled", panel.service.preferenceData.globeEnabled === false)
+                }
+                ActionButton {
+                    id: changeTimezoneAction
+                    label: "Set zone"
+                    available: panel.timezoneTarget !== ""
+                    onClicked: panel.timezoneConfirmationVisible = true
+                }
+            }
+
+            Rectangle {
+                width: parent.width
+                height: panel.service.preferenceData.globeEnabled === false ? 0 : 170
+                visible: height > 0
+                color: panel.root.fillIdle
+                radius: 8
+                border.color: panel.root.sep
+                border.width: 1
+                Canvas {
+                    id: globeCanvasItem
+                    objectName: "elsewhen-globe"
+                    anchors.centerIn: parent
+                    width: Math.max(0, Math.min(parent.width - 12, 260))
+                    height: 158
+                    onPaint: {
+                        var ctx = getContext("2d")
+                        var cx = width / 2
+                        var cy = height / 2
+                        var radius = panel.globePaintRadius(width, height)
+                        var spin = panel.globeSpin
+                        ctx.clearRect(0, 0, width, height)
+                        if (radius <= 0) return
+                        ctx.save()
+                        ctx.beginPath()
+                        ctx.arc(cx, cy, radius, 0, Math.PI * 2)
+                        ctx.fillStyle = panel.root.bg.toString()
+                        ctx.fill()
+                        ctx.clip()
+                        for (var lat = -60; lat <= 60; lat += 30) {
+                            ctx.beginPath()
+                            var started = false
+                            for (var lon = -180; lon <= 180; lon += 4) {
+                                var point = Globe.project(lat, lon, spin, 0, radius)
+                                if (!point.visible) { started = false; continue }
+                                if (!started) { ctx.moveTo(cx + point.x, cy + point.y); started = true }
+                                else ctx.lineTo(cx + point.x, cy + point.y)
+                            }
+                            ctx.strokeStyle = panel.root.sep.toString()
+                            ctx.lineWidth = 0.45
+                            ctx.stroke()
+                        }
+                        for (var ringIndex = 0; ringIndex < panel.service.worldData.length; ringIndex++) {
+                            var ring = panel.service.worldData[ringIndex]
+                            if (!Array.isArray(ring) || ring.length < 8) continue
+                            var clipped = Globe.clipRingToDisc(ring, spin, 0, radius * 0.98)
+                            if (clipped.length < 3) continue
+                            ctx.beginPath()
+                            ctx.moveTo(cx + clipped[0].x, cy + clipped[0].y)
+                            for (var p = 1; p < clipped.length; p++) ctx.lineTo(cx + clipped[p].x, cy + clipped[p].y)
+                            ctx.closePath()
+                            ctx.fillStyle = Qt.rgba(panel.root.seal.r, panel.root.seal.g, panel.root.seal.b, 0.22).toString()
+                            ctx.fill()
+                            ctx.strokeStyle = Qt.rgba(panel.root.seal.r, panel.root.seal.g, panel.root.seal.b, 0.55).toString()
+                            ctx.lineWidth = 0.5
+                            ctx.stroke()
+                        }
+                        var sun = Globe.subsolarPoint(panel.service.nowMs)
+                        for (var cityIndex = 0; cityIndex < panel.service.cities.length; cityIndex++) {
+                            var city = panel.service.cities[cityIndex]
+                            var place = panel.placeForZone(city.id)
+                            if (!place) continue
+                            var marker = Globe.project(place[2], place[3], spin, 0, radius)
+                            if (!marker.visible) continue
+                            ctx.beginPath()
+                            ctx.arc(cx + marker.x, cy + marker.y, 2.4, 0, Math.PI * 2)
+                            ctx.fillStyle = Globe.isDaylight(place[2], place[3], sun)
+                                ? panel.root.seal.toString() : panel.root.ink.toString()
+                            ctx.fill()
+                        }
+                        ctx.restore()
+                        ctx.beginPath()
+                        ctx.arc(cx, cy, radius, 0, Math.PI * 2)
+                        ctx.strokeStyle = panel.root.seal.toString()
+                        ctx.lineWidth = 1
+                        ctx.stroke()
+                    }
+                }
+                MouseArea {
+                    id: globeDragArea
+                    anchors.fill: parent
+                    acceptedButtons: Qt.LeftButton
+                    cursorShape: Qt.OpenHandCursor
+                    onPressed: function(mouse) { panel.globeDragX = mouse.x; cursorShape = Qt.ClosedHandCursor }
+                    onReleased: cursorShape = Qt.OpenHandCursor
+                    onPositionChanged: function(mouse) {
+                        if (!pressed) return
+                        panel.globeSpin = (panel.globeSpin + (mouse.x - panel.globeDragX) * 0.7 + 360) % 360
+                        panel.globeDragX = mouse.x
+                        globeCanvasItem.requestPaint()
+                    }
+                }
+            }
+
+            Rectangle {
+                width: parent.width
+                height: panel.timezoneConfirmationVisible ? 54 : 0
+                visible: height > 0
+                color: panel.root.bg
+                radius: 6
+                Row {
+                    anchors.fill: parent
+                    anchors.margins: 6
+                    spacing: 8
+                    SharedComponents.UiText {
+                        width: parent.width - confirmTimezoneAction.width - 50
+                        text: "Set system zone to " + panel.timezoneTarget + "?"
+                        color: panel.root.ink
+                        font.pixelSize: 10
+                        verticalAlignment: Text.AlignVCenter
+                        elide: Text.ElideRight
+                    }
+                    ActionButton {
+                        id: confirmTimezoneAction
+                        label: "Confirm"
+                        highlighted: true
+                        onClicked: {
+                            if (!panel.service.requestTimezoneChange(panel.timezoneTarget))
+                                panel.statusMessage = panel.service.timezoneError || panel.service.lastError
+                            panel.timezoneConfirmationVisible = false
+                        }
+                    }
+                    ActionButton {
+                        label: "Cancel"
+                        onClicked: panel.timezoneConfirmationVisible = false
+                    }
+                }
+            }
+
+            SharedComponents.UiText {
+                width: parent.width
+                visible: text !== ""
+                text: panel.statusMessage || panel.service.lastError || panel.service.catalogError || panel.service.timezoneError
+                color: panel.root.seal
+                font.pixelSize: 10
+                wrapMode: Text.Wrap
+            }
+        }
+    }
+
+    function placeForZone(zone) {
+        for (var i = 0; i < service.cityData.length; i++)
+            if (service.cityData[i][1] === zone) return service.cityData[i]
+        return null
+    }
+
+    function addSearchResult(option) {
+        if (!option) return false
+        var place = placeForZone(option.value)
+        var facts = place ? { lat: place[2], lon: place[3] } : null
+        if (!service.addCity(option.value, option.label, facts)) {
+            statusMessage = service.lastError || "Could not add this time zone"
+            return false
+        }
+        statusMessage = ""
+        zoneSearchInput.clear()
+        return true
+    }
+
+    Connections {
+        target: panel.service
+        function onClockRowsChanged() { globeCanvasItem.requestPaint() }
+        function onNowMsChanged() { globeCanvasItem.requestPaint() }
+        function onWorldDataChanged() { globeCanvasItem.requestPaint() }
+        function onCityDataChanged() { globeCanvasItem.requestPaint() }
+        function onCitiesChanged() { globeCanvasItem.requestPaint() }
+    }
+
+    Component.onCompleted: globeCanvasItem.requestPaint()
+}

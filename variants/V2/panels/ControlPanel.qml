@@ -586,6 +586,7 @@ PanelWindow {
                     WidgetStateTile { gid: "G17"; width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "GPU load";      shown: ctrlPanel.root.modGpu;             supportsCompact: true; compact: ctrlPanel.root.iconOnly("G17"); onVisibilityToggled: ctrlPanel.root.modGpu = !ctrlPanel.root.modGpu; onModeToggled: ctrlPanel.root.toggleIconOnly("G17") }
                     WidgetStateTile { gid: "G18"; width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "HDD";           shown: ctrlPanel.root.modStorage;         supportsCompact: true; compact: ctrlPanel.root.iconOnly("G18"); onVisibilityToggled: ctrlPanel.root.modStorage = !ctrlPanel.root.modStorage; onModeToggled: ctrlPanel.root.toggleIconOnly("G18") }
                     WidgetStateTile { gid: "G22"; width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "OneDrive"; shown: ctrlPanel.root.modOneDrive; supportsCompact: true; compact: ctrlPanel.root.iconOnly("G22"); onVisibilityToggled: ctrlPanel.root.modOneDrive = !ctrlPanel.root.modOneDrive; onModeToggled: ctrlPanel.root.toggleIconOnly("G22") }
+                    WidgetStateTile { objectName: "elsewhen-widget-toggle"; gid: "G24"; width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "World Clock"; shown: ctrlPanel.root.modElsewhen; onVisibilityToggled: ctrlPanel.root.modElsewhen = !ctrlPanel.root.modElsewhen }
                 }
 
                 Rectangle {
@@ -932,11 +933,7 @@ PanelWindow {
                     Tile { width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Top";    active: ctrlPanel.root.barPosition === "top";    onActivated: ctrlPanel.root.barPosition = "top" }
                     Tile { width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Bottom"; active: ctrlPanel.root.barPosition === "bottom"; onActivated: ctrlPanel.root.barPosition = "bottom" }
                 }
-                Row {
-                    width: parent.width; spacing: 4
-                    Tile { width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Left"; active: ctrlPanel.root.barPosition === "left"; onActivated: ctrlPanel.root.barPosition = "left" }
-                    Tile { width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Right"; active: ctrlPanel.root.barPosition === "right"; onActivated: ctrlPanel.root.barPosition = "right" }
-                }
+
 
                 Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 

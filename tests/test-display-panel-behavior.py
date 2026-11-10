@@ -19,7 +19,7 @@ for variant in ("V1", "V2"):
         (folder / "panels").mkdir()
         (folder / "panels/DisplayManagerPanel.qml").write_bytes(qml_fixture_bytes(source))
         fixture = base.replace('import "../../shared/panels"', 'import "panels"')
-        fixture = fixture.replace('property color bg: "#202020"', 'property color bg: "#202020"\n property color paper: "#202020"\n property color muted: "#aaaaaa"\n property color fillHover: "#404040"\n property color pillBorder: "#505050"\n property real pillBorderW: 1\n property real pillRadius: 12')
+        fixture = fixture.replace('property color bg: "#202020"', 'property color bg: "#202020"\n property color paper: "#202020"\n property color muted: "#aaaaaa"\n property color sumi: "#666666"\n property color fillHover: "#404040"\n property color pillBorder: "#505050"\n property real pillBorderW: 1\n property real pillRadius: 12\n property bool omarchyPerMonitorWorkspaces: false')
         fixture = fixture.replace('property var monitors: []', 'property var monitors: [{ name: "DP-1", width: 2560, height: 1440, x: 0, y: 0, scale: 1, transform: 0, refreshRate: 59.95, mirrorOf: "none", availableModes: ["2560x1440@59.95Hz"] }, { name: "DP-2", width: 1920, height: 1080, x: 2560, y: 0, scale: 1, transform: 0, refreshRate: 60, mirrorOf: "none", availableModes: ["1920x1080@60.00Hz"] }]\n property var positions: ({})\n property var calls: []')
         fixture = fixture.replace('property string selectedMonitor: ""', 'property string selectedMonitor: "DP-1"')
         fixture = fixture.replace('function monitor(name) { return null }', 'function monitor(name) { for (var i=0;i<monitors.length;i++) if(monitors[i].name===name) return monitors[i]; return null }')
@@ -33,31 +33,37 @@ for variant in ("V1", "V2"):
             try {
                 check(!productionPanel.visible, "fixture must stay hidden")
                 check(!productionPanel.commitCanvasPosition("DP-2",2560,0,-800,0,1), "overlapping mouse drop must be blocked before backend")
-                check(fakeController.calls.length===0, "overlap dispatched a compositor mutation")
-                check(productionPanel.commitCanvasPosition("DP-1",0,0,-20,-10,0.1), "drag dispatch rejected")
-                var call=fakeController.calls[0]
-                check(call[0]==="DP-1" && call[2]===-200 && call[3]===-100, "drag must convert pixels into changed coordinates")
-                check(call[1]==="2560x1440@59.95", "drag must preserve mode/refresh")
-                var count=fakeController.calls.length
+                check(fakeController.calls.length===0 && fakeController.applyCalls.length===0, "overlap dispatched a compositor mutation")
+                check(productionPanel.commitCanvasPosition("DP-1",0,0,-20,-10,0.1), "drag staging rejected")
+                var staged=fakeController.drafts["DP-1"]
+                check(staged.x===-200 && staged.y===-100, "drag must convert canvas pixels into staged coordinates")
+                check(productionPanel.displayMode(fakeController.previewMonitor("DP-1"))==="2560x1440@59.95", "drag must preserve the selected mode/refresh")
+                check(fakeController.applyCalls.length===0, "drag must wait for explicit Apply")
+                var before=JSON.stringify(fakeController.drafts)
                 fakeController.busy=true
                 check(!productionPanel.commitCanvasPosition("DP-2",2560,0,10,10,0.1), "busy drag must be rejected")
-                check(fakeController.calls.length===count, "busy drag dispatched")
+                check(JSON.stringify(fakeController.drafts)===before, "busy drag changed the draft")
                 fakeController.busy=false
                 check(!productionPanel.commitCanvasPosition("DP-1",0,0,NaN,0,0.1), "invalid drag must be rejected")
+                check(JSON.stringify(fakeController.drafts)===before, "invalid drag changed the draft")
                 check(productionPanel.mirrorTargets().join(",")==="DP-2", "mirror targets must exclude selected display")
                 check(productionPanel.activeDisplayCount()===2, "active display count")
-                fakeController.positions=({})
-                count=fakeController.calls.length
+                fakeController.drafts=({})
                 check(productionPanel.commitCanvasPosition("DP-2",2560,0,-1,0,1), "one-pixel overlap must snap outward")
-                check(fakeController.calls.length===count+1 && fakeController.calls[count][2]===2560, "shallow overlap must become touching edges, not overlap")
+                check(fakeController.drafts["DP-2"].x===2560, "shallow overlap must become touching edges, not overlap")
+                fakeController.drafts=({})
                 check(productionPanel.commitCanvasPosition("DP-2",2560,0,0,30,1), "touching edges must remain valid")
-                fakeController.positions=({})
+                check(fakeController.drafts["DP-2"].x===2560 && fakeController.drafts["DP-2"].y===30, "touching-edge position must be staged")
+                fakeController.drafts=({})
                 fakeController.monitors=[{name:"DP-1",width:2560,height:1440,x:0,y:0,scale:1,transform:0,refreshRate:60,mirrorOf:"none"},{name:"DP-2",width:1920,height:1080,x:2560,y:0,scale:1,transform:1,refreshRate:60,mirrorOf:"none"}]
                 check(!productionPanel.commitCanvasPosition("DP-1",0,0,200,1500,1), "portrait logical height must participate in collision")
+                fakeController.drafts=({})
                 fakeController.monitors=[{name:"DP-1",width:2560,height:1440,x:0,y:0,scale:2,transform:0,refreshRate:60,mirrorOf:"none"},{name:"DP-2",width:1920,height:1080,x:2560,y:0,scale:1,transform:0,refreshRate:60,mirrorOf:"none"}]
                 check(productionPanel.commitCanvasPosition("DP-2",2560,0,-1280,0,1), "scaled touching edges must not use physical width")
+                check(fakeController.drafts["DP-2"].x===1280, "scaled touching-edge geometry must use logical width")
+                check(fakeController.calls.length===0 && fakeController.applyCalls.length===0, "drag fixture must never call a monitor backend")
                 console.log("DISPLAY_UI_BEHAVIOR_PASS VARIANT")
-            } catch (error) { console.error("DISPLAY_UI_ASSERTION_FAILED " + error) }
+            } catch (error) { console.error("DISPLAY_UI_ASSERTION_FAILED " + error + "\\n" + error.stack) }
             Qt.quit()
         }
     }

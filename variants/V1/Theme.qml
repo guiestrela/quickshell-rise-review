@@ -230,13 +230,13 @@ Item {
     property bool trayDragActive: false
     property bool trayDropActive: false
 
-    readonly property bool anyPopupVisible: oneDriveVisible || calendarVisible || cpuVisible || gpuVisible || thermalVisible || storageVisible || aiUsageVisible
+    readonly property bool anyPopupVisible: oneDriveVisible || elsewhenVisible || calendarVisible || cpuVisible || gpuVisible || thermalVisible || storageVisible || aiUsageVisible
         || memVisible || volVisible || controlVisible || networkVisible || bluetoothVisible
         || batteryVisible || brightnessVisible || mprisVisible || weatherVisible
         || workspaceVisible || vpnVisible || imagePickerVisible || mediaBrowserVisible || notifVisible
         || powerProfileVisible || archVisible || trayVisible || trayMenuVisible
         || wallpaperManagerVisible || displayManagerVisible
-    readonly property bool keyboardPopupVisible: imagePickerVisible || mediaBrowserVisible || wallpaperManagerVisible || displayManagerVisible
+    readonly property bool keyboardPopupVisible: imagePickerVisible || mediaBrowserVisible || wallpaperManagerVisible || displayManagerVisible || elsewhenVisible
 
     function registerBarLayoutController(screenName, controller) { return ThemePanels.registerBarLayoutController(theme, {}, screenName, controller) }
 
@@ -387,6 +387,7 @@ Item {
         else if (name === "gpu") gpuBarX = x
         else if (name === "thermal") thermalBarX = x
         else if (name === "oneDrive") oneDriveBarX = x
+        else if (name === "elsewhen") elsewhenBarX = x
         else if (name === "storage") storageBarX = x
         else if (name === "ai") aiBarX = x
         else if (name === "workspace") workspaceBarX = x
@@ -413,6 +414,7 @@ Item {
         if (except !== "gpuVisible") gpuVisible = false
         if (except !== "thermalVisible") thermalVisible = false
         if (except !== "oneDriveVisible") oneDriveVisible = false
+        if (except !== "elsewhenVisible") elsewhenVisible = false
         if (except !== "storageVisible") storageVisible = false
         if (except !== "aiUsageVisible") aiUsageVisible = false
         if (except !== "memVisible") memVisible = false
@@ -1000,6 +1002,25 @@ Item {
         owner: theme
         pollingEnabled: theme._widgetsLoaded && (theme.modOneDrive || theme.oneDriveVisible)
     }
+    property bool modElsewhen: false
+    onModElsewhenChanged: {
+        if (!modElsewhen) elsewhenVisible = false
+        if (_widgetsLoaded) saveWidgets()
+    }
+    readonly property string elsewhenSettingsPath: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/quickshell-rise-elsewhen.json"
+    property bool elsewhenVisible: false
+    onElsewhenVisibleChanged: popupOpened("elsewhenVisible")
+    property real elsewhenBarX: 0
+    readonly property alias elsewhenService: elsewhenServiceInstance
+    function refreshElsewhen() { return elsewhenServiceInstance.refresh() }
+    function toggleElsewhen(screen, anchorItem) { return ThemePanels.toggleElsewhen(theme, {}, screen, anchorItem) }
+    CommonServices.ElsewhenService {
+        id: elsewhenServiceInstance
+        settingsPath: theme.elsewhenSettingsPath
+        active: theme._widgetsLoaded && theme.modElsewhen
+        autoRefresh: true
+    }
+    CommonServices.ElsewhenProcessAdapter { service: elsewhenServiceInstance }
     property bool modStorage: false
     property bool modIndicators: true
     onModIndicatorsChanged: if (_widgetsLoaded) saveWidgets()
@@ -1375,8 +1396,8 @@ Item {
     property string workspaceStyle: "default"   // "default", "numbers", "magic"
 
     // ── bar screen position (persisted) ──
-    property string barPosition: "top"   // top, bottom, left, right
-    readonly property bool barVertical: barPosition === "left" || barPosition === "right"
+    property string barPosition: "top"   // top or bottom; side rail removed
+    readonly property bool barVertical: false
     readonly property int verticalBarWidth: 40
     readonly property int verticalModuleSurfaceWidth: 32
     property var verticalAnchorsByScreen: ({})
@@ -1495,7 +1516,8 @@ Item {
                  + (compactStorage ? "1" : "0") + " " // +45
                  + barTemperatureSource + " " // +46, V1 schema
                  + (modOneDrive ? "1" : "0") + " " // +47 OneDrive
-                 + (modIndicators ? "1" : "0") // +48 Indicators; append-only
+                 + (modIndicators ? "1" : "0") + " " // +48 Indicators; append-only
+                 + (modElsewhen ? "1" : "0") // +49 Elsewhen; append-only
         widgetSaveProc.command = ["bash", "-c",
             "echo '" + line + "' > '" + widgetsCachePath + "'"]
         widgetSaveProc.running = false
@@ -1571,7 +1593,7 @@ Item {
                     }
                     if (parts.length > wsField + 9) {
                         var bp = parts[wsField + 9]
-                        if (["top", "bottom", "left", "right"].indexOf(bp) >= 0) theme.barPosition = bp
+                    if (["top", "bottom"].indexOf(bp) < 0) theme.barPosition = "top"
                     }
                     // +10 styleBorder (independent border on/off). Old caches lack it →
                     // migrate from the old coupled meaning: border = NOT shadow.
@@ -1624,6 +1646,7 @@ Item {
                     if (parts.length > wsField + 42) theme.modCpuTemperature = parts[wsField + 42] === "1"
                     if (parts.length > wsField + 47) theme.modOneDrive = parts[wsField + 47] === "1"
                     if (parts.length > wsField + 48) theme.modIndicators = parts[wsField + 48] !== "0"
+                    if (parts.length > wsField + 49) theme.modElsewhen = parts[wsField + 49] === "1"
                     if (parts.length > wsField + 43) theme.modStorage = parts[wsField + 43] === "1"
                     if (parts.length > wsField + 44) theme.compactTemperature = parts[wsField + 44] === "1"
                     if (parts.length > wsField + 45) theme.compactStorage = parts[wsField + 45] === "1"

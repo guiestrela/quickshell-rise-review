@@ -36,6 +36,15 @@ with tempfile.TemporaryDirectory(prefix="v2-slot-pointer-", dir=os.environ.get("
         copy_qml_fixture(repo / "variants/V2/modules" / name, base)
 
     vertical = (repo / "variants/V2/modules/VerticalBarContent.qml").read_text()
+    vertical = vertical.replace(
+        "property int revision: 0",
+        "property int revision: 0\n    property int testDelegateAdded: 0\n    property int testDelegateRemoved: 0")
+    vertical = vertical.replace(
+        "onObjectAdded: layoutTimer.restart()",
+        "onObjectAdded: { rail.testDelegateAdded++; layoutTimer.restart() }")
+    vertical = vertical.replace(
+        "if (object) rail.detachRemovedDelegate(object)",
+        "rail.testDelegateRemoved++; if (object) rail.detachRemovedDelegate(object)")
     vertical = vertical.replace("import Quickshell\n", "")
     vertical = vertical.replace("SystemClock { id: now; precision: SystemClock.Minutes }",
                                 "QtObject { id: now; property date date: new Date() }")
@@ -77,6 +86,23 @@ with tempfile.TemporaryDirectory(prefix="v2-slot-pointer-", dir=os.environ.get("
 
     source = (repo / "tests/test-vertical-bar-layout.py").read_text()
     fixture = source.split("(base / 'shell.qml').write_text('''", 1)[1].split("'''", 1)[0]
+    fixture, hidden_widget_count = fixture.replace(
+        "Component { id: widget; Item { implicitWidth:32; implicitHeight:28 } }",
+        "Component { id: widget; Item { implicitWidth:32; implicitHeight:28 } }\n"
+        "  Component { id: hiddenWidget; Item { property bool moduleEnabled:true; visible:moduleEnabled; implicitWidth:moduleEnabled ? 32 : 0; implicitHeight:28 } }",
+        1), 1
+    if hidden_widget_count != 1:
+        raise SystemExit("Could not add the disabled-widget drag fixture")
+    fixture, fill_color_count = fixture.replace(
+        'function widgetFillColor(gid) { return "transparent" }',
+        'function widgetFillColor(gid) { return gid === "G24" ? "#cc2266" : "transparent" }', 1), 1
+    if fill_color_count != 1:
+        raise SystemExit("Could not color the disabled-widget fixture")
+    fixture, right_position_count = fixture.replace(
+        "x: 820; y: 0; width: harness.state.verticalBarWidth;",
+        'x: harness.state.barPosition === "right" ? 760 : 820; y: 0; width: harness.state.verticalBarWidth;', 1), 1
+    if right_position_count != 1:
+        raise SystemExit("Could not make pointer fixture follow left/right bar position")
     fixture = fixture.replace("import QtQuick\n", "import QtQuick\nimport QtTest\n", 1)
     fixture = fixture.replace("import Quickshell\n", "", 1)
     fixture = fixture.replace("ShellRoot {", "Item {", 1)
@@ -90,7 +116,7 @@ with tempfile.TemporaryDirectory(prefix="v2-slot-pointer-", dir=os.environ.get("
   property var root: harness.state
   property string screenName: "fixture"
   property var screen: ({name:"fixture",width:800,height:1400})
-  property var registry: ({G1:widget,G5:widget,G6:widget})
+  property var registry: ({G1:widget,G5:widget,G6:widget,G24:hiddenWidget})
   property var fixtureLeftModel: left
   property var fixtureCenterModel: center
   property var fixtureRightModel: right
@@ -168,6 +194,11 @@ with tempfile.TemporaryDirectory(prefix="v2-slot-pointer-", dir=os.environ.get("
   function findSlot(region, index) {
    return findSlotIn(rail.regionColumns[region], region, index)
   }
+  function findFlickable(item) {
+   if (item && item.contentHeight !== undefined && item.interactive !== undefined && item.contentItem !== undefined) return item
+   for (var i=0; i<item.children.length; i++) { var found=findFlickable(item.children[i]); if (found) return found }
+   return null
+  }
   function clickCenter(item) {
    verify(item && typeof item.mapToItem === "function", "pointer target must be a visual Item")
    var p = item.mapToItem(window.contentItem, item.width/2, item.height/2)
@@ -191,6 +222,8 @@ with tempfile.TemporaryDirectory(prefix="v2-slot-pointer-", dir=os.environ.get("
    mouseClick(window.contentItem, unlockPoint.x, unlockPoint.y, Qt.LeftButton, Qt.NoModifier, 0)
    wait(100)
    verify(harness.state.barUnlocked, "a vertical double-tap should unlock editing")
+   var scrollView = findFlickable(rail)
+   verify(scrollView && !scrollView.interactive, "V2 edit mode disables Flickable scrolling while dragging")
    var addTop = findObject(rail, "vertical-slot-add-cell-0")
    var addCenter = findObject(rail, "vertical-slot-add-cell-1")
    var addBottom = findObject(rail, "vertical-slot-add-cell-2")
@@ -275,26 +308,47 @@ with tempfile.TemporaryDirectory(prefix="v2-slot-pointer-", dir=os.environ.get("
    clickCenter(removeRight)
    wait(80)
    compare(right.count, 7, "right-region click removes the remaining empty extra slot")
+   while (left.count < 20) left.append({gid:"", extra:true})
+   while (center.count < 8) center.append({gid:"", extra:true})
+   while (right.count < 20) right.append({gid:"", extra:true})
+   wait(100)
+   verify(scrollView.contentHeight > scrollView.height, "fixture must overflow to exercise wheel/drag competition")
    var sourceSlot = findSlot(0, 0)
    var targetSlot = findSlot(2, 0)
    verify(sourceSlot && targetSlot, "drag source and target cells must exist")
    var from = sourceSlot.mapToItem(window.contentItem, sourceSlot.width/2, sourceSlot.height/2)
    var to = targetSlot.mapToItem(window.contentItem, targetSlot.width/2, targetSlot.height/2)
    var savesBefore = barSlot.orderSaveCalls
+   rail.testDelegateAdded=0; rail.testDelegateRemoved=0
    mousePress(window.contentItem, from.x, from.y, Qt.LeftButton)
    verify(barSlot.dragging && barSlot.dragActive, "vertical press must enter the horizontal BarSlot drag lifecycle")
+   var contentYBeforeDragWheel = scrollView.contentY
+   mouseWheel(window.contentItem, from.x, from.y, 0, -120, Qt.NoButton, Qt.NoModifier)
+   compare(scrollView.contentY, contentYBeforeDragWheel, "wheel input must not scroll slots beneath an active drag")
    compare(barSlot.srcModel, left, "drag source keeps model identity")
    compare(barSlot.srcIndex, 0)
    mouseMove(window.contentItem, to.x, to.y, 150)
    compare(barSlot.dropModel, right, "vertical hit testing resolves the destination model")
    compare(barSlot.dropIndex, 0)
+   compare(barSlot.orderSaveCalls, savesBefore, "pointer movement must not persist before release")
    mouseRelease(window.contentItem, to.x, to.y, Qt.LeftButton)
    wait(100)
+   console.log("SLOT_DELEGATE_CHURN V2 added="+rail.testDelegateAdded+" removed="+rail.testDelegateRemoved)
+   compare(rail.testDelegateAdded,0,"a widget swap must preserve unrelated vertical delegates")
+   compare(rail.testDelegateRemoved,0,"a widget swap must not recreate every Instantiator delegate")
    compare(left.get(0).gid, "G6", "vertical drag swaps the source widget out")
    compare(right.get(0).gid, "G1", "vertical drag moves the widget into the target")
    compare(barSlot.orderSaveCalls, savesBefore + 1, "successful vertical swap persists through BarSlot")
    verify(!barSlot.dragActive && !harness.state.trayDragActive && !harness.state.trayDropActive,
        "release clears drag and tray-highlight state")
+   var idleWheelStart = scrollView.contentY
+   mouseWheel(window.contentItem, from.x, from.y, 0, -120, Qt.NoButton, Qt.NoModifier)
+   verify(scrollView.contentY > idleWheelStart, "wheel scrolling remains available when no drag is active")
+   scrollView.contentY = 0
+   wait(40)
+   harness.state.barPosition = "right"
+   wait(40)
+   compare(lifecycleProbeLoader.x, 760, "V2 fixture places the rail on the right edge for invalid-drop hit testing")
    var emptyTarget = findSlot(0, 4)
    var restoredSource = findSlot(2, 0)
    verify(emptyTarget && restoredSource, "empty base slots remain draggable destinations")
@@ -304,6 +358,7 @@ with tempfile.TemporaryDirectory(prefix="v2-slot-pointer-", dir=os.environ.get("
    mouseMove(window.contentItem, emptyPoint.x, emptyPoint.y, 150)
    var emptyHighlight = findObject(emptyTarget, "vertical-drop-target-0-4")
    verify(emptyHighlight && emptyHighlight.visible, "drop target highlight follows an empty vertical slot")
+   compare(barSlot.orderSaveCalls, savesBefore + 1, "pointer move must not persist before release")
    compare(barSlot.dropModel, left)
    compare(barSlot.dropIndex, 4)
    mouseRelease(window.contentItem, emptyPoint.x, emptyPoint.y, Qt.LeftButton)
@@ -324,6 +379,8 @@ with tempfile.TemporaryDirectory(prefix="v2-slot-pointer-", dir=os.environ.get("
    compare(left.get(1).gid, unchangedEmpty, "invalid drop leaves target order unchanged")
    verify(!barSlot.dragging && !barSlot.dragActive, "invalid drop eventually clears the ghost")
    verify(!harness.state.trayDragActive && !harness.state.trayDropActive)
+   harness.state.barPosition = "left"
+   wait(40)
    var traySource = findSlot(0, 0)
    var traySourcePoint = traySource.mapToItem(window.contentItem, traySource.width/2, traySource.height/2)
    var trayPoint = barSlot.mapToGlobal(500, 1050)
@@ -368,6 +425,34 @@ with tempfile.TemporaryDirectory(prefix="v2-slot-pointer-", dir=os.environ.get("
    wait(100)
    verify(!harness.state.barUnlocked, "layout protection must block edit unlock")
    harness.state.layoutProtected = false
+   left.setProperty(10, "gid", "G24")
+   harness.state.barUnlocked = true
+   wait(100)
+   var hiddenSource = findSlot(0, 10)
+   verify(hiddenSource && hiddenSource.height > 0, "disabled assigned widgets still occupy a movable edit slot")
+   var hiddenSurface = findObject(hiddenSource, "vertical-module-surface")
+   verify(hiddenSurface && hiddenSurface.visible, "an enabled widget has its configured surface")
+   hiddenSource.contentItem.moduleEnabled = false
+   wait(80)
+   verify(hiddenSurface && !hiddenSurface.visible, "a widget disabled after loading must not leave its per-widget color painted on an empty slot")
+   var disabledPlaceholder = findObject(hiddenSource, "vertical-disabled-module-placeholder-0-10")
+   verify(disabledPlaceholder && disabledPlaceholder.visible, "disabled assigned widgets must have a neutral identity placeholder")
+   var hiddenTarget = findSlot(0, 5)
+   verify(hiddenTarget && hiddenTarget.emptySlot, "fixture has an empty target for the disabled widget")
+   var hiddenStart = hiddenSource.mapToItem(window.contentItem, hiddenSource.width/2, hiddenSource.height/2)
+   var hiddenEnd = hiddenTarget.mapToItem(window.contentItem, hiddenTarget.width/2, hiddenTarget.height/2)
+   var hiddenSaves = barSlot.orderSaveCalls
+   mousePress(window.contentItem, hiddenStart.x, hiddenStart.y, Qt.LeftButton)
+   verify(barSlot.dragActive, "disabled assigned widgets must start a drag in edit mode")
+   mouseMove(window.contentItem, hiddenEnd.x, hiddenEnd.y, 100)
+   compare(barSlot.dropModel, left)
+   compare(barSlot.dropIndex, 5)
+   mouseRelease(window.contentItem, hiddenEnd.x, hiddenEnd.y, Qt.LeftButton)
+   wait(80)
+   compare(left.get(10).gid, "", "disabled widget leaves its original slot")
+   compare(left.get(5).gid, "G24", "disabled widget can be moved into an empty slot")
+   compare(barSlot.orderSaveCalls, hiddenSaves + 1, "disabled widget reorder persists through BarSlot")
+   harness.state.barUnlocked = false
   }
  }
 }'''

@@ -45,24 +45,24 @@ PanelWindow {
     // anchored to left+right always; top OR bottom by barPosition (exclusiveZone
     // reserves space on whichever edge is anchored → no extra logic needed)
     anchors {
-        left: !barSlot.root.barVertical || barSlot.root.barPosition === "left"
-        right: !barSlot.root.barVertical || barSlot.root.barPosition === "right"
-        top: barSlot.root.barVertical || barSlot.root.barPosition === "top"
-        bottom: barSlot.root.barVertical || barSlot.root.barPosition === "bottom"
+        left: true
+        right: true
+        top: barSlot.root.barPosition === "top"
+        bottom: barSlot.root.barPosition === "bottom"
     }
-    implicitWidth: barSlot.root.barVertical ? barSlot.root.verticalBarWidth : 0
+    implicitWidth: 0
     implicitHeight: barSlot.screen ? barSlot.screen.height : 1440
     exclusionMode: ExclusionMode.Normal
     // Keep the same compositor reservation for every shell style: clients must
     // never slide behind a content-width Fit/Dock/Notch bar.
-    exclusiveZone: barSlot.root.barVertical ? barSlot.root.verticalBarWidth : barSlot.root.v2BarHeight + 3
+    exclusiveZone: barSlot.root.v2BarHeight + 3
     mask: Region {
-        x: barSlot.root.barVertical ? 0 : barSlot.root.barUnlocked ? 0 : Math.round(continuousBarSurface.x)
-        y: barSlot.root.barVertical ? (barSlot.root.barUnlocked || !verticalLoader.item ? 0 : verticalLoader.item.surfaceY) : barSlot.root.barUnlocked ? 0
+        x: barSlot.root.barUnlocked ? 0 : Math.round(continuousBarSurface.x)
+        y: barSlot.root.barUnlocked ? 0
            : (barSlot.root.barPosition === "bottom"
                 ? barSlot.height - barSlot.shellVisibleHeight : 0)
-        width: barSlot.root.barVertical ? barSlot.width : barSlot.root.barUnlocked ? barSlot.width : Math.round(continuousBarSurface.width)
-        height: barSlot.root.barVertical ? (barSlot.root.barUnlocked || !verticalLoader.item ? barSlot.height : verticalLoader.item.surfaceHeight) : barSlot.root.barUnlocked ? barSlot.height : barSlot.shellVisibleHeight
+        width: barSlot.root.barUnlocked ? barSlot.width : Math.round(continuousBarSurface.width)
+        height: barSlot.root.barUnlocked ? barSlot.height : barSlot.shellVisibleHeight
     }
     // grab keyboard while unlocked so ESC can exit
     WlrLayershell.keyboardFocus: barSlot.root.barUnlocked ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
@@ -668,24 +668,18 @@ PanelWindow {
     }
     // which slot (model+index) is under a desktop-global pointer point?
     function slotAt(wx, wy) {
-        if (barSlot.root.barVertical) {
-            var verticalHit = verticalLoader.item
-                ? verticalLoader.item.slotAtGlobalPoint(wx, wy) : null
-            if (verticalHit) return verticalHit
-        } else {
-            var rows = [leftRowItem, centerRowItem, rightRowItem]
-            for (var r = 0; r < rows.length; r++) {
-                var rep = rows[r].rep
-                for (var k = 0; k < rep.count; k++) {
-                    var it = rep.itemAt(k)
-                    if (!it || !it.visible || !it.autoShown) continue
-                    var p = it.mapToGlobal(0, 0)
-                    var end = it.mapToGlobal(it.width, it.height)
-                    var left = Math.min(p.x, end.x), right = Math.max(p.x, end.x)
-                    var top = Math.min(p.y, end.y), bottom = Math.max(p.y, end.y)
-                    if (wx >= left && wx <= right && wy >= top && wy <= bottom)
-                        return { model: rows[r].rmodel, index: k }
-                }
+        var rows = [leftRowItem, centerRowItem, rightRowItem]
+        for (var r = 0; r < rows.length; r++) {
+            var rep = rows[r].rep
+            for (var k = 0; k < rep.count; k++) {
+                var it = rep.itemAt(k)
+                if (!it || !it.visible || !it.autoShown) continue
+                var p = it.mapToGlobal(0, 0)
+                var end = it.mapToGlobal(it.width, it.height)
+                var left = Math.min(p.x, end.x), right = Math.max(p.x, end.x)
+                var top = Math.min(p.y, end.y), bottom = Math.max(p.y, end.y)
+                if (wx >= left && wx <= right && wy >= top && wy <= bottom)
+                    return { model: rows[r].rmodel, index: k }
             }
         }
         var trayRect = barSlot.root.trayDropRectsByScreen[barSlot.screenName]
@@ -729,20 +723,7 @@ PanelWindow {
         barSlot.root.trayDropActive = false
     }
 
-    Loader {
-        id: verticalLoader
-        anchors.fill: parent
-        z: 2 // Above the edit-mode dim backdrop so vertical controls receive input.
-        active: barSlot.root.barVertical
-        sourceComponent: Component {
-            VerticalBarContent {
-                root: barSlot.root
-                barWindow: barSlot
-                models: [leftModel, centerModel, rightModel]
-                registry: barSlot.registry
-            }
-        }
-    }
+
     // ── order persistence (survives restart) ──
     readonly property string orderCachePath: Quickshell.env("HOME") + "/.cache/quickshell_barorder_v2"
     readonly property int leftBaseSlotCount: 10
@@ -879,7 +860,34 @@ PanelWindow {
             else return false
         }
 
-        // Only accept a complete permutation of G1..G23. Empty slots are legal,
+        if (tray.indexOf("G24") < 0 && !l.concat(c, r).some(function(entry) { return entry.gid === "G24" })) {
+            var newWidgetRegions = [
+                { entries: r, base: rightBaseSlotCount, limit: rightBaseSlotCount + rightExtraSlotLimit },
+                { entries: l, base: leftBaseSlotCount, limit: leftBaseSlotCount + leftExtraSlotLimit },
+                { entries: c, base: centerBaseSlotCount, limit: centerBaseSlotCount + centerExtraSlotLimit }
+            ]
+            var newWidgetPlaced = false
+            for (var regionIndex = 0; regionIndex < newWidgetRegions.length && !newWidgetPlaced; regionIndex++) {
+                var regionEntries = newWidgetRegions[regionIndex].entries
+                for (var slotIndex = 0; slotIndex < regionEntries.length; slotIndex++) {
+                    if (regionEntries[slotIndex].gid === "") {
+                        regionEntries[slotIndex].gid = "G24"
+                        newWidgetPlaced = true
+                        break
+                    }
+                }
+                if (!newWidgetPlaced && regionEntries.length < newWidgetRegions[regionIndex].limit) {
+                    regionEntries.push({
+                        gid: "G24",
+                        extra: regionEntries.length >= newWidgetRegions[regionIndex].base
+                    })
+                    newWidgetPlaced = true
+                }
+            }
+            if (!newWidgetPlaced) return false
+        }
+
+        // Only accept a complete permutation of G1..G24. Empty slots are legal,
         // but each registered widget must still occur exactly once.
         var all = l.concat(c, r), seen = {}
         for (var i = 0; i < all.length; i++) {
@@ -965,11 +973,11 @@ PanelWindow {
             m.append({ gid: gids[i], extra: i >= baseCount })
     }
     // Restore the confirmed V2 default snapshot, including its intentional
-    // empty base cells and the six optional cells on the right.
+    // empty base cells and the eight optional cells on the right.
     function resetOrder() {
         var dL = ["G1","G2","G3","","G5","G6","G4","G7","",""]
         var dR = ["G9","G10","G20","G14","G12","G13","G11",
-                  "G18","G19","G16","G17","G15","G21","G22"]
+                  "G18","G19","G16","G17","G15","G21","G22","G24"]
         resetModel(leftModel, dL, leftBaseSlotCount)
         resetModel(centerModel, ["G8", "G23"], centerBaseSlotCount)
         resetModel(rightModel, dR, rightBaseSlotCount)
@@ -1020,6 +1028,12 @@ PanelWindow {
     }
 
     // ─────────────────────────── group registry ───────────────────────────
+    Component { id: compElsewhen; CommonComponents.ElsewhenWidget {
+        root: barSlot.root
+        screen: barSlot.screen
+        contentColor: barSlot.root.widgetContentColor("G24", barSlot.root.widgetIconColor)
+        iconPixelSize: 14
+    } }
     Component { id: compOneDrive; CommonComponents.OneDriveWidget {
         root: barSlot.root
         contentColor: barSlot.root.widgetContentColor("G22", barSlot.root.widgetIconColor)
@@ -1365,7 +1379,7 @@ PanelWindow {
     }
 
     readonly property var registry: ({
-        "G23": compIndicators, "G22": compOneDrive, "G1": compLauncher, "G2": compWorkspace, "G3": compStatus,
+        "G24": compElsewhen, "G23": compIndicators, "G22": compOneDrive, "G1": compLauncher, "G2": compWorkspace, "G3": compStatus,
         "G4": compMem, "G5": compCpu, "G6": compVol, "G7": compClaude,
         "G8": compCenter,
         "G9": compMpris, "G10": compQuick, "G11": compNetwork,
@@ -1772,7 +1786,7 @@ PanelWindow {
                     id: ldr
                     x: slot.pad
                     anchors.verticalCenter: parent.verticalCenter
-                    sourceComponent: !barSlot.root.barVertical && slot.occupied ? barSlot.registry[slot.gid] : null
+                    sourceComponent: slot.occupied ? barSlot.registry[slot.gid] : null
                     // dim the original while its ghost is being dragged
                     opacity: (barSlot.dragItem === ldr && barSlot.dragActive) ? 0.25 : 1.0
                 }
@@ -2095,6 +2109,7 @@ PanelWindow {
             ListElement { gid: "G16"; extra: true }  ListElement { gid: "G17"; extra: true }  ListElement { gid: "G15"; extra: true }
             ListElement { gid: "G21"; extra: true }
             ListElement { gid: "G22"; extra: true }
+            ListElement { gid: "G24"; extra: true }
         }
 
         SlotRow {
@@ -2195,6 +2210,7 @@ PanelWindow {
                 gpu:          island.groupX("G17", 0.5),
                 thermal:      island.groupX("G16", 0.5),
                 oneDrive:        island.groupX("G22", 0.5),
+                elsewhen:     island.groupX("G24", 0.5),
                 storage:      island.groupX("G18", 0.5),
                 ai:           island.groupX("G7",  0.5),
                 workspace:    island.groupX("G2",  0.5),

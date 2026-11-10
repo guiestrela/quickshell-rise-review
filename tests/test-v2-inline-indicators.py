@@ -41,8 +41,8 @@ for variant in ('V1', 'V2'):
 v1_defaults = (repo / 'variants/V1/modules/V1Defaults.js').read_text()
 v1_order = (repo / 'variants/V1/BarSlot.qml').read_text()
 v2_order = (repo / 'variants/V2/BarSlot.qml').read_text()
-assert 'center: ["G8", "G23", ""]' in v1_defaults
-assert 'id: centerModel; ListElement { gid: "G8" } ListElement { gid: "G23" }' in v1_order
+assert 'center: ["G8", "G23", "", "", "", "", "", ""]' in v1_defaults
+assert 'id: centerModel; ListElement { gid: "G8" } ListElement { gid: "G23" } ListElement { gid: "" }' in v1_order
 assert 'ListElement { gid: "G8"; extra: false } ListElement { gid: "G23"; extra: true }' in v2_order
 assert 'if (l.concat(c, r, tray).indexOf("G23") < 0)' in v1_order, 'Migrate old V1 layouts without moving existing widgets'
 print('INDEPENDENT_INDICATORS_PASS: V1/V2 G23 registry, clock separation, persisted visibility, hover, and vertical module')

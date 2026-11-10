@@ -1,0 +1,108 @@
+import QtQuick
+import Quickshell.Io
+import "../integrations/elsewhen/Model.js" as Model
+
+Item {
+    id: adapter
+    visible: false
+    width: 0
+    height: 0
+
+    required property var service
+    property var commandFactory: ({
+        probe: function(ids) { return Model.probeCommand(ids, true) },
+        catalog: function() { return ["timedatectl", "list-timezones"] },
+        timezone: function(zone) { return Model.timezoneCommand(zone) }
+    })
+
+    function stopAll() {
+        if (probeProcess.running) probeProcess.running = false
+        if (catalogProcess.running) catalogProcess.running = false
+        if (timezoneProcess.running) timezoneProcess.running = false
+    }
+
+    function startProbe(ids, serial) {
+        if (probeProcess.running) {
+            service.acceptProbe("", 1, serial, "A time-zone probe is already running")
+            return
+        }
+        try {
+            probeProcess.requestSerial = serial
+            probeProcess.command = commandFactory.probe(ids)
+            probeProcess.running = true
+        } catch (error) {
+            service.acceptProbe("", 1, serial, String(error))
+        }
+    }
+
+    function startCatalog(serial) {
+        if (catalogProcess.running) {
+            service.acceptZoneCatalog("", 1, serial, "A time-zone catalog query is already running")
+            return
+        }
+        try {
+            catalogProcess.requestSerial = serial
+            catalogProcess.command = commandFactory.catalog()
+            catalogProcess.running = true
+        } catch (error) {
+            service.acceptZoneCatalog("", 1, serial, String(error))
+        }
+    }
+
+    function startTimezoneChange(zone, serial) {
+        if (timezoneProcess.running) {
+            service.acceptTimezoneChange(1, serial, "A time-zone change is already running")
+            return
+        }
+        try {
+            timezoneProcess.requestSerial = serial
+            timezoneProcess.command = commandFactory.timezone(zone)
+            timezoneProcess.running = true
+        } catch (error) {
+            service.acceptTimezoneChange(1, serial, String(error))
+        }
+    }
+
+    Connections {
+        target: adapter.service
+        function onProbeRequested(ids, serial) { adapter.startProbe(ids, serial) }
+        function onCatalogRequested(serial) { adapter.startCatalog(serial) }
+        function onTimezoneChangeRequested(zone, serial) { adapter.startTimezoneChange(zone, serial) }
+        function onCancelRequested() { adapter.stopAll() }
+    }
+
+    Process {
+        id: probeProcess
+        property int requestSerial: 0
+        command: []
+        stdout: StdioCollector { id: probeOutput; waitForEnd: true }
+        stderr: StdioCollector { id: probeError; waitForEnd: true }
+        onExited: function(exitCode) {
+            adapter.service.acceptProbe(probeOutput.text, exitCode, requestSerial, probeError.text)
+        }
+    }
+
+    Process {
+        id: catalogProcess
+        property int requestSerial: 0
+        command: []
+        stdout: StdioCollector { id: catalogOutput; waitForEnd: true }
+        stderr: StdioCollector { id: catalogError; waitForEnd: true }
+        onExited: function(exitCode) {
+            adapter.service.acceptZoneCatalog(catalogOutput.text, exitCode, requestSerial, catalogError.text)
+        }
+    }
+
+    Process {
+        id: timezoneProcess
+        property int requestSerial: 0
+        command: []
+        stdout: StdioCollector { id: timezoneOutput; waitForEnd: true }
+        stderr: StdioCollector { id: timezoneError; waitForEnd: true }
+        onExited: function(exitCode) {
+            adapter.service.acceptTimezoneChange(exitCode, requestSerial, timezoneError.text)
+        }
+    }
+
+    Component.onDestruction: stopAll()
+}

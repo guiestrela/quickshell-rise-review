@@ -19,7 +19,7 @@ function migrateV2Entries(left, center, right) {
     for (var i = 0; i < all.length; i++) {
         var gid = all[i].gid
         if (gid === "") continue
-        if (!/^G(?:[1-9]|1[0-9]|2[0-3])$/.test(gid) || seen[gid]) return null
+        if (!/^G(?:[1-9]|1[0-9]|2[0-4])$/.test(gid) || seen[gid]) return null
         seen[gid] = true
     }
     var hasNordVpn = seen.G19 === true

@@ -27,14 +27,14 @@ PanelWindow {
     // strip when locked (clicks below pass through), full screen when unlocked (drag).
     // Anchor the full long axis and reserve space on the selected screen edge.
     anchors {
-        left: !barSlot.root.barVertical || barSlot.root.barPosition === "left"; right: !barSlot.root.barVertical || barSlot.root.barPosition === "right"
-        top:    barSlot.root.barVertical || barSlot.root.barPosition === "top"
-        bottom: barSlot.root.barVertical || barSlot.root.barPosition === "bottom"
+        left: true; right: true
+        top: barSlot.root.barPosition === "top"
+        bottom: barSlot.root.barPosition === "bottom"
     }
-    implicitWidth: barSlot.root.barVertical ? barSlot.root.verticalBarWidth : 0
+    implicitWidth: 0
     implicitHeight: barSlot.screen ? barSlot.screen.height : 1440
     exclusionMode: ExclusionMode.Normal
-    exclusiveZone: barSlot.root.barVertical ? barSlot.root.verticalBarWidth + 3 : 38        // 35 bar + 3px breathing room
+    exclusiveZone: 38        // 35 bar + 3px breathing room
     mask: Region {
         x: 0
         y: barSlot.root.barVertical || barSlot.root.barUnlocked ? 0
@@ -106,24 +106,18 @@ PanelWindow {
     }
     // which slot (model+index) is under a desktop-global pointer point?
     function slotAt(wx, wy) {
-        if (barSlot.root.barVertical) {
-            var verticalHit = verticalLoader.item
-                ? verticalLoader.item.slotAtGlobalPoint(wx, wy) : null
-            if (verticalHit) return verticalHit
-        } else {
-            var rows = [leftRowItem, centerRowItem, rightRowItem]
-            for (var r = 0; r < rows.length; r++) {
-                var rep = rows[r].rep
-                for (var k = 0; k < rep.count; k++) {
-                    var it = rep.itemAt(k)
-                    if (!it || !it.visible || !it.autoShown) continue
-                    var p = it.mapToGlobal(0, 0)
-                    var end = it.mapToGlobal(it.width, it.height)
-                    var left = Math.min(p.x, end.x), right = Math.max(p.x, end.x)
-                    var top = Math.min(p.y, end.y), bottom = Math.max(p.y, end.y)
-                    if (wx >= left && wx <= right && wy >= top && wy <= bottom)
-                        return { model: rows[r].rmodel, index: k }
-                }
+        var rows = [leftRowItem, centerRowItem, rightRowItem]
+        for (var r = 0; r < rows.length; r++) {
+            var rep = rows[r].rep
+            for (var k = 0; k < rep.count; k++) {
+                var it = rep.itemAt(k)
+                if (!it || !it.visible || !it.autoShown) continue
+                var p = it.mapToGlobal(0, 0)
+                var end = it.mapToGlobal(it.width, it.height)
+                var left = Math.min(p.x, end.x), right = Math.max(p.x, end.x)
+                var top = Math.min(p.y, end.y), bottom = Math.max(p.y, end.y)
+                if (wx >= left && wx <= right && wy >= top && wy <= bottom)
+                    return { model: rows[r].rmodel, index: k }
             }
         }
         var trayRect = barSlot.root.trayDropRectsByScreen[barSlot.screenName]
@@ -209,6 +203,25 @@ PanelWindow {
                 else if (items.length < regions[region].limit) { items.push("G23"); placed = true }
             }
             if (!placed) return
+        }
+        // My Elsewhen is appended to a vacant saved slot so legacy layouts keep
+        // every existing widget position and tray assignment.
+        if (l.concat(c, r, tray).indexOf("G24") < 0) {
+            var elsewhenRegions = [
+                { items: r, limit: rightModel.count },
+                { items: l, limit: leftModel.count },
+                { items: c, limit: centerModel.count }
+            ]
+            var elsewhenPlaced = false
+            for (var regionIndex = 0; regionIndex < elsewhenRegions.length && !elsewhenPlaced; regionIndex++) {
+                var regionItems = elsewhenRegions[regionIndex].items
+                var emptyIndex = regionItems.indexOf("")
+                if (emptyIndex >= 0) { regionItems[emptyIndex] = "G24"; elsewhenPlaced = true }
+                else if (regionItems.length < elsewhenRegions[regionIndex].limit) {
+                    regionItems.push("G24"); elsewhenPlaced = true
+                }
+            }
+            if (!elsewhenPlaced) return
         }
         // F12: only apply a cache that is a valid permutation of all registry ids (correct region
         // sizes, every id known, no duplicate, none missing) — a corrupt cache would otherwise
@@ -349,22 +362,9 @@ PanelWindow {
         Behavior on scale { NumberAnimation { duration: 120 } }
     }
 
-    Loader {
-        id: verticalLoader
-        z: 2
-        anchors.fill: parent
-        active: barSlot.root.barVertical
-        sourceComponent: Component {
-            VerticalBarContent {
-                root: barSlot.root
-                barWindow: barSlot
-                models: [leftModel, centerModel, rightModel]
-                splitState: island
-                registry: barSlot.registry
-            }
-        }
-    }
+
     // ─────────────────────────── group registry ───────────────────────────
+    Component { id: compElsewhen; ElsewhenWidget { root: barSlot.root; screen: barSlot.screen } }
     Component { id: compOneDrive; OneDriveWidget { root: barSlot.root } }
     Component { id: compLauncher;  LauncherWidget  { root: barSlot.root } }
     Component { id: compWorkspace; WorkspaceWidget { root: barSlot.root; monitor: Hyprland.monitorFor(barSlot.screen) } }
@@ -577,7 +577,7 @@ PanelWindow {
     Component { id: compBluetooth;  BluetoothWidget    { root: barSlot.root } }
 
     readonly property var registry: ({
-        "G22": compOneDrive, "G1": compLauncher, "G2": compWorkspace, "G3": compStatus,
+        "G24": compElsewhen, "G22": compOneDrive, "G1": compLauncher, "G2": compWorkspace, "G3": compStatus,
         "G4": compMem, "G5": compCpu, "G6": compVol, "G7": compClaude,
         "G8": compCenter,
         "G9": compMpris, "G10": compQuick, "G11": compNetwork,
@@ -648,7 +648,7 @@ PanelWindow {
                     id: ldr
                     x: slot.pad
                     anchors.verticalCenter: parent.verticalCenter
-                    sourceComponent: !barSlot.root.barVertical && slot.occupied ? barSlot.registry[slot.gid] : null
+                    sourceComponent: slot.occupied ? barSlot.registry[slot.gid] : null
                     // dim the original while its ghost is being dragged
                     opacity: (barSlot.dragItem === ldr && barSlot.dragActive) ? 0.25 : 1.0
                 }
@@ -976,13 +976,13 @@ PanelWindow {
             ListElement { gid: "G7" } ListElement { gid: "G19" } ListElement { gid: "G20" } ListElement { gid: "G21" } ListElement { gid: "G22" }
             ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" }
         }
-        ListModel { id: centerModel; ListElement { gid: "G8" } ListElement { gid: "G23" } ListElement { gid: "" } }
+        ListModel { id: centerModel; ListElement { gid: "G8" } ListElement { gid: "G23" } ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" } }
         ListModel {
             id: rightModel
             ListElement { gid: "G9" }  ListElement { gid: "G10" } ListElement { gid: "G17" }
             ListElement { gid: "G14" } ListElement { gid: "G12" } ListElement { gid: "G13" }
-            ListElement { gid: "G11" } ListElement { gid: "G16" } ListElement { gid: "G15" } ListElement { gid: "G18" }
-            ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" }
+            ListElement { gid: "G11" } ListElement { gid: "G16" } ListElement { gid: "G15" } ListElement { gid: "G18" } ListElement { gid: "G24" }
+            ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" }
         }
 
         SlotRow {
@@ -1045,6 +1045,7 @@ PanelWindow {
                 gpu:          island.groupX("G19", 0.5),
                 thermal:      island.groupX("G20", 0.5),
                 oneDrive:        island.groupX("G22", 0.5),
+                elsewhen:     island.groupX("G24", 0.5),
                 storage:      island.groupX("G21", 0.5),
                 ai:           island.groupX("G7",  0.5),
                 workspace:    island.groupX("G2",  0.5),

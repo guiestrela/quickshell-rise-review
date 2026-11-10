@@ -9,9 +9,9 @@ const functions = source.slice(source.indexOf('    function parseRegion('),sourc
 function context() {
  const c = {
   leftBaseSlotCount:10, centerBaseSlotCount:1, rightBaseSlotCount:7,
-  leftExtraSlotLimit:4, centerExtraSlotLimit:3, rightExtraSlotLimit:7,
+  leftExtraSlotLimit:10, centerExtraSlotLimit:7, rightExtraSlotLimit:13,
   NordVpnLayout:helper('NordVpnLayout'), WallpaperLayout:helper('WallpaperLayout'),
-  registry:Object.fromEntries(Array.from({length:23},(_,i)=>['G'+(i+1),true])),
+  registry:Object.fromEntries(Array.from({length:24},(_,i)=>['G'+(i+1),true])),
   leftModel:model(),centerModel:model(),rightModel:model(),
   barSlot:{root:{trayWidgets:[]}}
  };
@@ -22,7 +22,7 @@ const prior = 'B:G1,B:G2,B:G3,B:_,B:G5,B:G6,B:G4,B:G7,B:_,B:_|B:G8|B:G9,B:G10,B:
 const serialize = c => [c.leftModel,c.centerModel,c.rightModel].map(m=>m.rows.map(e=>(e.extra?'E:':'B:')+(e.gid||'_')).join(',')).join('|');
 test('OneDrive appends to a full V2 right region and round-trips customized order',()=>{
  const c=context();assert.equal(c.applyOrder(prior),true);
- assert.equal(serialize(c),prior.replace('|B:G8|','|B:G8,E:G23|')+',E:G22');
+ assert.equal(serialize(c),prior.replace('|B:G8|','|B:G8,E:G23|')+',E:G22,E:G24');
  // A moved OneDrive and Display Manager remain in their selected slots.
  const customized=serialize(c).replace('B:_','B:G22').replace('E:G22','E:_')
   .replace('B:G1','B:G21').replace('E:G21','E:G1');
@@ -47,7 +47,8 @@ test('OneDrive reuses a vacant slot without changing existing widgets or accepti
  const c=context();const cached=prior.replace('B:_','B:G21').replace(',E:G21',',E:_');
  assert.equal(c.applyOrder(cached),true);
  assert.equal(c.leftModel.rows.filter(e=>e.gid==='G22').length,0);
- assert.equal(c.rightModel.rows.at(-1).gid,'G22');
+ assert.equal(c.rightModel.rows[12].gid,'G22');
+ assert.equal(c.rightModel.rows[13].gid,'G24');
  const result=serialize(c);
  assert.equal(c.applyOrder(result.replace('G22','G21')),false);
  assert.equal(serialize(c),result);

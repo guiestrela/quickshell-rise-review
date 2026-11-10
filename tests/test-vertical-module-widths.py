@@ -224,7 +224,26 @@ ShellRoot {{
         id: owner
         property string screenName: "fixture"
         property var screen: ({{ width: 800, height: 1400 }})
+        property color accent: "#ff8800"
+        property bool dragging: false
+        property bool dragActive: false
+        property var srcModel: null
+        property int srcIndex: -1
+        property var dropModel: null
+        property int dropIndex: -1
+        property int leftBaseSlotCount: 10
+        property int centerBaseSlotCount: 1
+        property int rightBaseSlotCount: 7
+        property int leftExtraSlotLimit: 10
+        property int centerExtraSlotLimit: 7
+        property int rightExtraSlotLimit: 13
         function swapVerticalSlots(sr, si, tr, ti) {{}}
+        function addExtraSlot(model, baseCount, maxExtraCount) {{}}
+        function removeExtraSlot(model, index, baseCount) {{}}
+        function beginDrag(item, x, y, gx, gy) {{}}
+        function moveDrag(x, y, gx, gy) {{}}
+        function endDrag() {{}}
+        function cancelDrag() {{}}
     }}
     {all_components}
     Window {{
@@ -320,7 +339,7 @@ def main():
     try:
         for variant, expected_width in REFERENCE_WIDTHS.items():
             ids = registry_ids(variant)
-            assert len(ids) == 23, f"{variant}: registry count changed: {len(ids)}"
+            assert len(ids) == 24, f"{variant}: registry count changed: {len(ids)}"
             with tempfile.TemporaryDirectory(prefix="r", dir=scratch) as directory:
                 base = Path(directory)
                 runtime = short_alias / base.name / "r"

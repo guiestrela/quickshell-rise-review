@@ -125,6 +125,14 @@ Scope {
     c.confirmChanges(); test.phase=7
    } else if(test.phase===7 && !c.confirmationBusy && !c.rollbackPending && !c.loading) {
     if(c.error!=="" || c.rollbackSeconds!==0) { test.fail("keep failed "+c.error); return }
+    if(!c.saveLayout()) { test.fail("save dispatch rejected after Keep: "+c.error); return }
+    test.phase=12
+   } else if(test.phase===12 && !c.busy && !c.loading) {
+    if(!c.error.includes("fixture operation denied")) { test.fail("save helper failure not surfaced "+c.error); return }
+    if(!c.setBrightness(71)) { test.fail("brightness dispatch rejected: "+c.error); return }
+    test.phase=13
+   } else if(test.phase===13 && !c.busy && !c.loading) {
+    if(!c.error.includes("fixture operation denied")) { test.fail("brightness helper failure not surfaced "+c.error); return }
     c.applyMonitor("DP-1","preferred",0,0,1,0,"none"); test.phase=8
    } else if(test.phase===8 && !c.busy && !c.loading) {
     if(c.rollbackPending!==true) { test.fail("second apply not protected"); return }
@@ -137,7 +145,7 @@ Scope {
     test.ticks=0; test.phase=11
    } else if(test.phase===11 && !c.rollbackPending && !c.loading) {
     if(!c.error.includes("restored")) { test.fail("automatic revert not reported "+c.error); return }
-    console.log("DISPLAY_INTEGRATION_PASS variants compile; Process query/error/busy/timeouts/confirmation/keep/manual+automatic revert")
+    console.log("DISPLAY_INTEGRATION_PASS variants compile; Process query/error/busy/timeouts/confirmation/keep/manual+automatic revert, Save/Brightness helper failures surfaced")
     Qt.quit()
    }
   }
@@ -150,4 +158,4 @@ Scope {
     output = re.sub(r'\x1b\[[0-9;]*m','', result.stdout+result.stderr)
     assert result.returncode==0 and 'DISPLAY_INTEGRATION_PASS' in output and 'DISPLAY_INTEGRATION_FAIL' not in output, output
     assert not re.search(r'(ReferenceError|TypeError|Cannot assign|is not a type)', output), output
-    print('DISPLAY_INTEGRATION_PASS variants compile; Process query/error/busy/timeouts/confirmation/keep/manual+automatic revert')
+    print('DISPLAY_INTEGRATION_PASS variants compile; Process query/error/busy/timeouts/confirmation/keep/manual+automatic revert, Save/Brightness helper failures surfaced')

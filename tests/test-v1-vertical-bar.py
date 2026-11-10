@@ -33,10 +33,7 @@ with tempfile.TemporaryDirectory(prefix='rise-v1-vertical-', dir=os.environ.get(
     fixture, surface_bindings = re.subn(r'property int verticalModuleSurfaceWidth: .*',
                                         'property int verticalModuleSurfaceWidth: 32', fixture)
     assert surface_bindings == 1, 'V1 fixture must use the Control Center surface width'
-    fixture = fixture.replace('  property int panelRadius: 6', '''  property int tileRadius: 10
-  property color fillIdle: "#222222"
-  property color sumi: "#999999"
-  property int wsPillPad: 2
+    fixture = fixture.replace('  property int panelRadius: 6', '''  property int wsPillPad: 2
   property int pillH: 28
   property int pillRadius: 6
   property bool styleBorder: true
@@ -49,7 +46,7 @@ with tempfile.TemporaryDirectory(prefix='rise-v1-vertical-', dir=os.environ.get(
     fixture = fixture.replace(' Component { id: widget;', ' Component { id: cpuWidget; CpuWidget { root: harness.state } }\n Component { id: widget;')
     fixture = fixture.replace('G5:widget', 'G5:cpuWidget,G4:memoryWidget,G9:mediaWidget')
     fixture = fixture.replace(' Component { id: cpuWidget;', ' Component { id: memoryWidget; MemoryWidget { root: harness.state } }\n Component { id: mediaWidget; MprisWidget { root: harness.state } }\n Component { id: cpuWidget;')
-    fixture = fixture.replace('ListElement {gid:"G5"}', 'ListElement {gid:"G5"} ListElement {gid:"G4"} ListElement {gid:"G9"}')
+    fixture = fixture.replace('ListElement {gid:"G5"; extra:false}', 'ListElement {gid:"G5"; extra:false} ListElement {gid:"G4"; extra:false} ListElement {gid:"G9"; extra:false}')
     fixture = fixture.replace('  property int panelRadius: 6', '''  property int barAnim: 0
   property bool compactCpu: false
   property bool compactGpu: false
@@ -74,7 +71,7 @@ with tempfile.TemporaryDirectory(prefix='rise-v1-vertical-', dir=os.environ.get(
   property bool gpuVisible: false
   property bool mprisVisible: false
   property int panelRadius: 6''')
-    fixture = fixture.replace('   AiPanelSurface { root:harness.state; targetX:0; reveal:1 }', '')
+    fixture = fixture.replace('AiPanelSurface { id: connectedSurface; root:harness.state; targetX:0; reveal:1 }', '')
     fixture += '''
  function check(condition, label) { if (!condition) throw new Error(label) }
  Timer {

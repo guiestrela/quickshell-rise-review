@@ -228,14 +228,14 @@ Item {
     property bool trayDragActive: false
     property bool trayDropActive: false
 
-    readonly property bool anyPopupVisible: oneDriveVisible || calendarVisible || cpuVisible || gpuVisible
+    readonly property bool anyPopupVisible: oneDriveVisible || elsewhenVisible || calendarVisible || cpuVisible || gpuVisible
         || thermalVisible || aiUsageVisible
         || memVisible || volVisible || controlVisible || networkVisible || vpnVisible || bluetoothVisible
         || batteryVisible || brightnessVisible || mprisVisible || weatherVisible
         || workspaceVisible || imagePickerVisible || mediaBrowserVisible || notifVisible
         || powerProfileVisible || storageVisible || archVisible || trayVisible || trayMenuVisible
         || wallpaperManagerVisible || displayManagerVisible
-    readonly property bool keyboardPopupVisible: imagePickerVisible || mediaBrowserVisible || wallpaperManagerVisible || displayManagerVisible
+    readonly property bool keyboardPopupVisible: imagePickerVisible || mediaBrowserVisible || wallpaperManagerVisible || displayManagerVisible || elsewhenVisible
 
     function registerBarLayoutController(screenName, controller) { return ThemePanels.registerBarLayoutController(theme, {}, screenName, controller) }
 
@@ -345,6 +345,7 @@ Item {
         else if (name === "gpu") gpuBarX = x
         else if (name === "thermal") thermalBarX = x
         else if (name === "oneDrive") oneDriveBarX = x
+        else if (name === "elsewhen") elsewhenBarX = x
         else if (name === "storage") storageBarX = x
         else if (name === "ai") aiBarX = x
         else if (name === "workspace") workspaceBarX = x
@@ -389,6 +390,7 @@ Item {
         if (except !== "notifVisible") notifVisible = false
         if (except !== "powerProfileVisible") powerProfileVisible = false
         if (except !== "oneDriveVisible") oneDriveVisible = false
+        if (except !== "elsewhenVisible") elsewhenVisible = false
         if (except !== "storageVisible") storageVisible = false
         if (except !== "archVisible") archVisible = false
         if (except !== "trayVisible" && except !== "trayMenuVisible") trayVisible = false
@@ -932,6 +934,25 @@ Item {
         owner: theme
         pollingEnabled: theme._widgetsLoaded && (theme.modOneDrive || theme.oneDriveVisible)
     }
+    property bool modElsewhen: false
+    onModElsewhenChanged: {
+        if (!modElsewhen) elsewhenVisible = false
+        if (_widgetsLoaded) saveWidgets()
+    }
+    readonly property string elsewhenSettingsPath: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/quickshell-rise-elsewhen.json"
+    property bool elsewhenVisible: false
+    onElsewhenVisibleChanged: popupOpened("elsewhenVisible")
+    property real elsewhenBarX: 0
+    readonly property alias elsewhenService: elsewhenServiceInstance
+    function refreshElsewhen() { return elsewhenServiceInstance.refresh() }
+    function toggleElsewhen(screen, anchorItem) { return ThemePanels.toggleElsewhen(theme, {}, screen, anchorItem) }
+    CommonServices.ElsewhenService {
+        id: elsewhenServiceInstance
+        settingsPath: theme.elsewhenSettingsPath
+        active: theme._widgetsLoaded && theme.modElsewhen
+        autoRefresh: true
+    }
+    CommonServices.ElsewhenProcessAdapter { service: elsewhenServiceInstance }
     property bool modStorage:    true
     property bool modVolume:     true
     property bool modWeather:    true
@@ -1271,8 +1292,8 @@ Item {
     property string workspaceStyle: "default"   // default, numbers, magic, kanji, rings, aurora
 
     // ── bar screen position (persisted) ──
-    property string barPosition: "top"   // top, bottom, left, right
-    readonly property bool barVertical: barPosition === "left" || barPosition === "right"
+    property string barPosition: "top"   // top or bottom; side rail removed
+    readonly property bool barVertical: false
     readonly property int verticalBarWidth: barShellStyle === "fit" ? 40 : 36
     // Match every vertical module's external surface to the Control Center pill.
     // Keep its per-widget padding preference as the shared reference and cap it
@@ -1378,7 +1399,7 @@ Item {
     }
     function serializeWidgetSurfaceStyles() {
         var out = []
-        for (var n = 1; n <= 23; n++) {
+        for (var n = 1; n <= 24; n++) {
             var gid = "G" + n
             if (!widgetSurfaceStyles[gid]) continue
             var style = widgetSurfaceStyle(gid)
@@ -1409,7 +1430,7 @@ Item {
         var m = String(gid || "").match(/^G(\d{1,2})$/)
         if (!m) return false
         var n = Number(m[1])
-        return n >= 1 && n <= 23
+        return n >= 1 && n <= 24
     }
     function widgetColorModeValid(mode) {
         return mode === "fill" || mode === "border" || mode === "both"
@@ -1484,7 +1505,7 @@ Item {
         var next = {}
         var changed = false
 
-        for (var n = 1; n <= 23; n++) {
+        for (var n = 1; n <= 24; n++) {
             var gid = "G" + n
             var style = widgetColorStyle(gid)
 
@@ -1540,7 +1561,7 @@ Item {
     }
     function serializeWidgetColorStyles() {
         var out = []
-        for (var n = 1; n <= 23; n++) {
+        for (var n = 1; n <= 24; n++) {
             var gid = "G" + n
             var style = widgetColorStyle(gid)
             if (style.color !== "inherit" || style.mode === "border")
@@ -1668,7 +1689,8 @@ Item {
                  + serializeWidgetSurfaceStyles() + " " // +51 widget surface geometry
                  + (modOneDrive ? "1" : "0") + " " // +52 OneDrive
                  + (spacerDotsEnabled ? "1" : "0") + " " // +53 hover spacer dots
-                 + (modIndicators ? "1" : "0") // +54 Indicators widget
+                 + (modIndicators ? "1" : "0") + " " // +54 Indicators widget
+                 + (modElsewhen ? "1" : "0") // +55 Elsewhen; append-only
         widgetSaveProc.command = ["bash", "-c",
             "echo '" + line + "' > '" + widgetsCachePath + "'"]
         widgetSaveProc.running = false
@@ -1742,7 +1764,7 @@ Item {
                     }
                     if (parts.length > wsField + 9) {
                         var bp = parts[wsField + 9]
-                        if (["top", "bottom", "left", "right"].indexOf(bp) >= 0) theme.barPosition = bp
+                        if (["top", "bottom"].indexOf(bp) < 0) theme.barPosition = "top"
                     }
                     // +10 is the retired V2 border toggle; structural borders stay on.
                     // +11..+15 widget-group toggles (default ON → only an explicit "0"
@@ -1812,6 +1834,7 @@ Item {
                 if (parts.length > wsField + 51) theme.widgetSurfaceStyles = theme.parseWidgetSurfaceStyles(parts[wsField + 51])
                 if (parts.length > wsField + 53) theme.spacerDotsEnabled = parts[wsField + 53] !== "0"
                 if (parts.length > wsField + 54) theme.modIndicators = parts[wsField + 54] !== "0"
+                if (parts.length > wsField + 55) theme.modElsewhen = parts[wsField + 55] === "1"
                 theme._widgetsLoaded = true
             }
         }
@@ -2088,7 +2111,7 @@ Item {
 
     // One connected popover at a time: the active panel publishes the exact
     // bar-widget center used by both the caret and the small border opening.
-    readonly property bool anchoredPanelVisible: oneDriveVisible || calendarVisible || cpuVisible || gpuVisible
+    readonly property bool anchoredPanelVisible: oneDriveVisible || elsewhenVisible || calendarVisible || cpuVisible || gpuVisible
         || thermalVisible || aiUsageVisible
         || memVisible || volVisible || controlVisible || networkVisible || vpnVisible || bluetoothVisible
         || batteryVisible || brightnessVisible || mprisVisible || weatherVisible

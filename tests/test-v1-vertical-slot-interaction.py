@@ -38,6 +38,15 @@ with tempfile.TemporaryDirectory(prefix="v1-vertical-pointer-", dir=os.environ.g
     vertical_text = vertical_path.read_text().replace(
         "SystemClock { id: now; precision: SystemClock.Minutes }",
         "QtObject { id: now; property date date: new Date() }")
+    vertical_text = vertical_text.replace(
+        "property int revision: 0",
+        "property int revision: 0\n    property int testDelegateAdded: 0\n    property int testDelegateRemoved: 0")
+    vertical_text = vertical_text.replace(
+        "onObjectAdded: layoutTimer.restart()",
+        "onObjectAdded: { rail.testDelegateAdded++; layoutTimer.restart() }")
+    vertical_text = vertical_text.replace(
+        "onObjectRemoved: layoutTimer.restart()",
+        "onObjectRemoved: { rail.testDelegateRemoved++; layoutTimer.restart() }")
     vertical_path.write_text(vertical_text)
     custom_types = set(re.findall(r"(?m)^\s*([A-Z][A-Za-z0-9_]*)\s*\{", vertical_text))
     builtin_types = {"Item", "Rectangle", "Text", "MouseArea", "HoverHandler", "DragHandler", "TapHandler",
@@ -169,14 +178,83 @@ with tempfile.TemporaryDirectory(prefix="v1-vertical-pointer-", dir=os.environ.g
    for (var i=0; i<item.children.length; i++) { var found=findNamed(item.children[i],name); if (found) return found }
    return null
   }
+  function findFlickable(item) {
+   if (item && item.contentHeight !== undefined && item.interactive !== undefined && item.contentItem !== undefined) return item
+   for (var i=0; i<item.children.length; i++) { var found=findFlickable(item.children[i]); if (found) return found }
+   return null
+  }
+  function waitForVerticalLayout() {
+   var previousSignature="", stableSamples=0
+   for (var attempt=0; attempt<80; attempt++) {
+    var stable=true, parts=[]
+    for (var region=0; region<3; region++) {
+     var column=rail.regionColumns[region], model=region===0 ? left : region===1 ? center : right
+     var expectedIndices=[]
+     for (var row=0; row<model.count; row++)
+      if (harness.state.barUnlocked || model.get(row).gid !== "") expectedIndices.push(row)
+     if (column.children.length !== expectedIndices.length) { stable=false; break }
+     var bottom=-Infinity
+     for (var i=0; i<column.children.length; i++) {
+      var cell=column.children[i]
+      if (!cell.modelData || cell.modelData.region !== region || cell.modelData.index !== expectedIndices[i]
+          || cell.height <= 0 || cell.y < bottom + (i ? column.spacing : 0)) { stable=false; break }
+      parts.push(region+":"+cell.modelData.index+":"+Math.round(cell.x*100)+":"+Math.round(cell.y*100)+":"+Math.round(cell.height*100))
+      bottom=cell.y+cell.height
+     }
+     if (!stable) break
+    }
+    var signature=parts.join("|")
+    if (stable && signature===previousSignature) stableSamples++
+    else stableSamples=0
+    previousSignature=stable ? signature : ""
+    if (stable && stableSamples>=3) return true
+    wait(10)
+   }
+   return false
+  }
   function test_vertical_drag_drop_tray_and_cancel() {
    wait(200)
    harness.state.barUnlocked=true
+   var scrollView=findFlickable(rail)
+   verify(scrollView && !scrollView.interactive,"V1 edit mode disables Flickable scrolling while dragging")
+   var baseLeftCount=left.count, baseCenterCount=center.count, baseRightCount=right.count
+   while (left.count < 20) left.append({gid:"", extra:true})
+   while (center.count < 8) center.append({gid:"", extra:true})
+   while (right.count < 20) right.append({gid:"", extra:true})
+   wait(100)
+   verify(scrollView.contentHeight > scrollView.height,"fixture must overflow to exercise wheel/drag competition")
+   scrollView.contentY=300
+   wait(40)
+   var wheelSource=findSlot(2,0)
+   var wheelPoint=wheelSource.mapToItem(window.contentItem,wheelSource.width/2,wheelSource.height/2)
+   mousePress(window,wheelPoint.x,wheelPoint.y,Qt.LeftButton)
+   verify(barSlot.dragActive,"wheel competition probe must begin an actual vertical drag")
+   var contentYBeforeDragWheel=scrollView.contentY
+   mouseWheel(window.contentItem,wheelPoint.x,wheelPoint.y,0,-120,Qt.NoButton,Qt.NoModifier)
+   compare(scrollView.contentY,contentYBeforeDragWheel,"wheel input must not scroll slots beneath an active drag")
+   mouseRelease(window.contentItem,wheelPoint.x,wheelPoint.y,Qt.LeftButton)
+   wait(280)
+   var idleWheelStart=scrollView.contentY
+   mouseWheel(window.contentItem,wheelPoint.x,wheelPoint.y,0,-120,Qt.NoButton,Qt.NoModifier)
+   verify(scrollView.contentY>idleWheelStart,"wheel scrolling remains available when no drag is active")
+   scrollView.contentY=0
+   while (left.count > baseLeftCount) left.remove(left.count-1)
+   while (center.count > baseCenterCount) center.remove(center.count-1)
+   while (right.count > baseRightCount) right.remove(right.count-1)
+   wait(80)
+   harness.state.barPosition="right"
+   wait(40)
+   compare(rail.x,window.width-rail.width,"V1 drag fixture places the vertical rail on the right edge")
+   verify(waitForVerticalLayout(),"Instantiator delegates must settle before pointer coordinates are chosen")
    var source=findSlot(0,0), target=findSlot(2,0)
    verify(source && target)
+   compare(source.gid,"G1"); compare(source.modelData.region,0); compare(source.modelData.index,0)
+   compare(target.gid,"G6"); compare(target.modelData.region,2); compare(target.modelData.index,0)
    var from=source.mapToItem(window.contentItem,source.width/2,source.height/2)
    var to=target.mapToItem(window.contentItem,target.width/2,target.height/2)
+   verify(from.y < to.y && Math.abs(from.x-to.x) < 1,"source and target pointer centers must match laid-out cells")
    var saves=barSlot.orderSaveCalls
+   rail.testDelegateAdded=0; rail.testDelegateRemoved=0
    mousePress(window,from.x,from.y,Qt.LeftButton)
    verify(barSlot.dragging && barSlot.dragActive,"V1 press enters shared BarSlot drag cycle")
    compare(barSlot.srcModel,left); compare(barSlot.srcIndex,0)
@@ -184,10 +262,18 @@ with tempfile.TemporaryDirectory(prefix="v1-vertical-pointer-", dir=os.environ.g
    compare(barSlot.dropModel,right); compare(barSlot.dropIndex,0)
    var marker=findNamed(target,"vertical-drop-target-2-0")
    verify(marker && marker.visible,"V1 destination feedback tracks the pointer")
+   compare(barSlot.orderSaveCalls,saves,"V1 pointer movement does not persist order before release")
    mouseRelease(window.contentItem,to.x,to.y,Qt.LeftButton)
    wait(100)
+   console.log("SLOT_DELEGATE_CHURN V1 added="+rail.testDelegateAdded+" removed="+rail.testDelegateRemoved)
+   compare(rail.testDelegateAdded,0,"a widget swap must update existing vertical delegates, not rebuild the Instantiator model")
+   compare(rail.testDelegateRemoved,0,"a widget swap must not destroy unrelated vertical delegates")
    compare(left.get(0).gid,"G6"); compare(right.get(0).gid,"G1")
    compare(barSlot.orderSaveCalls,saves+1)
+   verify(waitForVerticalLayout(),"V1 cross-region drag must leave one visual delegate per model slot")
+   harness.state.barPosition="left"
+   wait(40)
+   compare(rail.x,0,"V1 rail returns to the left edge for the remaining drag matrix")
    verify(!barSlot.dragActive && !harness.state.trayDragActive && !harness.state.trayDropActive)
    var empty=findSlot(0,4), sourceAgain=findSlot(2,0)
    verify(empty && sourceAgain,"fixed empty V1 cells remain drop targets")
@@ -197,6 +283,7 @@ with tempfile.TemporaryDirectory(prefix="v1-vertical-pointer-", dir=os.environ.g
    compare(barSlot.dropModel,left); compare(barSlot.dropIndex,4)
    mouseRelease(window.contentItem,ep.x,ep.y,Qt.LeftButton); wait(100)
    compare(left.get(4).gid,"G1"); compare(right.get(0).gid,"")
+   verify(waitForVerticalLayout(),"V1 drop into intentional empty slot must not retain the source delegate")
    var traySource=findSlot(0,0)
    var tp0=traySource.mapToItem(window.contentItem,traySource.width/2,traySource.height/2)
    var trayGlobal=rail.mapToGlobal(500,1050), trayLocal=window.contentItem.mapFromGlobal(trayGlobal.x,trayGlobal.y)
@@ -207,6 +294,7 @@ with tempfile.TemporaryDirectory(prefix="v1-vertical-pointer-", dir=os.environ.g
    mouseRelease(window.contentItem,trayLocal.x,trayLocal.y,Qt.LeftButton); wait(100)
    compare(harness.state.trayWidgets.length,1); compare(harness.state.trayWidgets[0],"G6")
    verify(barSlot.restoreTrayWidget("G6")); compare(harness.state.trayWidgets.length,0); compare(left.get(0).gid,"G6")
+   verify(waitForVerticalLayout(),"V1 tray return must preserve one visual delegate per model slot")
    var lockSource=findSlot(0,0), lockTarget=findSlot(2,0)
    var lp=lockSource.mapToItem(window.contentItem,lockSource.width/2,lockSource.height/2)
    var rp=lockTarget.mapToItem(window.contentItem,lockTarget.width/2,lockTarget.height/2)
@@ -214,9 +302,25 @@ with tempfile.TemporaryDirectory(prefix="v1-vertical-pointer-", dir=os.environ.g
    harness.state.barUnlocked=false; wait(40)
    verify(!barSlot.dragging && !barSlot.dragActive,"V1 lock cancels a live drag")
    compare(left.get(0).gid,"G6"); compare(right.get(0).gid,"")
+   verify(waitForVerticalLayout(),"V1 lock should hide only intentional empty slots")
    mouseRelease(window.contentItem,rp.x,rp.y,Qt.LeftButton)
    harness.state.layoutProtected=true
    verify(!harness.state.barUnlocked,"V1 lock remains applied before protected state")
+   function replaceModel(model, gids) {
+    model.clear()
+    for (var i=0; i<gids.length; i++) model.append({gid:gids[i]})
+   }
+   harness.state.layoutProtected=false
+   harness.state.barUnlocked=true
+   for (var cycle=0; cycle<5; cycle++) {
+    left.clear(); center.clear(); right.clear(); wait(30)
+    verify(waitForVerticalLayout(),"V1 cleared region models must remove all old visual delegates, cycle " + cycle)
+    replaceModel(left,["G1","G2","G3","G5","G4","G9","","","",""])
+    replaceModel(center,["G8"])
+    replaceModel(right,["G6","G10","","","","",""])
+    wait(30)
+    verify(waitForVerticalLayout(),"V1 region rebuild must yield one delegate per slot, cycle " + cycle)
+   }
   }
  }
 }

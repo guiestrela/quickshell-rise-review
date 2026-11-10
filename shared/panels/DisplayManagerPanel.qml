@@ -218,6 +218,7 @@ PanelWindow {
         indicator: Text { x: combo.width - 18; y: 7; text: "▾"; color: panel.root.seal; font: combo.font }
         background: Rectangle { radius: panel.root.tileRadius; color: combo.hovered ? panel.root.fillHover : panel.root.fillIdle; border.color: combo.activeFocus ? panel.root.seal : panel.root.sep }
         delegate: Controls.ItemDelegate {
+            required property var modelData
             width: combo.width
             text: String(modelData)
             contentItem: Text { text: parent.text; textFormat: Text.PlainText; color: panel.root.ink; font: combo.font; elide: Text.ElideRight; verticalAlignment: Text.AlignVCenter }
