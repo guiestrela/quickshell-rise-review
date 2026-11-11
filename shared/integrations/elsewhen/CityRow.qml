@@ -23,6 +23,9 @@ Rectangle {
   readonly property bool editingPeople: panel.peopleEditIndex === index
   readonly property bool hovered: rowHover.hovered
   readonly property bool removable: panel.displayRows ? panel.displayRows.length > 1 : true
+  readonly property bool keyboardFocused: panel.keyboardFocusId !== undefined
+    && String(panel.keyboardFocusId || "") !== ""
+    && String(panel.keyboardFocusId) === String(modelData.id || "")
   readonly property color foreground: panel.root.ink
   readonly property color dim: panel.root.sumi !== undefined ? panel.root.sumi : Qt.darker(foreground, 1.55)
   readonly property color fainter: Qt.darker(foreground, 2.1)
@@ -32,7 +35,7 @@ Rectangle {
   height: 104
   radius: panel.root.tileRadius !== undefined ? panel.root.tileRadius : 7
   color: hovered ? panel.root.fillHover : panel.root.fillIdle
-  border.color: row.panel.root.sep
+  border.color: keyboardFocused ? panel.root.seal : panel.root.sep
   border.width: 1
   clip: true
 
@@ -276,7 +279,11 @@ Rectangle {
       if (typeof row.panel.cancelRowDrag === "function") row.panel.cancelRowDrag()
       moved = false
     }
-    onClicked: if (!moved && row.panel.timezoneTarget !== undefined) row.panel.timezoneTarget = row.modelData.id
+    onClicked: {
+      if (moved || row.panel.timezoneTarget === undefined) return
+      row.panel.timezoneTarget = row.modelData.id
+      if (row.panel.keyboardFocusId !== undefined) row.panel.keyboardFocusId = row.modelData.id
+    }
   }
 
   Rectangle {

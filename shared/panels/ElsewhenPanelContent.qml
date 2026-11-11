@@ -24,6 +24,7 @@ Item {
     property var profiles: ({})
     property string temperatureLabel: ""
     property string timezoneTarget: service.clockRows.length ? service.clockRows[0].id : service.localZone
+    property string keyboardFocusId: ""
     readonly property double effectiveMs: (service.nowMs !== undefined ? service.nowMs : Date.now()) + scrubMinutes * 60000
     readonly property bool hour24: service.preferenceData ? service.preferenceData.hour24 === true : false
     readonly property var displayRows: {
@@ -49,6 +50,99 @@ Item {
     property alias globeDragArea: globeDragArea
     property alias changeTimezoneButton: changeTimezoneAction
     property alias confirmTimezoneButton: confirmTimezoneAction
+    focus: true
+    Keys.priority: Keys.AfterItem
+    Keys.onPressed: function(event) {
+        if (event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)) return
+        if (event.key === Qt.Key_Escape) {
+            handleEscape()
+        } else if (zoneSearchInput.activeFocus || peopleEditIndex >= 0) {
+            return
+        } else if (event.key === Qt.Key_Up || event.key === Qt.Key_Down
+                || event.text === "k" || event.text === "j") {
+            var moveUp = event.key === Qt.Key_Up || event.text === "k"
+            moveKeyboardFocus(moveUp ? -1 : 1)
+        } else if (event.key === Qt.Key_Left || event.key === Qt.Key_Right
+                || event.text === "h" || event.text === "l") {
+            var shiftEarlier = event.key === Qt.Key_Left || event.text === "h"
+            shiftHour(shiftEarlier ? -1 : 1)
+        } else if (event.key === Qt.Key_Delete || event.text === "x" || event.text === "X") {
+            deleteFocusedCity()
+        } else if (event.key === Qt.Key_R) {
+            if (!service.refresh()) statusMessage = service.lastError
+        } else if (event.key === Qt.Key_T) {
+            toggleHour24()
+        } else if (event.key === Qt.Key_A || event.key === Qt.Key_Plus
+                || (event.key === Qt.Key_Equal && (event.modifiers & Qt.ShiftModifier))) {
+            zoneSearchInput.forceActiveFocus()
+        } else if (event.key === Qt.Key_P) {
+            var targetIndex = cityIndexForZone(keyboardFocusId || timezoneTarget)
+            if (targetIndex < 0) return
+            startPeopleEdit(targetIndex)
+        } else {
+            return
+        }
+        event.accepted = true
+    }
+
+    function toggleHour24() {
+        if (!service.updateSetting("hour24", !hour24)) statusMessage = service.lastError
+    }
+
+    function cityIndexForZone(zoneId) {
+        var cities = service.cities || []
+        for (var i = 0; i < cities.length; i++) {
+            if (String(cities[i].id || "") === String(zoneId || "")) return i
+        }
+        return -1
+    }
+
+    function moveKeyboardFocus(step) {
+        var cities = service.cities || []
+        if (cities.length === 0) return
+        var current = cityIndexForZone(keyboardFocusId || timezoneTarget)
+        if (current < 0) current = step > 0 ? -1 : 0
+        var next = (current + step + cities.length) % cities.length
+        focusCity(next)
+    }
+
+    function focusCity(index) {
+        var cities = service.cities || []
+        if (index < 0 || index >= cities.length) return false
+        var zoneId = String(cities[index].id || "")
+        if (!zoneId) return false
+        keyboardFocusId = zoneId
+        timezoneTarget = zoneId
+        var row = cityList.itemAtIndex(index)
+        if (row) {
+            var top = row.mapToItem(flick.contentItem, 0, 0).y
+            if (top < flick.contentY) flick.contentY = top
+            else if (top + row.height > flick.contentY + flick.height)
+                flick.contentY = Math.max(0, Math.min(flick.contentHeight - flick.height, top + row.height - flick.height))
+        }
+        return true
+    }
+
+    function shiftHour(step) {
+        scrubHold.stop()
+        scrubMinutes = Math.round(scrubMinutes) + step * 60
+    }
+
+    function deleteFocusedCity() {
+        var cities = service.cities || []
+        var index = cityIndexForZone(keyboardFocusId)
+        if (index < 0 || cities.length < 2 || !removeCityAt(index)) return false
+        return focusCity(Math.min(index, (service.cities || []).length - 1))
+    }
+
+    function handleEscape() {
+        if (timezoneConfirmationVisible) timezoneConfirmationVisible = false
+        else if (zoneSearchInput.activeFocus && zoneSearchInput.text.length > 0) zoneSearchInput.clear()
+        else if (scrubMinutes !== 0) {
+            scrubHold.stop()
+            scrubMinutes = 0
+        } else root.elsewhenVisible = false
+    }
 
     function scrubTo(rowData, fraction) {
         if (!rowData || rowData.ready !== true) return
@@ -338,7 +432,7 @@ Item {
                     id: hour24Action
                     label: panel.service.preferenceData.hour24 ? "24-hour" : "12-hour"
                     highlighted: panel.service.preferenceData.hour24 === true
-                    onClicked: panel.service.updateSetting("hour24", panel.service.preferenceData.hour24 !== true)
+                    onClicked: panel.toggleHour24()
                 }
                 ActionButton {
                     id: globeToggleAction

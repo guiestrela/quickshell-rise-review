@@ -16,6 +16,7 @@ Item {
         property color fillIdle: "#282828"
         property color fillHover: "#3c3836"
         property string mono: "monospace"
+        property bool elsewhenVisible: true
     }
 
     QtObject {
@@ -83,7 +84,17 @@ Item {
         }
         function addCity(zone, label, place) { cityAdds++; lastAddedPlace = place; return true }
         function setCities(nextCities) { cities = nextCities; settingsWrites++; return true }
-        function removeCity(index) { cityRemoves++; return clockRows.length > 1 }
+        function removeCity(index) {
+            cityRemoves++
+            if (clockRows.length <= 1) return false
+            var nextCities = cities.slice()
+            var nextRows = clockRows.slice()
+            nextCities.splice(index, 1)
+            nextRows.splice(index, 1)
+            cities = nextCities
+            clockRows = nextRows
+            return true
+        }
         function moveCity(from, to) { moveRequests++; return true }
         function requestTimezoneChange(zone) { timezoneRequests++; timezoneTarget = zone; return true }
     }
@@ -107,6 +118,7 @@ Item {
         function test_city_list_expands_into_parent_scroll_flow() {
             var original = fakeService.cities
             var originalTarget = content.timezoneTarget
+            var originalContentY = content.scrollArea.contentY
             var many = []
             for (var i = 0; i < 8; i++) many.push({ label: "City " + i, id: "Etc/GMT" })
             try {
@@ -128,24 +140,32 @@ Item {
             } finally {
                 fakeService.cities = original
                 content.timezoneTarget = originalTarget
+                content.scrollArea.contentY = originalContentY
             }
         }
 
         function test_city_row_controls_route_remove_and_reorder() {
-            fakeService.moveRequests = 0
-            fakeService.cityRemoves = 0
-            var second = content.cityList.itemAtIndex(1)
-            mouseMove(second, 30, 30)
-            wait(40)
-            verify(second.moveUpButton.visible)
-            mouseClick(second.moveUpButton, second.moveUpButton.width / 2, second.moveUpButton.height / 2)
-            compare(fakeService.moveRequests, 1)
-            var first = content.cityList.itemAtIndex(0)
-            mouseMove(first, 30, 30)
-            wait(40)
-            verify(first.removeButton.visible)
-            mouseClick(first.removeButton, first.removeButton.width / 2, first.removeButton.height / 2)
-            compare(fakeService.cityRemoves, 1)
+            var originalCities = fakeService.cities
+            var originalClockRows = fakeService.clockRows
+            try {
+                fakeService.moveRequests = 0
+                fakeService.cityRemoves = 0
+                var second = content.cityList.itemAtIndex(1)
+                mouseMove(second, 30, 30)
+                wait(40)
+                verify(second.moveUpButton.visible)
+                mouseClick(second.moveUpButton, second.moveUpButton.width / 2, second.moveUpButton.height / 2)
+                compare(fakeService.moveRequests, 1)
+                var first = content.cityList.itemAtIndex(0)
+                mouseMove(first, 30, 30)
+                wait(40)
+                verify(first.removeButton.visible)
+                mouseClick(first.removeButton, first.removeButton.width / 2, first.removeButton.height / 2)
+                compare(fakeService.cityRemoves, 1)
+            } finally {
+                fakeService.cities = originalCities
+                fakeService.clockRows = originalClockRows
+            }
         }
 
         function test_row_drag_requests_service_reorder() {
@@ -161,15 +181,18 @@ Item {
             var second = content.cityList.itemAtIndex(1)
             verify(second !== null)
             var previousTarget = content.timezoneTarget
+            var previousFocusId = content.keyboardFocusId
             try {
                 compare(previousTarget, "Europe/Paris")
                 fakeService.moveRequests = 0
                 mouseClick(second, 24, 27, Qt.LeftButton)
                 compare(content.timezoneTarget, "Asia/Tokyo")
+                compare(content.keyboardFocusId, "Asia/Tokyo")
                 compare(content.draggingCityIndex, -1)
                 compare(fakeService.moveRequests, 0)
             } finally {
                 content.timezoneTarget = previousTarget
+                content.keyboardFocusId = previousFocusId
             }
         }
 
@@ -195,8 +218,287 @@ Item {
         }
 
         function test_refresh_button_reaches_service() {
+            fakeService.refreshRequests = 0
             mouseClick(content.refreshButton, content.refreshButton.width / 2, content.refreshButton.height / 2)
             compare(fakeService.refreshRequests, 1)
+        }
+
+        function test_keyboard_r_triggers_refresh() {
+            fakeService.refreshRequests = 0
+            content.forceActiveFocus()
+            keyClick(Qt.Key_R)
+            compare(fakeService.refreshRequests, 1)
+        }
+
+        function test_keyboard_t_and_shift_t_toggle_hour24() {
+            fakeService.preferenceData = Object.assign({}, fakeService.preferenceData, { hour24: false })
+            fakeService.settingsWrites = 0
+            content.forceActiveFocus()
+            keyClick(Qt.Key_T)
+            compare(fakeService.preferenceData.hour24, true)
+            compare(fakeService.settingsWrites, 1)
+            keyClick(Qt.Key_T, Qt.ShiftModifier)
+            compare(fakeService.preferenceData.hour24, false)
+            compare(fakeService.settingsWrites, 2)
+        }
+
+        function test_keyboard_a_focuses_search() {
+            content.forceActiveFocus()
+            keyClick(Qt.Key_A)
+            verify(content.zoneSearchInput.activeFocus)
+        }
+
+        function test_keyboard_plus_focuses_search() {
+            content.forceActiveFocus()
+            keyClick(Qt.Key_Plus)
+            verify(content.zoneSearchInput.activeFocus)
+        }
+
+        function test_keyboard_shifted_equal_focuses_search() {
+            content.forceActiveFocus()
+            keyClick(Qt.Key_Equal, Qt.ShiftModifier)
+            verify(content.zoneSearchInput.activeFocus)
+        }
+
+        function test_search_field_keeps_r_for_text() {
+            fakeService.refreshRequests = 0
+            content.zoneSearchInput.text = ""
+            content.zoneSearchInput.forceActiveFocus()
+            keyClick(Qt.Key_R)
+            compare(content.zoneSearchInput.text, "r")
+            compare(fakeService.refreshRequests, 0)
+        }
+
+        function test_search_field_arrow_does_not_change_city_focus() {
+            var originalTarget = content.timezoneTarget
+            var originalFocusId = content.keyboardFocusId
+            try {
+                content.timezoneTarget = "Europe/Paris"
+                content.keyboardFocusId = ""
+                content.zoneSearchInput.forceActiveFocus()
+                keyClick(Qt.Key_Down)
+                compare(content.timezoneTarget, "Europe/Paris")
+            } finally {
+                content.timezoneTarget = originalTarget
+                content.keyboardFocusId = originalFocusId
+            }
+        }
+
+        function test_keyboard_p_edits_selected_city_people() {
+            var originalTarget = content.timezoneTarget
+            var originalFocusId = content.keyboardFocusId
+            var originalPeopleIndex = content.peopleEditIndex
+            try {
+                content.timezoneTarget = "Europe/Paris"
+                content.keyboardFocusId = ""
+                content.peopleEditIndex = -1
+                content.forceActiveFocus()
+                keyClick(Qt.Key_P)
+                compare(content.peopleEditIndex, 0)
+                content.peopleEditIndex = -1
+                content.forceActiveFocus()
+                keyClick(Qt.Key_P, Qt.ShiftModifier)
+                compare(content.peopleEditIndex, 0)
+            } finally {
+                content.timezoneTarget = originalTarget
+                content.keyboardFocusId = originalFocusId
+                content.peopleEditIndex = originalPeopleIndex
+            }
+        }
+
+        function test_escape_in_people_editor_cancels_without_closing_panel() {
+            fakeTheme.elsewhenVisible = true
+            content.peopleEditIndex = -1
+            content.startPeopleEdit(0)
+            var first = content.cityList.itemAtIndex(0)
+            var field = findChild(first, "elsewhen-people-field")
+            verify(field !== null)
+            tryCompare(field, "activeFocus", true)
+            keyClick(Qt.Key_Escape)
+            tryCompare(content, "peopleEditIndex", -1)
+            compare(fakeTheme.elsewhenVisible, true)
+        }
+
+        function test_keyboard_j_and_k_navigate_cities() {
+            var originalTarget = content.timezoneTarget
+            var originalFocusId = content.keyboardFocusId
+            try {
+                content.timezoneTarget = "Europe/Paris"
+                content.keyboardFocusId = ""
+                content.forceActiveFocus()
+                keyClick(Qt.Key_J)
+                compare(content.timezoneTarget, "Asia/Tokyo")
+                keyClick(Qt.Key_K)
+                compare(content.timezoneTarget, "Europe/Paris")
+            } finally {
+                content.timezoneTarget = originalTarget
+                content.keyboardFocusId = originalFocusId
+            }
+        }
+
+        function test_keyboard_down_focuses_next_city() {
+            var originalTarget = content.timezoneTarget
+            var originalFocusId = content.keyboardFocusId
+            var originalContentY = content.scrollArea.contentY
+            try {
+                content.keyboardFocusId = ""
+                content.timezoneTarget = "Europe/Paris"
+                content.forceActiveFocus()
+                keyClick(Qt.Key_Down)
+                compare(content.timezoneTarget, "Asia/Tokyo")
+                compare(content.cityList.itemAtIndex(1).border.color, fakeTheme.seal)
+            } finally {
+                content.keyboardFocusId = originalFocusId
+                content.timezoneTarget = originalTarget
+                content.scrollArea.contentY = originalContentY
+            }
+        }
+
+        function test_keyboard_navigation_scrolls_to_distant_city() {
+            var originalCities = fakeService.cities
+            var originalTarget = content.timezoneTarget
+            var originalFocusId = content.keyboardFocusId
+            var originalContentY = content.scrollArea.contentY
+            var many = []
+            for (var i = 0; i < 8; i++) many.push({ label: "City " + i, id: "Etc/GMT" + i })
+            try {
+                fakeService.cities = many
+                content.timezoneTarget = "Etc/GMT0"
+                content.keyboardFocusId = ""
+                content.forceActiveFocus()
+                for (var step = 0; step < 7; step++) keyClick(Qt.Key_Down)
+                compare(content.keyboardFocusId, "Etc/GMT7")
+                verify(content.scrollArea.contentY > 0)
+                var last = content.cityList.itemAtIndex(7)
+                verify(last !== null)
+                var y = last.mapToItem(content.scrollArea.contentItem, 0, 0).y
+                verify(y >= content.scrollArea.contentY)
+                verify(y + last.height <= content.scrollArea.contentY + content.scrollArea.height)
+            } finally {
+                fakeService.cities = originalCities
+                content.timezoneTarget = originalTarget
+                content.keyboardFocusId = originalFocusId
+                content.scrollArea.contentY = originalContentY
+            }
+        }
+
+        function test_keyboard_escape_closes_panel() {
+            fakeTheme.elsewhenVisible = true
+            content.scrubMinutes = 0
+            content.timezoneConfirmationVisible = false
+            content.peopleEditIndex = -1
+            content.zoneSearchInput.text = ""
+            content.forceActiveFocus()
+            keyClick(Qt.Key_Escape)
+            compare(fakeTheme.elsewhenVisible, false)
+        }
+
+        function test_keyboard_h_and_l_shift_clock_by_hour() {
+            var previousShift = content.scrubMinutes
+            try {
+                content.scrubMinutes = 0
+                content.forceActiveFocus()
+                keyClick(Qt.Key_H)
+                compare(content.scrubMinutes, -60)
+                keyClick(Qt.Key_L)
+                compare(content.scrubMinutes, 0)
+            } finally {
+                content.scrubMinutes = previousShift
+            }
+        }
+
+        function test_keyboard_left_and_right_shift_city_clock_one_hour() {
+            var previousShift = content.scrubMinutes
+            try {
+                content.scrubMinutes = 0
+                content.forceActiveFocus()
+                keyClick(Qt.Key_Left)
+                compare(content.scrubMinutes, -60)
+                keyClick(Qt.Key_Right)
+                compare(content.scrubMinutes, 0)
+            } finally {
+                content.scrubMinutes = previousShift
+            }
+        }
+
+        function test_keyboard_x_removes_focused_city() {
+            var originalCities = fakeService.cities
+            var originalClockRows = fakeService.clockRows
+            var originalTarget = content.timezoneTarget
+            var originalFocusId = content.keyboardFocusId
+            try {
+                fakeService.cities = originalCities.slice()
+                fakeService.clockRows = originalClockRows.slice()
+                content.timezoneTarget = "Europe/Paris"
+                content.keyboardFocusId = "Europe/Paris"
+                content.forceActiveFocus()
+                keyClick(Qt.Key_X)
+                compare(fakeService.cities.length, 1)
+                compare(content.keyboardFocusId, "Asia/Tokyo")
+            } finally {
+                fakeService.cities = originalCities
+                fakeService.clockRows = originalClockRows
+                content.timezoneTarget = originalTarget
+                content.keyboardFocusId = originalFocusId
+            }
+        }
+
+        function test_keyboard_delete_removes_focused_city_and_moves_focus() {
+            var originalCities = fakeService.cities
+            var originalClockRows = fakeService.clockRows
+            var originalTarget = content.timezoneTarget
+            var originalFocusId = content.keyboardFocusId
+            try {
+                fakeService.cities = originalCities.slice()
+                fakeService.clockRows = originalClockRows.slice()
+                fakeService.cityRemoves = 0
+                content.timezoneTarget = "Europe/Paris"
+                content.keyboardFocusId = "Europe/Paris"
+                content.forceActiveFocus()
+                keyClick(Qt.Key_Delete)
+                compare(fakeService.cityRemoves, 1)
+                compare(fakeService.cities.length, 1)
+                compare(content.keyboardFocusId, "Asia/Tokyo")
+            } finally {
+                fakeService.cities = originalCities
+                fakeService.clockRows = originalClockRows
+                content.timezoneTarget = originalTarget
+                content.keyboardFocusId = originalFocusId
+            }
+        }
+
+        function test_escape_resets_shift_before_closing_panel() {
+            var previousShift = content.scrubMinutes
+            try {
+                fakeTheme.elsewhenVisible = true
+                content.scrubMinutes = 60
+                content.forceActiveFocus()
+                keyClick(Qt.Key_Escape)
+                compare(content.scrubMinutes, 0)
+                compare(fakeTheme.elsewhenVisible, true)
+            } finally {
+                content.scrubMinutes = previousShift
+            }
+        }
+
+        function test_escape_cancels_timezone_confirmation_first() {
+            fakeTheme.elsewhenVisible = true
+            content.timezoneConfirmationVisible = true
+            content.forceActiveFocus()
+            keyClick(Qt.Key_Escape)
+            compare(content.timezoneConfirmationVisible, false)
+            compare(fakeTheme.elsewhenVisible, true)
+        }
+
+        function test_escape_clears_search_without_closing_panel() {
+            var oldText = content.zoneSearchInput.text
+            fakeTheme.elsewhenVisible = true
+            content.zoneSearchInput.text = "Paris"
+            content.zoneSearchInput.forceActiveFocus()
+            keyClick(Qt.Key_Escape)
+            compare(content.zoneSearchInput.text, "")
+            compare(fakeTheme.elsewhenVisible, true)
+            content.zoneSearchInput.text = oldText
         }
 
         function test_hour_format_setting_is_persisted() {

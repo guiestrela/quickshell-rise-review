@@ -31,6 +31,7 @@ Item {
         property var profiles: ({})
         property int profileStamp: 0
         property bool hour24: false
+        property string keyboardFocusId: ""
         property int peopleEditIndex: -1
         property int startedPeopleEdit: -1
         property int finishedPeopleEdit: -1
@@ -94,6 +95,13 @@ Item {
             tryCompare(field, "visible", true)
             tryCompare(field, "activeFocus", true)
             return field
+        }
+
+        function test_keyboard_focus_has_visible_row_accent() {
+            fakePanel.keyboardFocusId = "Europe/Paris"
+            compare(cityRow.border.color, fakeTheme.seal)
+            fakePanel.keyboardFocusId = "Asia/Tokyo"
+            compare(cityRow.border.color, fakeTheme.sep)
         }
 
         function test_hovered_people_action_opens_prefilled_editor() {
