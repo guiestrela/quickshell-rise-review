@@ -36,5 +36,5 @@ with tempfile.TemporaryDirectory(prefix="rise-elsewhen-panel-content-", dir=SCRA
     output = result.stdout + result.stderr
     print(output, end="")
     assert result.returncode == 0, output
-    assert "Totals: 13 passed, 0 failed" in output, output
+    assert "Totals: 22 passed, 0 failed" in output, output
     assert not re.search(r"ERROR|ReferenceError|TypeError|Binding loop|Unable to assign|Incorrect argument radius", output), output

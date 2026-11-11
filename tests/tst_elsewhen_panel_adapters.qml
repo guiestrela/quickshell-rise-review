@@ -8,6 +8,9 @@ Item {
     width: 800
     height: 800
     property string selectedVariant: "v1"
+    property string captureDir: ""
+    property bool captureDone: false
+    property bool captureSaved: false
 
     QtObject {
         id: theme
@@ -46,19 +49,19 @@ Item {
     QtObject {
         id: fakeService
         property var clockRows: [
-            { label: "Paris", id: "Europe/Paris", time: "13:00", offset: "UTC+1", abbr: "CET" },
-            { label: "Tokyo", id: "Asia/Tokyo", time: "21:00", offset: "UTC+9", abbr: "JST" }
+            { label: "Paris", id: "Europe/Paris", time: "13:00", date: "Wed, Mar 20", dayLabel: "Wednesday", offset: "UTC+1", relative: "+1h", abbr: "CET", ready: true, offsetMinutes: 60, progress: 13 / 24, lit: true },
+            { label: "Tokyo", id: "Asia/Tokyo", time: "21:00", date: "Wed, Mar 20", dayLabel: "Wednesday", offset: "UTC+9", relative: "+9h", abbr: "JST", ready: true, offsetMinutes: 540, progress: 21 / 24, lit: false }
         ]
         property var zoneOptions: [
             { label: "Paris", value: "Europe/Paris" },
             { label: "Tokyo", value: "Asia/Tokyo" }
         ]
         property var cityData: [["Paris", "Europe/Paris", 48.85, 2.35, 1], ["Tokyo", "Asia/Tokyo", 35.68, 139.69, 1]]
-        property var cities: [{ label: "Paris", id: "Europe/Paris" }, { label: "Tokyo", id: "Asia/Tokyo" }]
+        property var cities: [{ label: "Paris", id: "Europe/Paris", people: ["Alice"] }, { label: "Tokyo", id: "Asia/Tokyo", people: ["Tokyo team"] }]
         property var worldData: [[-180, -80, 0, -80, 180, -80, 180, 80, 0, 80, -180, 80]]
-        property double nowMs: Date.now()
+        property double nowMs: Date.UTC(2024, 2, 20, 12, 0, 0)
         property bool staticDataReady: true
-        property var preferenceData: ({ hour24: false, globeEnabled: true, smoothMotion: true })
+        property var preferenceData: ({ hour24: true, globeEnabled: true, smoothMotion: true })
         property string localZone: "Etc/UTC"
         property string lastError: ""
         property string catalogError: ""
@@ -112,17 +115,36 @@ Item {
             verify(panelLoader.item.surfaceHost.height > 0)
         }
 
+        function captureScene(name) {
+            if (testRoot.captureDir === "") return
+            testRoot.captureDone = false
+            testRoot.captureSaved = false
+            var card = testRoot
+            var accepted = card.grabToImage(function(result) {
+                testRoot.captureSaved = result.saveToFile(testRoot.captureDir + "/" + name + ".png")
+                testRoot.captureDone = true
+            })
+            verify(accepted)
+            tryVerify(function() { return testRoot.captureDone }, 5000)
+            verify(testRoot.captureSaved)
+        }
+
         function test_v1_horizontal_renders_clock_rows_and_anchors() {
             load("v1", false, "top")
-            compare(panelLoader.item.surfaceHost.x, 113)
+            compare(panelLoader.item.surfaceHost.width, 340)
+            compare(panelLoader.item.surfaceHost.x,
+                    Math.round(Math.max(8, Math.min(theme.elsewhenBarX - panelLoader.item.surfaceHost.width / 2,
+                                                   testRoot.width - panelLoader.item.surfaceHost.width - 8))))
             verify(findChild(panelLoader.item, "elsewhen-city-list") !== null)
             compare(fakeService.refreshRequests, 0)
+            captureScene("v1-horizontal")
         }
 
         function test_v1_vertical_positions_left_of_content() {
             load("v1", true, "left")
             compare(panelLoader.item.surfaceHost.x, theme.verticalBarWidth + 8)
             verify(Math.abs(panelLoader.item.surfaceHost.y - (400 - panelLoader.item.surfaceHost.height / 2)) < 1)
+            captureScene("v1-vertical")
         }
 
         function test_v2_horizontal_connected_surface_tracks_owner_anchor() {
@@ -130,6 +152,7 @@ Item {
             verify(panelLoader.item.surfaceHost.x > 8)
             verify(theme.panelInsetX >= 0)
             verify(findChild(panelLoader.item, "elsewhen-city-list") !== null)
+            captureScene("v2-horizontal")
         }
 
         function test_v2_vertical_positions_right_and_keeps_content() {
@@ -138,6 +161,7 @@ Item {
                     testRoot.width - theme.verticalBarWidth - panelLoader.item.surfaceHost.width - 6)
             verify(findChild(panelLoader.item, "elsewhen-city-list") !== null)
             compare(fakeService.refreshRequests, 0)
+            captureScene("v2-vertical")
         }
     }
 }
