@@ -11,6 +11,9 @@ ShellRoot {
     property int probeCount: 0
     property int cancelCount: 0
     property int timezoneCount: 0
+    property int geocodeCount: 0
+    property string lastGeocodeQuery: ""
+    property int lastGeocodeSerial: 0
     property string lastTimezoneZone: ""
     property int lastTimezoneSerial: 0
     property double initialTimerMs: 0
@@ -34,6 +37,11 @@ ShellRoot {
             test.timezoneCount++
             test.lastTimezoneZone = zone
             test.lastTimezoneSerial = serial
+        }
+        function onPlaceSearchRequested(query, serial) {
+            test.geocodeCount++
+            test.lastGeocodeQuery = query
+            test.lastGeocodeSerial = serial
         }
     }
 
@@ -212,8 +220,81 @@ ShellRoot {
                     test.fail("successful time-zone command result was not applied")
                     return
                 }
+                if (typeof service.requestPlaceSearch !== "function" || typeof service.acceptPlaceSearch !== "function"
+                        || typeof service.searchLocations !== "function") {
+                    test.fail("place-search request and result handlers are missing")
+                    return
+                }
+                if (!service.requestPlaceSearch("Springfield") || test.geocodeCount !== 1
+                        || test.lastGeocodeQuery !== "springfield") {
+                    test.fail("geocoder query was not normalized and dispatched")
+                    return
+                }
+                var resultSerial = test.lastGeocodeSerial
+                var geocodePayload = JSON.stringify({ results: [{
+                    name: "Springfield", admin1: "Illinois", country_code: "US",
+                    timezone: "America/Chicago", latitude: 39.78, longitude: -89.64
+                }] })
+                if (!service.acceptPlaceSearch(geocodePayload, 0, resultSerial, "")) {
+                    test.fail("inert geocoder result was not accepted")
+                    return
+                }
+                var places = service.searchLocations("Springfield", 8)
+                if (places.length !== 1 || places[0].label !== "Springfield"
+                        || places[0].region !== "Illinois, US" || places[0].value !== "America/Chicago") {
+                    test.fail("geocoder place did not merge into the selectable search results: " + JSON.stringify(places))
+                    return
+                }
+                if (!service.requestPlaceSearch("Boston") || test.geocodeCount !== 2
+                        || test.lastGeocodeQuery !== "boston") {
+                    test.fail("a new place query was not dispatched")
+                    return
+                }
+                if (service.acceptPlaceSearch(geocodePayload, 0, resultSerial, "")) {
+                    test.fail("stale geocoder response was accepted")
+                    return
+                }
+                if (service.acceptPlaceSearch("", 1, test.lastGeocodeSerial, "inert geocoder denial")
+                        || service.placeSearchError.indexOf("inert geocoder denial") < 0) {
+                    test.fail("geocoder failure was not returned to the service")
+                    return
+                }
+                if (!service.requestPlaceSearch("Portland")) {
+                    test.fail("place-search request before hiding was not dispatched")
+                    return
+                }
+                var hiddenSearchSerial = test.lastGeocodeSerial
                 service.active = false
-                console.log("ELSEWHEN_SERVICE_PASS lifecycle, settings, cities, probes and time-zone results")
+                if (service.placeSearchRunning) {
+                    test.fail("hiding did not clear the in-flight geocoder state")
+                    return
+                }
+                if (service.requestPlaceSearch("Salem") || service.placeSearchRunning
+                        || service.placeSearchText !== "salem") {
+                    test.fail("query changed while hidden did not remain queued for reactivation")
+                    return
+                }
+                service.active = true
+                if (!service.placeSearchRunning || test.geocodeCount !== 4 || test.lastGeocodeQuery !== "salem") {
+                    test.fail("latest hidden query was not retried on reactivation")
+                    return
+                }
+                if (service.acceptPlaceSearch(geocodePayload, 0, hiddenSearchSerial, "")) {
+                    test.fail("pre-hide geocoder result was accepted after reactivation")
+                    return
+                }
+                var resumedSearchSerial = test.lastGeocodeSerial
+                var resumedPayload = JSON.stringify({ results: [{
+                    name: "Salem", admin1: "Oregon", country_code: "US",
+                    timezone: "America/Los_Angeles", latitude: 44.94, longitude: -123.04
+                }] })
+                if (!service.acceptPlaceSearch(resumedPayload, 0, resumedSearchSerial, "")
+                        || service.geocodeOptions.length !== 1 || service.geocodeOptions[0].label !== "Salem") {
+                    test.fail("reactivated geocoder result did not populate the latest query")
+                    return
+                }
+                service.active = false
+                console.log("ELSEWHEN_SERVICE_PASS lifecycle, settings, cities, probes, place search and time-zone results")
                 Qt.quit()
             }
         }

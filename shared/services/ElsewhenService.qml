@@ -38,6 +38,11 @@ Item {
     property string catalogError: ""
     property bool catalogRunning: false
     property int catalogSerial: 0
+    property var geocodeOptions: []
+    property string placeSearchText: ""
+    property string placeSearchError: ""
+    property bool placeSearchRunning: false
+    property int placeSearchSerial: 0
     property bool timezoneRunning: false
     property int timezoneSerial: 0
     property string pendingTimezoneZone: ""
@@ -60,6 +65,7 @@ Item {
 
     signal probeRequested(var ids, int serial)
     signal catalogRequested(int serial)
+    signal placeSearchRequested(string query, int serial)
     signal timezoneChangeRequested(string zone, int serial)
     signal timezoneChanged(string zone)
     signal cancelRequested()
@@ -173,6 +179,52 @@ Item {
         return Model.searchZones(zoneOptions, query, limit)
     }
 
+    function requestPlaceSearch(text) {
+        var query = Model.placeQuery(text)
+        if (query === "") {
+            placeSearchSerial++
+            placeSearchText = ""
+            placeSearchRunning = false
+            geocodeOptions = []
+            placeSearchError = ""
+            return false
+        }
+        if (query === placeSearchText && (placeSearchRunning || (geocodeOptions.length > 0 && placeSearchError === "")))
+            return false
+        placeSearchText = query
+        geocodeOptions = []
+        placeSearchError = ""
+        placeSearchSerial++
+        if (!active || !settingsReady) return false
+        placeSearchRunning = true
+        placeSearchRequested(query, placeSearchSerial)
+        return true
+    }
+
+    function acceptPlaceSearch(output, exitCode, serial, errorText) {
+        if (!placeSearchRunning || (serial !== undefined && serial !== placeSearchSerial)) return false
+        placeSearchRunning = false
+        if (exitCode !== 0) {
+            var message = String(errorText || "").trim()
+            placeSearchError = message !== "" ? message : "Place search failed (exit " + exitCode + ")"
+            geocodeOptions = []
+            return false
+        }
+        geocodeOptions = Model.placeOptions(String(output || ""))
+        placeSearchError = ""
+        return true
+    }
+
+    function searchLocations(query, limit) {
+        var maxResults = Math.max(0, Number(limit) || 8)
+        var queryKey = Model.placeQuery(query)
+        var hasCurrentPlaces = queryKey !== "" && queryKey === placeSearchText
+        var offlineLimit = hasCurrentPlaces && maxResults > 3 ? Math.max(3, maxResults - 5) : maxResults
+        var offline = searchZones(query, offlineLimit)
+        var places = hasCurrentPlaces ? geocodeOptions : []
+        return Model.mergePlaces(offline, places, cities, maxResults)
+    }
+
     function refresh() {
         if (!active || !settingsReady) return false
         if (probeRunning) {
@@ -222,22 +274,28 @@ Item {
                 requestCatalog()
                 refresh()
             }
+            if (settingsReady && placeSearchText !== "" && !placeSearchRunning) requestPlaceSearch(placeSearchText)
         } else {
             clockTimer.stop()
-            if (probeRunning || catalogRunning || timezoneRunning) cancelRequested()
+            if (probeRunning || catalogRunning || placeSearchRunning || timezoneRunning) cancelRequested()
             if (probeRunning) requestSerial++
             if (catalogRunning) catalogSerial++
+            if (placeSearchRunning) placeSearchSerial++
             if (timezoneRunning) timezoneSerial++
             probeRunning = false
             probeQueued = false
             catalogRunning = false
+            placeSearchRunning = false
             timezoneRunning = false
             pendingTimezoneZone = ""
         }
     }
-    onSettingsReadyChanged: if (settingsReady && active && autoRefresh) {
-        requestCatalog()
-        refresh()
+    onSettingsReadyChanged: if (settingsReady && active) {
+        if (autoRefresh) {
+            requestCatalog()
+            refresh()
+        }
+        if (placeSearchText !== "" && !placeSearchRunning) requestPlaceSearch(placeSearchText)
     }
 
     FileView {
