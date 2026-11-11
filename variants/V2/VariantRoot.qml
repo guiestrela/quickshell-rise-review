@@ -18,7 +18,7 @@ Item {
     required property var variantHost
     readonly property string fontFamily: theme.mono
     readonly property string position: theme.barPosition
-    readonly property int barSize: theme.barVertical ? theme.verticalBarWidth : theme.v2BarHeight
+    readonly property int barSize: theme.v2BarHeight
     readonly property string variantId: "v2"
     readonly property bool ready: lifecycleReady()
 
@@ -262,6 +262,7 @@ Item {
     ThermalsPanel { root: theme }
     StoragePanel { root: theme }
     OneDrivePanel { root: theme }
+    ElsewhenPanel { root: theme }
     AiUsagePanel { root: theme }
     VolumePanel { root: theme }
     TrayPanel { root: theme }

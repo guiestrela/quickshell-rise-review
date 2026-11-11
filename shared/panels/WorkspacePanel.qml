@@ -3,11 +3,37 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Hyprland
+import Quickshell.Io
 import "../components" as CommonComponents
+import "../logic/MonitorWorkspaces.js" as MonitorWorkspaces
 
 PanelWindow {
     id: wsPanel
     required property var root
+
+    readonly property var panelMonitor: wsPanel.root.activePopupScreen
+        ? Hyprland.monitorFor(wsPanel.root.activePopupScreen) : Hyprland.focusedMonitor
+    readonly property string panelMonitorName: panelMonitor ? panelMonitor.name : ""
+    property var workspaceBlocks: ({})
+    readonly property int workspaceBlock: MonitorWorkspaces.blockFor(workspaceBlocks, panelMonitorName,
+        panelMonitor && panelMonitor.activeWorkspace ? panelMonitor.activeWorkspace.id : 0)
+    readonly property var workspaceEntries: {
+        var entries = []
+        for (var slot = 1; slot <= 10; slot++)
+            entries.push({ id: MonitorWorkspaces.idFor(workspaceBlock, slot), slot: slot, guest: false })
+        var guests = MonitorWorkspaces.guestIds(workspaceBlock, panelMonitorName, Hyprland.workspaces.values)
+        for (var i = 0; i < guests.length; i++)
+            entries.push({ id: guests[i], slot: MonitorWorkspaces.slotFor(guests[i]), guest: true })
+        return entries
+    }
+    FileView {
+        path: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/omarchy/monitor-workspaces"
+        watchChanges: true
+        printErrors: false
+        onFileChanged: reload()
+        onLoaded: wsPanel.workspaceBlocks = MonitorWorkspaces.parseBlocks(text())
+        onLoadFailed: wsPanel.workspaceBlocks = ({})
+    }
 
     screen: wsPanel.root.activePopupScreen
 
@@ -91,14 +117,23 @@ PanelWindow {
                 width: parent.width
                 spacing: 4
                 Repeater {
-                    model: Hyprland.workspaces
+                    model: wsPanel.workspaceEntries
 
                     delegate: Rectangle {
 
                         id: workspaceRow
                         required property var modelData
-                        visible: modelData.id > 0   // F13: hide special (negative-id) workspaces from the normal list
-                        readonly property bool isActive: Hyprland.focusedWorkspace && Hyprland.focusedWorkspace.id === modelData.id
+                        readonly property int slot: modelData.slot
+                        readonly property int workspaceId: modelData.id
+                        readonly property bool isGuest: modelData.guest
+                        readonly property var workspace: {
+                            var values = Hyprland.workspaces.values
+                            for (var i = 0; i < values.length; i++)
+                                if (values[i].id === workspaceRow.workspaceId) return values[i]
+                            return null
+                        }
+                        readonly property bool isActive: wsPanel.panelMonitor && wsPanel.panelMonitor.activeWorkspace
+                            && wsPanel.panelMonitor.activeWorkspace.id === workspaceId
                         width: col.width
                         height: 30; radius: wsPanel.buttonRadius
                         color: isActive ? wsPanel.root.fillActive
@@ -110,7 +145,7 @@ PanelWindow {
                         CommonComponents.UiText {
                             anchors.left: parent.left; anchors.leftMargin: 10
                             anchors.verticalCenter: parent.verticalCenter
-                            text: "Workspace " + workspaceRow.modelData.id
+                            text: "Workspace " + workspaceRow.slot + (workspaceRow.isGuest ? " · other monitor" : "")
                             color: (ma.containsMouse || workspaceRow.isActive) ? wsPanel.root.seal : wsPanel.root.ink
                             font.family: wsPanel.root.mono; font.pixelSize: 12
                             font.weight: workspaceRow.isActive ? Font.Medium : Font.Normal
@@ -118,7 +153,8 @@ PanelWindow {
                         CommonComponents.UiText {
                             anchors.right: parent.right; anchors.rightMargin: 10
                             anchors.verticalCenter: parent.verticalCenter
-                            text: workspaceRow.modelData.toplevels && workspaceRow.modelData.toplevels.values ? workspaceRow.modelData.toplevels.values.length : ""
+                            text: workspaceRow.workspace && workspaceRow.workspace.toplevels && workspaceRow.workspace.toplevels.values
+                                ? workspaceRow.workspace.toplevels.values.length : "0"
                             color: wsPanel.root.sumiHi; font.family: wsPanel.root.mono; font.pixelSize: 10
                         }
 
@@ -128,7 +164,13 @@ PanelWindow {
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: {
-                                wsPanel.root.gotoWorkspace(workspaceRow.modelData.id)
+                                if (wsPanel.root.hyprDispatchModeReady === false) return
+                                if (workspaceRow.isGuest)
+                                    wsPanel.root.gotoWorkspace(workspaceRow.workspaceId)
+                                else if (wsPanel.root.omarchyPerMonitorWorkspaces && wsPanel.panelMonitorName)
+                                    wsPanel.root.gotoWorkspace(workspaceRow.slot, wsPanel.panelMonitorName)
+                                else
+                                    wsPanel.root.gotoWorkspace(workspaceRow.workspaceId)
                                 wsPanel.root.workspaceVisible = false
                             }
                         }

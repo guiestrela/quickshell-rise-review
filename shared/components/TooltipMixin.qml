@@ -11,8 +11,17 @@ Item {
     property string text: ""
     property int    delay: 320
 
-    function show() { if (text) delayTimer.restart() }
+    function show() {
+        if (text && !(root && root.barUnlocked)) delayTimer.restart()
+    }
     function hide() { delayTimer.stop(); root.hideTooltip(owner) }
+
+    Connections {
+        target: mixin.root
+        function onBarUnlockedChanged() {
+            if (mixin.root.barUnlocked) mixin.hide()
+        }
+    }
 
     // live-update the visible tooltip while THIS widget owns it (e.g. volume %
     // changing under the cursor) — showTooltip() only captures a snapshot.

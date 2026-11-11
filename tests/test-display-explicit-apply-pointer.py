@@ -15,24 +15,34 @@ def method(name):
  return controller[start:i]
 with tempfile.TemporaryDirectory(prefix='apply-pointer-',dir=os.environ['TMPDIR']) as directory:
  root=Path(directory);(root/'panels').mkdir()
+
  visual=source.replace('import Quickshell\n','').replace('import Quickshell.Wayland\n','').replace('import QtQuick\n','import QtQuick\nimport QtQuick.Window\n').replace('PanelWindow {','Window {',1)
  visual=re.sub(r'    anchors \{[^}]*\}','',visual,count=1);visual=re.sub(r'^    (?:WlrLayershell\..*|exclusionMode:.*|margins\..*)\n','',visual,flags=re.M);visual=visual.replace('    id: panel','    id: panel\n    width: 520\n    height: 900',1)
+
  (root/'panels/DisplayManagerPanel.qml').write_text(visual)
  fixture=base.replace('import Quickshell\n','').replace('import Quickshell.Wayland\n','').replace('ShellRoot {','Item {').replace('property bool displayManagerVisible: false','property bool displayManagerVisible: true').replace('Quickshell.screens.length ? Quickshell.screens[0] : null','Qt.application.screens[0]').replace('import "../../shared/panels" as Panels','import "panels" as Panels\nimport QtTest')
+
  fixture=fixture.replace('property color bg: "#202020"','property color bg: "#202020"\n property color paper: "#202020"\n property color fillHover: "#404040"\n property color sumi: "#808080"\n property int pillRadius: 6\n property color pillBorder: "#606060"\n property real pillBorderW: 1\n property real panelRadius: 6\n property real v2BarHeight: 30')
+ fixture=fixture.replace('property int refreshCount: 0','property int refreshCount: 0\n property int workspaceRefreshCount: 0')
+ fixture=fixture.replace('function refreshWorkspaces() { }','function refreshWorkspaces() { workspaceRefreshCount++ }')
+ fixture=fixture.replace('function saveLayout() { }','property bool saveLayoutFails: false\n property int saveLayoutCalls: 0\n function saveLayout() { saveLayoutCalls++; if(saveLayoutFails) { error="fixture save failure"; return false } error=""; return true }')
  fixture=fixture.replace('property var monitors: []','property var monitors: [{name:"DP-1",width:2560,height:1440,x:0,y:0,scale:1,transform:0,refreshRate:60,mirrorOf:"none",disabled:false,availableModes:["2560x1440@60Hz"]},{name:"DP-2",width:1920,height:1080,x:2560,y:0,scale:1,transform:0,refreshRate:60,mirrorOf:"none",disabled:false,availableModes:["1920x1080@60Hz"]}]')
  fixture=fixture.replace('property string selectedMonitor: ""','property string selectedMonitor: "DP-2"')
  fixture=fixture.replace('function monitor(name) { return null }','function monitor(name) { for(var m of monitors) if(m.name===name)return m;return null }')
- fixture=fixture.replace('property bool busy: false','property bool busy: false\n property bool rollbackPending:false\n property int rollbackSeconds:0\n property bool confirmationBusy:false\n property bool displayStateReady:true\n property var savedDisplayStates:({})\n property var positions:({})\n property var mirrorReturnStates:({})\n property int backendCalls:0\n function confirmChanges(){rollbackPending=false}\n function revertChanges(){rollbackPending=false}')
+ fixture=fixture.replace('property bool busy: false','property bool busy: false\n property bool rollbackPending:false\n property int rollbackSeconds:0\n property bool confirmationBusy:false\n property bool displayStateReady:true\n property var savedDisplayStates:({})\n property var positions:({})\n property var mirrorReturnStates:({})\n property int backendCalls:0\n property int lastBrightness:0\n property var confirmationCalls:[]\n function confirmChanges(){confirmationCalls.push("keep");rollbackPending=false}\n function revertChanges(){confirmationCalls.push("revert");rollbackPending=false}')
  fixture=fixture.replace('property bool brightnessAvailable: false','property bool brightnessAvailable: true').replace('property int brightnessPercent: 0','property int brightnessPercent: 70')
- for name in ['applyMonitor','disableMonitor','setBrightness','setTextSize']:
+ for name in ['applyMonitor','setTextSize']:
   fixture=fixture.replace('function '+name+'() { }','function '+name+'() { backendCalls++ }')
- fixture=fixture.replace('function enableMonitor() { }',method('enableMonitor'))
+ fixture=fixture.replace('function setBrightness() { }','function setBrightness(value) { backendCalls++; lastBrightness=value }')
+ fixture=fixture.replace('function disableMonitor() { }','function disableMonitor(name) { backendCalls++;var copy=Object.assign({},drafts);copy[name]=Object.assign({},copy[name]||{},{disabled:true});drafts=copy }')
+ fixture=fixture.replace('function enableMonitor() { }','function enableMonitor(name) { backendCalls++;var copy=Object.assign({},drafts);copy[name]=Object.assign({},copy[name]||{});delete copy[name].disabled;drafts=copy }')
  fixture=fixture.replace('function refresh() { refreshCount++ }',method('toggleMirror')+'\n function refresh() { refreshCount++ }')
- fixture=fixture.replace('function applyDrafts() { applyCalls.push','function applyDrafts() { rollbackPending=true;rollbackSeconds=5;applyCalls.push')
+ fixture=fixture.replace('function applyDrafts() { applyCalls.push','function applyDrafts() { rollbackPending=true;rollbackSeconds=15;applyCalls.push')
  fixture=fixture.replace('id: productionPanel\n','id: productionPanel; visible: true\n')
  fixture=fixture[:fixture.index('    Timer {')]+'''
  function find(item,name){if(item.objectName===name)return item;for(var child of item.children||[]){var result=find(child,name);if(result)return result}return null}
+ function findButtonByText(item,label){if(item.text===label&&item.checkable===true)return item;for(var child of item.children||[]){var result=findButtonByText(child,label);if(result)return result}return null}
+ function findText(item,value){if(item.text===value&&item.visible===true)return item;for(var child of item.children||[]){var result=findText(child,value);if(result)return result}return null}
  TestCase { id: pointer; parent:productionPanel.contentItem; name:"ExplicitApplyPointer"; when:windowShown
   function test_00_mode_display(){
    wait(200)
@@ -48,8 +58,77 @@ with tempfile.TemporaryDirectory(prefix='apply-pointer-',dir=os.environ['TMPDIR'
    }
    fakeController.drafts=({})
    console.log("MODE_DISPLAY_QML_PASS V1/V2 actual ComboBox displayText live/draft/monitor-switch with zero backend calls")
-  }
-  function test_edits_wait_for_Apply(){
+   }
+   function test_combo_popup_items_are_rendered_and_selectable() {
+   var names=["display-resolution","display-scale","display-rotation","display-text-size"]
+   for(var connected of [false,true]) {
+    productionPanel.connectedStyle=connected;fakeController.drafts=({});fakeController.selectedMonitor="DP-1";wait(60)
+    for(var name of names) {
+     var combo=find(productionPanel.contentItem,name)
+     verify(combo!==null,"missing ComboBox "+name)
+     mouseClick(combo);wait(60)
+     verify(combo.popup.visible,"popup did not open: "+name)
+     var list=combo.popup.contentItem
+     verify(list && list.count>0,"popup has no delegate rows: "+name+" count="+(list?list.count:"null"))
+     verify(list.contentHeight>0,"popup has zero content height: "+name)
+     verify(combo.popup.width>0 && combo.popup.height>4 && combo.popup.height<=240,"popup geometry invalid: "+name+" "+combo.popup.width+"x"+combo.popup.height)
+     var selectedIndex=name==="display-resolution"?1:name==="display-scale"?1:name==="display-rotation"?1:0
+     var row=list.itemAtIndex(selectedIndex)
+     verify(row!==null,"popup delegate not instantiated: "+name)
+     verify(row.visible && row.width>0 && row.height>0,"delegate geometry/visibility invalid: "+name)
+     verify(String(row.text||"").length>0,"delegate text is empty: "+name)
+     verify(row.contentItem && String(row.contentItem.text||"").length>0,"delegate content text is empty: "+name)
+     verify(row.contentItem.color!==fakeRoot.paper,"delegate text must contrast popup surface: "+name)
+
+     mouseClick(row,row.width/2,row.height/2);wait(40)
+     verify(!combo.popup.visible,"selection did not close popup: "+name)
+     compare(combo.currentIndex,selectedIndex,"selection did not update ComboBox index: "+name)
+     if(name==="display-resolution") compare(fakeController.drafts["DP-1"].mode,"2560x1440@60Hz")
+     if(name==="display-scale") compare(fakeController.drafts["DP-1"].scale,1.25)
+     if(name==="display-rotation") compare(fakeController.drafts["DP-1"].transform,1)
+     if(name==="display-text-size") compare(fakeController.backendCalls,connected?2:1)
+    }
+   }
+   compare(fakeController.backendCalls,2)
+   compare(fakeController.applyCalls.length,0)
+   console.log("DISPLAY_COMBO_POPUP_PASS V1/V2 visible rows, text, selection and close cycle; controller inert")
+   }
+   function test_refresh_and_monitor_list_pointer() {
+    fakeController.backendCalls=0;fakeController.applyCalls=[];fakeController.rollbackSeconds=0;fakeController.rollbackPending=false
+    for(var connected of [false,true]) {
+     productionPanel.connectedStyle=connected;fakeController.selectedMonitor="DP-1";wait(50)
+     var refresh=find(productionPanel.contentItem,connected?"display-refresh-v2":"display-refresh")
+     verify(refresh!==null,"refresh control missing for style="+connected)
+     var refreshBefore=fakeController.refreshCount,workspaceBefore=fakeController.workspaceRefreshCount
+     mouseClick(refresh);wait(30)
+     compare(fakeController.refreshCount,refreshBefore+1,"Refresh click must re-query outputs")
+     compare(fakeController.workspaceRefreshCount,workspaceBefore+1,"Refresh click must re-query workspace assignments")
+     var monitorList=find(productionPanel.contentItem,"display-monitor-list")
+     var dp2=findButtonByText(monitorList,"DP-2"),dp1=findButtonByText(monitorList,"DP-1")
+     verify(dp1!==null&&dp2!==null,"DP-1/DP-2 selection buttons missing")
+     mouseClick(dp2);wait(30);compare(fakeController.selectedMonitor,"DP-2");verify(dp2.checked)
+     mouseClick(dp1);wait(30);compare(fakeController.selectedMonitor,"DP-1");verify(dp1.checked)
+    }
+    compare(fakeController.backendCalls,0);compare(fakeController.applyCalls.length,0);compare(fakeController.rollbackSeconds,0);verify(!fakeController.rollbackPending)
+    console.log("DISPLAY_REFRESH_SELECTION_PASS V1/V2 pointer Refresh re-queries monitors/workspaces; DP-1/DP-2 selection is draft-only; no backend apply")
+   }
+   function test_save_layout_error_banner() {
+    for(var connected of [false,true]) {
+     productionPanel.connectedStyle=connected;fakeController.drafts=({});fakeController.draftWorkspaceAssignments=({});fakeController.draftBrightness=({});fakeController.draftTextSizeIndex=-1
+     fakeController.busy=false;fakeController.loading=false;fakeController.rollbackPending=false;fakeController.workspaceLoading=false;fakeController.workspaceCommitPending=false
+     fakeController.saveLayoutCalls=0;fakeController.saveLayoutFails=false;fakeController.error="";fakeController.workspaceError=""
+     fakeRoot.displayManagerAutoWorkspaces=true;productionPanel.draftAutoWorkspaces=true;wait(50)
+     var save=find(productionPanel.contentItem,"display-save")
+     verify(save!==null&&save.enabled,"Save layout must be enabled without pending drafts")
+     mouseClick(save);wait(30);compare(fakeController.saveLayoutCalls,1);compare(fakeController.error,"")
+     fakeController.saveLayoutFails=true;mouseClick(save);wait(30);compare(fakeController.saveLayoutCalls,2)
+     var errorBanner=findText(productionPanel.contentItem,"fixture save failure")
+     verify(errorBanner!==null&&errorBanner.visible&&errorBanner.width>0&&errorBanner.height>0,"save failure must be rendered in the shared panel")
+     fakeController.saveLayoutFails=false;fakeController.error=""
+    }
+    console.log("DISPLAY_SAVE_ERROR_UI_PASS V1/V2 pointer Save layout callback; failure visible in shared error banner")
+   }
+   function test_edits_wait_for_Apply(){
    wait(250)
    for(var connected of [false,true]){
     productionPanel.connectedStyle=connected;fakeController.backendCalls=0;fakeController.drafts=({});fakeController.draftBrightness=({});fakeController.draftTextSizeIndex=-1;fakeController.applyCalls=[];fakeController.rollbackPending=false;fakeController.rollbackSeconds=0;fakeController.selectedMonitor="DP-2";fakeRoot.displayManagerAutoWorkspaces=true;productionPanel.draftAutoWorkspaces=true
@@ -78,23 +157,25 @@ with tempfile.TemporaryDirectory(prefix='apply-pointer-',dir=os.environ['TMPDIR'
     var scale=find(productionPanel.contentItem,"display-scale");scale.currentIndex=1;scale.activated(1)
     var mode=find(productionPanel.contentItem,"display-resolution");mode.currentIndex=1;mode.activated(1)
     var textSize=find(productionPanel.contentItem,"display-text-size");textSize.currentIndex=2;textSize.activated(2)
-    var brightness=find(productionPanel.contentItem,"display-brightness");brightness.forceActiveFocus();keyClick(Qt.Key_Left);wait(40)
+    var brightness=find(productionPanel.contentItem,"display-brightness");fakeController.backendCalls=0;fakeController.lastBrightness=70;mouseClick(brightness,brightness.width-10,brightness.height/2);wait(40);compare(fakeController.backendCalls,1,"brightness click must dispatch exactly once on release");compare(fakeController.lastBrightness,brightness.value);verify(fakeController.lastBrightness>70)
     var toggle=find(productionPanel.contentItem,"display-workspaces");mouseClick(toggle);wait(40)
     verify(fakeRoot.displayManagerAutoWorkspaces);verify(!productionPanel.draftAutoWorkspaces)
-    var mirror=find(productionPanel.contentItem,"display-mirror");mouseClick(mirror);wait(40);mouseClick(mirror);wait(40)
-    var disable=find(productionPanel.contentItem,"display-disable"),enable=find(productionPanel.contentItem,"display-enable");mouseClick(disable);wait(40);verify(fakeController.previewMonitor("DP-2").disabled);compare(fakeController.monitors[1].disabled,false);mouseClick(enable);wait(40);verify(!fakeController.previewMonitor("DP-2").disabled)
+    var mirror=find(productionPanel.contentItem,"display-mirror");mouseClick(mirror);wait(40);compare(fakeController.previewMonitor("DP-2").mirrorOf,"DP-1");mouseClick(mirror);wait(40);compare(fakeController.previewMonitor("DP-2").mirrorOf,"none");compare(fakeController.monitors[1].mirrorOf,"none")
+    var disable=find(productionPanel.contentItem,"display-disable"),enable=find(productionPanel.contentItem,"display-enable");fakeController.backendCalls=0;fakeController.loading=true;verify(disable.enabled,"Disable remains clickable while a monitor query is loading");mouseClick(disable);wait(30);compare(productionPanel.pendingDisableMonitor,"DP-2");wait(120);fakeController.loading=false;wait(120);verify(fakeController.previewMonitor("DP-2").disabled);compare(fakeController.monitors[1].disabled,false);mouseClick(enable);wait(40);verify(!fakeController.previewMonitor("DP-2").disabled);compare(fakeController.backendCalls,2)
     compare(fakeController.backendCalls,2);compare(fakeController.applyCalls.length,0);compare(fakeController.rollbackSeconds,0);verify(!fakeController.rollbackPending)
     verify(!find(productionPanel.contentItem,"display-save").enabled)
-    var apply=find(productionPanel.contentItem,"display-position-apply"),spinY=apply.parent.children[2]
+    var apply=find(productionPanel.contentItem,"display-position-apply"),spinX=apply.parent.children[1],spinY=apply.parent.children[2]
+    spinX.contentItem.forceActiveFocus();keyClick(Qt.Key_A,Qt.ControlModifier);keyClick(Qt.Key_2);keyClick(Qt.Key_8);keyClick(Qt.Key_0);keyClick(Qt.Key_0)
     spinY.contentItem.forceActiveFocus();keyClick(Qt.Key_A,Qt.ControlModifier);keyClick(Qt.Key_1);keyClick(Qt.Key_0);keyClick(Qt.Key_0)
     compare(fakeController.applyCalls.length,0)
     mouseClick(apply);wait(60)
-    compare(fakeController.applyCalls.length,1);compare(fakeController.rollbackSeconds,5);verify(fakeController.rollbackPending)
-    compare(fakeController.applyCalls[0].monitors[1].y,100)
+    compare(fakeController.applyCalls.length,1);compare(fakeController.rollbackSeconds,15);verify(fakeController.rollbackPending)
+    compare(fakeController.applyCalls[0].monitors[1].x,2800);compare(fakeController.applyCalls[0].monitors[1].y,100)
     verify(!fakeRoot.displayManagerAutoWorkspaces)
-    var keep=find(productionPanel.contentItem,"display-keep");mouseClick(keep);wait(40);verify(!fakeController.rollbackPending)
+    var keep=find(productionPanel.contentItem,"display-keep");mouseClick(keep);wait(40);verify(!fakeController.rollbackPending);compare(fakeController.confirmationCalls[fakeController.confirmationCalls.length-1],"keep")
+    fakeController.rollbackPending=true;fakeController.rollbackSeconds=15;wait(30);var revert=find(productionPanel.contentItem,"display-revert");verify(revert!==null&&revert.enabled);mouseClick(revert);wait(40);verify(!fakeController.rollbackPending);compare(fakeController.confirmationCalls[fakeController.confirmationCalls.length-1],"revert")
    }
-   console.log("EXPLICIT_APPLY_POINTER_PASS V1/V2 drag, mode/scale/rotation, Enable/Disable/Mirror/workspaces stay draft; brightness/font live without timer; typed Apply dispatches once and enables 5s; Keep click; layer Window + controller inert")
+   console.log("EXPLICIT_APPLY_POINTER_PASS V1/V2 drag, mode/Hz/scale/rotation, mirror/Enable/Disable/workspaces stay draft; brightness/font live without timer; X/Y Apply dispatches once with 15s Keep/Revert; layer Window + controller inert")
   }
  }
 }
@@ -107,6 +188,12 @@ with tempfile.TemporaryDirectory(prefix='apply-pointer-',dir=os.environ['TMPDIR'
  print(next(l[l.index('EXPLICIT_APPLY_POINTER_PASS'):] for l in output.splitlines() if 'EXPLICIT_APPLY_POINTER_PASS' in l))
  assert 'MODE_DISPLAY_QML_PASS' in output, output
  print(next(l[l.index('MODE_DISPLAY_QML_PASS'):] for l in output.splitlines() if 'MODE_DISPLAY_QML_PASS' in l))
+ assert 'DISPLAY_COMBO_POPUP_PASS' in output, output
+ print(next(l[l.index('DISPLAY_COMBO_POPUP_PASS'):] for l in output.splitlines() if 'DISPLAY_COMBO_POPUP_PASS' in l))
+ assert 'DISPLAY_REFRESH_SELECTION_PASS' in output, output
+ print(next(l[l.index('DISPLAY_REFRESH_SELECTION_PASS'):] for l in output.splitlines() if 'DISPLAY_REFRESH_SELECTION_PASS' in l))
+ assert 'DISPLAY_SAVE_ERROR_UI_PASS' in output, output
+ print(next(l[l.index('DISPLAY_SAVE_ERROR_UI_PASS'):] for l in output.splitlines() if 'DISPLAY_SAVE_ERROR_UI_PASS' in l))
  assert output.count('WORKSPACE_POINTER_PASS') == 2, output
  for line in output.splitlines():
   if 'WORKSPACE_POINTER_PASS' in line: print(line[line.index('WORKSPACE_POINTER_PASS'):])

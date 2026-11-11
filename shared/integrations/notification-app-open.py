@@ -112,9 +112,18 @@ def desktop_command(app):
             seen.add(path.name)
             try:row=desktop_metadata(path)
             except (OSError,ValueError,KeyError,configparser.Error):continue
-            aliases=[path.stem,row.get('StartupWMClass','')]
-            aliases.extend(value for key,value in row.items() if key=='Name' or key.startswith('Name['))
-            if any(app.casefold()==alias.casefold() for alias in aliases if alias):matches.append(path)
+            # Prefer stable identifiers over translated display names. A
+            # duplicate localized Name must not make a unique desktop ID or
+            # window class unusable, but equal-rank matches remain ambiguous.
+            if app.casefold()==path.stem.casefold():rank=0
+            elif app.casefold()==row.get('StartupWMClass','').casefold():rank=1
+            elif any(app.casefold()==value.casefold() for key,value in row.items()
+                     if key=='Name' or key.startswith('Name[')):rank=2
+            else:continue
+            matches.append((rank,path))
+    if matches:
+        best=min(rank for rank,_ in matches)
+        matches=[path for rank,path in matches if rank==best]
     if len(matches)!=1:
         raise Unavailable('The installed app cannot be identified uniquely for this notification.')
     return [GIO,'launch',str(matches[0])]

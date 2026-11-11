@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Load the production workspace widget with inert actions and no compositor connection."""
-from qml_fixture_source import copy_qml_fixture
+from qml_fixture_source import copy_qml_fixture, write_hyprland_stub
 from pathlib import Path
 import os
 import shutil
@@ -12,6 +12,13 @@ with tempfile.TemporaryDirectory(prefix='rise-workspaces-', dir='/tmp') as direc
     base = Path(directory)
     (base / 'runtime').mkdir(mode=0o700)
     copy_qml_fixture(repo / 'variants/V2/modules/WorkspaceWidget.qml', base)
+    copy_qml_fixture(repo / 'shared/logic/MonitorWorkspaces.js', base)
+    write_hyprland_stub(base)
+    workspace_source = base / 'WorkspaceWidget.qml'
+    workspace_source.write_text(workspace_source.read_text()
+        .replace('import Quickshell.Hyprland', 'import "."')
+        .replace('import "../../../shared/logic/MonitorWorkspaces.js" as MonitorWorkspaces',
+                 'import "MonitorWorkspaces.js" as MonitorWorkspaces'))
     (base / 'shell.qml').write_text('''import QtQuick
 import QtQuick.Window
 import Quickshell

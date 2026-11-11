@@ -20,6 +20,9 @@ PanelWindow {
     property color cardBorderColor: trayMenu.root.pillBorder
     property int cardBorderWidth: trayMenu.root.pillBorderW
     property real rowRadius: trayMenu.root.tileRadius
+    readonly property int maxCardHeight: Math.max(160,
+        Math.min(500, trayMenu.height - trayMenu.barBottom - trayMenu.gap - 12))
+    readonly property int maxListHeight: Math.max(80, trayMenu.maxCardHeight - 96)
     property Component shadowComponent: null
     property Component positionerComponent: null
 
@@ -29,29 +32,39 @@ PanelWindow {
     WlrLayershell.layer: WlrLayer.Overlay
     WlrLayershell.namespace: "omarchy-traymenu"
 
-    // drill-down stack of menu handles (root menu + any opened submenus)
+    // Keep one live opener per submenu level. A child entry belongs to the
+    // parent's children model, so replacing the single root opener destroys
+    // the entry before its submenu can populate.
     property var menuStack: []
-    readonly property var currentHandle: menuStack.length > 0 ? menuStack[menuStack.length - 1] : null
+    readonly property var currentChildren: menuStack.length > 0
+        ? menuStack[menuStack.length - 1].opener.children : opener.children
 
     function strip(t) { return TrayMenuValuesLogic.strip(trayMenu, {}, t) }   // drop GTK mnemonic underscore
 
-    // DBusMenu providers often populate submenu children only after receiving
-    // the entry's opened event. Emit it explicitly, then render its children
-    // in this themed panel instead of opening a native popup behind the overlay.
-    function openSubmenu(entryHandle) { return TrayMenuLogic.openSubmenu(trayMenu, {}, entryHandle) }
+    function openSubmenu(entryHandle) {
+        menuFlick.contentY = 0
+        return TrayMenuLogic.openSubmenu(trayMenu, {}, entryHandle, submenuOpenerComponent)
+    }
 
-    function goBack() { return TrayMenuLogic.goBack(trayMenu, {}) }
+    function goBack() {
+        menuFlick.contentY = 0
+        return TrayMenuLogic.goBack(trayMenu, {})
+    }
+    function resetSubmenus() { return TrayMenuLogic.resetSubmenus(trayMenu, {}) }
 
     Connections {
         target: trayMenu.root
         function onTrayMenuVisibleChanged() {
-            trayMenu.menuStack = trayMenu.root.trayMenuVisible && trayMenu.root.trayMenuHandle ? [trayMenu.root.trayMenuHandle] : []
+            if (trayMenu.root.trayMenuVisible) trayMenu.resetSubmenus()
         }
+        function onTrayMenuHandleChanged() { trayMenu.resetSubmenus() }
     }
+
+    Component { id: submenuOpenerComponent; QsMenuOpener {} }
 
     QsMenuOpener {
         id: opener
-        menu: trayMenu.currentHandle
+        menu: trayMenu.root.trayMenuHandle
     }
 
     property real reveal: trayMenu.root.trayMenuVisible ? 1 : 0
@@ -59,6 +72,7 @@ PanelWindow {
         NumberAnimation { duration: trayMenu.root.trayMenuVisible ? 140 : 100; easing.type: Easing.OutCubic }
     }
     visible: reveal > 0.001
+    onVisibleChanged: if (!visible) trayMenu.resetSubmenus()
     WlrLayershell.keyboardFocus: trayMenu.root.trayMenuVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     MouseArea { anchors.fill: parent; onClicked: trayMenu.root.trayMenuVisible = false }
@@ -66,7 +80,7 @@ PanelWindow {
     Rectangle {
         id: card
         width: 220
-        height: col.implicitHeight + 16
+        height: Math.min(col.implicitHeight + 16, trayMenu.maxCardHeight)
         radius: trayMenu.reveal > 0.001 ? trayMenu.cardRadius : 0
         color: trayMenu.root.bg
         border.color: trayMenu.cardBorderColor
@@ -153,7 +167,7 @@ PanelWindow {
             // back row (only when inside a submenu)
             Rectangle {
                 width: parent.width; height: 24; radius: trayMenu.rowRadius
-                visible: trayMenu.menuStack.length > 1
+                visible: trayMenu.menuStack.length > 0
                 color: backMa.containsMouse ? trayMenu.root.fillHover : "transparent"
                 CommonComponents.UiText {
                     anchors.left: parent.left; anchors.leftMargin: 8
@@ -169,91 +183,108 @@ PanelWindow {
                 }
             }
             Rectangle {
-                width: parent.width; height: 1; color: trayMenu.root.sep
-                visible: trayMenu.menuStack.length > 1
+                width: parent.width; height: visible ? 1 : 0; color: trayMenu.root.sep
+                visible: trayMenu.menuStack.length > 0
             }
 
-            Repeater {
-                model: opener.children
+            Flickable {
+                id: menuFlick
+                width: parent.width
+                height: Math.min(menuRows.implicitHeight, trayMenu.maxListHeight)
+                contentWidth: width
+                contentHeight: menuRows.implicitHeight
+                clip: true
+                interactive: contentHeight > height
+                boundsBehavior: Flickable.StopAtBounds
+                flickableDirection: Flickable.VerticalFlick
 
-                delegate: Item {
-                    id: entry
-                    required property var modelData
-                    width: col.width
-                    height: modelData.isSeparator ? 7 : 26
+                Column {
+                    id: menuRows
+                    width: menuFlick.width
 
-                    // separator
-                    Rectangle {
-                        visible: entry.modelData.isSeparator
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: parent.width; height: 1
-                        color: trayMenu.root.sep
-                    }
+                    Repeater {
+                        model: trayMenu.currentChildren
 
-                    // entry row
-                    Rectangle {
-                        visible: !entry.modelData.isSeparator
-                        anchors.fill: parent
-                        radius: trayMenu.rowRadius
-                        color: (entryMa.containsMouse && entry.modelData.enabled)
-                            ? trayMenu.root.fillActive : "transparent"
-                        Behavior on color { ColorAnimation { duration: 100 } }
+                        delegate: Item {
+                            id: entry
+                            required property var modelData
+                            width: menuRows.width
+                            height: modelData.isSeparator ? 7 : 26
 
-                        // check / radio indicator
-                        CommonComponents.UiText {
-                            id: check
-                            anchors.left: parent.left; anchors.leftMargin: 6
-                            anchors.verticalCenter: parent.verticalCenter
-                            width: 12
-                            text: entry.modelData.checkState === Qt.Checked ? "✓" : ""
-                            color: trayMenu.root.seal
-                            font.family: trayMenu.root.mono; font.pixelSize: 11
-                        }
+                            // separator
+                            Rectangle {
+                                visible: entry.modelData.isSeparator
+                                anchors.verticalCenter: parent.verticalCenter
+                                width: parent.width; height: 1
+                                color: trayMenu.root.sep
+                            }
 
-                        Image {
-                            id: entryIcon
-                            anchors.left: check.right; anchors.leftMargin: 2
-                            anchors.verticalCenter: parent.verticalCenter
-                            visible: (entry.modelData.icon || "") !== ""
-                            source: entry.modelData.icon || ""
-                            sourceSize.width: 14; sourceSize.height: 14
-                            width: visible ? 14 : 0; height: 14
-                            fillMode: Image.PreserveAspectFit; smooth: true
-                        }
+                            // entry row
+                            Rectangle {
+                                visible: !entry.modelData.isSeparator
+                                anchors.fill: parent
+                                radius: trayMenu.rowRadius
+                                color: (entryMa.containsMouse && entry.modelData.enabled)
+                                    ? trayMenu.root.fillActive : "transparent"
+                                Behavior on color { ColorAnimation { duration: 100 } }
 
-                        CommonComponents.UiText {
-                            anchors.left: entryIcon.right; anchors.leftMargin: 6
-                            anchors.right: arrow.left; anchors.rightMargin: 4
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: trayMenu.strip(entry.modelData.text)
-                            color: entry.modelData.enabled ? trayMenu.root.ink
-                                 : Qt.rgba(trayMenu.root.ink.r, trayMenu.root.ink.g, trayMenu.root.ink.b, 0.35)
-                            font.family: trayMenu.root.mono; font.pixelSize: 11
-                            elide: Text.ElideRight
-                        }
+                                // check / radio indicator
+                                CommonComponents.UiText {
+                                    id: check
+                                    anchors.left: parent.left; anchors.leftMargin: 6
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    width: 12
+                                    text: entry.modelData.checkState === Qt.Checked ? "✓" : ""
+                                    color: trayMenu.root.seal
+                                    font.family: trayMenu.root.mono; font.pixelSize: 11
+                                }
 
-                        // submenu arrow
-                        CommonComponents.UiText {
-                            id: arrow
-                            anchors.right: parent.right; anchors.rightMargin: 8
-                            anchors.verticalCenter: parent.verticalCenter
-                            visible: entry.modelData.hasChildren
-                            text: "›"; color: trayMenu.root.sumiHi
-                            font.family: trayMenu.root.mono; font.pixelSize: 13
-                        }
+                                Image {
+                                    id: entryIcon
+                                    anchors.left: check.right; anchors.leftMargin: 2
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: (entry.modelData.icon || "") !== ""
+                                    source: entry.modelData.icon || ""
+                                    sourceSize.width: 14; sourceSize.height: 14
+                                    width: visible ? 14 : 0; height: 14
+                                    fillMode: Image.PreserveAspectFit; smooth: true
+                                }
 
-                        MouseArea {
-                            id: entryMa
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            enabled: entry.modelData.enabled
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                if (entry.modelData.hasChildren) {
-                                    trayMenu.openSubmenu(entry.modelData)
-                                } else {
-                                    entry.modelData.triggered()
-                                    trayMenu.root.trayMenuVisible = false
+                                CommonComponents.UiText {
+                                    anchors.left: entryIcon.right; anchors.leftMargin: 6
+                                    anchors.right: arrow.left; anchors.rightMargin: 4
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    text: trayMenu.strip(entry.modelData.text)
+                                    color: entry.modelData.enabled ? trayMenu.root.ink
+                                         : Qt.rgba(trayMenu.root.ink.r, trayMenu.root.ink.g, trayMenu.root.ink.b, 0.35)
+                                    font.family: trayMenu.root.mono; font.pixelSize: 11
+                                    elide: Text.ElideRight
+                                }
+
+                                // submenu arrow
+                                CommonComponents.UiText {
+                                    id: arrow
+                                    anchors.right: parent.right; anchors.rightMargin: 8
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    visible: entry.modelData.hasChildren
+                                    text: "›"; color: trayMenu.root.sumiHi
+                                    font.family: trayMenu.root.mono; font.pixelSize: 13
+                                }
+
+                                MouseArea {
+                                    id: entryMa
+                                    anchors.fill: parent
+                                    hoverEnabled: true
+                                    enabled: entry.modelData.enabled
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: {
+                                        if (entry.modelData.hasChildren) {
+                                            trayMenu.openSubmenu(entry.modelData)
+                                        } else {
+                                            entry.modelData.triggered()
+                                            trayMenu.root.trayMenuVisible = false
+                                        }
+                                    }
                                 }
                             }
                         }

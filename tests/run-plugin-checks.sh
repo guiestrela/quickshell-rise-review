@@ -69,6 +69,7 @@ check "Python syntax (including extensionless helpers)" check_python_syntax
 check "AI authentication cache fallback" python3 tests/test-ai-auth-status.py
 check "notification snapshot resilience" python3 tests/test-notification-snapshot.py
 check "notification DND state V1/V2" python3 tests/test-notification-dnd-runtime.py
+check "native network diagnostics, bands and portal" python3 tests/test-network-diagnostics.py
 
 if [[ -x /usr/lib/qt6/bin/qmllint ]]; then
   qmllint=/usr/lib/qt6/bin/qmllint
@@ -104,6 +105,8 @@ check_qml() {
 check_qml
 check "source layout and local imports" python3 tests/test-source-layout.py
 check "Omarchy native indicators" python3 tests/test-omarchy-indicators.py
+check "independent Indicators module V1/V2" python3 tests/test-v2-inline-indicators.py
+check "active Indicators visual centering" python3 tests/test-indicators-visible-centering.py
 
 check "variant failure and retry" python3 tests/test-variant-failure-runtime.py
 check "network SSID width" python3 tests/test-network-ssid-width.py
@@ -111,6 +114,16 @@ check "weather radar lifecycle" python3 tests/test-weather-radar-lifecycle.py
 check "shared telemetry and V1/V2 widget parity" python3 tests/test-shared-telemetry-widgets.py
 check "V1 empty slots and drag" python3 tests/test-v1-empty-slots.py
 check "V1 new widgets layout" node --test tests/v1-new-widgets-layout.test.mjs
+check "Elsewhen widget state and actions" python3 tests/test-elsewhen-widget.py
+check "Elsewhen shared popup routing" python3 tests/test-elsewhen-theme-panels.py
+check "Elsewhen first-run preference lifecycle" python3 tests/test-elsewhen-first-run.py
+check "Elsewhen settings error recovery" python3 tests/test-elsewhen-settings-errors.py
+check "Elsewhen service lifecycle, persistence and reopen" python3 tests/test-elsewhen-service.py
+check "Elsewhen inert process adapter" python3 tests/test-elsewhen-process-adapter.py
+check "Elsewhen world-clock content actions" python3 tests/test-elsewhen-panel-content.py
+check "Elsewhen V1/V2 panel adapters" python3 tests/test-elsewhen-panel-adapters.py
+check "Elsewhen G24 surface style serialization" node --test tests/elsewhen-g24-styles.test.mjs
+check "Elsewhen shared model data" node --test tests/elsewhen-model.test.mjs
 check "shared theme behavior" node --test tests/shared-theme-behavior.test.mjs
 check "shared overlay contracts" node --test tests/shared-overlay-contracts.test.mjs
 check "system panel bindings" python3 tests/test-system-panels-runtime.py
@@ -141,9 +154,9 @@ check "AI panel variants and bundled quotes" python3 tests/test-panel-variant-co
 
 check "JavaScript regressions" node --test tests/*.test.mjs tests/*.test.cjs tests/test-display-*.cjs
 check "bar style previews" python3 tests/test-bar-style-preview.py
-check "vertical bar layout" python3 tests/test-vertical-bar-layout.py
-check "V1 vertical bar layout" python3 tests/test-v1-vertical-bar.py
-check "vertical workspaces" python3 tests/test-vertical-workspaces.py
+check "horizontal-only bar" python3 tests/test-horizontal-only-bar.py
+check "V1 horizontal slot pointer interactions" env RISE_HORIZONTAL_VARIANT=V1 python3 tests/test-v2-horizontal-slot-interaction.py
+check "V2 horizontal slot pointer interactions" python3 tests/test-v2-horizontal-slot-interaction.py
 check "workspace focus and navigation" python3 tests/test-workspace-focus-runtime.py
 check "AI collector installation" bash tests/install-ai-backends-integration.sh
 check "Codex cache fallback" env TMPDIR="$tmp" python3 tests/codex-cache-fallback-regression.py

@@ -73,12 +73,12 @@ Scope {
     test.phase=2
    } else if(test.phase===2 && c.rollbackPending && !c.busy) {
     effects.reload();var applied=JSON.parse(effects.text())
-    if(applied.eval!==1 || applied.brightness!==1 || applied.font!==1 || c.rollbackSeconds!==5) { test.fail("single batch, immediate settings or five-second timer "+JSON.stringify(applied)+" seconds="+c.rollbackSeconds);return }
+    if(applied.eval!==1 || applied.brightness!==1 || applied.font!==1 || c.rollbackSeconds!==15) { test.fail("single batch, immediate settings or fifteen-second timer "+JSON.stringify(applied)+" seconds="+c.rollbackSeconds);return }
     c.confirmChanges();test.phase=3
    } else if(test.phase===3 && !c.rollbackPending && !c.confirmationBusy && !c.busy && !c.loading && !c.extraQueue.length) {
     effects.reload();var final=JSON.parse(effects.text())
     if(final.eval!==1 || final.brightness!==1 || final.font!==1 || c.monitors[0].y!==100 || c.monitors[1].y!==100 || c.textSizeIndex!==4) { test.fail("Keep must commit extras and preserve batch "+JSON.stringify(final)+" "+c.error);return }
-    console.log("EXPLICIT_RUNTIME_PASS before Apply: zero geometry/timer, brightness/font immediate; Apply: one real guarded batch and 5s; Keep: geometry confirmed, settings unchanged, readback; private inert compositor")
+    console.log("EXPLICIT_RUNTIME_PASS before Apply: zero geometry/timer, brightness/font immediate; Apply: one real guarded batch and 15s; Keep: geometry confirmed, settings unchanged, readback; private inert compositor")
     Qt.quit()
    }
   }

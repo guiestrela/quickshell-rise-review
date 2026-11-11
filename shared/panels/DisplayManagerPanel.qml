@@ -11,17 +11,77 @@ PanelWindow {
     readonly property int barBottom: 35
     readonly property int gap: 8
     property Component headerComponent: null
+    property string pendingDisableMonitor: ""
+    property int pendingDisableWaits: 0
     readonly property Item surfaceHost: frameCard
     readonly property var controller: root.displayManagerControllerApi
     readonly property var selectedDisplay: controller.previewMonitor(controller.selectedMonitor)
     property bool draftAutoWorkspaces: root.displayManagerAutoWorkspaces
+    function disableSelectedMonitor() {
+        var name = controller.selectedMonitor
+        if (!name) return false
+        if (root.activePopupScreenName === name) {
+            var fallback = controller.previewMonitors.find(function(m) {
+                return m.name !== name && !m.disabled && (!m.mirrorOf || m.mirrorOf === "none")
+            })
+            if (!fallback || !root.activatePopupScreenByName(fallback.name)) {
+                controller.error = "Could not move Display Manager to the remaining monitor."
+                return false
+            }
+            pendingDisableMonitor = name
+            pendingDisableWaits = 0
+            disableTimer.restart()
+            return true
+        }
+        if (controller.loading || controller.busy || controller.displayStateSaving) {
+            pendingDisableMonitor = name
+            pendingDisableWaits = 0
+            disableTimer.restart()
+            return true
+        }
+        return controller.disableMonitor(name)
+    }
+    Timer {
+        id: disableTimer
+        interval: 100
+        repeat: false
+        onTriggered: {
+            var name = panel.pendingDisableMonitor
+            if (!name) return
+            if (!panel.root.displayManagerVisible) { panel.pendingDisableMonitor = ""; return }
+            if (panel.root.activePopupScreenName === name) {
+                // Moving a layer-shell panel to another output is asynchronous.
+                // Keep waiting for the screen change instead of cancelling the
+                // Disable action on the first 100 ms timer tick.
+                if (++panel.pendingDisableWaits < 150) { restart(); return }
+                panel.pendingDisableMonitor = ""
+                panel.controller.error = "Display Manager could not move to the remaining monitor; output was not disabled."
+                return
+            }
+            if (panel.controller.rollbackPending) {
+                panel.pendingDisableMonitor = ""
+                panel.controller.error = "Keep or revert the pending display change before disabling another monitor."
+                return
+            }
+            if (panel.controller.loading || panel.controller.busy || panel.controller.displayStateSaving) {
+                if (++panel.pendingDisableWaits < 150) { restart(); return }
+                panel.pendingDisableMonitor = ""
+                panel.controller.error = "Display Manager stayed busy; retry Disable after it finishes."
+                return
+            }
+            panel.pendingDisableMonitor = ""
+            panel.controller.disableMonitor(name)
+        }
+    }
     function applyChanges() {
         if (controller.busy || controller.loading || controller.rollbackPending) return false
         var m = selectedDisplay
         if (m && !m.disabled) {
             if (!posX.contentItem.acceptableInput || !posY.contentItem.acceptableInput) return false
             var x = posX.valueFromText(posX.contentItem.text, posX.locale), y = posY.valueFromText(posY.contentItem.text, posY.locale)
-            if (!Number.isInteger(x) || !Number.isInteger(y) || !controller.stageMonitor(m.name, { x: x, y: y })) return false
+            if (!Number.isInteger(x) || !Number.isInteger(y)) return false
+            if ((x !== Number(m.x) || y !== Number(m.y))
+                    && !controller.stageMonitor(m.name, { x: x, y: y })) return false
         }
         if (!controller.applyDrafts()) return false
         root.displayManagerAutoWorkspaces = draftAutoWorkspaces
@@ -158,6 +218,7 @@ PanelWindow {
         indicator: Text { x: combo.width - 18; y: 7; text: "▾"; color: panel.root.seal; font: combo.font }
         background: Rectangle { radius: panel.root.tileRadius; color: combo.hovered ? panel.root.fillHover : panel.root.fillIdle; border.color: combo.activeFocus ? panel.root.seal : panel.root.sep }
         delegate: Controls.ItemDelegate {
+            required property var modelData
             width: combo.width
             text: String(modelData)
             contentItem: Text { text: parent.text; textFormat: Text.PlainText; color: panel.root.ink; font: combo.font; elide: Text.ElideRight; verticalAlignment: Text.AlignVCenter }
@@ -291,7 +352,8 @@ PanelWindow {
                     width: parent.width
                     height: 24
                     Text { id: displaySectionLabel; anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "DISPLAYS · drag cards to arrange"; color: panel.root.ink; font.family: panel.root.mono; font.pixelSize: 11; font.bold: true }
-                    RiseButton { objectName: panel.connectedStyle ? "display-refresh-v2" : "display-refresh"; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; width: 18; height: 18; padding: 0; font.pixelSize: 10; text: "↻"; onClicked: { panel.controller.refresh(); panel.controller.refreshWorkspaces() } }
+                    RiseButton { objectName: panel.connectedStyle ? "display-refresh-v2" : "display-refresh"; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; width: 18; height: 18; padding: 0; font.family: "Material Symbols Rounded"; font.pixelSize: 14; text: "\uE5D5"; background: Item {}
+                        onClicked: { panel.controller.refresh(); panel.controller.refreshWorkspaces() } }
                 }
                 Text {
                     visible: panel.controller.busy || panel.controller.loading
@@ -371,7 +433,7 @@ PanelWindow {
                     width: parent.width; spacing: 6
                     Repeater { model: panel.controller.previewMonitors
                         delegate: RiseButton {
-                            id: entryDelegate1; required property var modelData; text: modelData.name + (modelData.disabled ? " · OFF" : ""); onClicked: panel.controller.selectedMonitor=modelData.name }
+                            id: entryDelegate1; required property var modelData; text: modelData.name + (modelData.disabled ? " · OFF" : ""); checkable: true; checked: modelData.name === panel.controller.selectedMonitor; onClicked: panel.controller.selectedMonitor=modelData.name }
                     }
                 }
 
@@ -391,7 +453,8 @@ PanelWindow {
                     }
                 }
                 Row {
-                    enabled: !panel.controller.busy && !panel.controller.loading && panel.controller.rollbackPending !== true && panel.controller.selectedMonitor !== ""
+                    enabled: !panel.controller.busy && !panel.controller.loading && !panel.controller.displayStateSaving
+                        && panel.controller.rollbackPending !== true && panel.controller.selectedMonitor !== ""
                     width: parent.width; spacing: 8
                     Text { text: "Position"; color: panel.root.ink; width: 74; anchors.verticalCenter: parent.verticalCenter; font.family: panel.root.mono; font.pixelSize: 11 }
                     RiseSpinBox { width: 100; id: posX; from: -32767; to: 32767; value: panel.selectedDisplay ? Number(panel.selectedDisplay.x || 0) : 0; editable: true; onValueModified: if (panel.selectedDisplay) panel.controller.stageMonitor(panel.selectedDisplay.name, { x: value }) }
@@ -420,6 +483,7 @@ PanelWindow {
                 }
                 Row {
                     objectName: "display-monitor-workspaces"
+                    visible: !panel.root.omarchyPerMonitorWorkspaces
                     enabled: !panel.controller.busy && !panel.controller.loading && !panel.controller.rollbackPending
                         && !panel.controller.workspaceLoading && !panel.controller.workspaceCommitPending
                         && panel.controller.extraQueue.length === 0 && panel.controller.workspaceStateReady
@@ -447,18 +511,46 @@ PanelWindow {
                     }
                 }
                 Row {
-                    enabled: !panel.controller.busy && !panel.controller.loading && panel.controller.rollbackPending !== true && panel.controller.selectedMonitor !== ""
+                    objectName: "display-monitor-workspaces-native"
+                    visible: panel.root.omarchyPerMonitorWorkspaces
+                    width: parent.width; height: 30
+                    Text {
+                        text: "Workspaces 1–10 are managed separately on each monitor by Omarchy."
+                        color: panel.root.ink; width: parent.width; wrapMode: Text.Wrap
+                        font.family: panel.root.mono; font.pixelSize: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+                Row {
+                    enabled: !panel.controller.busy && panel.controller.rollbackPending !== true && panel.controller.selectedMonitor !== ""
                     width: parent.width; spacing: 8
                     Text { text: "Mode"; color: panel.root.ink; anchors.verticalCenter: parent.verticalCenter; font.family: panel.root.mono; font.pixelSize: 11 }
                     RiseButton {
                         objectName: "display-mirror"
                         readonly property bool mirrorActive: Boolean(panel.selectedDisplay && panel.selectedDisplay.mirrorOf && panel.selectedDisplay.mirrorOf !== "none")
                         text: "Mirror · " + (mirrorActive ? "ON" : "OFF")
-                        enabled: mirrorActive || (panel.mirrorTargets().length > 0 && panel.selectedDisplay && !panel.selectedDisplay.disabled)
+                        enabled: !panel.controller.busy && !panel.controller.loading && !panel.controller.rollbackPending
+                            && (mirrorActive || (panel.mirrorTargets().length > 0 && panel.selectedDisplay && !panel.selectedDisplay.disabled))
                         onClicked: panel.controller.toggleMirror(true)
                     }
-                    RiseButton { objectName: "display-enable"; text: "Enable"; onClicked: panel.controller.enableMonitor(panel.controller.selectedMonitor, true) }
-                    RiseButton { objectName: "display-disable"; enabled: panel.activeDisplayCount() > 1; text: "Disable"; onClicked: panel.controller.stageDisable(panel.controller.selectedMonitor) }
+                    RiseButton {
+                        objectName: "display-enable"
+                        text: "Enable"
+                        enabled: !!panel.selectedDisplay
+                            && !panel.controller.displayStateSaving && !panel.controller.busy
+                            && !panel.controller.loading && !panel.controller.rollbackPending
+                            && panel.root.hyprDispatchModeReady !== false
+                            && (panel.root.omarchyPerMonitorWorkspaces || !panel.root.displayManagerAutoWorkspaces
+                                || (panel.controller.workspaceStateReady && !panel.controller.workspaceLoading))
+                        onClicked: panel.controller.enableMonitor(panel.controller.selectedMonitor, false)
+                    }
+                    RiseButton {
+                        objectName: "display-disable"
+                        enabled: panel.pendingDisableMonitor === "" && panel.activeDisplayCount() > 1
+                            && !panel.controller.busy && !panel.controller.rollbackPending
+                        text: "Disable"
+                        onClicked: panel.disableSelectedMonitor()
+                    }
                 }
                 Rectangle { width: parent.width; height: 1; color: panel.root.sep }
                 Row {
@@ -477,7 +569,12 @@ PanelWindow {
                 Row {
                     enabled: !panel.controller.busy && !panel.controller.loading && panel.controller.rollbackPending !== true
                     width: parent.width; spacing: 8
-                    RiseCheckBox { objectName: "display-workspaces"; text: "Auto-bind workspaces"; checked: panel.draftAutoWorkspaces; onToggled: panel.draftAutoWorkspaces = checked }
+                    RiseCheckBox {
+                        objectName: "display-workspaces"
+                        visible: !panel.root.omarchyPerMonitorWorkspaces
+                        text: "Auto-bind workspaces"; checked: panel.draftAutoWorkspaces
+                        onToggled: panel.draftAutoWorkspaces = checked
+                    }
                     RiseButton { objectName: "display-save"; text: "Save layout"; enabled: !panel.controller.busy && !panel.controller.hasDrafts && !panel.controller.workspaceLoading && !panel.controller.workspaceCommitPending && panel.draftAutoWorkspaces === panel.root.displayManagerAutoWorkspaces; onClicked: panel.controller.saveLayout() }
                 }
                 Column {

@@ -33,8 +33,8 @@ PanelWindow {
 
     Rectangle {
         id: card
-        width: Math.min(340, parent.width - 16)
-        height: Math.min(body.contentHeight + 24, Math.min(680, Math.max(220, parent.height - panel.barBottom - panel.gap - 16)))
+        width: Math.min(414, parent.width - 16)
+        height: Math.min(body.contentHeight + 24, Math.max(220, parent.height - panel.barBottom - panel.gap - 16))
         x: Math.round(Math.max(8, Math.min(panel.root.elsewhenBarX - width / 2, parent.width - width - 8)))
         y: panel.root.barPosition === "bottom"
             ? parent.height - panel.barBottom - panel.gap - height + panel.revealShift

@@ -64,11 +64,7 @@ V2 adds four outer-shell layouts:
 - **Dock**: attach a content-width surface to the screen edge
 - **Notch**: attach the compact surface with continuous side transitions
 
-V1 also supports **Left** and **Right** in the Position controls. Its lateral bar uses a 40px rail for the V1 pills, with workspaces in a column and panels opening toward the desktop. The saved widget order is shared with Top/Bottom; long layouts scroll. Switching position preserves widget preferences. Split all, Merge all, Default layout, slot editing, and gap animations also apply to the vertical layout using the same saved order and splits.
-
-V2 can place every shell at the top or bottom edge. All four V2 shells also support **Left** and **Right** in the Position controls. Lateral Full, Dock, and Notch bars reserve 40px; Fit reserves 44px including its 2px outer margins. Both use compact widgets and panels that open toward the desktop. Dock attaches to the lateral edge with rounded desktop-facing corners; Notch adds curved shoulders at its ends. Switching positions preserves the selected shell. The widget order and visibility settings are shared with the horizontal layout: Left groups stay at the top, Center groups in the middle, and Right groups at the bottom. If the groups do not fit, the layout scrolls without overlapping them. Panel and tooltip backgrounds remain dense independently of bar Frost.
-
-On a lateral bar, workspaces appear in a column using the selected visual style and 5/10/active mode. Left-click a workspace to switch to it, right-click for the workspace panel, or scroll to navigate. Click the clock for the calendar and right-click for weather. **Edit slots** enables vertical slot swapping; use the wheel to scroll long layouts and `Esc` to finish editing. The style cards preview each shell. The Bar Border and Panel & Tooltip Border controls are independent. Full, Fit, Dock, and Notch offer Frost, which lowers the bar background opacity; compositor blur depends on the active desktop theme. The preference is shared across all four V2 shells and preserves the previously saved Notch Frost setting.
+Lateral bar positions (Left/Right) are removed. Both variants now support only **Top** and **Bottom**; changing between those two positions preserves the saved widget order and preferences. V2 retains Full, Fit, Dock, and Notch shell styles on the horizontal edges.
 
 ## Apply colors and widget styles
 
@@ -141,8 +137,8 @@ Read [Maintain and recover Quickshell Rise](maintenance-and-recovery.md) for sta
 ## Extra positions for customization
 
 Unlock the bar to reveal empty drop targets, then drag a widget into one to
-move it between regions. V1 has 32 positions: 15 on the left, 3 in the center
-and 14 on the right, including ten empty positions in the default layout.
+move it between regions. V1 has 37 positions: 15 on the left, 8 in the center
+and 14 on the right, including thirteen empty positions in the default layout.
 Empty positions disappear when the bar is locked; existing saved widget order
 and split settings are migrated in place. Escape locks the bar again.
 
@@ -156,12 +152,36 @@ Rise reads the native `notifications/live.json` and `history.json` stores and
 the `quiet.json` do-not-disturb state. Native keys keep entries stable across
 shell restarts, and modern entries disappear from Rise when the host removes
 them through retention. The Rise panel displays up to 50 recent entries.
+On Omarchy 4.5, file-change watching refreshes the badge and panel as the native
+service writes notification state.
 
 Closing an entry hides it in Rise. **Clear all** hides the retained Rise entries
 and dismisses native popups; Omarchy continues to manage its own stored history.
 The notification action buttons provided by applications remain available on
 the native Omarchy popups. Rise retains its supported app-opening and verified
 action fallbacks; it does not replay arbitrary commands from stored messages.
+
+## Network diagnostics, bands and sign-in
+
+The Network panel in V1 and V2 includes router/internet latency and ICMP
+packet-loss measurements. Samples are collected only while the panel is open;
+latency averages successful replies among the last five samples, and loss
+uses up to 24 samples. Changing interface resets the measurements.
+
+For a connected Wi-Fi network with multiple bands, choose **Auto**, **2.4 GHz**,
+**5 GHz** or **6 GHz**, according to the bands the native helper reports.
+Changing band reconnects Wi-Fi. The Omarchy helper attempts to restore the old
+setting if reconnection fails, and the panel displays any failure.
+
+When NetworkManager detects a captive portal, **Sign in to network** opens the
+native Omarchy login flow. That flow temporarily pauses a Tailscale exit node
+when necessary and restores it afterwards. Limited connectivity alone does not
+show a login button. Disabled NetworkManager connectivity checks are treated
+as unknown, without an additional HTTP probe from Rise.
+
+The commands `omarchy-network-status`, `omarchy-network-band` and
+`omarchy-network-captive-portal` must be available. These additions share one
+implementation across V1/V2 and do not install another Network plugin.
 
 ## Native Omarchy indicators
 

@@ -16,7 +16,7 @@ function migrateV2Entries(left, center, right) {
     for (var i = 0; i < all.length; i++) {
         var id = all[i].gid
         if (id === "") continue
-        if (!/^G(?:[1-9]|1[0-9]|2[0-2])$/.test(id) || seen[id]) return null
+        if (!/^G(?:[1-9]|1[0-9]|2[0-4])$/.test(id) || seen[id]) return null
         seen[id] = true
     }
     has = seen.G20 === true

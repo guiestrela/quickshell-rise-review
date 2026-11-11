@@ -566,6 +566,7 @@ PanelWindow {
                     WidgetStateTile { gid: "G1";  width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Launcher";      shown: true; canHide: false }
                     WidgetStateTile { gid: "G2";  width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Workspaces";    shown: true; canHide: false }
                     WidgetStateTile { gid: "G3";  width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Status";        shown: ctrlPanel.root.modStatus;          onVisibilityToggled: ctrlPanel.root.modStatus = !ctrlPanel.root.modStatus }
+                    WidgetStateTile { gid: "G23"; width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Indicators"; shown: ctrlPanel.root.modIndicators; onVisibilityToggled: ctrlPanel.root.modIndicators = !ctrlPanel.root.modIndicators }
                     WidgetStateTile { gid: "G4";  width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Memory";        shown: ctrlPanel.root.modMemory;          supportsCompact: true; compact: ctrlPanel.root.iconOnly("G4");  onVisibilityToggled: ctrlPanel.root.modMemory = !ctrlPanel.root.modMemory; onModeToggled: ctrlPanel.root.toggleIconOnly("G4") }
                     WidgetStateTile { gid: "G5";  width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "CPU";           shown: ctrlPanel.root.modCpu;             supportsCompact: true; compact: ctrlPanel.root.iconOnly("G5");  onVisibilityToggled: ctrlPanel.root.modCpu = !ctrlPanel.root.modCpu; onModeToggled: ctrlPanel.root.toggleIconOnly("G5") }
                     WidgetStateTile { gid: "G6";  width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Volume";        shown: ctrlPanel.root.modVolume;          supportsCompact: true; compact: ctrlPanel.root.iconOnly("G6");  onVisibilityToggled: ctrlPanel.root.modVolume = !ctrlPanel.root.modVolume; onModeToggled: ctrlPanel.root.toggleIconOnly("G6") }
@@ -585,6 +586,7 @@ PanelWindow {
                     WidgetStateTile { gid: "G17"; width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "GPU load";      shown: ctrlPanel.root.modGpu;             supportsCompact: true; compact: ctrlPanel.root.iconOnly("G17"); onVisibilityToggled: ctrlPanel.root.modGpu = !ctrlPanel.root.modGpu; onModeToggled: ctrlPanel.root.toggleIconOnly("G17") }
                     WidgetStateTile { gid: "G18"; width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "HDD";           shown: ctrlPanel.root.modStorage;         supportsCompact: true; compact: ctrlPanel.root.iconOnly("G18"); onVisibilityToggled: ctrlPanel.root.modStorage = !ctrlPanel.root.modStorage; onModeToggled: ctrlPanel.root.toggleIconOnly("G18") }
                     WidgetStateTile { gid: "G22"; width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "OneDrive"; shown: ctrlPanel.root.modOneDrive; supportsCompact: true; compact: ctrlPanel.root.iconOnly("G22"); onVisibilityToggled: ctrlPanel.root.modOneDrive = !ctrlPanel.root.modOneDrive; onModeToggled: ctrlPanel.root.toggleIconOnly("G22") }
+                    WidgetStateTile { objectName: "elsewhen-widget-toggle"; gid: "G24"; width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "World Clock"; shown: ctrlPanel.root.modElsewhen; onVisibilityToggled: ctrlPanel.root.modElsewhen = !ctrlPanel.root.modElsewhen }
                 }
 
                 Rectangle {
@@ -931,11 +933,7 @@ PanelWindow {
                     Tile { width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Top";    active: ctrlPanel.root.barPosition === "top";    onActivated: ctrlPanel.root.barPosition = "top" }
                     Tile { width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Bottom"; active: ctrlPanel.root.barPosition === "bottom"; onActivated: ctrlPanel.root.barPosition = "bottom" }
                 }
-                Row {
-                    width: parent.width; spacing: 4
-                    Tile { width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Left"; active: ctrlPanel.root.barPosition === "left"; onActivated: ctrlPanel.root.barPosition = "left" }
-                    Tile { width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Right"; active: ctrlPanel.root.barPosition === "right"; onActivated: ctrlPanel.root.barPosition = "right" }
-                }
+
 
                 Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 

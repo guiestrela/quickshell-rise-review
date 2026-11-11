@@ -32,7 +32,7 @@ with tempfile.TemporaryDirectory(prefix='rise-notifications-', dir='/tmp') as di
     (panels/'NotificationActions.js').write_bytes(qml_fixture_bytes(qml_fixture_source(repo/'shared/integrations/NotificationActions.js')))
     (panels/'InertProcess.qml').write_text('import QtQuick\nQtObject { property var command: []; property bool running: false; property var stdout; signal exited(int exitCode) }')
     (panels/'InertCollector.qml').write_text('import QtQuick\nQtObject { property string text: ""; signal streamFinished() }')
-    (panels/'InertFileView.qml').write_text('import QtQuick\nQtObject { property string path; property string contents: ""; signal loaded(); signal loadFailed(); function reload() { loadFailed() } function text() { return contents } function setText(value) { contents=value } }')
+    (panels/'InertFileView.qml').write_text('import QtQuick\nQtObject { property string path; property string contents: ""; property bool watchChanges: false; property bool printErrors: true; signal loaded(); signal loadFailed(); signal fileChanged(); function reload() { loadFailed() } function text() { return contents } function setText(value) { contents=value } }')
     (common / 'NotificationPanel.qml').write_text(text)
     (panels / 'NotificationPanel.qml').write_text(adapter)
     for name in ['NotificationActions.js','InertProcess.qml','InertCollector.qml','InertFileView.qml']:

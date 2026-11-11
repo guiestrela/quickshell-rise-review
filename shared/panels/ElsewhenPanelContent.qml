@@ -2,41 +2,19 @@ pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
 import "../components" as SharedComponents
-import "../integrations/elsewhen" as Elsewhen
 import "../integrations/elsewhen/GlobeModel.js" as Globe
-import "../integrations/elsewhen/Model.js" as Model
 
 Item {
     id: panel
     required property var root
     required property var service
-    property real scrubMinutes: 0
     property string searchText: ""
     property string statusMessage: ""
     property real globeSpin: 0
     property real globeDragX: 0
-    readonly property var contentRoot: panel
     property bool timezoneConfirmationVisible: false
-    property int peopleEditIndex: -1
-    property int draggingCityIndex: -1
-    property int rowDragTargetIndex: -1
-    property real rowDragPitch: 104
-    property var profiles: ({})
-    property string temperatureLabel: ""
     property string timezoneTarget: service.clockRows.length ? service.clockRows[0].id : service.localZone
-    property string keyboardFocusId: ""
-    readonly property double effectiveMs: (service.nowMs !== undefined ? service.nowMs : Date.now()) + scrubMinutes * 60000
-    readonly property bool hour24: service.preferenceData ? service.preferenceData.hour24 === true : false
-    readonly property var displayRows: {
-        var zones = service.cities || []
-        var probeData = service.probe || ({})
-        if (Object.keys(probeData).length === 0) return service.clockRows || []
-        var offset = service.localOffsetMinutes !== undefined ? service.localOffsetMinutes : 0
-        var use24 = service.preferenceData && service.preferenceData.hour24 === true
-        return Model.rows(zones, probeData, effectiveMs, offset, use24)
-    }
-    readonly property var searchResults: typeof service.searchLocations === "function"
-        ? service.searchLocations(searchText, 8) : service.searchZones(searchText, 8)
+    readonly property var searchResults: service.searchZones(searchText, 8)
     readonly property real contentHeight: contentColumn.implicitHeight
     property alias refreshButton: refreshAction
     property alias hour24Button: hour24Action
@@ -50,197 +28,6 @@ Item {
     property alias globeDragArea: globeDragArea
     property alias changeTimezoneButton: changeTimezoneAction
     property alias confirmTimezoneButton: confirmTimezoneAction
-    focus: true
-    Keys.priority: Keys.AfterItem
-    Keys.onPressed: function(event) {
-        if (event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)) return
-        if (event.key === Qt.Key_Escape) {
-            handleEscape()
-        } else if (zoneSearchInput.activeFocus || peopleEditIndex >= 0) {
-            return
-        } else if (event.key === Qt.Key_Up || event.key === Qt.Key_Down
-                || event.text === "k" || event.text === "j") {
-            var moveUp = event.key === Qt.Key_Up || event.text === "k"
-            moveKeyboardFocus(moveUp ? -1 : 1)
-        } else if (event.key === Qt.Key_Left || event.key === Qt.Key_Right
-                || event.text === "h" || event.text === "l") {
-            var shiftEarlier = event.key === Qt.Key_Left || event.text === "h"
-            shiftHour(shiftEarlier ? -1 : 1)
-        } else if (event.key === Qt.Key_Delete || event.text === "x" || event.text === "X") {
-            deleteFocusedCity()
-        } else if (event.key === Qt.Key_R) {
-            if (!service.refresh()) statusMessage = service.lastError
-        } else if (event.key === Qt.Key_T) {
-            toggleHour24()
-        } else if (event.key === Qt.Key_A || event.key === Qt.Key_Plus
-                || (event.key === Qt.Key_Equal && (event.modifiers & Qt.ShiftModifier))) {
-            zoneSearchInput.forceActiveFocus()
-        } else if (event.key === Qt.Key_P) {
-            var targetIndex = cityIndexForZone(keyboardFocusId || timezoneTarget)
-            if (targetIndex < 0) return
-            startPeopleEdit(targetIndex)
-        } else {
-            return
-        }
-        event.accepted = true
-    }
-
-    function toggleHour24() {
-        if (!service.updateSetting("hour24", !hour24)) statusMessage = service.lastError
-    }
-
-    function cityIndexForZone(zoneId) {
-        var cities = service.cities || []
-        for (var i = 0; i < cities.length; i++) {
-            if (String(cities[i].id || "") === String(zoneId || "")) return i
-        }
-        return -1
-    }
-
-    function moveKeyboardFocus(step) {
-        var cities = service.cities || []
-        if (cities.length === 0) return
-        var current = cityIndexForZone(keyboardFocusId || timezoneTarget)
-        if (current < 0) current = step > 0 ? -1 : 0
-        var next = (current + step + cities.length) % cities.length
-        focusCity(next)
-    }
-
-    function focusCity(index) {
-        var cities = service.cities || []
-        if (index < 0 || index >= cities.length) return false
-        var zoneId = String(cities[index].id || "")
-        if (!zoneId) return false
-        keyboardFocusId = zoneId
-        timezoneTarget = zoneId
-        var row = cityList.itemAtIndex(index)
-        if (row) {
-            var top = row.mapToItem(flick.contentItem, 0, 0).y
-            if (top < flick.contentY) flick.contentY = top
-            else if (top + row.height > flick.contentY + flick.height)
-                flick.contentY = Math.max(0, Math.min(flick.contentHeight - flick.height, top + row.height - flick.height))
-        }
-        return true
-    }
-
-    function shiftHour(step) {
-        scrubHold.stop()
-        scrubMinutes = Math.round(scrubMinutes) + step * 60
-    }
-
-    function deleteFocusedCity() {
-        var cities = service.cities || []
-        var index = cityIndexForZone(keyboardFocusId)
-        if (index < 0 || cities.length < 2 || !removeCityAt(index)) return false
-        return focusCity(Math.min(index, (service.cities || []).length - 1))
-    }
-
-    function handleEscape() {
-        if (timezoneConfirmationVisible) timezoneConfirmationVisible = false
-        else if (zoneSearchInput.activeFocus && zoneSearchInput.text.length > 0) zoneSearchInput.clear()
-        else if (scrubMinutes !== 0) {
-            scrubHold.stop()
-            scrubMinutes = 0
-        } else root.elsewhenVisible = false
-    }
-
-    function scrubTo(rowData, fraction) {
-        if (!rowData || rowData.ready !== true) return
-        var now = service.nowMs !== undefined ? service.nowMs : Date.now()
-        var parts = Model.zoneParts(now, rowData.offsetMinutes)
-        scrubMinutes = Model.scrubDeltaMinutes(fraction, parts.hour * 60 + parts.minute)
-    }
-
-    function beginScrub(rowData, fraction) {
-        scrubHold.stop()
-        scrubTo(rowData, fraction)
-    }
-
-    function endScrub() {
-        if (scrubMinutes !== 0) scrubHold.restart()
-    }
-
-    function startPeopleEdit(index) {
-        if (!service.cities || index < 0 || index >= service.cities.length) return
-        peopleEditIndex = index
-        statusMessage = ""
-    }
-
-    function finishPeopleEdit(index, text) {
-        if (peopleEditIndex !== index || !service.cities || index < 0 || index >= service.cities.length) return
-        var nextCities = Model.setPeopleAt(service.cities, index, Model.parsePeople(text))
-        peopleEditIndex = -1
-        if (nextCities !== service.cities && !service.setCities(nextCities)) statusMessage = service.lastError
-    }
-
-    function cancelPeopleEdit() {
-        peopleEditIndex = -1
-    }
-
-    function removeCityAt(index) {
-        if (!service.removeCity(index)) {
-            statusMessage = service.lastError
-            return false
-        }
-        if (peopleEditIndex === index) peopleEditIndex = -1
-        else if (peopleEditIndex > index) peopleEditIndex--
-        return true
-    }
-
-    function offsetTextFor(rowData) {
-        if (!rowData || rowData.ready !== true) return ""
-        return service.preferenceData && service.preferenceData.offsetMode === "utc"
-            ? Model.utcOffsetLabel(rowData.offsetMinutes) : (rowData.relative || "")
-    }
-
-    function beginRowDrag(index, pitch) {
-        if (!service.cities || index < 0 || index >= service.cities.length) return false
-        draggingCityIndex = index
-        rowDragTargetIndex = index
-        rowDragPitch = Math.max(1, Number(pitch) || 104)
-        return true
-    }
-
-    function moveRowDrag(offset) {
-        if (draggingCityIndex < 0 || !service.cities || service.cities.length === 0) return
-        const distance = Number(offset)
-        if (!isFinite(distance)) return
-        const steps = Math.round(distance / rowDragPitch)
-        rowDragTargetIndex = Math.max(0, Math.min(service.cities.length - 1, draggingCityIndex + steps))
-    }
-
-    function releaseRowDrag() {
-        const from = draggingCityIndex
-        const to = rowDragTargetIndex
-        draggingCityIndex = -1
-        rowDragTargetIndex = -1
-        if (from < 0 || to < 0 || from === to) return false
-        if (!service.moveCity(from, to)) {
-            statusMessage = service.lastError
-            return false
-        }
-        return true
-    }
-
-    function cancelRowDrag() {
-        draggingCityIndex = -1
-        rowDragTargetIndex = -1
-    }
-
-    Timer {
-        id: scrubHold
-        interval: 1500
-        repeat: false
-        onTriggered: panel.scrubMinutes = 0
-    }
-
-    Timer {
-        id: placeSearchDebounce
-        interval: 300
-        repeat: false
-        onTriggered: if (typeof panel.service.requestPlaceSearch === "function")
-            panel.service.requestPlaceSearch(panel.searchText)
-    }
 
     function globePaintRadius(width, height) {
         var w = Number(width)
@@ -317,14 +104,83 @@ Item {
                 id: cityList
                 objectName: "elsewhen-city-list"
                 width: parent.width
-                height: contentHeight
+                height: Math.min(contentHeight, 144)
                 implicitHeight: height
-                clip: false
-                interactive: false
-                model: panel.service.cities && panel.service.cities.length > 0 ? panel.service.cities : panel.service.clockRows || []
-                delegate: Elsewhen.CityRow {
+                clip: true
+                interactive: contentHeight > height
+                model: panel.service.clockRows || []
+                delegate: Rectangle {
+                    required property var modelData
+                    required property int index
+                    property alias moveUpButton: moveUpAction
+                    property alias moveDownButton: moveDownAction
+                    property alias removeButton: removeAction
                     width: cityList.width
-                    panel: panel.contentRoot
+                    height: 44
+                    color: index % 2 === 0 ? panel.root.fillIdle : "transparent"
+                    radius: 5
+                    Row {
+                        anchors.fill: parent
+                        anchors.leftMargin: 8
+                        anchors.rightMargin: 6
+                        spacing: 8
+                        Column {
+                            width: parent.width - 180
+                            anchors.verticalCenter: parent.verticalCenter
+                            spacing: 2
+                            SharedComponents.UiText {
+                                width: parent.width
+                                text: modelData.label
+                                color: panel.root.ink
+                                font.pixelSize: 12
+                                elide: Text.ElideRight
+                            }
+                            SharedComponents.UiText {
+                                width: parent.width
+                                text: (modelData.abbr || modelData.id) + (modelData.relative ? "  " + modelData.relative : "")
+                                color: panel.root.seal
+                                font.pixelSize: 9
+                                elide: Text.ElideRight
+                            }
+                        }
+                        SharedComponents.UiText {
+                            width: 70
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: modelData.ready === false ? "··:··" : (modelData.time || "··:··")
+                            color: panel.root.ink
+                            font.family: panel.root.mono
+                            font.pixelSize: 13
+                            horizontalAlignment: Text.AlignRight
+                        }
+                        ActionButton {
+                            id: moveUpAction
+                            width: 26
+                            label: "↑"
+                            available: index > 0
+                            onClicked: panel.service.moveCity(index, index - 1)
+                        }
+                        ActionButton {
+                            id: moveDownAction
+                            width: 26
+                            label: "↓"
+                            available: index < cityList.count - 1
+                            onClicked: panel.service.moveCity(index, index + 1)
+                        }
+                        ActionButton {
+                            id: removeAction
+                            width: 26
+                            label: "×"
+                            available: cityList.count > 1
+                            onClicked: {
+                                if (!panel.service.removeCity(index)) panel.statusMessage = panel.service.lastError
+                            }
+                        }
+                    }
+                    MouseArea {
+                        anchors.fill: parent
+                        z: -1
+                        onClicked: panel.timezoneTarget = modelData.id
+                    }
                 }
             }
 
@@ -336,7 +192,7 @@ Item {
                     objectName: "elsewhen-zone-search"
                     width: parent.width - 104
                     height: 32
-                    placeholderText: "Search time zones or places"
+                    placeholderText: "Search IANA time zones"
                     selectByMouse: true
                     color: panel.root.ink
                     placeholderTextColor: panel.root.sep
@@ -344,12 +200,6 @@ Item {
                     onTextChanged: {
                         panel.searchText = text
                         panel.statusMessage = ""
-                        placeSearchDebounce.restart()
-                    }
-                    onAccepted: {
-                        placeSearchDebounce.stop()
-                        if (typeof panel.service.requestPlaceSearch === "function")
-                            panel.service.requestPlaceSearch(text)
                     }
                     background: Rectangle {
                         radius: 6
@@ -370,10 +220,10 @@ Item {
                 id: searchList
                 objectName: "elsewhen-search-results"
                 width: parent.width
-                height: visible ? contentHeight : 0
+                height: visible ? Math.min(contentHeight, 116) : 0
                 visible: panel.searchText.trim().length >= 2 && count > 0
-                clip: false
-                interactive: false
+                clip: true
+                interactive: contentHeight > height
                 model: panel.searchResults
                 delegate: Rectangle {
                     required property var modelData
@@ -386,7 +236,7 @@ Item {
                         anchors.left: parent.left
                         anchors.leftMargin: 8
                         anchors.verticalCenter: parent.verticalCenter
-                        text: modelData.label + (modelData.region ? ", " + modelData.region : "") + "  ·  " + modelData.value
+                        text: modelData.label + "  ·  " + modelData.value
                         color: panel.root.ink
                         font.pixelSize: 10
                         elide: Text.ElideRight
@@ -400,31 +250,6 @@ Item {
                 }
             }
 
-            SharedComponents.UiText {
-                objectName: "elsewhen-place-search-status"
-                width: parent.width
-                visible: panel.searchText.trim().length >= 3
-                    && panel.service.placeSearchText === Model.placeQuery(panel.searchText)
-                    && panel.searchResults.length === 0
-                    && panel.service.placeSearchRunning
-                text: "Searching places…"
-                color: panel.root.seal
-                font.pixelSize: 10
-            }
-
-            SharedComponents.UiText {
-                objectName: "elsewhen-place-search-empty"
-                width: parent.width
-                visible: panel.searchText.trim().length >= 3
-                    && panel.service.placeSearchText === Model.placeQuery(panel.searchText)
-                    && panel.searchResults.length === 0
-                    && !panel.service.placeSearchRunning
-                    && !panel.service.placeSearchError
-                text: "No matching time zones or places."
-                color: panel.root.seal
-                font.pixelSize: 10
-            }
-
             Row {
                 width: parent.width
                 spacing: 7
@@ -432,7 +257,7 @@ Item {
                     id: hour24Action
                     label: panel.service.preferenceData.hour24 ? "24-hour" : "12-hour"
                     highlighted: panel.service.preferenceData.hour24 === true
-                    onClicked: panel.toggleHour24()
+                    onClicked: panel.service.updateSetting("hour24", panel.service.preferenceData.hour24 !== true)
                 }
                 ActionButton {
                     id: globeToggleAction
@@ -504,7 +329,7 @@ Item {
                             ctx.lineWidth = 0.5
                             ctx.stroke()
                         }
-                        var sun = Globe.subsolarPoint(panel.effectiveMs)
+                        var sun = Globe.subsolarPoint(panel.service.nowMs)
                         for (var cityIndex = 0; cityIndex < panel.service.cities.length; cityIndex++) {
                             var city = panel.service.cities[cityIndex]
                             var place = panel.placeForZone(city.id)
@@ -579,8 +404,7 @@ Item {
             SharedComponents.UiText {
                 width: parent.width
                 visible: text !== ""
-                text: String(panel.statusMessage || panel.service.lastError || panel.service.catalogError
-                    || panel.service.timezoneError || panel.service.placeSearchError || "")
+                text: panel.statusMessage || panel.service.lastError || panel.service.catalogError || panel.service.timezoneError
                 color: panel.root.seal
                 font.pixelSize: 10
                 wrapMode: Text.Wrap
@@ -597,9 +421,7 @@ Item {
     function addSearchResult(option) {
         if (!option) return false
         var place = placeForZone(option.value)
-        var facts = option.lat !== undefined && option.lon !== undefined
-            ? { lat: option.lat, lon: option.lon, region: option.region }
-            : place ? { lat: place[2], lon: place[3] } : null
+        var facts = place ? { lat: place[2], lon: place[3] } : null
         if (!service.addCity(option.value, option.label, facts)) {
             statusMessage = service.lastError || "Could not add this time zone"
             return false

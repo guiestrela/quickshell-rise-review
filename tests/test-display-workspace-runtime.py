@@ -57,7 +57,7 @@ Scope {
  id: test
  property int phase: 0
  property int ticks: 0
- QtObject { id: theme; property bool displayManagerAutoWorkspaces: true }
+ QtObject { id: theme; property bool displayManagerAutoWorkspaces: true; property bool omarchyPerMonitorWorkspaces: false }
  Controller { id: c; theme: theme }
  FileView { id: effects; path: Quickshell.env("TEST_FIXTURE_ROOT")+"/effects.json"; printErrors: false; blockLoading:true; blockAllReads:true }
  function fail(message) { console.error("EXPLICIT_RUNTIME_FAIL "+message); Qt.quit() }
@@ -84,7 +84,7 @@ Scope {
     test.phase=2
    } else if(test.phase===2 && c.rollbackPending && !c.busy) {
     effects.reload();var applied=JSON.parse(effects.text())
-    if(applied.eval!==1 || applied.brightness!==1 || applied.font!==1 || applied.workspace!==0 || c.rollbackSeconds!==5) { test.fail("single batch, immediate settings or five-second timer "+JSON.stringify(applied)+" seconds="+c.rollbackSeconds);return }
+    if(applied.eval!==1 || applied.brightness!==1 || applied.font!==1 || applied.workspace!==0 || c.rollbackSeconds!==15) { test.fail("single batch, immediate settings or fifteen-second timer "+JSON.stringify(applied)+" seconds="+c.rollbackSeconds);return }
     c.confirmChanges();test.phase=3
    } else if(test.phase===3 && !c.rollbackPending && !c.confirmationBusy && !c.busy && !c.loading && !c.extraQueue.length && !c.workspaceLoading && !c.workspaceCommitPending) {
     effects.reload();var final=JSON.parse(effects.text())
@@ -92,7 +92,7 @@ Scope {
     if(!c.saveLayout()) {test.fail("Save rejected "+c.error);return}
     test.phase=4
    } else if(test.phase===4 && !c.busy && !c.loading && !c.workspaceLoading) {
-    layout.reload();if(layout.text().indexOf("3, monitor:B")<0) {test.fail("Manual workspace override not saved "+c.error);return}
+    layout.reload();if(layout.text().indexOf('workspace = "3", monitor = "B"')<0) {test.fail("Manual workspace override not saved "+c.error);return}
     console.log("EXPLICIT_RUNTIME_PASS workspace3 assigned toB only after Keep; fresh readback; Save real monitors.lua preserves manual assignment over Auto-bind; all compositor calls private/inert")
     Qt.quit()
    }
@@ -100,7 +100,7 @@ Scope {
  }
 }
 ''')
- env={**os.environ,'HOME':str(home),'QT_QPA_PLATFORM':'wayland','TEST_FIXTURE_ROOT':str(root),'RISE_DISPLAY_MANAGER_APPLY':str(root/'helper'),'RISE_DISPLAY_MANAGER_GUARD':str(root/'guard'),'PATH':str(root)+':'+os.environ['PATH']};env.pop('DISPLAY',None)
+ env={**os.environ,'HOME':str(home),'OMARCHY_PATH':str(root/'omarchy'),'QT_QPA_PLATFORM':'wayland','TEST_FIXTURE_ROOT':str(root),'RISE_DISPLAY_MANAGER_APPLY':str(root/'helper'),'RISE_DISPLAY_MANAGER_GUARD':str(root/'guard'),'PATH':str(root)+':'+os.environ['PATH']};env.pop('DISPLAY',None)
  z=subprocess.run(['qs','-n','-p',str(root/'shell.qml')],env=env,capture_output=True,text=True,timeout=9);output=z.stdout+z.stderr
  assert z.returncode==0 and 'EXPLICIT_RUNTIME_PASS' in output and 'EXPLICIT_RUNTIME_FAIL' not in output,output
  assert not any(k in output for k in ['ReferenceError','TypeError','Cannot assign']),output

@@ -932,13 +932,6 @@ function geocodeUrl(label) {
     + encodeURIComponent(label)
 }
 
-var GEOCODE_MAX_RESPONSE_BYTES = 1048576
-
-function geocodeCommand(label) {
-  return ["curl", "-fsSL", "--max-time", "8", "--max-filesize", String(GEOCODE_MAX_RESPONSE_BYTES),
-    "--proto", "=https", "--url", geocodeUrl(label)]
-}
-
 // { place, answered }: a place in the row's own zone beats the top result, and
 // `answered` is false when the request itself failed.
 function pickGeocode(text, zone) {
@@ -1371,7 +1364,6 @@ if (typeof module !== "undefined") {
     mergeCities: mergeCities,
     factsKey: factsKey,
     geocodeUrl: geocodeUrl,
-    geocodeCommand: geocodeCommand,
     pickGeocode: pickGeocode,
     zoneTabCoords: zoneTabCoords,
     forecastUrl: forecastUrl,

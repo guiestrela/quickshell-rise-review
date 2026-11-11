@@ -9,6 +9,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Wayland
 import Quickshell.Io
+import Quickshell.Hyprland
 import "modules"
 import "../../shared/logic/NordVpnLayout.js" as NordVpnLayout
 import "../../shared/logic/WallpaperLayout.js" as WallpaperLayout
@@ -26,14 +27,14 @@ PanelWindow {
     // strip when locked (clicks below pass through), full screen when unlocked (drag).
     // Anchor the full long axis and reserve space on the selected screen edge.
     anchors {
-        left: !barSlot.root.barVertical || barSlot.root.barPosition === "left"; right: !barSlot.root.barVertical || barSlot.root.barPosition === "right"
-        top:    barSlot.root.barVertical || barSlot.root.barPosition === "top"
-        bottom: barSlot.root.barVertical || barSlot.root.barPosition === "bottom"
+        left: true; right: true
+        top: barSlot.root.barPosition === "top"
+        bottom: barSlot.root.barPosition === "bottom"
     }
-    implicitWidth: barSlot.root.barVertical ? barSlot.root.verticalBarWidth : 0
+    implicitWidth: 0
     implicitHeight: barSlot.screen ? barSlot.screen.height : 1440
     exclusionMode: ExclusionMode.Normal
-    exclusiveZone: barSlot.root.barVertical ? barSlot.root.verticalBarWidth + 3 : 38        // 35 bar + 3px breathing room
+    exclusiveZone: 38        // 35 bar + 3px breathing room
     mask: Region {
         x: 0
         y: barSlot.root.barVertical || barSlot.root.barUnlocked ? 0
@@ -86,6 +87,7 @@ PanelWindow {
     property int  srcIndex: -1
     property var  dropModel: null          // current drop-target model + index
     property int  dropIndex: -1
+    property bool dropTray: false
     property real ghostW: 0
     property real ghostH: 0
     property real ghostHomeX: 0
@@ -95,9 +97,14 @@ PanelWindow {
     function beginDrag(item, hx, hy, w, h, sm, si) {
         dragItem = item; ghostW = w; ghostH = h; ghostHomeX = hx; ghostHomeY = hy
         ghostX = hx; ghostY = hy; srcModel = sm; srcIndex = si
-        dropModel = null; dropIndex = -1; dragActive = true; dragging = true
+        dropModel = null; dropIndex = -1; dropTray = false; dragActive = true; dragging = true
+        barSlot.root.trayDragActive = true
+        // Keep the tray closed while a drag starts. Opening its full-screen
+        // click-outside surface here can steal pointer events from this window
+        // and cancel the drag before the user can reorder a widget. Users can
+        // still drag into the tray when it was already open.
     }
-    // which slot (model+index) is under a window-point?
+    // which slot (model+index) is under a desktop-global pointer point?
     function slotAt(wx, wy) {
         var rows = [leftRowItem, centerRowItem, rightRowItem]
         for (var r = 0; r < rows.length; r++) {
@@ -105,27 +112,41 @@ PanelWindow {
             for (var k = 0; k < rep.count; k++) {
                 var it = rep.itemAt(k)
                 if (!it || !it.visible || !it.autoShown) continue
-                var p = it.mapToItem(null, 0, 0)
-                var end = it.mapToItem(null, it.width, it.height)
-                if (wx >= p.x && wx <= end.x && wy >= p.y && wy <= end.y)
+                var p = it.mapToGlobal(0, 0)
+                var end = it.mapToGlobal(it.width, it.height)
+                var left = Math.min(p.x, end.x), right = Math.max(p.x, end.x)
+                var top = Math.min(p.y, end.y), bottom = Math.max(p.y, end.y)
+                if (wx >= left && wx <= right && wy >= top && wy <= bottom)
                     return { model: rows[r].rmodel, index: k }
             }
         }
+        var trayRect = barSlot.root.trayDropRectsByScreen[barSlot.screenName]
+        if (barSlot.root.trayVisible && trayRect
+                && wx >= trayRect.x && wx <= trayRect.x + trayRect.width
+                && wy >= trayRect.y && wy <= trayRect.y + trayRect.height)
+            return { tray: true }
         return null
     }
-    function moveDrag(wx, wy) {
-        ghostX = wx - ghostW / 2; ghostY = wy - ghostH / 2
-        var hit = slotAt(wx, wy)
+    function moveDrag(localX, localY, globalX, globalY) {
+        ghostX = localX - ghostW / 2; ghostY = localY - ghostH / 2
+        var hit = slotAt(globalX === undefined ? localX : globalX,
+            globalY === undefined ? localY : globalY)
         dropModel = hit ? hit.model : null
-        dropIndex = hit ? hit.index : -1
+        dropIndex = hit && hit.index !== undefined ? hit.index : -1
+        dropTray = !!(hit && hit.tray)
+        barSlot.root.trayDropActive = dropTray
     }
     function endDrag() {
         dragActive = false
         var swapped = false
-        if (dropModel && dropIndex >= 0 && !(dropModel === srcModel && dropIndex === srcIndex)) {
+        if (dropTray && srcModel && dropIndex < 0) {
+            swapped = moveSlotToTray(srcModel, srcIndex)
+        } else if (dropModel && dropIndex >= 0 && !(dropModel === srcModel && dropIndex === srcIndex)) {
             swapped = NordVpnLayout.swapModels(srcModel, dropModel, srcIndex, dropIndex)
         }
-        dropModel = null; dropIndex = -1
+        dropModel = null; dropIndex = -1; dropTray = false
+        barSlot.root.trayDragActive = false
+        barSlot.root.trayDropActive = false
         if (swapped) { if (_orderLoaded) saveOrder(); dragging = false }   // content swapped in place + persist
         else { ghostX = ghostHomeX; ghostY = ghostHomeY; snapTimer.restart() }   // snap back
     }
@@ -135,7 +156,9 @@ PanelWindow {
     function cancelDrag() {
         snapTimer.stop()
         dragActive = false; dragging = false; dragItem = null
-        dropModel = null; dropIndex = -1
+        dropModel = null; dropIndex = -1; dropTray = false
+        barSlot.root.trayDragActive = false
+        barSlot.root.trayDropActive = false
     }
 
     // ── order persistence (survives restart) ──
@@ -144,6 +167,7 @@ PanelWindow {
     function gidsOf(m) { var a = []; for (var i = 0; i < m.count; i++) a.push(m.get(i).gid); return a }
     function serializeOrder() {
         return gidsOf(leftModel).join(",") + "|" + gidsOf(centerModel).join(",") + "|" + gidsOf(rightModel).join(",")
+            + "|" + barSlot.root.trayWidgets.join(",")
     }
     function applyTo(m, gids) {
         if (gids.length !== m.count) return                       // stale cache → keep default
@@ -151,8 +175,9 @@ PanelWindow {
     }
     function applyOrder(str) {
         var parts = str.split("|")
-        if (parts.length !== 3) return
+        if (parts.length !== 3 && parts.length !== 4) return
         var l = parts[0].split(","), c = parts[1].split(","), r = parts[2].split(",")
+        var tray = parts.length === 4 && parts[3] !== "" ? parts[3].split(",") : []
         var migrated = NordVpnLayout.migrateV1Order(l, c, r)
         if (migrated) { l = migrated.left; c = migrated.center; r = migrated.right }
         migrated = WallpaperLayout.migrateV1Order(l, c, r)
@@ -163,6 +188,41 @@ PanelWindow {
         if (l.concat(c,r).indexOf("G20") < 0) l.push("G20")
         if (l.concat(c,r).indexOf("G21") < 0) l.push("G21")
         if (l.concat(c,r).indexOf("G22") < 0) l.push("G22")
+        // Add Indicators to the first vacant saved slot without moving existing widgets.
+        if (l.concat(c, r, tray).indexOf("G23") < 0) {
+            var regions = [
+                { items: c, limit: centerModel.count },
+                { items: l, limit: leftModel.count },
+                { items: r, limit: rightModel.count }
+            ]
+            var placed = false
+            for (var region = 0; region < regions.length && !placed; region++) {
+                var items = regions[region].items
+                var empty = items.indexOf("")
+                if (empty >= 0) { items[empty] = "G23"; placed = true }
+                else if (items.length < regions[region].limit) { items.push("G23"); placed = true }
+            }
+            if (!placed) return
+        }
+        // My Elsewhen is appended to a vacant saved slot so legacy layouts keep
+        // every existing widget position and tray assignment.
+        if (l.concat(c, r, tray).indexOf("G24") < 0) {
+            var elsewhenRegions = [
+                { items: r, limit: rightModel.count },
+                { items: l, limit: leftModel.count },
+                { items: c, limit: centerModel.count }
+            ]
+            var elsewhenPlaced = false
+            for (var regionIndex = 0; regionIndex < elsewhenRegions.length && !elsewhenPlaced; regionIndex++) {
+                var regionItems = elsewhenRegions[regionIndex].items
+                var emptyIndex = regionItems.indexOf("")
+                if (emptyIndex >= 0) { regionItems[emptyIndex] = "G24"; elsewhenPlaced = true }
+                else if (regionItems.length < elsewhenRegions[regionIndex].limit) {
+                    regionItems.push("G24"); elsewhenPlaced = true
+                }
+            }
+            if (!elsewhenPlaced) return
+        }
         // F12: only apply a cache that is a valid permutation of all registry ids (correct region
         // sizes, every id known, no duplicate, none missing) — a corrupt cache would otherwise
         // duplicate one widget and silently drop another. On reject, keep the default order.
@@ -171,7 +231,8 @@ PanelWindow {
         while (l.length < leftModel.count) l.push("")
         while (c.length < centerModel.count) c.push("")
         while (r.length < rightModel.count) r.push("")
-        var all = l.concat(c, r), seen = {}
+        for (var t = 0; t < tray.length; t++) if (tray[t] === "G3") return
+        var all = l.concat(c, r, tray), seen = {}
         for (var i = 0; i < all.length; i++) {
             if (all[i] === "") continue
             if (!registry[all[i]] || seen[all[i]]) return
@@ -181,6 +242,33 @@ PanelWindow {
         applyTo(leftModel,   l)
         applyTo(centerModel, c)
         applyTo(rightModel,  r)
+        barSlot.root.trayWidgets = tray
+    }
+    function moveSlotToTray(model, index) {
+        if (!model || index < 0 || index >= model.count) return false
+        var gid = String(model.get(index).gid || "")
+        if (!gid || gid === "G3" || barSlot.root.trayWidgets.indexOf(gid) >= 0) return false
+        model.setProperty(index, "gid", "")
+        barSlot.root.trayWidgets = barSlot.root.trayWidgets.concat([gid])
+        return true
+    }
+    function restoreTrayWidget(gid) {
+        var trayIndex = barSlot.root.trayWidgets.indexOf(gid)
+        if (trayIndex < 0) return false
+        var models = [leftModel, centerModel, rightModel]
+        for (var r = 0; r < models.length; r++) {
+            var model = models[r]
+            for (var i = 0; i < model.count; i++) {
+                if (model.get(i).gid !== "") continue
+                model.setProperty(i, "gid", gid)
+                var next = barSlot.root.trayWidgets.slice()
+                next.splice(trayIndex, 1)
+                barSlot.root.trayWidgets = next
+                if (_orderLoaded) saveOrder()
+                return true
+            }
+        }
+        return false
     }
     function saveOrder() {
         var serialized = serializeOrder()
@@ -208,6 +296,7 @@ PanelWindow {
         for (var i = 0; i < defaults.left.length; i++) leftModel.setProperty(i, "gid", defaults.left[i])
         for (var j = 0; j < defaults.center.length; j++) centerModel.setProperty(j, "gid", defaults.center[j])
         for (var k = 0; k < defaults.right.length; k++) rightModel.setProperty(k, "gid", defaults.right[k])
+        barSlot.root.trayWidgets = []
         if (_orderLoaded) saveOrder()
     }
 
@@ -236,12 +325,14 @@ PanelWindow {
             barSlot.resetOrder()
         },
         applySplits: function (serialized) { island.applySplits(serialized) },
-        applyOrder: function (serialized) { barSlot.applyOrder(serialized) }
+        applyOrder: function (serialized) { barSlot.applyOrder(serialized) },
+        restoreTrayWidget: function (gid) { return barSlot.restoreTrayWidget(gid) }
     })
 
     Component.onCompleted: {
         if (!barSlot.root.activePopupScreenName) barSlot.root.activatePopupScreen(barSlot.screen)
         barSlot.root.registerBarLayoutController(barSlot.screenName, barSlot.layoutController)
+        barSlot.root.registerTrayWidgetRegistry(barSlot.screenName, barSlot.registry)
     }
 
     Component.onDestruction: {
@@ -251,6 +342,8 @@ PanelWindow {
             barSlot.root.closePopups()
         }
         barSlot.root.unregisterBarLayoutController(barSlot.screenName, barSlot.layoutController)
+        barSlot.root.unregisterTrayWidgetRegistry(barSlot.screenName, barSlot.registry)
+        barSlot.root.removeTrayDropRect(barSlot.screenName)
     }
 
     ShaderEffectSource {
@@ -269,31 +362,12 @@ PanelWindow {
         Behavior on scale { NumberAnimation { duration: 120 } }
     }
 
-    Loader {
-        id: verticalLoader
-        z: 2
-        anchors.fill: parent
-        active: barSlot.root.barVertical
-        sourceComponent: Component {
-            VerticalBarContent {
-                root: barSlot.root
-                barWindow: barSlot
-                models: [leftModel, centerModel, rightModel]
-                splitState: island
-                registry: barSlot.registry
-            }
-        }
-    }
-    function swapVerticalSlots(sourceRegion, sourceIndex, targetRegion, targetIndex) {
-        var models = [leftModel, centerModel, rightModel]
-        if (NordVpnLayout.swapModels(models[sourceRegion], models[targetRegion], sourceIndex, targetIndex)
-                && _orderLoaded) saveOrder()
-    }
 
     // ─────────────────────────── group registry ───────────────────────────
+    Component { id: compElsewhen; ElsewhenWidget { root: barSlot.root; screen: barSlot.screen } }
     Component { id: compOneDrive; OneDriveWidget { root: barSlot.root } }
     Component { id: compLauncher;  LauncherWidget  { root: barSlot.root } }
-    Component { id: compWorkspace; WorkspaceWidget { root: barSlot.root } }
+    Component { id: compWorkspace; WorkspaceWidget { root: barSlot.root; monitor: Hyprland.monitorFor(barSlot.screen) } }
     Component {
         id: compStatus                                   // G3: arch · tray · notif
         Item {
@@ -331,12 +405,12 @@ PanelWindow {
     Component { id: compGpu;    GpuWidget    { root: barSlot.root } }
     Component { id: compVol;    AudioWidget  { root: barSlot.root } }
     Component { id: compClaude; ClaudeWidget { root: barSlot.root } }
+    Component { id: compIndicators; IndicatorsWidget { root: barSlot.root } }
 
     Component {
-        id: compCenter                                   // G8: weather·clock·date·indicators
+        id: compCenter                                   // G8: weather·clock·date
         Item {
             id: g8
-            HoverHandler { id: indicatorHover }
             implicitWidth: Math.round(centerRow.implicitWidth) + 18
             implicitHeight: 28
 
@@ -349,7 +423,7 @@ PanelWindow {
             property int stage: 0                        // 0 normal · 1 compact · 2 minimal
             readonly property bool showWeather: stage <= 1
             readonly property bool showDate:    stage === 0
-            readonly property bool showIcons:   iconsRow.hasActive || indicatorHover.hovered
+            readonly property bool showIcons:   iconsRow.hasActive
             // needed widths per stage: reactive bindings over the UNCOLLAPSED content
             // (the stage-gated wrapper widths shrink and would mislead the upshift
             // decision). 18 = pill padding, 8 = row spacing per visible neighbour.
@@ -456,18 +530,9 @@ PanelWindow {
                         id: iconsRow
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 8
-                        readonly property bool hasActive: nativeIndicators.hasActive
-                            || voxInd.state === "recording"
+                        readonly property bool hasActive: voxInd.state === "recording"
                             || voxInd.state === "transcribing"
                             || omarchyUpdateInd.updateAvailable
-                        CommonComponents.OmarchyIndicatorsWidget {
-                            id: nativeIndicators
-                            root: barSlot.root
-                            coordinator: barSlot.root.omarchyIndicators
-                            contentColor: barSlot.root.seal
-                            revealInactive: indicatorHover.hovered
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
                         VoxtypeWidget            { id: voxInd;           root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
                         UpdateWidget             { id: omarchyUpdateInd; root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
                     }
@@ -497,7 +562,6 @@ PanelWindow {
                 anchors.verticalCenter: parent.verticalCenter
                 x: Math.round((parent.width - width) / 2)
                 spacing: 4
-                IdleInhibitorWidget { root: barSlot.root; anchors.verticalCenter: parent.verticalCenter }
                 MediaBrowserWidget  { root: barSlot.root; screen: barSlot.screen; anchors.verticalCenter: parent.verticalCenter }
                 ThemeDisplayWidget  { root: barSlot.root; screen: barSlot.screen; anchors.verticalCenter: parent.verticalCenter }
             }
@@ -513,12 +577,12 @@ PanelWindow {
     Component { id: compBluetooth;  BluetoothWidget    { root: barSlot.root } }
 
     readonly property var registry: ({
-        "G22": compOneDrive, "G1": compLauncher, "G2": compWorkspace, "G3": compStatus,
+        "G24": compElsewhen, "G22": compOneDrive, "G1": compLauncher, "G2": compWorkspace, "G3": compStatus,
         "G4": compMem, "G5": compCpu, "G6": compVol, "G7": compClaude,
         "G8": compCenter,
         "G9": compMpris, "G10": compQuick, "G11": compNetwork,
         "G12": compBattery, "G13": compBrightness, "G14": compPower, "G15": compBluetooth,
-        "G16": compNordVpn, "G17": compWallpapers, "G18": compDisplayManager, "G19": compGpu, "G20": compTemperature, "G21": compStorage
+        "G16": compNordVpn, "G17": compWallpapers, "G18": compDisplayManager, "G19": compGpu, "G20": compTemperature, "G21": compStorage, "G23": compIndicators
     })
 
     // ───────────────────── reusable region row of slots ─────────────────────
@@ -584,7 +648,7 @@ PanelWindow {
                     id: ldr
                     x: slot.pad
                     anchors.verticalCenter: parent.verticalCenter
-                    sourceComponent: !barSlot.root.barVertical && slot.occupied ? barSlot.registry[slot.gid] : null
+                    sourceComponent: slot.occupied ? barSlot.registry[slot.gid] : null
                     // dim the original while its ghost is being dragged
                     opacity: (barSlot.dragItem === ldr && barSlot.dragActive) ? 0.25 : 1.0
                 }
@@ -620,7 +684,8 @@ PanelWindow {
                     onPositionChanged: (e) => {
                         if (!barSlot.dragging) return
                         var w = mapToItem(null, e.x, e.y)
-                        barSlot.moveDrag(w.x, w.y)
+                        var g = mapToGlobal(e.x, e.y)
+                        barSlot.moveDrag(w.x, w.y, g.x, g.y)
                     }
                     onReleased: barSlot.endDrag()
                     onCanceled: barSlot.cancelDrag()
@@ -911,13 +976,13 @@ PanelWindow {
             ListElement { gid: "G7" } ListElement { gid: "G19" } ListElement { gid: "G20" } ListElement { gid: "G21" } ListElement { gid: "G22" }
             ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" }
         }
-        ListModel { id: centerModel; ListElement { gid: "G8" } ListElement { gid: "" } ListElement { gid: "" } }
+        ListModel { id: centerModel; ListElement { gid: "G8" } ListElement { gid: "G23" } ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" } }
         ListModel {
             id: rightModel
             ListElement { gid: "G9" }  ListElement { gid: "G10" } ListElement { gid: "G17" }
             ListElement { gid: "G14" } ListElement { gid: "G12" } ListElement { gid: "G13" }
-            ListElement { gid: "G11" } ListElement { gid: "G16" } ListElement { gid: "G15" } ListElement { gid: "G18" }
-            ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" }
+            ListElement { gid: "G11" } ListElement { gid: "G16" } ListElement { gid: "G15" } ListElement { gid: "G18" } ListElement { gid: "G24" }
+            ListElement { gid: "" } ListElement { gid: "" } ListElement { gid: "" }
         }
 
         SlotRow {
@@ -980,6 +1045,7 @@ PanelWindow {
                 gpu:          island.groupX("G19", 0.5),
                 thermal:      island.groupX("G20", 0.5),
                 oneDrive:        island.groupX("G22", 0.5),
+                elsewhen:     island.groupX("G24", 0.5),
                 storage:      island.groupX("G21", 0.5),
                 ai:           island.groupX("G7",  0.5),
                 workspace:    island.groupX("G2",  0.5),

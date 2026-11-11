@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 """Render real V1/V2 Elsewhen panel adapters offscreen with inert services."""
 from pathlib import Path
-import json
 import os
 import re
 import shutil
@@ -46,30 +45,7 @@ with tempfile.TemporaryDirectory(prefix="rise-elsewhen-adapters-", dir=SCRATCH) 
     )
     text = re.sub(r"^    (?:anchors \{ top:|exclusionMode:|WlrLayershell\.).*\n", "", text, flags=re.M)
     host.write_text(text)
-    test_source = (ROOT / "tests/tst_elsewhen_panel_adapters.qml").read_text()
-    capture_dir = os.environ.get("RISE_ELSEWHEN_CAPTURE_DIR", "")
-    if capture_dir:
-        capture_dir = Path(capture_dir).expanduser().resolve()
-        capture_dir.mkdir(parents=True, exist_ok=True)
-        marker = '    property string captureDir: ""\n'
-        if marker not in test_source:
-            raise SystemExit("QML captureDir injection point is missing")
-        test_source = test_source.replace(
-            marker,
-            "    property string captureDir: " + json.dumps(str(capture_dir)) + "\n",
-            1,
-        )
-        world_marker = "        property var worldData: [[-180, -80, 0, -80, 180, -80, 180, 80, 0, 80, -180, 80]]\n"
-        if world_marker not in test_source:
-            raise SystemExit("QML fake world-data injection point is missing")
-        world_data = json.loads((ROOT / "shared/integrations/elsewhen/world.json").read_text())
-        test_source = test_source.replace(
-            world_marker,
-            "        property var worldData: " + json.dumps(world_data, separators=(",", ":")) + "\n",
-            1,
-        )
-    test_file = base / "tst_elsewhen_panel_adapters.qml"
-    test_file.write_text(test_source)
+    shutil.copy2(ROOT / "tests/tst_elsewhen_panel_adapters.qml", base / "tst_elsewhen_panel_adapters.qml")
 
     env = dict(
         os.environ,
@@ -91,10 +67,3 @@ with tempfile.TemporaryDirectory(prefix="rise-elsewhen-adapters-", dir=SCRATCH) 
     assert result.returncode == 0, output
     assert "Totals: 6 passed, 0 failed" in output, output
     assert not re.search(r"ERROR|ReferenceError|TypeError|Binding loop|Unable to assign", output), output
-    if capture_dir:
-        for name in ("v1-horizontal", "v1-vertical", "v2-horizontal", "v2-vertical"):
-            image = capture_dir / f"{name}.png"
-            assert image.is_file(), f"missing rendered capture: {image}"
-            data = image.read_bytes()
-            assert data.startswith(b"\x89PNG\r\n\x1a\n") and len(data) > 128, image
-            print(f"CAPTURED {image} ({len(data)} bytes)")
