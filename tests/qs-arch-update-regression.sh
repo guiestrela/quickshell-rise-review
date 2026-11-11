@@ -5,7 +5,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHECK="${CHECK:-$REPO_ROOT/scripts/qs-arch-update-check.sh}"
 GATE="${GATE:-$REPO_ROOT/scripts/qs-arch-security-gate.sh}"
 APPLY="${APPLY:-$REPO_ROOT/scripts/qs-arch-apply-update.sh}"
-FRONTEND="${FRONTEND:-$REPO_ROOT/core/qs-system-update.sh}"
+FRONTEND="${FRONTEND:-$REPO_ROOT/versions/V1/core/qs-system-update.sh}"
 WORK="$(mktemp -d /tmp/qs-arch-update-test.XXXXXX)"
 
 cleanup() { rm -rf "$WORK"; }
@@ -37,12 +37,6 @@ assert_not_contains() {
 init_fixture() {
   local root="$1"
   mkdir -p "$root/bin" "$root/home" "$root/state"
-  cat > "$root/bin/notify-send" <<'SCRIPT'
-#!/usr/bin/env bash
-printf '%s\n' "$*" >> "$FAKE_NOTIFY_LOG"
-SCRIPT
-  chmod +x "$root/bin/notify-send"
-  : > "$root/notify.log"
   cat > "$root/bin/checkupdates" <<'SCRIPT'
 #!/usr/bin/env bash
 cat "$FAKE_CHECKUPDATES_FILE"
@@ -111,7 +105,6 @@ env_common() {
   FAKE_OMARCHY_MARKER="$root/omarchy.marker" \
   FAKE_TERMINAL_LOG="$root/terminal.log" \
   FAKE_GUM_LOG="$root/gum.log" \
-  FAKE_NOTIFY_LOG="$root/notify.log" \
   FAKE_CHECKUPDATES_FILE="$root/checkupdates.out" \
   FAKE_AUR_FILE="$root/aur.out" \
   FAKE_SUDO_DELAY="${FAKE_SUDO_DELAY:-0}" \
@@ -461,7 +454,6 @@ test_rescan_drift_aborts_before_pacman() {
     fail "apply succeeded despite package drift"
   fi
   assert_file_absent "$root/pacman.marker" "pacman ran despite package drift"
-  assert_contains "Arch update blocked" "$root/notify.log" "blocked update notification must stay in the fixture"
   assert_contains "-v" "$root/sudo.log" "sudo -v should happen before the fresh rescan"
 }
 
@@ -639,10 +631,10 @@ test_blacklist_fetch_service_has_bounded_retries() {
 }
 
 test_arch_panel_refresh_updates_freshness_clock() {
-  local panel refresh frontend="$REPO_ROOT/core/qs-system-update.sh"
+  local panel refresh frontend="$REPO_ROOT/versions/V1/core/qs-system-update.sh"
   for panel in \
-    "$REPO_ROOT/shared/panels/ArchUpdaterPanel.qml" \
-    "$REPO_ROOT/shared/panels/ArchUpdaterPanel.qml"; do
+    "$REPO_ROOT/versions/V1/panels/ArchUpdaterPanel.qml" \
+    "$REPO_ROOT/versions/V1/variants/V2/panels/ArchUpdaterPanel.qml"; do
     assert_contains "function onArchScanCheckedEpochChanged()" "$panel" "arch panel does not refresh its freshness clock after package scan"
     assert_contains "archPanel.nowEpoch = Math.floor(Date.now() / 1000)" "$panel" "arch panel freshness clock update is missing"
     assert_contains 'command: [archPanel.packageFrontendScript, "--probe", archPanel.packageApplyScript]' "$panel" "arch panel does not use the side-effect-free backend probe"

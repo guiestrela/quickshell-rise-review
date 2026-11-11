@@ -29,8 +29,6 @@ The most common widget bindings are:
 | Tray widget | Open hidden-app panel | None | None |
 | Tray icon | Activate application | Hide icon | None |
 
-Both variants offer **Protect layout**, saved separately for V1 and V2. When enabled, double-clicking the bar and clicking gap/divider markers cannot change the layout. Use **Edit slots** to explicitly enter editing mode; `Esc` exits editing without turning protection off. Widget settings remain available in the Control Panel.
-
 The Media Player Remote Interfacing Specification (MPRIS) widget has two bar presentations. **Default** shows transport controls, track text, and equalizer motion. **FULL** shows a vinyl mark, real-time CAVA waveform, and transport state. In FULL mode, click the surface to play or pause, scroll up for the next track, and scroll down for the previous track.
 
 ## Switch between V1 and V2
@@ -64,7 +62,7 @@ V2 adds four outer-shell layouts:
 - **Dock**: attach a content-width surface to the screen edge
 - **Notch**: attach the compact surface with continuous side transitions
 
-Lateral bar positions (Left/Right) are removed. Both variants now support only **Top** and **Bottom**; changing between those two positions preserves the saved widget order and preferences. V2 retains Full, Fit, Dock, and Notch shell styles on the horizontal edges.
+V2 can place every shell at the top or bottom edge. The Bar Border and Panel & Tooltip Border controls are independent.
 
 ## Apply colors and widget styles
 
@@ -75,8 +73,6 @@ V2 also exposes a palette button for each configurable widget group. Use it to:
 - Apply a palette color or return to inherited color
 - Enable a widget border without enabling fill
 - Select automatic, foreground, or background contrast for a filled widget
-- Cycle surface opacity, corners, padding, border width, and an independent border color
-- Use **Reset surface** to restore geometry and border color while keeping the widget’s palette assignment
 
 Status-driven icons keep their semantic state colors where required. Other icons use the assigned widget color or Foreground according to the selected rule.
 
@@ -95,7 +91,7 @@ V2 includes detailed panels for:
 
 The storage panel reports devices but does not mount or unmount filesystems.
 
-The AI usage widget includes collectors for Claude, Codex, OpenCode, and GitHub Copilot. They are installed with Rise; provider credentials, account access, local databases, and network availability determine which providers can report usage. Missing provider data does not block the bar or imply a quota is available.
+The AI usage widget supports Claude, Codex, and OpenCode. Availability depends on the optional backends selected during installation and the corresponding local account or database.
 
 ## Open pickers through IPC
 
@@ -133,70 +129,3 @@ hyprctl reload
 Read [Maintain and recover Quickshell Rise](maintenance-and-recovery.md) for status, restart, update, log, and recovery commands.
 
 [Back to the project README](../README.md)
-
-## Extra positions for customization
-
-Unlock the bar to reveal empty drop targets, then drag a widget into one to
-move it between regions. V1 has 37 positions: 15 on the left, 8 in the center
-and 14 on the right, including thirteen empty positions in the default layout.
-Empty positions disappear when the bar is locked; existing saved widget order
-and split settings are migrated in place. Escape locks the bar again.
-
-V2 supports up to 20 positions per side and 8 in the center. Use the `+` control
-in edit mode to add a slot. Only empty additional slots can be removed; moving
-a widget into a slot preserves all other slot positions.
-
-## Notification history on Omarchy 4.5
-
-Rise reads the native `notifications/live.json` and `history.json` stores and
-the `quiet.json` do-not-disturb state. Native keys keep entries stable across
-shell restarts, and modern entries disappear from Rise when the host removes
-them through retention. The Rise panel displays up to 50 recent entries.
-On Omarchy 4.5, file-change watching refreshes the badge and panel as the native
-service writes notification state.
-
-Closing an entry hides it in Rise. **Clear all** hides the retained Rise entries
-and dismisses native popups; Omarchy continues to manage its own stored history.
-The notification action buttons provided by applications remain available on
-the native Omarchy popups. Rise retains its supported app-opening and verified
-action fallbacks; it does not replay arbitrary commands from stored messages.
-
-## Network diagnostics, bands and sign-in
-
-The Network panel in V1 and V2 includes router/internet latency and ICMP
-packet-loss measurements. Samples are collected only while the panel is open;
-latency averages successful replies among the last five samples, and loss
-uses up to 24 samples. Changing interface resets the measurements.
-
-For a connected Wi-Fi network with multiple bands, choose **Auto**, **2.4 GHz**,
-**5 GHz** or **6 GHz**, according to the bands the native helper reports.
-Changing band reconnects Wi-Fi. The Omarchy helper attempts to restore the old
-setting if reconnection fails, and the panel displays any failure.
-
-When NetworkManager detects a captive portal, **Sign in to network** opens the
-native Omarchy login flow. That flow temporarily pauses a Tailscale exit node
-when necessary and restores it afterwards. Limited connectivity alone does not
-show a login button. Disabled NetworkManager connectivity checks are treated
-as unknown, without an additional HTTP probe from Rise.
-
-The commands `omarchy-network-status`, `omarchy-network-band` and
-`omarchy-network-captive-portal` must be available. These additions share one
-implementation across V1/V2 and do not install another Network plugin.
-
-## Native Omarchy indicators
-
-The clock group includes passwordless-sudo status, screen recording, remote
-sessions, reminders, night light, notification silencing and stay-awake mode.
-Active indicators remain visible. Hover over the clock group to reveal inactive
-controls. Remote sessions appear only while connected. Click an indicator to
-run its native Omarchy action; the remote-session icon is informational.
-
-V1 and V2 use the same coordinator and retain their own group colors and
-surfaces, including vertical bars. The group replaces the old inline idle,
-notification-silence and recording icons, without adding another plugin or
-changing saved slot order. Voice-input and update indicators remain alongside it.
-
-The full set requires Rise running as an Omarchy full-bar plugin. Standalone
-mode retains existing idle, notification and recording status; host-only
-controls are unavailable. Passwordless sudo opens Omarchy's interactive flow
-when inactive and revokes access when active.

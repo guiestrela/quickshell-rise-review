@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Quickshell Rise — uninstaller (version-agnostic; removes whatever is installed)
 # Usage:
-#   bash <(curl -fsSL https://raw.githubusercontent.com/guiestrela/quickshell-dots/main/uninstall.sh)
+#   bash <(curl -fsSL https://raw.githubusercontent.com/HANCORE-linux/quickshell-dots/main/uninstall.sh)
 set -euo pipefail
 
 DEST="$HOME/.config/quickshell/bar"
@@ -15,7 +15,6 @@ warn() { printf "%s!!%s %s\n"  "$c_y" "$c_0" "$*"; }
 # It reads the Quickshell registry directly and never invokes `qs list`.
 QSR_CONFIG_PATH="$DEST/shell.qml"
 QSR_RUNTIME_ROOT="${QSR_RUNTIME_ROOT:-${XDG_RUNTIME_DIR:-/run/user/$UID}/quickshell}"
-QSR_SESSION_ACTIVE="${QSR_SESSION_ACTIVE:-${XDG_RUNTIME_DIR:-/run/user/$UID}/quickshell-rise/active}"
 QSR_PROC_ROOT="${QSR_PROC_ROOT:-/proc}"
 QSR_STATE_ROOT="${QSR_STATE_ROOT:-${XDG_STATE_HOME:-$HOME/.local/state}/quickshell-rise}"
 QSR_BAR_MARKER="${QSR_BAR_MARKER:-$QSR_STATE_ROOT/owns-omarchy-bar-off}"
@@ -223,7 +222,6 @@ if ! qsr_stop_bar_instances; then
   warn "Could not stop all registered Rise instances — leaving installed files untouched."
   exit 1
 fi
-rm -f "$QSR_SESSION_ACTIVE"
 info "Stopped the bar"
 
 # 1b. remove the Claude usage backend, if it was installed (idempotent).
@@ -332,8 +330,6 @@ fi
 # 2. remove the post-boot hook (if the user installed it)
 boot="$HOME/.config/omarchy/hooks/post-boot.d/quickshell-rise"
 [[ -f "$boot" ]] && { rm -f "$boot"; info "Removed post-boot hook"; }
-post_update="$HOME/.config/omarchy/hooks/post-update.d/quickshell-rise"
-[[ -f "$post_update" ]] && { rm -f "$post_update"; info "Removed post-update hook"; }
 
 # 3. remove the theme hook we installed
 hook="$HOME/.config/omarchy/hooks/theme-set.d/50-quickshell-bar.sh"
