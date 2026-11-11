@@ -29,6 +29,8 @@ The most common widget bindings are:
 | Tray widget | Open hidden-app panel | None | None |
 | Tray icon | Activate application | Hide icon | None |
 
+Both variants offer **Protect layout**, saved separately for V1 and V2. When enabled, double-clicking the bar and clicking gap/divider markers cannot change the layout. Use **Edit slots** to explicitly enter editing mode; `Esc` exits editing without turning protection off. Widget settings remain available in the Control Panel.
+
 The Media Player Remote Interfacing Specification (MPRIS) widget has two bar presentations. **Default** shows transport controls, track text, and equalizer motion. **FULL** shows a vinyl mark, real-time CAVA waveform, and transport state. In FULL mode, click the surface to play or pause, scroll up for the next track, and scroll down for the previous track.
 
 ## Switch between V1 and V2
@@ -62,7 +64,11 @@ V2 adds four outer-shell layouts:
 - **Dock**: attach a content-width surface to the screen edge
 - **Notch**: attach the compact surface with continuous side transitions
 
-V2 can place every shell at the top or bottom edge. The Bar Border and Panel & Tooltip Border controls are independent.
+V1 also supports **Left** and **Right** in the Position controls. Its lateral bar uses a 40px rail for the V1 pills, with workspaces in a column and panels opening toward the desktop. The saved widget order is shared with Top/Bottom; long layouts scroll. Switching position preserves widget preferences. Split all, Merge all, Default layout, slot editing, and gap animations also apply to the vertical layout using the same saved order and splits.
+
+V2 can place every shell at the top or bottom edge. All four V2 shells also support **Left** and **Right** in the Position controls. Lateral Full, Dock, and Notch bars reserve 40px; Fit reserves 44px including its 2px outer margins. Both use compact widgets and panels that open toward the desktop. Dock attaches to the lateral edge with rounded desktop-facing corners; Notch adds curved shoulders at its ends. Switching positions preserves the selected shell. The widget order and visibility settings are shared with the horizontal layout: Left groups stay at the top, Center groups in the middle, and Right groups at the bottom. If the groups do not fit, the layout scrolls without overlapping them. Panel and tooltip backgrounds remain dense independently of bar Frost.
+
+On a lateral bar, workspaces appear in a column using the selected visual style and 5/10/active mode. Left-click a workspace to switch to it, right-click for the workspace panel, or scroll to navigate. Click the clock for the calendar and right-click for weather. **Edit slots** enables vertical slot swapping; use the wheel to scroll long layouts and `Esc` to finish editing. The style cards preview each shell. The Bar Border and Panel & Tooltip Border controls are independent. Full, Fit, Dock, and Notch offer Frost, which lowers the bar background opacity; compositor blur depends on the active desktop theme. The preference is shared across all four V2 shells and preserves the previously saved Notch Frost setting.
 
 ## Apply colors and widget styles
 
@@ -73,6 +79,8 @@ V2 also exposes a palette button for each configurable widget group. Use it to:
 - Apply a palette color or return to inherited color
 - Enable a widget border without enabling fill
 - Select automatic, foreground, or background contrast for a filled widget
+- Cycle surface opacity, corners, padding, border width, and an independent border color
+- Use **Reset surface** to restore geometry and border color while keeping the widget’s palette assignment
 
 Status-driven icons keep their semantic state colors where required. Other icons use the assigned widget color or Foreground according to the selected rule.
 
@@ -91,7 +99,7 @@ V2 includes detailed panels for:
 
 The storage panel reports devices but does not mount or unmount filesystems.
 
-The AI usage widget supports Claude, Codex, and OpenCode. Availability depends on the optional backends selected during installation and the corresponding local account or database.
+The AI usage widget includes collectors for Claude, Codex, OpenCode, and GitHub Copilot. They are installed with Rise; provider credentials, account access, local databases, and network availability determine which providers can report usage. Missing provider data does not block the bar or imply a quota is available.
 
 ## Open pickers through IPC
 
@@ -129,3 +137,46 @@ hyprctl reload
 Read [Maintain and recover Quickshell Rise](maintenance-and-recovery.md) for status, restart, update, log, and recovery commands.
 
 [Back to the project README](../README.md)
+
+## Extra positions for customization
+
+Unlock the bar to reveal empty drop targets, then drag a widget into one to
+move it between regions. V1 has 32 positions: 15 on the left, 3 in the center
+and 14 on the right, including ten empty positions in the default layout.
+Empty positions disappear when the bar is locked; existing saved widget order
+and split settings are migrated in place. Escape locks the bar again.
+
+V2 supports up to 20 positions per side and 8 in the center. Use the `+` control
+in edit mode to add a slot. Only empty additional slots can be removed; moving
+a widget into a slot preserves all other slot positions.
+
+## Notification history on Omarchy 4.5
+
+Rise reads the native `notifications/live.json` and `history.json` stores and
+the `quiet.json` do-not-disturb state. Native keys keep entries stable across
+shell restarts, and modern entries disappear from Rise when the host removes
+them through retention. The Rise panel displays up to 50 recent entries.
+
+Closing an entry hides it in Rise. **Clear all** hides the retained Rise entries
+and dismisses native popups; Omarchy continues to manage its own stored history.
+The notification action buttons provided by applications remain available on
+the native Omarchy popups. Rise retains its supported app-opening and verified
+action fallbacks; it does not replay arbitrary commands from stored messages.
+
+## Native Omarchy indicators
+
+The clock group includes passwordless-sudo status, screen recording, remote
+sessions, reminders, night light, notification silencing and stay-awake mode.
+Active indicators remain visible. Hover over the clock group to reveal inactive
+controls. Remote sessions appear only while connected. Click an indicator to
+run its native Omarchy action; the remote-session icon is informational.
+
+V1 and V2 use the same coordinator and retain their own group colors and
+surfaces, including vertical bars. The group replaces the old inline idle,
+notification-silence and recording icons, without adding another plugin or
+changing saved slot order. Voice-input and update indicators remain alongside it.
+
+The full set requires Rise running as an Omarchy full-bar plugin. Standalone
+mode retains existing idle, notification and recording status; host-only
+controls are unavailable. Passwordless sudo opens Omarchy's interactive flow
+when inactive and revokes access when active.

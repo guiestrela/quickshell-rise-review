@@ -4,8 +4,7 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 const file = new URL('../shared/controllers/DisplayManagerController.qml', import.meta.url);
 const source = readQmlSource(file, 'utf8');
-const context = vm.createContext({controller:null,theme:{displayManagerAutoWorkspaces:true},hasDrafts:false,helperPath:'/rise/helper',guardPath:'/rise/guard',confirmationSeconds:15,rollbackPending:false,busy:false,loading:false,error:'',actionProc:{},monitors:[],positions:{},extraQueue:[],workspaceLoading:false,workspaceCommitPending:false,workspaceAssignments:{},workspaceOverrides:{},selectedMonitor:'DP-1',console});
-context.controller=context;
+const context = vm.createContext({helperPath:undefined,busy:false,error:'',loading:false, actionProc:{}, monitors:[], positions:{}, console});
 for (const match of source.matchAll(/    function (\w+)\([^\n]*\) \{/g)) {
   const start=match.index+4; let cursor=source.indexOf('{',start), depth=1;
   while(depth && ++cursor<source.length) { if(source[cursor]==='{')depth++; else if(source[cursor]==='}')depth--; }
@@ -13,9 +12,7 @@ for (const match of source.matchAll(/    function (\w+)\([^\n]*\) \{/g)) {
 }
 context.monitors=[{name:'DP-1',width:2560,height:1440,refreshRate:59.95,scale:1,x:0,y:0,mirrorOf:'none'}];
 assert.equal(context.applyMonitor('DP-1','2560x1440@59.95Hz',200,-100,1,0,'none'),true,'native Hyprland modes must work');
-assert.equal(context.guardedAction,true,'layout changes retain the rollback guard');
-assert.deepEqual(Array.from(context.actionProc.command).slice(0,2), ['/rise/guard','--apply']);
-assert.equal(JSON.parse(context.actionProc.command[2])[1],'monitor');
+assert.deepEqual(Array.from(context.actionProc.command).slice(0,8), [undefined,'--action','monitor','--monitor','DP-1','--mode','2560x1440@59.95','--x']);
 context.busy=false;
 assert.equal(context.applyMonitor('DP-1','2560x1440@59.95',0,0,1,0,'DP-1'),false,'self-mirror must be rejected before dispatch');
 assert.equal(context.applyMonitor('DP-1','2560x1440@59.95',999999,0,1,0,'none'),false,'position bounds must be rejected');

@@ -1,39 +1,29 @@
 #!/usr/bin/env python3
 """Production V1 vertical layout with inert service widgets; no live actions."""
-from qml_fixture_source import copy_qml_fixture, qml_fixture_source, qml_fixture_text, write_hyprland_stub
+from qml_fixture_source import copy_qml_fixture, qml_fixture_source, qml_fixture_text
 from pathlib import Path
 import os, re, shutil, subprocess, tempfile
 repo = Path(__file__).resolve().parents[1]
-with tempfile.TemporaryDirectory(prefix='rise-v1-vertical-', dir=os.environ.get('TMPDIR')) as directory:
+with tempfile.TemporaryDirectory(prefix='rise-v1-vertical-', dir='/tmp') as directory:
     base = Path(directory)
     runtime = base / 'runtime'; runtime.mkdir(mode=0o700)
     for name in ['VerticalBarContent.qml', 'SidePanelPositioner.qml', 'WorkspaceWidget.qml', 'PillShadow.qml', 'CpuWidget.qml', 'MemoryWidget.qml', 'MprisWidget.qml', 'UiText.qml', 'IconText.qml', 'TooltipMixin.qml']:
         copy_qml_fixture(qml_fixture_source(repo / 'variants/V1/modules' / name), base)
-    copy_qml_fixture(repo / 'shared/logic/MonitorWorkspaces.js', base)
-    for module_name in ['VerticalBarContent.qml', 'WorkspaceWidget.qml']:
-        module_path = base / module_name
-        module_path.write_text(module_path.read_text().replace(
-            'import Quickshell.Hyprland', 'import "."'))
-    workspace_source = base / 'WorkspaceWidget.qml'
-    workspace_source.write_text(workspace_source.read_text().replace(
-        'import "../../../shared/logic/MonitorWorkspaces.js" as MonitorWorkspaces',
-        'import "MonitorWorkspaces.js" as MonitorWorkspaces'))
-    copy_qml_fixture(repo / 'shared/components/IndicatorsWidget.qml', base)
+    copy_qml_fixture(repo / 'shared/components/OmarchyIndicatorsWidget.qml', base)
     for name in ['ArchUpdaterWidget', 'TrayWidget', 'NotificationWidget', 'IdleInhibitorWidget', 'MediaBrowserWidget', 'ThemeDisplayWidget', 'WeatherWidget']:
         (base / (name + '.qml')).write_text('import QtQuick\nItem { property var root; property var screen; implicitWidth: 30; implicitHeight: 28 }\n')
-    (base / 'MprisSelect.qml').write_text('import QtQuick\nItem { property var player: ({trackTitle:"Long song name",trackArtist:"Artist",canGoPrevious:true,canGoNext:true}); property bool active: true; property bool playing: false; property bool canGoPrevious: true; property bool canGoNext: true; property bool canTogglePlayback: true }')
+    (base / 'MprisSelect.qml').write_text('import QtQuick\nItem { property var player: ({trackTitle:"Long song name",trackArtist:"Artist",canGoPrevious:true,canGoNext:true}); property bool active: true; property bool playing: false }')
     (base / 'ParticleStream.qml').write_text('import QtQuick\nItem { objectName: "vertical-gap-effect"; property var theme; property var layout; property int mode; property bool active; property string monitor }')
-    write_hyprland_stub(base)
     source = qml_fixture_text(repo / 'tests/test-vertical-bar-layout.py')
     fixture = source.split("write_text('''import QtQuick", 1)[1].split("'''", 1)[0]
     fixture = 'import QtQuick' + fixture[:fixture.index(' property int step:')]
     fixture, width_bindings = re.subn(r'property int verticalBarWidth: [^\n]+',
                                      'property int verticalBarWidth: 40', fixture)
     assert width_bindings == 1, 'V1 fixture must define its own bar width'
-    fixture, surface_bindings = re.subn(r'property int verticalModuleSurfaceWidth: .*',
-                                        'property int verticalModuleSurfaceWidth: 32', fixture)
-    assert surface_bindings == 1, 'V1 fixture must use the Control Center surface width'
-    fixture = fixture.replace('  property int panelRadius: 6', '''  property int wsPillPad: 2
+    fixture = fixture.replace('  property int panelRadius: 6', '''  property int tileRadius: 10
+  property color fillIdle: "#222222"
+  property color sumi: "#999999"
+  property int wsPillPad: 2
   property int pillH: 28
   property int pillRadius: 6
   property bool styleBorder: true
@@ -46,7 +36,7 @@ with tempfile.TemporaryDirectory(prefix='rise-v1-vertical-', dir=os.environ.get(
     fixture = fixture.replace(' Component { id: widget;', ' Component { id: cpuWidget; CpuWidget { root: harness.state } }\n Component { id: widget;')
     fixture = fixture.replace('G5:widget', 'G5:cpuWidget,G4:memoryWidget,G9:mediaWidget')
     fixture = fixture.replace(' Component { id: cpuWidget;', ' Component { id: memoryWidget; MemoryWidget { root: harness.state } }\n Component { id: mediaWidget; MprisWidget { root: harness.state } }\n Component { id: cpuWidget;')
-    fixture = fixture.replace('ListElement {gid:"G5"; extra:false}', 'ListElement {gid:"G5"; extra:false} ListElement {gid:"G4"; extra:false} ListElement {gid:"G9"; extra:false}')
+    fixture = fixture.replace('ListElement {gid:"G5"}', 'ListElement {gid:"G5"} ListElement {gid:"G4"} ListElement {gid:"G9"}')
     fixture = fixture.replace('  property int panelRadius: 6', '''  property int barAnim: 0
   property bool compactCpu: false
   property bool compactGpu: false
@@ -71,7 +61,7 @@ with tempfile.TemporaryDirectory(prefix='rise-v1-vertical-', dir=os.environ.get(
   property bool gpuVisible: false
   property bool mprisVisible: false
   property int panelRadius: 6''')
-    fixture = fixture.replace('AiPanelSurface { id: connectedSurface; root:harness.state; targetX:0; reveal:1 }', '')
+    fixture = fixture.replace('   AiPanelSurface { root:harness.state; targetX:0; reveal:1 }', '')
     fixture += '''
  function check(condition, label) { if (!condition) throw new Error(label) }
  Timer {
@@ -115,10 +105,6 @@ with tempfile.TemporaryDirectory(prefix='rise-v1-vertical-', dir=os.environ.get(
    var borders = []
    descendants(rail, function(item) { if (item.objectName === "vertical-run-surface") borders.push(item) })
    check(borders.length > 0, "split surfaces instantiated")
-   for (var b=0; b<borders.length; b++) {
-    check(Math.abs(borders[b].width - harness.state.verticalModuleSurfaceWidth) < 0.01, "V1_MODULE_WIDTH_" + borders[b].width)
-    check(Math.abs(borders[b].x + borders[b].width / 2 - borders[b].parent.width / 2) < 0.51, "V1_MODULE_CENTER")
-   }
    harness.state.styleBorder = false
    for (var b=0; b<borders.length; b++) check(borders[b].border.width === 0, "Border off")
    harness.state.styleBorder = true

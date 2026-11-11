@@ -1,7 +1,6 @@
 import QtQuick
 import Quickshell
 import Quickshell.Io
-import Quickshell.Hyprland
 
 Item {
     id: controller
@@ -10,11 +9,9 @@ Item {
         || (Quickshell.env("HOME") + "/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/scripts/rise-display-manager-apply")
     readonly property string guardPath: String(Quickshell.env("RISE_DISPLAY_MANAGER_GUARD") || "") || helperPath.replace(/[^/]+$/, "rise-display-manager-guard")
     property string rollbackToken: ""
-    property string pendingEnableMonitorName: ""
-    property int pendingEnableWorkspaceId: 0
     readonly property bool rollbackPending: rollbackToken !== ""
     property int rollbackSeconds: 0
-    readonly property int confirmationSeconds: 15
+    readonly property int confirmationSeconds: 5
     property bool guardedAction: false
     property bool confirmationBusy: false
     function confirmChanges() { resolveChanges("--confirm") }
@@ -41,62 +38,6 @@ Item {
             else error = ""
             refresh(true)
         } else throw new Error("Invalid confirmation status")
-        if (data.status === "reverted" || data.status === "failed") {
-            pendingEnableMonitorName = ""
-            pendingEnableWorkspaceId = 0
-        }
-        return data.status
-    }
-    function focusPendingEnableWorkspace() {
-        var monitorName = pendingEnableMonitorName
-        var workspaceId = pendingEnableWorkspaceId
-        pendingEnableMonitorName = ""
-        pendingEnableWorkspaceId = 0
-        if (!monitorName || workspaceId < 1 || workspaceId > 10) return
-        enableWorkspaceFocus.monitorName = monitorName
-        enableWorkspaceFocus.workspaceId = workspaceId
-        enableWorkspaceFocus.modeWaitAttempts = 0
-        enableWorkspaceFocus.restart()
-    }
-    function dispatchHyprlandExpression(expression) {
-        Quickshell.execDetached(["hyprctl", "dispatch", String(expression)])
-    }
-    Timer {
-        id: enableWorkspaceFocus
-        property string monitorName: ""
-        property int workspaceId: 0
-        property int modeWaitAttempts: 0
-        interval: 100
-        repeat: false
-        onTriggered: {
-            if (!controller.theme.hyprDispatchModeReady) {
-                if (++modeWaitAttempts < 30) restart()
-                else controller.error = "Could not detect the active Hyprland dispatch mode."
-                return
-            }
-            if (controller.theme.omarchyPerMonitorWorkspaces) {
-                controller.dispatchHyprlandExpression(
-                    "o.workspaces.focus(" + workspaceId + ", " + JSON.stringify(monitorName) + ")")
-                return
-            }
-            if (controller.theme.hyprUsesLua)
-                controller.dispatchHyprlandExpression('hl.dsp.focus({ monitor = "' + monitorName + '" })')
-            else
-                Hyprland.dispatch("focusmonitor " + monitorName)
-            enableWorkspaceSelect.restart()
-        }
-    }
-    Timer {
-        id: enableWorkspaceSelect
-        interval: 200
-        repeat: false
-        onTriggered: {
-            if (!controller.theme.displayManagerAutoWorkspaces) return
-            if (controller.theme.hyprUsesLua)
-                controller.dispatchHyprlandExpression("hl.dsp.focus({ workspace = " + enableWorkspaceFocus.workspaceId + " })")
-            else
-                Hyprland.dispatch("workspace " + enableWorkspaceFocus.workspaceId)
-        }
     }
     Timer {
         interval: 1000; running: controller.rollbackPending; repeat: true
@@ -115,10 +56,7 @@ Item {
         onExited: (code) => {
             if (!controller.rollbackPending || controller.confirmationBusy) return
             if (code !== 0) { controller.error = String(rollbackStatusErrorOutput.text || "Could not verify rollback state.").trim(); return }
-            try {
-                if (controller.updateRollback(String(rollbackStatusOutput.text)) === "confirmed")
-                    controller.focusPendingEnableWorkspace()
-            }
+            try { controller.updateRollback(String(rollbackStatusOutput.text)) }
             catch (e) { controller.error = String(e) }
         }
     }
@@ -129,10 +67,7 @@ Item {
         onExited: (code) => {
             controller.confirmationBusy = false
             if (code !== 0) { controller.error = String(confirmationErrorOutput.text || "Confirmation failed; automatic rollback remains armed.").trim(); return }
-            try {
-                if (controller.updateRollback(String(confirmationOutput.text)) === "confirmed")
-                    controller.focusPendingEnableWorkspace()
-            }
+            try { controller.updateRollback(String(confirmationOutput.text)) }
             catch (e) { controller.error = String(e) }
         }
     }
@@ -194,7 +129,6 @@ Item {
         return draftWorkspaceAssignments[key] !== undefined ? draftWorkspaceAssignments[key] : workspaceAssignments[key] || ""
     }
     function stageWorkspace(number, name) {
-        if (theme.omarchyPerMonitorWorkspaces) return false
         var m = previewMonitor(name)
         if (busy || loading || rollbackPending || workspaceLoading || extraQueue.length || workspaceCommitPending || !workspaceStateReady
             || !Number.isInteger(number) || number < 1 || number > 10 || !safeMonitor(name)
@@ -205,14 +139,6 @@ Item {
         draftWorkspaceAssignments = copy; return true
     }
     function refreshWorkspaces() {
-        if (theme.omarchyPerMonitorWorkspaces) {
-            workspaceLoading = false
-            workspaceStateReady = true
-            workspaceAssignments = ({})
-            workspaceOverrides = ({})
-            workspaceError = ""
-            return
-        }
         if (workspaceStateProc.running) { workspaceRefreshPending = true; return }
         workspaceQueryGeneration = workspaceGeneration
         workspaceRefreshPending = false
@@ -306,7 +232,7 @@ Item {
         draftTextSizeIndex = index; return true
     }
     function applyDrafts() {
-        if (busy || loading || rollbackPending || displayStateSaving || workspaceLoading || workspaceCommitPending || extraQueue.length) return false
+        if (busy || loading || rollbackPending || workspaceLoading || workspaceCommitPending || extraQueue.length) return false
         var changed = Object.keys(drafts), entries = [], saved = Object.assign({}, savedDisplayStates), remember = false
         for (var name of changed) if (!monitor(name)) { error = "Displays changed; refresh first."; return false }
         for (var m of previewMonitors) {
@@ -321,6 +247,12 @@ Item {
                 saved[m.name] = snapshot; remember = true
             }
         }
+        if (remember) {
+            displayStateSaved = false
+            try { displayStateFile.setText(JSON.stringify(saved)) } catch (e) { error = String(e); return false }
+            if (!displayStateSaved) { error = "Cannot save display return positions; nothing applied."; return false }
+            savedDisplayStates = saved
+        }
         var queue = []
         var workspaceDrafts = typeof draftWorkspaceAssignments === "undefined" ? {} : draftWorkspaceAssignments
         var assigned = []
@@ -332,12 +264,6 @@ Item {
         if (assigned.length) queue.push(["--action", "workspaces", "--payload", JSON.stringify(assigned)])
         for (var output of Object.keys(draftBrightness)) queue.push(["--action", "brightness", "--monitor", output, "--percent", String(draftBrightness[output])])
         if (draftTextSizeIndex >= 0) queue.push(["--action", "text-size", "--size", String(textSizeStops[draftTextSizeIndex])])
-        if (remember) return saveDisplayStates(saved, function() {
-            controller.finishApplyingDrafts(changed, entries, queue)
-        }, "Cannot save display return positions; nothing applied.")
-        return finishApplyingDrafts(changed, entries, queue)
-    }
-    function finishApplyingDrafts(changed, entries, queue) {
         if (changed.length && !command(["--action", "preview", "--payload", JSON.stringify({ monitors: entries, changed: changed })])) return false
         extraQueue = queue; draftBrightness = ({}); draftTextSizeIndex = -1
 
@@ -359,114 +285,34 @@ Item {
     property var savedDisplayStates: ({})
     property bool displayStateReady: false
     property bool displayStateSaved: false
-    property bool displayStateSaving: false
-    function clearDisableWaitError() {
-        if (error === "Wait for the current operation and saved display positions."
-            && displayStateReady && !busy && !loading && !rollbackPending && !displayStateSaving)
-            error = ""
-    }
-    onDisplayStateReadyChanged: clearDisableWaitError()
-    onBusyChanged: clearDisableWaitError()
-    onLoadingChanged: clearDisableWaitError()
-    onRollbackPendingChanged: clearDisableWaitError()
-    onDisplayStateSavingChanged: clearDisableWaitError()
-    property var pendingDisplayStateWrite: null
-    function saveDisplayStates(saved, callback, failureMessage) {
-        if (displayStateSaving) { error = "A display position save is already running."; return false }
-        var serialized = JSON.stringify(saved)
-        // FileView does not emit onSaved when setText receives the current
-        // contents. The display cache is commonly unchanged when toggling a
-        // monitor that already has a saved return position; finish that case
-        // directly so Disable is not left waiting forever for a write signal.
-        if (displayStateReady && displayStateFile.loaded && displayStateFile.text() === serialized) {
-            displayStateSaved = true
-            savedDisplayStates = saved
-            displayStateSaving = false
-            pendingDisplayStateWrite = null
-            if (callback) Qt.callLater(callback)
-            return true
-        }
-        displayStateSaved = false
-        displayStateSaving = true
-        pendingDisplayStateWrite = { saved: saved, callback: callback, failureMessage: failureMessage }
-        try { displayStateFile.setText(serialized) }
-        catch (e) {
-            pendingDisplayStateWrite = null
-            displayStateSaving = false
-            error = failureMessage + " " + String(e)
-            return false
-        }
-        return true
-    }
-    function loadDisplayStateText(raw) {
-        try {
-            var data = JSON.parse(String(raw || ""))
-            if (!data || typeof data !== "object" || Array.isArray(data) || Object.keys(data).length > 32)
-                throw new Error("Invalid saved display state")
-            var valid = {}
-            for (var name of Object.keys(data)) {
-                if (!controller.safeMonitor(name) || !controller.validSavedDisplayState(data[name]))
-                    throw new Error("Invalid saved display geometry")
-                valid[name] = data[name]
-            }
-            controller.savedDisplayStates = valid
-            controller.displayStateReady = true
-        } catch (e) {
-            controller.displayStateReady = false
-            controller.error = String(e)
-        }
-    }
-    function ensureDisplayStateReady() {
-        if (displayStateReady) return true
-        displayStateFile.waitForJob()
-        if (!displayStateReady) {
-            if (displayStateFile.loaded) controller.loadDisplayStateText(displayStateFile.text())
-            else if (displayStateFile.error === FileViewError.FileNotFound) controller.displayStateReady = true
-        }
-        return displayStateReady
-    }
     FileView {
         id: displayStateFile
         path: Quickshell.env("HOME") + "/.cache/quickshell-rise/display-return-states.json"
         preload: true
-        blockWrites: false
+        blockWrites: true
         atomicWrites: true
         printErrors: false
         onLoaded: {
-            controller.loadDisplayStateText(text())
+            try {
+                var data = JSON.parse(text())
+                if (!data || typeof data !== "object" || Array.isArray(data) || Object.keys(data).length > 32)
+                    throw new Error("Invalid saved display state")
+                var valid = {}
+                for (var name of Object.keys(data)) {
+                    if (!controller.safeMonitor(name) || !controller.validSavedDisplayState(data[name]))
+                        throw new Error("Invalid saved display geometry")
+                    valid[name] = data[name]
+                }
+                controller.savedDisplayStates = valid
+                controller.displayStateReady = true
+            } catch (e) { controller.displayStateReady = false; controller.error = String(e) }
         }
         onLoadFailed: (code) => {
             controller.displayStateReady = code === FileViewError.FileNotFound
             if (!controller.displayStateReady) controller.error = "Cannot read the saved display positions."
         }
-        onSaved: {
-            controller.displayStateSaved = true
-            var pending = controller.pendingDisplayStateWrite
-            if (!pending) return
-            controller.pendingDisplayStateWrite = null
-            controller.displayStateSaving = false
-            controller.savedDisplayStates = pending.saved
-            if (pending.callback) pending.callback()
-        }
-        onSaveFailed: {
-            controller.displayStateSaved = false
-            var pending = controller.pendingDisplayStateWrite
-            controller.pendingDisplayStateWrite = null
-            controller.displayStateSaving = false
-            if (pending) controller.error = pending.failureMessage
-        }
-    }
-    Component.onCompleted: {
-        // This tiny safety cache must be ready before display actions are
-        // offered. A delayed preload previously left Disable permanently
-        // blocked even when the file was already present and valid.
-        if (!ensureDisplayStateReady()) error = "Cannot read the saved display positions."
-    }
-    Connections {
-        target: controller.theme
-        function onOmarchyPerMonitorWorkspacesChanged() {
-            if (controller.theme.omarchyPerMonitorWorkspaces) controller.refreshWorkspaces()
-        }
+        onSaved: controller.displayStateSaved = true
+        onSaveFailed: controller.displayStateSaved = false
     }
     function validSavedDisplayState(m) {
         return m && Number.isInteger(m.x) && Math.abs(m.x) <= 32767
@@ -509,20 +355,19 @@ Item {
         stateProc.command = [helperPath, "--action", "brightness-state", "--monitor", selectedMonitor]
         stateProc.running = true
     }
-    function command(args, useGuard) {
+    function command(args) {
         if (rollbackPending) { error = "Keep or revert the pending configuration first."; return false }
         if (busy || loading) { error = "Another display operation or query is still running."; return false }
         actionTimedOut = false
         pendingTextSizeIndex = -1
         busy = true
         error = ""
-        guardedAction = useGuard !== undefined ? useGuard === true
-            : args[1] === "monitor" || args[1] === "disable" || args[1] === "preview"
+        guardedAction = args[1] === "monitor" || args[1] === "disable" || args[1] === "preview"
         actionProc.command = guardedAction ? [guardPath, "--apply", JSON.stringify(args), "--seconds", String(confirmationSeconds)] : [helperPath].concat(args)
         actionProc.running = true
         return true
     }
-    function applyMonitor(name, mode, x, y, scale, transform, mirror, useGuard) {
+    function applyMonitor(name, mode, x, y, scale, transform, mirror) {
         mode = String(mode).replace(/Hz$/, "")
         if (!safeMonitor(name) || !monitor(name) || mirror === name
             || (mirror !== "none" && (!safeMonitor(mirror) || !monitor(mirror)))
@@ -534,17 +379,16 @@ Item {
             error = "Invalid display configuration; no command was sent."; return false
         }
         return command(["--action", "monitor", "--monitor", name, "--mode", String(mode), "--x", String(x), "--y", String(y),
-                       "--scale", String(scale), "--transform", String(transform), "--mirror", safeMonitor(mirror) ? mirror : "none"], useGuard)
+                       "--scale", String(scale), "--transform", String(transform), "--mirror", safeMonitor(mirror) ? mirror : "none"])
     }
     function disableMonitor(name) {
         if (!safeMonitor(name) || !monitor(name)) { error = "Invalid monitor name."; return false }
         if (monitor(name).disabled || monitors.filter(function(m) { return !m.disabled && (!m.mirrorOf || m.mirrorOf === "none") }).length <= 1) {
             error = "Keep at least one independent display enabled."; return false
         }
-        if (busy || loading || rollbackPending || displayStateSaving) {
+        if (busy || loading || rollbackPending || !displayStateReady) {
             error = "Wait for the current operation and saved display positions."; return false
         }
-        if (!ensureDisplayStateReady()) { error = "Cannot read the saved display positions."; return false }
         // Capture the actual applied geometry, never an un-applied drag position.
         var m = monitor(name)
         var snapshot = { x: m.x, y: m.y, width: m.width, height: m.height,
@@ -552,13 +396,12 @@ Item {
         if (!validSavedDisplayState(snapshot)) { error = "Cannot save this display geometry safely."; return false }
         var saved = Object.assign({}, savedDisplayStates)
         saved[name] = snapshot
-        return saveDisplayStates(saved, function() {
-            // Match Omarchy 4.5's monitor panel: run the Lua monitor API
-            // directly and refresh after it exits. The return geometry above
-            // remains durable so Enable can restore the same position.
-            if (!controller.command(["--action", "disable", "--monitor", name], false))
-                controller.error = "Display position saved, but output was not disabled. " + controller.error
-        }, "Cannot save the display position; output was not disabled.")
+        displayStateSaved = false
+        try { displayStateFile.setText(JSON.stringify(saved)) }
+        catch (e) { error = "Cannot save the display position: " + String(e); return false }
+        if (!displayStateSaved) { error = "Cannot save the display position; output was not disabled."; return false }
+        savedDisplayStates = saved
+        return command(["--action", "disable", "--monitor", name])
     }
     property var mirrorReturnStates: ({})
     function toggleMirror(draftOnly) {
@@ -602,11 +445,7 @@ Item {
     function enableMonitor(name, draftOnly) {
         var m = monitor(name)
         if (!m) { error = "Output is no longer connected; refresh first."; return false }
-        if (!ensureDisplayStateReady()) { error = "Cannot read the saved display positions."; return false }
-        if (!draftOnly && !theme.omarchyPerMonitorWorkspaces && theme.displayManagerAutoWorkspaces && (!workspaceStateReady || workspaceLoading)) {
-            error = "Wait for workspace assignments to load, then enable the monitor again."
-            return false
-        }
+        if (!displayStateReady) { error = "Wait for the saved display positions to load."; return false }
         var saved = m.disabled ? savedDisplayStates[name] : null
         if (saved) {
             if (!validSavedDisplayState(saved)) { error = "Invalid saved display geometry."; return false }
@@ -647,26 +486,7 @@ Item {
         var mode = m.width + "x" + m.height + "@" + refreshRate.toFixed(3)
         if (draftOnly) return stageMonitor(name, { mode: mode, x: x, y: y, scale: Number(m.scale),
             transform: Number(m.transform), disabled: false, mirrorOf: "none" })
-        var preferredWorkspace = 0
-        if (theme.omarchyPerMonitorWorkspaces) {
-            var liveWorkspaceId = m.activeWorkspace ? Number(m.activeWorkspace.id) : 0
-            preferredWorkspace = liveWorkspaceId > 0 ? ((liveWorkspaceId - 1) % 10) + 1 : 1
-        } else if (theme.displayManagerAutoWorkspaces && workspaceStateReady) {
-            var assigned = Object.keys(workspaceAssignments).filter(function(id) {
-                return workspaceAssignments[id] === name && /^(10|[1-9])$/.test(id)
-            }).sort(function(a, b) { return Number(a) - Number(b) })
-            if (assigned.length) preferredWorkspace = Number(assigned[0])
-            if (!preferredWorkspace) {
-                error = "No workspace is assigned to " + name + "."
-                return false
-            }
-        }
-        var applied = applyMonitor(name, mode, x, y, Number(m.scale), Number(m.transform), "none", false)
-        if (applied) {
-            pendingEnableMonitorName = preferredWorkspace ? name : ""
-            pendingEnableWorkspaceId = preferredWorkspace
-        }
-        return applied
+        return applyMonitor(name, mode, x, y, Number(m.scale), Number(m.transform), "none")
     }
     function saveLayout() {
         if (hasDrafts || extraQueue.length || workspaceLoading || workspaceCommitPending) { error = "Apply pending changes before saving the layout."; return false }
@@ -684,7 +504,7 @@ Item {
         var primary = selectedMonitor && extended.indexOf(selectedMonitor) >= 0 ? selectedMonitor : extended[0]
         if (primary && entries.length > 1) entries.sort(function(a, b) { return a.output === primary ? -1 : b.output === primary ? 1 : 0 })
         var workspaces = []
-        if (!theme.omarchyPerMonitorWorkspaces && theme.displayManagerAutoWorkspaces && extended.length) {
+        if (theme.displayManagerAutoWorkspaces && extended.length) {
             if (primary) {
                 extended.splice(extended.indexOf(primary), 1)
                 extended.unshift(primary)
@@ -701,9 +521,7 @@ Item {
             workspaces.push({ workspace: Number(key), monitor: target })
         }
         workspaces.sort(function(a, b) { return a.workspace - b.workspace })
-        return command(["--action", "save", "--payload", JSON.stringify({ monitors: entries,
-            manageWorkspaces: !theme.omarchyPerMonitorWorkspaces && (theme.displayManagerAutoWorkspaces || workspaces.length > 0),
-            workspaces: workspaces })])
+        return command(["--action", "save", "--payload", JSON.stringify({ monitors: entries, manageWorkspaces: theme.displayManagerAutoWorkspaces || workspaces.length > 0, workspaces: workspaces })])
     }
     function setBrightness(value) {
         var percent = Math.max(1, Math.min(100, Math.round(Number(value))))
@@ -789,22 +607,13 @@ Item {
         onExited: (code) => {
             if (controller.actionTimedOut) return
             controller.busy = false
-            if (code !== 0) {
-                controller.extraQueue = []
-                controller.pendingEnableMonitorName = ""
-                controller.pendingEnableWorkspaceId = 0
-                controller.error = String(actionErrorOutput.text || "Display operation failed.").trim()
-            }
+            if (code !== 0) { controller.extraQueue = []; controller.error = String(actionErrorOutput.text || "Display operation failed.").trim() }
             else {
                 controller.error = ""
                 if (controller.guardedAction) {
-                    try {
-                        var rollbackStatus = controller.updateRollback(String(actionOutput.text))
-                        if (rollbackStatus === "pending") controller.focusPendingEnableWorkspace()
-                    }
+                    try { controller.updateRollback(String(actionOutput.text)) }
                     catch (e) { controller.extraQueue = []; controller.error = "Change was not confirmed; safety rollback remains armed. " + String(e) }
                 }
-                else if (actionProc.command[2] === "monitor") controller.focusPendingEnableWorkspace()
                 if (controller.pendingTextSizeIndex >= 0) controller.textSizeIndex = controller.pendingTextSizeIndex
                 if (!controller.guardedAction && (actionProc.command[2] === "workspaces" || actionProc.command[2] === "save")) {
                     controller.workspaceGeneration++

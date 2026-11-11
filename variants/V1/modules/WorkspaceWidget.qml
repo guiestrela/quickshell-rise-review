@@ -1,55 +1,10 @@
 pragma ComponentBehavior: Bound
 import Quickshell.Hyprland
 import QtQuick
-import Quickshell
-import Quickshell.Io
-import "../../../shared/logic/MonitorWorkspaces.js" as MonitorWorkspaces
 
 Item {
     id: wsWidget
     required property var root
-    property var monitor: null
-    readonly property string monitorName: monitor ? monitor.name : ""
-    property var workspaceBlocks: ({})
-    readonly property var activeWorkspace: monitor ? monitor.activeWorkspace : Hyprland.focusedWorkspace
-    readonly property int workspaceBlock: MonitorWorkspaces.blockFor(workspaceBlocks, monitorName,
-        activeWorkspace ? activeWorkspace.id : 0)
-    function workspaceId(slot) { return MonitorWorkspaces.idFor(workspaceBlock, slot) }
-    readonly property var workspaceEntries: {
-        var entries = []
-        for (var i = 0; i < workspaceList.length; i++)
-            entries.push({ id: workspaceId(workspaceList[i]), slot: workspaceList[i], guest: false })
-        var guests = MonitorWorkspaces.guestIds(workspaceBlock, monitorName, Hyprland.workspaces.values)
-        for (var j = 0; j < guests.length; j++)
-            entries.push({ id: guests[j], slot: MonitorWorkspaces.slotFor(guests[j]), guest: true })
-        return entries
-    }
-    function workspaceIndexFor(id) {
-        for (var i = 0; i < workspaceEntries.length; i++) if (workspaceEntries[i].id === Number(id)) return i
-        return -1
-    }
-    function focusWorkspace(slot, guest, actualId) {
-        if (root.hyprDispatchModeReady === false) return
-        if (guest) root.gotoWorkspace(actualId)
-        else if (root.omarchyPerMonitorWorkspaces && monitorName) root.gotoWorkspace(slot, monitorName)
-        else root.gotoWorkspace(workspaceId(slot))
-    }
-    function scrollWorkspace(delta) {
-        var index = activeWorkspace ? workspaceIndexFor(activeWorkspace.id) : -1
-        var target = Math.max(0, Math.min(workspaceEntries.length - 1, index + delta))
-        if (index >= 0 && target !== index) {
-            var entry = workspaceEntries[target]
-            focusWorkspace(entry.slot, entry.guest, entry.id)
-        }
-    }
-    FileView {
-        path: (Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state") + "/omarchy/monitor-workspaces"
-        watchChanges: true
-        printErrors: false
-        onFileChanged: reload()
-        onLoaded: wsWidget.workspaceBlocks = MonitorWorkspaces.parseBlocks(text())
-        onLoadFailed: wsWidget.workspaceBlocks = ({})
-    }
 
     implicitWidth: wsRow.implicitWidth
     implicitHeight: wsWidget.root.barVertical ? wsRow.implicitHeight : 28
@@ -63,15 +18,17 @@ Item {
     readonly property int extraWs: {
         if (wsWidget.root.workspaceMode === "active") return 0
         var n = wsWidget.root.workspaceMode === "5" ? 5 : 10
-        var f = wsWidget.activeWorkspace
-        var slot = f ? MonitorWorkspaces.slotFor(f.id) : 0
-        return slot > n ? slot : 0
+        var f = Hyprland.focusedWorkspace
+        return (f && f.id > n) ? f.id : 0
     }
 
     readonly property var workspaceList: {
         if (wsWidget.root.workspaceMode === "active") {
-            return MonitorWorkspaces.slots("active", wsWidget.workspaceBlock,
-                wsWidget.activeWorkspace ? wsWidget.activeWorkspace.id : 0, Hyprland.workspaces.values)
+            var ids = {}
+            var ws = Hyprland.workspaces.values
+            for (var i = 0; i < ws.length; i++) if (ws[i].id > 0) ids[ws[i].id] = true   // F13: skip special (negative-id) workspaces
+            if (Hyprland.focusedWorkspace && Hyprland.focusedWorkspace.id > 0) ids[Hyprland.focusedWorkspace.id] = true
+            return Object.keys(ids).map(Number).sort(function(a, b) { return a - b })
         }
         var n = wsWidget.root.workspaceMode === "5" ? 5 : 10
         var list = []; for (var j = 1; j <= n; j++) list.push(j)
@@ -100,45 +57,38 @@ Item {
 
     Grid {
         id: wsRow
-        columns: wsWidget.root.barVertical ? 1 : Math.max(1, wsWidget.workspaceEntries.length)
+        columns: wsWidget.root.barVertical ? 1 : Math.max(1, wsWidget.workspaceList.length)
         anchors.centerIn: parent
         spacing: 5
 
         Repeater {
-            model: wsWidget.workspaceEntries
+            model: wsWidget.workspaceList
 
             delegate: Item {
                 id: wsCell
-                required property var modelData
-                required property int index
-                readonly property int wsId: modelData.slot
-                readonly property bool isGuest: modelData.guest
-                readonly property bool isFirstGuest: isGuest
-                    && (index === 0 || !wsWidget.workspaceEntries[index - 1].guest)
-                readonly property int actualWorkspaceId: modelData.id
+                required property int modelData
+                readonly property int wsId: modelData
 
                 // hover feedback works in every style (the old code scaled the
                 // default-only `dot`, invisible in numbers/magic)
                 Behavior on scale { NumberAnimation { duration: 120 } }
 
-                readonly property bool isFocused: wsWidget.activeWorkspace !== null
-                                               && wsWidget.activeWorkspace.id === actualWorkspaceId
+                readonly property bool isFocused: Hyprland.focusedWorkspace !== null
+                                               && Hyprland.focusedWorkspace.id === wsId
 
                 readonly property bool isOccupied: {
                     var ws = Hyprland.workspaces.values
                     for (var i = 0; i < ws.length; i++)
-                        if (ws[i].id === wsCell.actualWorkspaceId && (!wsWidget.monitor || !ws[i].monitor
-                                || ws[i].monitor.name === wsWidget.monitor.name)) return !isFocused
+                        if (ws[i].id === wsId) return !isFocused
                     return false
                 }
 
                 readonly property bool isEmpty: !isFocused && !isOccupied
 
-                implicitWidth: (wsWidget.root.workspaceStyle === "numbers" ? 22
+                implicitWidth: wsWidget.root.workspaceStyle === "numbers" ? 22
                              : wsWidget.root.workspaceStyle === "magic"   ? (isFocused ? 20 : 18)
-                             : (isFocused ? 32 : 16))
-                             + (isFirstGuest && !wsWidget.root.barVertical ? 6 : 0)
-                implicitHeight: 28 + (isFirstGuest && wsWidget.root.barVertical ? 6 : 0)
+                             : (isFocused ? 32 : 16)
+                implicitHeight: 28
 
                 Behavior on implicitWidth {
                     NumberAnimation { duration: 200; easing.type: Easing.OutCubic }
@@ -229,7 +179,7 @@ Item {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
                     hoverEnabled: true
-                    onClicked: wsWidget.focusWorkspace(wsCell.wsId, wsCell.isGuest, wsCell.actualWorkspaceId)
+                    onClicked: wsWidget.root.gotoWorkspace(wsCell.wsId)
                     onEntered: wsCell.scale = 1.15
                     onExited:  wsCell.scale = 1.0
                 }

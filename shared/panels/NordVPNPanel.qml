@@ -139,15 +139,14 @@ PanelWindow {
             }
             Rectangle { width: parent.width; height: 1; color: vpnPanel.root.sep }
             Item {
-                width: parent.width; height: vpnPanel.controller.vpnActiveProtocol ? 42 : 30
-                CommonComponents.UiText { anchors.left: parent.left; anchors.top: parent.top; anchors.topMargin: 2; text: "STATUS"; color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
-                CommonComponents.UiText { anchors.left: parent.left; anchors.leftMargin: 60; anchors.right: connectionSwitch.left; anchors.rightMargin: 10; anchors.top: parent.top; anchors.topMargin: 2; height: 16; verticalAlignment: Text.AlignVCenter; text: vpnPanel.controller.vpnState + (vpnPanel.controller.vpnCountry ? " · " + vpnPanel.controller.vpnCountry : ""); color: vpnPanel.controller.vpnConnected ? vpnPanel.root.seal : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10; elide: Text.ElideRight }
-                Rectangle { id: connectionSwitch; anchors.right: parent.right; anchors.top: parent.top; anchors.topMargin: 2; width: 50; height: 22; radius: height / 2; color: vpnPanel.controller.vpnConnected ? vpnPanel.root.fillActive : toggleMouse.containsMouse && toggleMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle; border.color: vpnPanel.controller.vpnConnected || (toggleMouse.containsMouse && toggleMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep; border.width: 1
+                width: parent.width; height: 30
+                CommonComponents.UiText { anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter; text: "STATUS"; color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
+                CommonComponents.UiText { anchors.left: parent.left; anchors.leftMargin: 60; anchors.right: connectionSwitch.left; anchors.rightMargin: 10; anchors.verticalCenter: parent.verticalCenter; text: vpnPanel.controller.vpnState + (vpnPanel.controller.vpnCountry ? " · " + vpnPanel.controller.vpnCountry : ""); color: vpnPanel.controller.vpnConnected ? vpnPanel.root.seal : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10; elide: Text.ElideRight }
+                Rectangle { id: connectionSwitch; anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter; width: 50; height: 22; radius: height / 2; color: vpnPanel.controller.vpnConnected ? vpnPanel.root.fillActive : toggleMouse.containsMouse && toggleMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle; border.color: vpnPanel.controller.vpnConnected || (toggleMouse.containsMouse && toggleMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep; border.width: 1
                     Behavior on color { ColorAnimation { duration: 120 } }
                     CommonComponents.UiText { anchors.centerIn: parent; text: vpnPanel.controller.vpnConnected ? "ON" : "OFF"; color: vpnPanel.controller.vpnConnected ? vpnPanel.root.seal : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
                     MouseArea { id: toggleMouse; objectName: "vpn-toggle"; anchors.fill: parent; hoverEnabled: true; enabled: vpnPanel.controller.canMutate; cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor; onClicked: vpnPanel.toggleConnection() }
                 }
-                CommonComponents.UiText { anchors.left: parent.left; anchors.leftMargin: 60; anchors.right: parent.right; anchors.bottom: parent.bottom; height: 14; verticalAlignment: Text.AlignVCenter; visible: vpnPanel.controller.vpnActiveProtocol !== ""; text: "ACTIVE · " + vpnPanel.controller.vpnActiveProtocol; color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 9; elide: Text.ElideRight }
             }
             CommonComponents.UiText { text: "COUNTRY · " + (vpnPanel.controller.countriesState === "Loading" ? "Loading…" : vpnPanel.controller.countriesState === "Error" ? "Unavailable" : vpnPanel.controller.countriesState === "Empty" ? "No countries" : "Select, then connect"); color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 0.5 }
             Row {
@@ -181,7 +180,7 @@ PanelWindow {
                 }
             }
             CommonComponents.UiText { text: "SETTINGS"; color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
-            CommonComponents.UiText { text: "SELECTED · " + String(vpnPanel.controller.vpnSettings.technology || (vpnPanel.controller.vpnSettings["selection-notice"] ? "Unavailable" : "Checking…")).toUpperCase() + (vpnPanel.controller.vpnSettings.technology === "OPENVPN" && vpnPanel.controller.vpnSettings.protocol ? " (" + String(vpnPanel.controller.vpnSettings.protocol).toUpperCase() + ")" : ""); color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 0.5 }
+            CommonComponents.UiText { text: "TECHNOLOGY · " + String(vpnPanel.controller.vpnSettings.technology || (vpnPanel.controller.vpnSettings["selection-notice"] ? "Unavailable" : "Checking…")).toUpperCase(); color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 0.5 }
             CommonComponents.UiText {
                 objectName: "vpn-selection-notice"
                 width: parent.width

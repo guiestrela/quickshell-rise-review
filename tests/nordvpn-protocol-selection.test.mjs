@@ -3,25 +3,22 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { extractQmlFunction } from './qml-function-extract.mjs';
 
 const adapter = new URL('../shared/controllers/NordVpnProtocol.js', import.meta.url);
-const protocolApi = vm.createContext({});
-vm.runInContext(readQmlSource(adapter, 'utf8').replace(/^\.pragma library\s*/, ''), protocolApi);
 function normalize(settings) {
   assert.ok(existsSync(adapter), 'NordVPN protocol adapter must exist');
-  return JSON.parse(JSON.stringify(protocolApi.normalizeSettings(settings)));
+  const context = vm.createContext({});
+  vm.runInContext(readQmlSource(adapter, 'utf8').replace(/^\.pragma library\s*/, ''), context);
+  return JSON.parse(JSON.stringify(context.normalizeSettings(settings)));
 }
 function action(settings) {
   const source = readQmlSource(new URL('../shared/controllers/NordVpnController.qml', import.meta.url), 'utf8');
-  const setSource = extractQmlFunction(source, 'setVpnSetting');
+  const start = source.indexOf('function setVpnSetting(');
+  const end = source.indexOf('\n    function _runAction(', start);
   const calls = [];
-  const context = vm.createContext({ canMutate: true, cli: '/fixture/nordvpn', vpnSettings: settings,
-    vpnMessage: '', vpnActionMessage: '',
-    VpnProtocol: { normalizeActiveProtocol: value => protocolApi.normalizeActiveProtocol(value) },
-    _runAction: argv => { calls.push([...argv]); return true; },
-    _runProtocolChange: argv => { calls.push([...argv]); return true; } });
-  return { context, calls, set: vm.runInContext(`(${setSource})`, context) };
+  const context = { canMutate: true, cli: '/fixture/nordvpn', vpnSettings: settings,
+    vpnMessage: '', vpnActionMessage: '', _runAction: argv => { calls.push([...argv]); return true; } };
+  return { context, calls, set: vm.runInNewContext(`(${source.slice(start, end).trim()})`, context) };
 }
 
 test('legacy Technology and OpenVPN transport remain unchanged', () => {
@@ -44,17 +41,15 @@ test('NordVPN 6 unified protocol supplies the technology and only its real OpenV
   }
 });
 
-test('unrecognized protocol never invents a selection or permits a write', () => {
+test('mixed-version unspecified protocol never invents a current selection or permits a write', () => {
   const result = normalize({ protocol: 'VPN_PROTOCOL_UNSPECIFIED', routing: 'enabled' });
   assert.equal(result.technology, ''); assert.equal(result.protocol, '');
-  assert.match(result['selection-notice'], /unrecognized protocol selection/i);
-  assert.match(result['selection-notice'], /no VPN settings or connection state were changed/i);
+  assert.match(result['selection-notice'], /restart/i);
   for (const [key, value] of [['technology', 'NORDLYNX'], ['protocol', 'UDP']]) {
     const c = action(result);
     assert.equal(c.set(key, value), false);
     assert.deepEqual(c.calls, []);
-    assert.match(c.context.vpnMessage, /protocol controls remain unavailable/i);
-    assert.doesNotMatch(c.context.vpnMessage, /restart/i);
+    assert.match(c.context.vpnMessage, /restart/i);
   }
 });
 

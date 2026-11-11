@@ -1,18 +1,18 @@
 import { readQmlSource } from './qml-source.mjs';
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { extractQmlFunction } from './qml-function-extract.mjs';
 
 const source = readQmlSource(new URL('../shared/controllers/NordVpnController.qml', import.meta.url), 'utf8');
-const setSetting = extractQmlFunction(source, 'setVpnSetting');
+const start = source.indexOf('function setVpnSetting(');
+const end = source.indexOf('\n    function _runAction(', start);
+const setSetting = source.slice(start, end).trim();
 function controller(settings) {
   const calls = [];
-  const context = vm.createContext({ canMutate: true, cli: '/test-only/nordvpn', vpnSettings: settings,
-    vpnMessage: '', vpnActionMessage: '', VpnProtocol: { normalizeActiveProtocol: value => value },
-    _runAction: argv => { calls.push([...argv]); return true; },
-    _runProtocolChange: argv => { calls.push([...argv]); return true; } });
-  return { context, calls, set: vm.runInContext(`(${setSetting})`, context) };
+  const context = { canMutate: true, cli: '/test-only/nordvpn', vpnSettings: settings,
+    vpnMessage: '', vpnActionMessage: '', _runAction: argv => { calls.push([...argv]); return true; } };
+  return { context, calls, set: vm.runInNewContext(`(${setSetting})`, context) };
 }
 
 test('Routing OFF is refused with an explicit Meshnet dependency, without CLI side effects', () => {

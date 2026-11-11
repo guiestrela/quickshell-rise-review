@@ -1,12 +1,12 @@
 const { readQmlSource } = require('./qml-source.cjs');
 const fs=require('node:fs'),vm=require('node:vm'),assert=require('node:assert/strict'),path=require('node:path');
 const source=readQmlSource(path.join(__dirname,'../shared/controllers/DisplayManagerController.qml'),'utf8');
-const context={monitors:[],positions:{},savedDisplayStates:{},displayStateReady:true,theme:{omarchyPerMonitorWorkspaces:false,displayManagerAutoWorkspaces:false},workspaceStateReady:true,workspaceLoading:false,calls:[],error:''};context.monitor=name=>context.monitors.find(m=>m.name===name);context.ensureDisplayStateReady=()=>context.displayStateReady;context.applyMonitor=(...args)=>{context.calls.push(args);return true};vm.createContext(context);vm.runInContext(source.slice(source.indexOf('    function enableMonitor('),source.indexOf('    function saveLayout()')),context);
+const context={monitors:[],positions:{},savedDisplayStates:{},displayStateReady:true,calls:[],error:''};context.monitor=name=>context.monitors.find(m=>m.name===name);context.applyMonitor=(...args)=>{context.calls.push(args);return true};vm.createContext(context);vm.runInContext(source.slice(source.indexOf('    function enableMonitor('),source.indexOf('    function saveLayout()')),context);
 const active={name:'DP-1',width:2560,height:1440,x:0,y:560,scale:1,transform:0,disabled:false,mirrorOf:'none',refreshRate:155};
 const off={name:'DP-2',width:2560,height:1440,x:0,y:0,scale:1,transform:0,disabled:true,mirrorOf:'none',refreshRate:59.951};
 function reset(monitors,positions={}){context.monitors=monitors;context.positions=positions;context.calls.length=0;context.error='';}
-reset([active,off]);assert.equal(context.enableMonitor('DP-2'),true);assert.deepEqual(context.calls[0],['DP-2','2560x1440@59.951',2560,0,1,0,'none',false],'Enable must avoid the actual overlapping 0,0 and preserve the existing mode');
-reset([active,{...off,x:2560,y:0,scale:1.5,transform:1}]);context.enableMonitor('DP-2');assert.deepEqual(context.calls[0],['DP-2','2560x1440@59.951',2560,0,1.5,1,'none',false]);
+reset([active,off]);assert.equal(context.enableMonitor('DP-2'),true);assert.deepEqual(context.calls[0],['DP-2','2560x1440@59.951',2560,0,1,0,'none'],'Enable must avoid the actual overlapping 0,0 and preserve the existing mode');
+reset([active,{...off,x:2560,y:0,scale:1.5,transform:1}]);context.enableMonitor('DP-2');assert.deepEqual(context.calls[0],['DP-2','2560x1440@59.951',2560,0,1.5,1,'none']);
 reset([active,off],{'DP-2':{x:-2560,y:560}});context.enableMonitor('DP-2');assert.equal(context.calls[0][2],-2560);assert.equal(context.calls[0][3],560);
 reset([{...active,scale:2,transform:1,y:0},off]);context.enableMonitor('DP-2');assert.equal(context.calls[0][2],720,'Peer bounds must use rotated logical width / scale');
 reset([active,{...off,x:2560,y:560}]);context.enableMonitor('DP-2');assert.equal(context.calls[0][2],2560,'Touching edges are valid');

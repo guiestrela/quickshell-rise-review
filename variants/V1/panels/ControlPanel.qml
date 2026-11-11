@@ -637,7 +637,6 @@ PanelWindow {
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Memory";      active: ctrlPanel.root.modMemory;    onActivated: ctrlPanel.root.modMemory = !ctrlPanel.root.modMemory }
                 WidgetStateTile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Brightness"; visible: ctrlPanel.root.hasBacklight; shown: ctrlPanel.root.modBrightness; compact: ctrlPanel.root.compactBrightness; onVisibilityToggled: ctrlPanel.root.modBrightness = !ctrlPanel.root.modBrightness; onModeToggled: ctrlPanel.root.compactBrightness = !ctrlPanel.root.compactBrightness }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "AI usage";    active: ctrlPanel.root.modClaude;    onActivated: ctrlPanel.root.modClaude = !ctrlPanel.root.modClaude }
-                Tile { objectName: "indicators-widget-toggle"; width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Indicators"; active: ctrlPanel.root.modIndicators; onActivated: ctrlPanel.root.modIndicators = !ctrlPanel.root.modIndicators }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Power Prof."; active: ctrlPanel.root.modPower;     onActivated: ctrlPanel.root.modPower = !ctrlPanel.root.modPower }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Bluetooth";   active: ctrlPanel.root.modBluetooth; onActivated: ctrlPanel.root.modBluetooth = !ctrlPanel.root.modBluetooth }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Network";     active: ctrlPanel.root.modNetwork; enabled: ctrlPanel.root.networkMode !== "wifi"; onActivated: ctrlPanel.root.modNetwork = !ctrlPanel.root.modNetwork }
@@ -651,7 +650,6 @@ PanelWindow {
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Temperature"; active: ctrlPanel.root.modCpuTemperature; onActivated: ctrlPanel.root.modCpuTemperature = !ctrlPanel.root.modCpuTemperature }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Storage"; active: ctrlPanel.root.modStorage; onActivated: ctrlPanel.root.modStorage = !ctrlPanel.root.modStorage }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "OneDrive"; active: ctrlPanel.root.modOneDrive; onActivated: ctrlPanel.root.modOneDrive = !ctrlPanel.root.modOneDrive }
-                Tile { objectName: "elsewhen-widget-toggle"; width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "World Clock"; active: ctrlPanel.root.modElsewhen; onActivated: ctrlPanel.root.modElsewhen = !ctrlPanel.root.modElsewhen }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Volume";      active: ctrlPanel.root.modVolume;  onActivated: ctrlPanel.root.modVolume = !ctrlPanel.root.modVolume }
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Now playing"; active: ctrlPanel.root.modMpris;   onActivated: ctrlPanel.root.modMpris = !ctrlPanel.root.modMpris }
                 WidgetStateTile { width: ctrlPanel.root.evenW((wwCol.width - 8) / 2); label: "Battery"; visible: ctrlPanel.root.hasBattery; shown: true; canHide: false; compact: ctrlPanel.root.compactBattery; onModeToggled: ctrlPanel.root.compactBattery = !ctrlPanel.root.compactBattery }
@@ -804,7 +802,11 @@ PanelWindow {
                 Tile { width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Bottom"; active: ctrlPanel.root.barPosition === "bottom"; onActivated: ctrlPanel.root.barPosition = "bottom" }
             }
 
-
+            Row {
+                width: parent.width; spacing: 4
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Left"; active: ctrlPanel.root.barPosition === "left"; onActivated: ctrlPanel.root.barPosition = "left" }
+                Tile { width: ctrlPanel.root.evenW((wwCol.width - 4) / 2); label: "Right"; active: ctrlPanel.root.barPosition === "right"; onActivated: ctrlPanel.root.barPosition = "right" }
+            }
 
             Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
 

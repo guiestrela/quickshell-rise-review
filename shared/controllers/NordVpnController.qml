@@ -14,7 +14,6 @@ Item {
     property string vpnState: "Unknown"
     property string vpnCountry: ""
     property string vpnServer: ""
-    property string vpnActiveProtocol: ""
     property string vpnMessage: ""
     property string vpnActionMessage: ""
     property var vpnSettings: ({})
@@ -28,9 +27,6 @@ Item {
     readonly property bool canMutate: enabled
         && (vpnState === "Connected" || vpnState === "Disconnected") && !vpnBusy
     property string _queryKind: "status"
-    property string _protocolReconnectStep: ""
-    property string _protocolReconnectCountry: ""
-    property string _protocolReconnectTarget: ""
     property int _settingsGeneration: 0
     property var _selectionRequest: null
     property int _selectionEpoch: 0
@@ -261,91 +257,15 @@ Item {
                 : value === "NORDWHISPER" ? "nordwhisper"
                 : String(vpnSettings.protocol || "").toUpperCase() === "TCP" ? "openvpn_tcp" : "openvpn_udp"
             vpnMessage = ""
-            return _runProtocolChange([cli, "set", "protocol", unified], VpnProtocol.normalizeActiveProtocol(unified))
-        }
-        if (key === "technology" || key === "protocol") {
-            var legacyTarget = key === "technology"
-                ? value === "OPENVPN" ? "OpenVPN (" + String(vpnSettings.protocol || "UDP").toUpperCase() + ")" : value
-                : "OpenVPN (" + value + ")"
-            return _runProtocolChange([cli, "set", allowed[key][0], value], legacyTarget)
+            vpnActionMessage = "Setting VPN protocol to " + unified + "…"
+            return _runAction([cli, "set", "protocol", unified])
         }
         vpnMessage = ""
-        vpnActionMessage = key === "threat-protection-lite" ? "Updating Real-time Protection…"
+        vpnActionMessage = key === "technology" ? "Setting VPN technology to " + value + "…"
+            : key === "protocol" ? "Setting OpenVPN protocol to " + value + "…"
+            : key === "threat-protection-lite" ? "Updating Real-time Protection…"
             : "Updating " + key + "…"
         return _runAction([cli, "set", allowed[key][0], value])
-    }
-    function _runProtocolChange(argv, target) {
-        if (!enabled || actionProcess.running) return false
-        var reconnectCountry = _reconnectCountryFor(vpnCountry)
-        vpnMessage = ""
-        _protocolReconnectStep = vpnConnected && reconnectCountry ? "set" : ""
-        _protocolReconnectCountry = reconnectCountry
-        _protocolReconnectTarget = String(target || "VPN protocol")
-        vpnActionMessage = _protocolReconnectStep
-            ? "Setting " + _protocolReconnectTarget + " and reconnecting…"
-            : vpnConnected
-                ? "Setting " + _protocolReconnectTarget + "; reconnect to apply…"
-                : "Setting " + _protocolReconnectTarget + "…"
-        actionProcess.command = argv
-        actionProcess.running = true
-        return true
-    }
-    function _reconnectCountryFor(country) {
-        var raw = String(country || "").trim()
-        if (!raw || !/^[A-Za-z][A-Za-z _-]{0,63}$/.test(raw)) return ""
-        var key = raw.toLowerCase().replace(/[\s_]+/g, "_")
-        var options = countryOptions || []
-        for (var i = 0; i < options.length; i++) {
-            var option = String(options[i] || "").trim()
-            if (option.toLowerCase().replace(/[\s_]+/g, "_") === key) return option
-        }
-        // NordVPN's country list uses underscores (for example United_States).
-        return raw.replace(/\s+/g, "_")
-    }
-    function _startProtocolReconnect(step) {
-        _protocolReconnectStep = step
-        if (step === "verify") {
-            vpnActionMessage = "Verifying " + _protocolReconnectTarget + "…"
-            actionProcess.command = [cli, "settings"]
-        } else if (step === "disconnect") {
-            vpnState = "Disconnecting"
-            vpnActionMessage = "Disconnecting to apply " + _protocolReconnectTarget + "…"
-            actionProcess.command = [cli, "disconnect"]
-        } else {
-            vpnState = "Connecting"
-            vpnActionMessage = "Reconnecting with " + _protocolReconnectTarget
-                + (_protocolReconnectCountry ? " in " + _protocolReconnectCountry.replace(/_/g, " ") : "") + "…"
-            actionProcess.command = [cli, "connect"].concat(_protocolReconnectCountry ? [_protocolReconnectCountry] : [])
-        }
-        actionProcess.running = true
-    }
-    function _selectedProtocolFromSettings(raw) {
-        var text = String(raw || "")
-        var protocolMatch = text.match(/^Protocol\s*:\s*(.+)$/im)
-        var selected = protocolMatch ? VpnProtocol.normalizeActiveProtocol(protocolMatch[1]) : ""
-        if (selected) return selected
-        var technologyMatch = text.match(/^Technology\s*:\s*(.+)$/im)
-        var technology = technologyMatch ? technologyMatch[1].trim().toUpperCase() : ""
-        var transport = protocolMatch ? protocolMatch[1].trim().toUpperCase() : ""
-        if (technology === "NORDLYNX") return "NordLynx"
-        if (technology === "NORDWHISPER") return "NordWhisper"
-        if (technology === "OPENVPN" && (transport === "UDP" || transport === "TCP"))
-            return "OpenVPN (" + transport + ")"
-        return ""
-    }
-    function _finishProtocolReconnect(message, error) {
-        _protocolReconnectStep = ""
-        _protocolReconnectCountry = ""
-        _protocolReconnectTarget = ""
-        if (error) {
-            vpnMessage = error
-            vpnActionMessage = message
-        } else {
-            vpnMessage = ""
-            vpnActionMessage = message
-        }
-        refreshTimer.restart()
-        settingsTimer.restart()
     }
     function _runAction(argv) {
         if (!enabled || actionProcess.running) return false
@@ -367,7 +287,6 @@ Item {
                 vpnState = "Unknown"
                 vpnCountry = ""
                 vpnServer = ""
-                vpnActiveProtocol = ""
             } else {
                 refreshCountries()
             }
@@ -422,12 +341,10 @@ Item {
                 var state = raw.match(/^Status\s*:\s*(.+)$/im)
                 var country = raw.match(/^Country\s*:\s*(.+)$/im)
                 var server = raw.match(/^Server\s*:\s*(.+)$/im)
-                var protocol = raw.match(/^Protocol\s*:\s*(.+)$/im)
                 if (!state) {
                     controller.vpnState = "Unknown"
                     controller.vpnCountry = ""
                     controller.vpnServer = ""
-                    controller.vpnActiveProtocol = ""
                     return
                 }
                 var value = state[1].trim()
@@ -436,17 +353,13 @@ Item {
                     : /disconnecting/i.test(value) ? "Disconnecting" : "Disconnected"
                 controller.vpnCountry = country ? country[1].trim() : ""
                 controller.vpnServer = server ? server[1].trim() : ""
-                controller.vpnActiveProtocol = protocol ? VpnProtocol.normalizeActiveProtocol(protocol[1]) : ""
                 // Status polling is not an action result; retain errors until
                 // the next user action rather than erasing their explanation.
             }
         }
         onExited: function(exitCode) {
             if (exitCode !== 0) {
-                if (controller._queryKind === "status") {
-                    controller.vpnState = "Unavailable"
-                    controller.vpnActiveProtocol = ""
-                }
+                if (controller._queryKind === "status") controller.vpnState = "Unavailable"
                 else controller.vpnSettings = ({})
             }
         }
@@ -483,49 +396,6 @@ Item {
                     .replace(/\x1b\[[0-?]*[ -\/]*[@-~]/g, "").replace(/\r/g, "").trim()
                 var error = String(actionStderr.text || "")
                     .replace(/\x1b\[[0-?]*[ -\/]*[@-~]/g, "").replace(/\r/g, "").trim()
-                var reconnectStep = controller._protocolReconnectStep
-                if (reconnectStep === "set") {
-                    if (exitCode !== 0 || error) {
-                        controller._finishProtocolReconnect("Protocol was not applied; VPN stayed connected",
-                            error || response || "NordVPN did not confirm the protocol change")
-                        return
-                    }
-                    controller.vpnMessage = ""
-                    controller._startProtocolReconnect("verify")
-                    return
-                }
-                if (reconnectStep === "verify") {
-                    var selectedProtocol = controller._selectedProtocolFromSettings(response)
-                    if (exitCode !== 0 || error || selectedProtocol !== controller._protocolReconnectTarget) {
-                        controller._finishProtocolReconnect("Protocol was not confirmed; VPN stayed connected",
-                            error || (selectedProtocol
-                                ? "NordVPN reports " + selectedProtocol + " instead of " + controller._protocolReconnectTarget
-                                : response || "Could not verify the saved protocol"))
-                        return
-                    }
-                    controller._startProtocolReconnect("disconnect")
-                    return
-                }
-                if (reconnectStep === "disconnect") {
-                    if (exitCode !== 0 || error) {
-                        controller._finishProtocolReconnect("Protocol changed; reconnection could not start",
-                            error || response || "Could not disconnect before reconnecting")
-                        return
-                    }
-                    controller._startProtocolReconnect("connect")
-                    return
-                }
-                if (reconnectStep === "connect") {
-                    if (exitCode !== 0 || error) {
-                        controller.vpnState = "Disconnected"
-                        controller._finishProtocolReconnect("Protocol changed; VPN reconnection failed",
-                            error || response || "Could not reconnect to NordVPN")
-                    } else {
-                        controller.vpnState = "Connecting"
-                        controller._finishProtocolReconnect("Reconnected using " + controller._protocolReconnectTarget, "")
-                    }
-                    return
-                }
                 controller.vpnMessage = exitCode !== 0
                     ? error || response || "NordVPN command failed" : error
                 controller.vpnActionMessage = exitCode === 0
@@ -580,10 +450,8 @@ Item {
         repeat: true
         triggeredOnStart: true
         onTriggered: {
-            if (!controller._protocolReconnectStep) {
-                controller.refresh()
-                settingsTimer.restart()
-            }
+            controller.refresh()
+            settingsTimer.restart()
         }
     }
 }

@@ -212,19 +212,6 @@ function toggleDisplayManager(riseOwner, riseEnvironment, screen, anchorItem) {
         riseState.displayManagerVisible = next
     }
 
-function toggleElsewhen(riseOwner, riseEnvironment, screen, anchorItem) {
-    var riseState = riseOwner;
-
-        if (!screen || !screen.name) return false
-        riseState.activatePopupScreen(screen)
-        var point = anchorItem ? anchorItem.mapToItem(null, anchorItem.width / 2, anchorItem.height) : null
-        riseState.elsewhenBarX = point ? point.x : screen.width / 2
-        var next = !riseState.elsewhenVisible
-        if (next) riseState.closePopups("elsewhenVisible")
-        riseState.elsewhenVisible = next
-        return true
-    }
-
 function verticalAnchorY(riseOwner, riseEnvironment, name) {
     var riseState = riseOwner;
 

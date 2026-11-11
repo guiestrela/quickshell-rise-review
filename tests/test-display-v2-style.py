@@ -38,7 +38,7 @@ with tempfile.TemporaryDirectory(prefix='display-v2-style-', dir=os.environ['TMP
         dest.write_text(data)
     fixture = qml_fixture_text(qml_fixture_source(REPO / 'tests/qml/qr-display-panel-runtime.qml'))
     fixture = fixture.replace('import "../../shared/panels"', 'import "variants/V2/panels"')
-    fixture = fixture.replace('property bool displayManagerVisible: false', 'property bool displayManagerVisible: true\n property bool omarchyPerMonitorWorkspaces: false')
+    fixture = fixture.replace('property bool displayManagerVisible: false', 'property bool displayManagerVisible: true')
     fixture = fixture.replace('property color bg: "#202020"', '''property color bg: "#202020"
         property color paper: "#202020"
         property color sumi: "#808080"

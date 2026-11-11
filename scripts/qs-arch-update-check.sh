@@ -38,7 +38,9 @@ aur_tsv="$tmpdir/aur.tsv"
 : > "$aur_tsv"
 
 rc=0
-LC_ALL=C checkupdates >"$system_raw" 2>"$system_err" || rc=$?
+# Each scan owns its repository database. Multiple bar instances/outputs may
+# refresh together; the shared checkupdates default otherwise races on db.lck.
+CHECKUPDATES_DB="$tmpdir/checkupdates-db" LC_ALL=C checkupdates >"$system_raw" 2>"$system_err" || rc=$?
 case "$rc" in
   0|2) ;;
   *) fail "checkupdates failed" ;;

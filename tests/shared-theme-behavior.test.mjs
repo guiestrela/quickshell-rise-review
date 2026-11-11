@@ -17,29 +17,6 @@ test('quiet state updates DND and malformed state preserves the last known value
  api.parseNotificationsState(owner,{},'{"dnd":false}');
  assert.equal(owner.notifSilenced,false);
 });
-test('Omarchy per-monitor workspace focus uses the custom dispatch expression',()=>{
- const api=library('ThemeIntegrations'), calls=[];
- const owner={omarchyPerMonitorWorkspaces:true,hyprUsesLua:true};
- const env={Hyprland:{dispatch:value=>calls.push(['hyprland',value])},
-  Quickshell:{execDetached:argv=>calls.push(['exec',argv])}};
- api.gotoWorkspace(owner,env,2,'DP-2');
- assert.equal(JSON.stringify(calls),JSON.stringify([['exec',['hyprctl','dispatch','o.workspaces.focus(2, "DP-2")']]]));
- owner.omarchyPerMonitorWorkspaces=false;
- api.gotoWorkspace(owner,env,2,'DP-2');
- assert.equal(JSON.stringify(calls[1]),JSON.stringify(['exec',['hyprctl','dispatch','hl.dsp.focus({ workspace = 2 })']]));
-});
-test('Display Manager routes Omarchy Lua expressions through hyprctl dispatch',()=>{
- const source=readFileSync(new URL('../shared/controllers/DisplayManagerController.qml',import.meta.url),'utf8');
- const start=source.indexOf('    function dispatchHyprlandExpression(');
- const open=source.indexOf('{',start);let depth=1,end=open+1;
- for(;depth&&end<source.length;end++){if(source[end]==='{')depth++;if(source[end]==='}')depth--;}
- const calls=[],context=vm.createContext({Quickshell:{execDetached:argv=>calls.push(argv)}});
- vm.runInContext(source.slice(start,end),context);
- context.dispatchHyprlandExpression('o.workspaces.focus(2, "DP-2")');
- assert.equal(JSON.stringify(calls),JSON.stringify([['hyprctl','dispatch','o.workspaces.focus(2, "DP-2")']]));
- assert.match(source,/controller\.dispatchHyprlandExpression\(\s*"o\.workspaces\.focus\(/);
- assert.match(source,/controller\.dispatchHyprlandExpression\("hl\.dsp\.focus\(\{ workspace = /);
-});
 test('tooltip ownership is independent of the active variant and caller',()=>{
  const api=library('ThemePanels'), first={}, second={}, a={}, b={};
  api.showTooltip(first,{},'CPU',20,10,30,a);

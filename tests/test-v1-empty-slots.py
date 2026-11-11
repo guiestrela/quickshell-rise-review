@@ -9,7 +9,7 @@ while depth:
     depth += (source[end]=='{')-(source[end]=='}');end+=1
 row=source[start:end]
 drag=source[source.index('    property bool dragging:'):source.index('    // ── order persistence')]
-with tempfile.TemporaryDirectory(prefix='rise-empty-slots-',dir=os.environ.get('TMPDIR')) as folder:
+with tempfile.TemporaryDirectory(prefix='rise-empty-slots-',dir='/tmp') as folder:
     base=Path(folder);runtime=base/'runtime';runtime.mkdir(mode=0o700)
     shutil.copy2(repo/'shared/logic/NordVpnLayout.js',base/'NordVpnLayout.js')
     qml='''pragma ComponentBehavior: Bound
@@ -28,8 +28,6 @@ Item {
   property bool barUnlocked:false
   property bool barVertical:false
   property bool layoutProtected:false
-  property bool trayDragActive:false
-  property bool trayDropActive:false
   property int wsPillPad:4
   property int pillRadius:12
   property int tileRadius:10

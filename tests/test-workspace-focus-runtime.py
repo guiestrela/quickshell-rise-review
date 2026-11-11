@@ -2,7 +2,6 @@
 """Production workspace delegates with fake Hyprland state and inert navigation."""
 from qml_fixture_source import qml_fixture_text
 import os
-import re
 from pathlib import Path
 import subprocess
 import tempfile
@@ -18,18 +17,14 @@ with tempfile.TemporaryDirectory(prefix='rise-workspace-focus-', dir='/tmp') as 
         for name in ['WorkspaceWidget', 'PillShadow']:
             source = qml_fixture_text(repo / path / 'modules' / f'{name}.qml')
             source = source.replace('import Quickshell.Hyprland', 'import "."')
-            source = source.replace('import Quickshell\n', '').replace('import Quickshell.Io\n', '')
-            source = source.replace('import "../../../shared/logic/MonitorWorkspaces.js" as MonitorWorkspaces', 'import "MonitorWorkspaces.js" as MonitorWorkspaces')
-            source = re.sub(r'    FileView \{.*?\n    \}\n', '', source, count=1, flags=re.S)
-            source = source.replace('id: wsCell\n', 'id: wsCell; objectName: "workspace-" + wsId + (isGuest ? "-guest" : "")\n')
+            source = source.replace('id: wsCell\n', 'id: wsCell; objectName: "workspace-" + wsId\n')
             (folder / f'{name}.qml').write_text(source)
-        (folder / 'MonitorWorkspaces.js').write_text(qml_fixture_text(repo / 'shared/logic/MonitorWorkspaces.js'))
         (folder / 'qmldir').write_text('singleton Hyprland 1.0 Hyprland.qml\n')
         (folder / 'Hyprland.qml').write_text('''pragma Singleton
 import QtQuick
 QtObject {
-    property var focusedWorkspace: ({id: 12})
-    property var workspaces: ({values: [{id: 11}, {id: 12}, {id: 13}, {id: 17}, {id: 2, monitor:{name:"DP-2"}}, {id: -99}]})
+    property var focusedWorkspace: ({id: 1})
+    property var workspaces: ({values: [{id: 1}, {id: 3}, {id: -99}]})
 }
 ''')
         qml = '''import QtQuick
@@ -43,9 +38,7 @@ Item {
         property string workspaceMode: "5"
         property string workspaceStyle: "numbers"
         property bool workspaceVisible: false
-        property bool omarchyPerMonitorWorkspaces: true
         property int selected: 0
-        property string selectedMonitor: ""
         property int wsPillPad: 2
         property int pillH: 28
         property int pillRadius: 6
@@ -59,12 +52,11 @@ Item {
         property bool styleShadow: false
         property string barPosition: "top"
         property color pillShadow: "black"
-        function gotoWorkspace(id, monitorName) { selected = id; selectedMonitor = monitorName || "" }
+        function gotoWorkspace(id) { selected = id }
         function widgetHasBorder(gid) { return false }
         function widgetContentColor(gid, fallback) { return fallback }
     }
-    QtObject { id: targetMonitor; property string name: "DP-2"; property var activeWorkspace: ({id: 12}) }
-    Widgets.WorkspaceWidget { id: widget; root: theme; monitor: targetMonitor; workspaceBlocks: ({"DP-2": 1}); y: 10 }
+    Widgets.WorkspaceWidget { id: widget; root: theme; y: 10 }
     function mouse(item) {
         for (var child of item.children)
             if (typeof child.clicked === "function") return child
@@ -75,31 +67,24 @@ Item {
         function test_focus_models_and_navigation() {
             compare(widget.workspaceList, [1, 2, 3, 4, 5])
             var first = findChild(widget, "workspace-1")
-            verify(first !== null); verify(findChild(widget, "workspace-2").isFocused)
-            compare(findChild(widget, "workspace-2").actualWorkspaceId, 12)
-            var guest = findChild(widget, "workspace-2-guest")
-            verify(guest !== null); verify(guest.isGuest)
-            compare(guest.implicitWidth, findChild(widget, "workspace-2").implicitWidth + 6,
-                    "guest workspace is visually separated from local slot 2")
-            targetMonitor.activeWorkspace = {id: 2}
-            verify(guest.isFocused)
-            mouseClick(mouse(guest), 5, 5)
-            compare(theme.selected, 2); compare(theme.selectedMonitor, "")
-            targetMonitor.activeWorkspace = {id: 13}
+            verify(first !== null); verify(first.isFocused)
+            Widgets.Hyprland.focusedWorkspace = {id: 3}
             compare(findChild(widget, "workspace-1"), first, "in-range focus preserves delegates")
             compare(first.isFocused, false)
             var third = findChild(widget, "workspace-3")
             verify(third.isFocused)
             mouseClick(mouse(third), 5, 5)
-            compare(theme.selected, 3); compare(theme.selectedMonitor, "DP-2")
-            targetMonitor.activeWorkspace = {id: 17}
-            compare(widget.workspaceList, [1, 2, 3, 4, 5, 7])
-            targetMonitor.activeWorkspace = {id: -5}
+            compare(theme.selected, 3)
+            Widgets.Hyprland.focusedWorkspace = {id: 12}
+            compare(widget.workspaceList, [1, 2, 3, 4, 5, 12])
+            Widgets.Hyprland.focusedWorkspace = {id: -5}
             compare(widget.workspaceList, [1, 2, 3, 4, 5])
             theme.workspaceMode = "10"
             compare(widget.workspaceList.length, 10)
             theme.workspaceMode = "active"
-            compare(widget.workspaceList, [1, 2, 3, 7])
+            compare(widget.workspaceList, [1, 3])
+            Widgets.Hyprland.focusedWorkspace = {id: 17}
+            compare(widget.workspaceList, [1, 3, 17])
             theme.barVertical = true
             for (var style of ["default", "numbers", "magic", "kanji"]) {
                 theme.workspaceStyle = style

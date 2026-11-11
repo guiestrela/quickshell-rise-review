@@ -223,58 +223,19 @@ Item {
     property bool _closingPopups: false
     property var barLayoutControllers: ({})
     property bool _barLayoutSyncing: false
-    property var trayWidgetRegistriesByScreen: ({})
-    property var trayDropRectsByScreen: ({})
-    property bool trayDragActive: false
-    property bool trayDropActive: false
 
-    readonly property bool anyPopupVisible: oneDriveVisible || elsewhenVisible || calendarVisible || cpuVisible || gpuVisible
+    readonly property bool anyPopupVisible: oneDriveVisible || calendarVisible || cpuVisible || gpuVisible
         || thermalVisible || aiUsageVisible
         || memVisible || volVisible || controlVisible || networkVisible || vpnVisible || bluetoothVisible
         || batteryVisible || brightnessVisible || mprisVisible || weatherVisible
         || workspaceVisible || imagePickerVisible || mediaBrowserVisible || notifVisible
         || powerProfileVisible || storageVisible || archVisible || trayVisible || trayMenuVisible
         || wallpaperManagerVisible || displayManagerVisible
-    readonly property bool keyboardPopupVisible: imagePickerVisible || mediaBrowserVisible || wallpaperManagerVisible || displayManagerVisible || elsewhenVisible
+    readonly property bool keyboardPopupVisible: imagePickerVisible || mediaBrowserVisible || wallpaperManagerVisible || displayManagerVisible
 
     function registerBarLayoutController(screenName, controller) { return ThemePanels.registerBarLayoutController(theme, {}, screenName, controller) }
 
     function unregisterBarLayoutController(screenName, controller) { return ThemePanels.unregisterBarLayoutController(theme, {}, screenName, controller) }
-
-    function registerTrayWidgetRegistry(screenName, registry) {
-        var next = Object.assign({}, trayWidgetRegistriesByScreen)
-        next[screenName] = registry
-        trayWidgetRegistriesByScreen = next
-    }
-
-    function unregisterTrayWidgetRegistry(screenName, registry) {
-        if (trayWidgetRegistriesByScreen[screenName] !== registry) return
-        var next = Object.assign({}, trayWidgetRegistriesByScreen)
-        delete next[screenName]
-        trayWidgetRegistriesByScreen = next
-    }
-
-    function trayWidgetRegistryForScreen(screenName) {
-        return trayWidgetRegistriesByScreen[screenName] || ({})
-    }
-
-    function restoreTrayWidget(gid) {
-        var controller = barLayoutControllers[activePopupScreenName]
-        return controller && controller.restoreTrayWidget
-            ? controller.restoreTrayWidget(gid) : false
-    }
-
-    function setTrayDropRect(screenName, rect) {
-        var next = Object.assign({}, trayDropRectsByScreen)
-        next[screenName] = rect
-        trayDropRectsByScreen = next
-    }
-
-    function removeTrayDropRect(screenName) {
-        var next = Object.assign({}, trayDropRectsByScreen)
-        delete next[screenName]
-        trayDropRectsByScreen = next
-    }
 
     function barLayoutControllerScreenValid(screenName) { return ThemeIntegrations.barLayoutControllerScreenValid(theme, {Quickshell: Quickshell}, screenName) }
 
@@ -315,9 +276,6 @@ Item {
         target: Hyprland
 
         function onFocusedMonitorChanged() {
-            // Enabling/disabling an output can move Hyprland focus while the
-            // guarded display change is waiting for the user's confirmation.
-            if (theme.displayManagerVisible) return
             if (!theme.keyboardPopupVisible || theme.activePopupScreenName === "") return
 
             var monitor = Hyprland.focusedMonitor
@@ -345,7 +303,6 @@ Item {
         else if (name === "gpu") gpuBarX = x
         else if (name === "thermal") thermalBarX = x
         else if (name === "oneDrive") oneDriveBarX = x
-        else if (name === "elsewhen") elsewhenBarX = x
         else if (name === "storage") storageBarX = x
         else if (name === "ai") aiBarX = x
         else if (name === "workspace") workspaceBarX = x
@@ -390,10 +347,9 @@ Item {
         if (except !== "notifVisible") notifVisible = false
         if (except !== "powerProfileVisible") powerProfileVisible = false
         if (except !== "oneDriveVisible") oneDriveVisible = false
-        if (except !== "elsewhenVisible") elsewhenVisible = false
         if (except !== "storageVisible") storageVisible = false
         if (except !== "archVisible") archVisible = false
-        if (except !== "trayVisible" && except !== "trayMenuVisible") trayVisible = false
+        if (except !== "trayVisible") trayVisible = false
         if (except !== "trayMenuVisible") trayMenuVisible = false
         if (except !== "wallpaperManagerVisible") wallpaperManagerVisible = false
         if (except !== "displayManagerVisible") displayManagerVisible = false
@@ -917,7 +873,6 @@ Item {
 
     // ── module enable flags (controlled by ControlPanel) ──
     property bool modStatus:     true
-    property bool modIndicators: true
     property bool modMemory:     true
     property bool modCpu:        true
     property bool modCpuTemperature: true
@@ -934,25 +889,6 @@ Item {
         owner: theme
         pollingEnabled: theme._widgetsLoaded && (theme.modOneDrive || theme.oneDriveVisible)
     }
-    property bool modElsewhen: false
-    onModElsewhenChanged: {
-        if (!modElsewhen) elsewhenVisible = false
-        if (_widgetsLoaded) saveWidgets()
-    }
-    readonly property string elsewhenSettingsPath: (Quickshell.env("XDG_CACHE_HOME") || (Quickshell.env("HOME") + "/.cache")) + "/quickshell-rise-elsewhen.json"
-    property bool elsewhenVisible: false
-    onElsewhenVisibleChanged: popupOpened("elsewhenVisible")
-    property real elsewhenBarX: 0
-    readonly property alias elsewhenService: elsewhenServiceInstance
-    function refreshElsewhen() { return elsewhenServiceInstance.refresh() }
-    function toggleElsewhen(screen, anchorItem) { return ThemePanels.toggleElsewhen(theme, {}, screen, anchorItem) }
-    CommonServices.ElsewhenService {
-        id: elsewhenServiceInstance
-        settingsPath: theme.elsewhenSettingsPath
-        active: theme._widgetsLoaded && theme.modElsewhen
-        autoRefresh: true
-    }
-    CommonServices.ElsewhenProcessAdapter { service: elsewhenServiceInstance }
     property bool modStorage:    true
     property bool modVolume:     true
     property bool modWeather:    true
@@ -1292,13 +1228,9 @@ Item {
     property string workspaceStyle: "default"   // default, numbers, magic, kanji, rings, aurora
 
     // ── bar screen position (persisted) ──
-    property string barPosition: "top"   // top or bottom; side rail removed
-    readonly property bool barVertical: false
+    property string barPosition: "top"   // top, bottom, left, right
+    readonly property bool barVertical: barPosition === "left" || barPosition === "right"
     readonly property int verticalBarWidth: barShellStyle === "fit" ? 40 : 36
-    // Match every vertical module's external surface to the Control Center pill.
-    // Keep its per-widget padding preference as the shared reference and cap it
-    // to the common 34px content width available in each shell style.
-    readonly property int verticalModuleSurfaceWidth: Math.min(34, 24 + 2 * widgetSurfacePadding("G1"))
     property var verticalAnchorsByScreen: ({})
     function verticalAnchorY(name) { return ThemePanels.verticalAnchorY(theme, {}, name) }
     function publishVerticalAnchors(screenName, values) { return ThemePanels.publishVerticalAnchors(theme, {}, screenName, values) }
@@ -1399,7 +1331,7 @@ Item {
     }
     function serializeWidgetSurfaceStyles() {
         var out = []
-        for (var n = 1; n <= 24; n++) {
+        for (var n = 1; n <= 22; n++) {
             var gid = "G" + n
             if (!widgetSurfaceStyles[gid]) continue
             var style = widgetSurfaceStyle(gid)
@@ -1430,7 +1362,7 @@ Item {
         var m = String(gid || "").match(/^G(\d{1,2})$/)
         if (!m) return false
         var n = Number(m[1])
-        return n >= 1 && n <= 24
+        return n >= 1 && n <= 22
     }
     function widgetColorModeValid(mode) {
         return mode === "fill" || mode === "border" || mode === "both"
@@ -1505,7 +1437,7 @@ Item {
         var next = {}
         var changed = false
 
-        for (var n = 1; n <= 24; n++) {
+        for (var n = 1; n <= 22; n++) {
             var gid = "G" + n
             var style = widgetColorStyle(gid)
 
@@ -1561,7 +1493,7 @@ Item {
     }
     function serializeWidgetColorStyles() {
         var out = []
-        for (var n = 1; n <= 24; n++) {
+        for (var n = 1; n <= 22; n++) {
             var gid = "G" + n
             var style = widgetColorStyle(gid)
             if (style.color !== "inherit" || style.mode === "border")
@@ -1605,7 +1537,6 @@ Item {
     onModDisplayManagerChanged: if (_widgetsLoaded) saveWidgets()
     onDisplayManagerAutoWorkspacesChanged: if (_widgetsLoaded) saveWidgets()
     onModStatusChanged:     if (_widgetsLoaded) saveWidgets()
-    onModIndicatorsChanged: if (_widgetsLoaded) saveWidgets()
     onModQuickChanged:      if (_widgetsLoaded) saveWidgets()
     onModCpuChanged:        if (_widgetsLoaded) saveWidgets()
     onModVolumeChanged:     if (_widgetsLoaded) saveWidgets()
@@ -1688,9 +1619,7 @@ Item {
                  + (layoutProtected ? "1" : "0") + " " // +50 layout protection
                  + serializeWidgetSurfaceStyles() + " " // +51 widget surface geometry
                  + (modOneDrive ? "1" : "0") + " " // +52 OneDrive
-                 + (spacerDotsEnabled ? "1" : "0") + " " // +53 hover spacer dots
-                 + (modIndicators ? "1" : "0") + " " // +54 Indicators widget
-                 + (modElsewhen ? "1" : "0") // +55 Elsewhen; append-only
+                 + (spacerDotsEnabled ? "1" : "0") // +53 hover spacer dots
         widgetSaveProc.command = ["bash", "-c",
             "echo '" + line + "' > '" + widgetsCachePath + "'"]
         widgetSaveProc.running = false
@@ -1764,7 +1693,7 @@ Item {
                     }
                     if (parts.length > wsField + 9) {
                         var bp = parts[wsField + 9]
-                        if (["top", "bottom"].indexOf(bp) < 0) theme.barPosition = "top"
+                        if (["top", "bottom", "left", "right"].indexOf(bp) >= 0) theme.barPosition = bp
                     }
                     // +10 is the retired V2 border toggle; structural borders stay on.
                     // +11..+15 widget-group toggles (default ON → only an explicit "0"
@@ -1776,7 +1705,7 @@ Item {
                     if (parts.length > wsField + 15) theme.modMpris  = parts[wsField + 15] !== "0"
                     if (parts.length > wsField + 16) {
                         var at = parts[wsField + 16]
-                        if (at === "claude" || at === "codex" || at === "opencode" || at === "copilot") theme.aiTool = at
+                        if (at === "claude" || at === "codex" || at === "opencode") theme.aiTool = at
                     }
                     // +17 is the retired transparent/frost field.
                     if (parts.length > wsField + 18) {
@@ -1833,8 +1762,6 @@ Item {
                 if (parts.length > wsField + 50) theme.layoutProtected = parts[wsField + 50] === "1"
                 if (parts.length > wsField + 51) theme.widgetSurfaceStyles = theme.parseWidgetSurfaceStyles(parts[wsField + 51])
                 if (parts.length > wsField + 53) theme.spacerDotsEnabled = parts[wsField + 53] !== "0"
-                if (parts.length > wsField + 54) theme.modIndicators = parts[wsField + 54] !== "0"
-                if (parts.length > wsField + 55) theme.modElsewhen = parts[wsField + 55] === "1"
                 theme._widgetsLoaded = true
             }
         }
@@ -1905,22 +1832,15 @@ Item {
     // "hl.dsp" alone yields the Lua error "hl.dispatch: expected a dispatcher"
     // under Lua, or "Invalid dispatcher" under classic — neither switches.
     property bool hyprUsesLua: false
-    property bool omarchyPerMonitorWorkspaces: false
-    property bool hyprDispatchModeReady: false
     Process {
         id: hyprDispatchProbe
-        command: ["bash", "-c", "if hyprctl dispatch 'hl.dsp' 2>&1 | grep -qi 'hl\\.dispatch'; then if [ -r \"${OMARCHY_PATH:-/usr/share/omarchy}/default/hypr/monitor-workspaces.lua\" ]; then echo lua-per-monitor; else echo lua; fi; else echo classic; fi"]
+        command: ["bash", "-c", "hyprctl dispatch 'hl.dsp' 2>&1 | grep -qi 'hl\\.dispatch' && echo lua || echo classic"]
         running: true
         stdout: StdioCollector {
-            onStreamFinished: {
-                var mode = this.text.trim()
-                theme.hyprUsesLua = mode.indexOf("lua") === 0
-                theme.omarchyPerMonitorWorkspaces = (mode === "lua-per-monitor")
-                theme.hyprDispatchModeReady = true
-            }
+            onStreamFinished: { theme.hyprUsesLua = (this.text.trim() === "lua") }
         }
     }
-    function gotoWorkspace(id, monitorName) { return ThemeIntegrations.gotoWorkspace(theme, {Hyprland: Hyprland, Quickshell: Quickshell}, id, monitorName) }
+    function gotoWorkspace(id) { return ThemeIntegrations.gotoWorkspace(theme, {Hyprland: Hyprland}, id) }
 
     // ── Arch Updater state ──
     property bool archVisible: false
@@ -2064,28 +1984,11 @@ Item {
 
     // ── Tray state ──
     property bool trayVisible: false
-    onTrayVisibleChanged: {
-        if (trayVisible) trayPanelHoverEntered = false
-        else trayHoverCloseTimer.stop()
-        popupOpened("trayVisible")
-    }
-    property bool trayHovering: false
-    property bool trayPanelHoverEntered: false
+    onTrayVisibleChanged: popupOpened("trayVisible")
     property var trayPinned: []
-    property var trayWidgets: []
     property real trayBarX: 10
     property real trayCaretBarX: trayBarX
-    onTrayHoveringChanged: {
-        if (trayHovering) trayHoverCloseTimer.stop()
-        else if (trayVisible && !trayDragActive) trayHoverCloseTimer.restart()
-    }
-    Timer {
-        id: trayHoverCloseTimer
-        interval: 220
-        onTriggered: if (theme.trayPanelHoverEntered && !theme.trayHovering
-                && !theme.trayMenuVisible
-                && !theme.trayDragActive) theme.trayVisible = false
-    }
+
     // ── slot-aware panel X anchors (center-X of each group; set by BarSlot) ──
     property real volumeBarX:     0
     property real networkBarX:    0
@@ -2111,7 +2014,7 @@ Item {
 
     // One connected popover at a time: the active panel publishes the exact
     // bar-widget center used by both the caret and the small border opening.
-    readonly property bool anchoredPanelVisible: oneDriveVisible || elsewhenVisible || calendarVisible || cpuVisible || gpuVisible
+    readonly property bool anchoredPanelVisible: oneDriveVisible || calendarVisible || cpuVisible || gpuVisible
         || thermalVisible || aiUsageVisible
         || memVisible || volVisible || controlVisible || networkVisible || vpnVisible || bluetoothVisible
         || batteryVisible || brightnessVisible || mprisVisible || weatherVisible
@@ -2146,11 +2049,7 @@ Item {
 
     // ── Tray context-menu state (themed menu, rendered by TrayMenu.qml) ──
     property bool trayMenuVisible: false
-    onTrayMenuVisibleChanged: {
-        if (trayMenuVisible) trayHoverCloseTimer.stop()
-        else if (trayVisible && !trayHovering) trayHoverCloseTimer.restart()
-        popupOpened("trayMenuVisible")
-    }
+    onTrayMenuVisibleChanged: popupOpened("trayMenuVisible")
     property var  trayMenuHandle: null   // the QsMenuHandle of the clicked item
     property real trayMenuX: 0           // global x to anchor the menu under the icon
     property string trayMenuTitle: ""

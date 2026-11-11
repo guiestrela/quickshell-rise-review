@@ -28,7 +28,6 @@ Item {
         id: clickArea
         anchors.fill: parent
         hoverEnabled: true
-        enabled: !control.root.barUnlocked
         acceptedButtons: Qt.LeftButton | Qt.MiddleButton
         cursorShape: Qt.PointingHandCursor
         onEntered: tip.show()

@@ -35,7 +35,6 @@ with tempfile.TemporaryDirectory(prefix='rise-connectivity-', dir='/tmp') as dir
         (folder / 'logic/IconMap.js').write_bytes((repo / 'shared/logic/IconMap.js').read_bytes())
         mocks = {
             'ConnectedPanelSurface.qml': 'Item { objectName:"connected-surface"; property var root; property bool ownerActive; property real targetX; property real reveal }',
-            'NetworkDiagnosticsSection.qml': 'Item { property var theme; property bool panelOpen:false; property string networkMode; property string connectivity; property real buttonRadius; implicitHeight:20 }',
             'NetworkDnsSection.qml': 'Item { property var theme; property bool panelOpen; implicitHeight:20 }',
             'CloudflareSpeedTest.qml': 'QtObject { property bool online:false; property string phase:"idle"; property bool running:false; property string edgeCode:""; property string countryCode:""; property real pingMs:0; property real downloadMbps:0; property real uploadMbps:0; function start(){} function cancel(){} }',
         }

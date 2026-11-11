@@ -47,9 +47,6 @@ PanelWindow {
     readonly property var  player:  sel.player
     readonly property bool active:  sel.active
     readonly property bool playing: sel.playing
-    readonly property bool canGoPrevious: sel.canGoPrevious
-    readonly property bool canGoNext: sel.canGoNext
-    readonly property bool canTogglePlayback: sel.canTogglePlayback
 
     readonly property string playerName: {
         if (!player) return ""
@@ -130,8 +127,8 @@ PanelWindow {
 
         Keys.onPressed: function(event) {
             if (event.key === Qt.Key_Escape) { mprisPanel.root.mprisVisible = false; event.accepted = true }
-            else if (event.key === Qt.Key_Space && mprisPanel.canTogglePlayback) {
-                sel.togglePlayback(); event.accepted = true
+            else if (event.key === Qt.Key_Space && mprisPanel.player) {
+                mprisPanel.player.togglePlaying(); event.accepted = true
             }
         }
 
@@ -344,38 +341,22 @@ PanelWindow {
                     text: ""
                     font.pixelSize: 20
                     anchors.verticalCenter: parent.verticalCenter
-                    color: mprisPanel.canGoPrevious ? mprisPanel.root.ink : Qt.rgba(mprisPanel.root.ink.r, mprisPanel.root.ink.g, mprisPanel.root.ink.b, 0.25)
-                    MouseArea {
-                        anchors.fill: parent
-                        enabled: mprisPanel.canGoPrevious
-                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                        onClicked: if (mprisPanel.canGoPrevious) mprisPanel.player.previous()
-                    }
+                    color: (mprisPanel.player && mprisPanel.player.canGoPrevious) ? mprisPanel.root.ink : Qt.rgba(mprisPanel.root.ink.r, mprisPanel.root.ink.g, mprisPanel.root.ink.b, 0.25)
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (mprisPanel.player) mprisPanel.player.previous() }
                 }
                 CommonComponents.IconText {
                     text: mprisPanel.playing ? "" : ""
                     font.pixelSize: 24
                     anchors.verticalCenter: parent.verticalCenter
-                    color: mprisPanel.canTogglePlayback ? mprisPanel.root.seal
-                        : Qt.rgba(mprisPanel.root.seal.r, mprisPanel.root.seal.g, mprisPanel.root.seal.b, 0.25)
-                    MouseArea {
-                        anchors.fill: parent
-                        enabled: mprisPanel.canTogglePlayback
-                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                        onClicked: sel.togglePlayback()
-                    }
+                    color: mprisPanel.root.seal
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (mprisPanel.player) mprisPanel.player.togglePlaying() }
                 }
                 CommonComponents.IconText {
                     text: ""
                     font.pixelSize: 20
                     anchors.verticalCenter: parent.verticalCenter
-                    color: mprisPanel.canGoNext ? mprisPanel.root.ink : Qt.rgba(mprisPanel.root.ink.r, mprisPanel.root.ink.g, mprisPanel.root.ink.b, 0.25)
-                    MouseArea {
-                        anchors.fill: parent
-                        enabled: mprisPanel.canGoNext
-                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                        onClicked: if (mprisPanel.canGoNext) mprisPanel.player.next()
-                    }
+                    color: (mprisPanel.player && mprisPanel.player.canGoNext) ? mprisPanel.root.ink : Qt.rgba(mprisPanel.root.ink.r, mprisPanel.root.ink.g, mprisPanel.root.ink.b, 0.25)
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: if (mprisPanel.player) mprisPanel.player.next() }
                 }
             }
         }

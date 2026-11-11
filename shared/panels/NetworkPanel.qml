@@ -331,12 +331,6 @@ PanelWindow {
         else if (bottom > networkFlick.contentY + networkFlick.height)
             networkFlick.contentY = Math.min(networkFlick.contentHeight - networkFlick.height,
                                             bottom - networkFlick.height)
-        var viewportY = networkFlick.mapToItem(col, 0, 0).y
-        if (viewportY < panelScroll.contentY)
-            panelScroll.contentY = viewportY
-        else if (viewportY + networkFlick.height > panelScroll.contentY + panelScroll.height)
-            panelScroll.contentY = Math.max(0, Math.min(panelScroll.contentHeight - panelScroll.height,
-                                                       viewportY + networkFlick.height - panelScroll.height))
     }
 
     onSavedOnlyChanged: resetNetworkSelection()
@@ -441,7 +435,7 @@ PanelWindow {
     Rectangle {
         id: card
         width: 300
-        height: Math.min(col.implicitHeight + 24, Math.max(120, netPanel.height - barBottom - gap - 12))
+        height: col.implicitHeight + 24
         radius: reveal > 0.001 ? netPanel.frameRadius : 0
         color: netPanel.frameColor
         border.color: netPanel.frameBorderColor
@@ -500,17 +494,10 @@ PanelWindow {
 
         MouseArea { anchors.fill: parent; onClicked: {} }
 
-        Flickable {
-            id: panelScroll
-            anchors.fill: parent
-            anchors.margins: 12
-            contentWidth: width
-            contentHeight: col.implicitHeight
-            clip: true
-            boundsBehavior: Flickable.StopAtBounds
         Column {
             id: col
-            width: panelScroll.width
+            anchors.fill: parent
+            anchors.margins: 12
             spacing: 8
 
             // ── header ──
@@ -611,16 +598,6 @@ PanelWindow {
             }
 
             Rectangle { width: parent.width; height: 1; color: root.sep }
-
-            CommonComponents.NetworkDiagnosticsSection {
-                width: parent.width
-                theme: netPanel.root
-                panelOpen: netPanel.root.networkVisible
-                networkMode: netPanel.mode
-                buttonRadius: netPanel.buttonRadius
-                connectivity: nmAdapter.item && "connectivityState" in nmAdapter.item
-                    ? nmAdapter.item.connectivityState : "unknown"
-            }
 
             Column {
                 width: parent.width
@@ -1360,7 +1337,6 @@ PanelWindow {
                 }
             }
 
-        }
         }
     }
 

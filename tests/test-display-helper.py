@@ -30,9 +30,7 @@ class HelperTests(unittest.TestCase):
         self.home = Path(self.temp.name)
         self.target = self.home / ".config/hypr/monitors.lua"
         self.target.parent.mkdir(parents=True)
-        self.omarchy_root = self.home / 'omarchy'
-        (self.omarchy_root / 'default/hypr').mkdir(parents=True)
-        self.home_patch = patch.dict(os.environ, {"HOME": str(self.home), "OMARCHY_PATH": str(self.omarchy_root)})
+        self.home_patch = patch.dict(os.environ, {"HOME": str(self.home)})
         self.home_patch.start()
 
     def tearDown(self):
@@ -99,7 +97,7 @@ class HelperTests(unittest.TestCase):
         saved = self.target.read_text()
         self.assertIn(old.rstrip(), saved)
         self.assertIn('mode = "2560x1440@59.95"', saved)
-        self.assertEqual(saved.count("default = true"), 1)
+        self.assertEqual(saved.count("default:true"), 1)
         self.assertEqual(self.target.with_suffix(".lua.bak").read_text(), old)
 
     def test_validation_rejects_cycles_unknown_targets_and_last_disabled(self):
@@ -114,12 +112,6 @@ class HelperTests(unittest.TestCase):
         ):
             data=layout(); patcher(data)
             with self.subTest(data=data), self.assertRaises(ValueError): helper.build_block(data)
-
-    def test_native_per_monitor_workspace_mode_omits_global_workspace_rules(self):
-        (self.omarchy_root / 'default/hypr/monitor-workspaces.lua').touch()
-        block = helper.build_block(layout(), native_per_monitor_workspaces=True)
-        self.assertNotIn('hl.workspace_rule', block)
-        self.assertIn('hl.monitor({', block)
 
     def test_disabled_output_is_serialized(self):
         data=layout(); data["monitors"][1].update(disabled=True)

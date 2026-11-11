@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 
 repo=Path(__file__).resolve().parents[1]
-with tempfile.TemporaryDirectory(prefix='rise-tray-', dir=os.environ.get('TMPDIR')) as directory:
+with tempfile.TemporaryDirectory(prefix='rise-tray-',dir='/tmp') as directory:
     base=Path(directory)
     runtime=base/'runtime'
     runtime.mkdir(mode=0o700)
@@ -30,18 +30,17 @@ with tempfile.TemporaryDirectory(prefix='rise-tray-', dir=os.environ.get('TMPDIR
         (modules/'ConnectedPanelSurface.qml').write_text('import QtQuick\nItem { property var root; property bool ownerActive; property real targetX; property real reveal }')
         fields=set(re.findall(r'trayPanel\.root\.(\w+)',text))
         theme=[]
-        functions={'trayDisplayName','trayDescription','openTrayMenu','trayToggleHide','setTrayDropRect','removeTrayDropRect'}
+        functions={'trayDisplayName','trayDescription','openTrayMenu','trayToggleHide'}
         colors={'bg','pillBorder','panelBorder','ink','sumi','sumiHi','fillHover','fillIdle','seal','sep'}
         for field in sorted(fields):
             if field in functions or field=='fixtureItems': continue
             if field in colors: theme.append(f'property color {field}: "#999999"')
-            elif field=='activePopupScreen': theme.append('property var activePopupScreen: ({name:"fixture",width:800,height:700})')
-            elif field in {'trayPinned','trayWidgets'}: theme.append(f'property var {field}: []')
-            elif field in {'trayVisible','trayDragActive','trayDropActive'}: theme.append(f'property bool {field}: false')
+            elif field=='activePopupScreen': theme.append('property var activePopupScreen: ({width:800,height:700})')
+            elif field=='trayPinned': theme.append('property var trayPinned: []')
+            elif field=='trayVisible': theme.append('property bool trayVisible: false')
             elif field in {'mono','barPosition'}: theme.append(f'property string {field}: "'+('monospace' if field=='mono' else 'top')+'"')
             else: theme.append(f'property real {field}: 6')
-        theme+=['property var trayDropRectsByScreen: ({})',
-                'property bool barVertical:false','property real verticalBarWidth:40',
+        theme+=['property bool barVertical:false','property real verticalBarWidth:40',
                 'property bool styleShadow:false','property color pillShadow:"black"',
                 'property var tooltipOwner:null','property string tooltipText:""',
                 'function showTooltip() {}','function hideTooltip() {}',
@@ -51,9 +50,7 @@ with tempfile.TemporaryDirectory(prefix='rise-tray-', dir=os.environ.get('TMPDIR
                 'function trayDisplayName(item) { return item.id }',
                 'function trayDescription(item,name) { return "Fixture description" }',
                 'function openTrayMenu() { menus++ }',
-                'function trayToggleHide(item) { trayPinned=[item.id] }',
-                'function setTrayDropRect(name,rect) { var next=Object.assign({},trayDropRectsByScreen); next[name]=rect; trayDropRectsByScreen=next }',
-                'function removeTrayDropRect(name) { var next=Object.assign({},trayDropRectsByScreen); delete next[name]; trayDropRectsByScreen=next }']
+                'function trayToggleHide(item) { trayPinned=[item.id] }']
         qml='''import QtQuick
 import QtTest
 import "VARIANT/panels"
@@ -68,19 +65,14 @@ Item {
    compare(panel.attentionCount,1)
    theme.trayVisible=true
    tryCompare(panel,"visible",true)
-   tryVerify(function() { return theme.trayDropRectsByScreen.fixture !== undefined })
-   verify(theme.trayDropRectsByScreen.fixture.width > 0 && theme.trayDropRectsByScreen.fixture.height > 0)
    mouseClick(findChild(panel,"menuMa"))
    compare(theme.menus,1)
-   var activate=findChild(panel,"activateMa")
-   mouseClick(activate,activate.width/2,activate.height/2)
-   compare(theme.menus,1)
+   mouseClick(findChild(panel,"activateMa"))
    compare(theme.trayVisible,false)
    tryCompare(theme,"activations",1)
    theme.trayVisible=true
    tryCompare(panel,"visible",true)
-   var pin=findChild(panel,"pinMa")
-   mouseClick(pin,pin.width/2,pin.height/2)
+   mouseClick(findChild(panel,"pinMa"))
    compare(theme.trayPinned,["fixture"])
    compare(panel.hiddenCount,0)
    compare(panel.attentionCount,0)

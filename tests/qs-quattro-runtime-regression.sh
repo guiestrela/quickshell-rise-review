@@ -10,21 +10,28 @@ README="$REPO_ROOT/README.md"
 GETTING_STARTED="$REPO_ROOT/docs/getting-started.md"
 MAINTENANCE="$REPO_ROOT/docs/maintenance-and-recovery.md"
 USAGE="$REPO_ROOT/docs/usage.md"
-V1_THEME="$REPO_ROOT/versions/V1/Theme.qml"
-V2_THEME="$REPO_ROOT/versions/V1/variants/V2/Theme.qml"
-V2_BAR_SLOT="$REPO_ROOT/versions/V1/variants/V2/BarSlot.qml"
-V2_CONNECTED_PANEL_SURFACE="$REPO_ROOT/versions/V1/variants/V2/modules/ConnectedPanelSurface.qml"
-V1_PALETTE="$REPO_ROOT/versions/V1/Palette.js"
-V1_CONTROL_PANEL="$REPO_ROOT/versions/V1/panels/ControlPanel.qml"
-V1_ARCH_UPDATER="$REPO_ROOT/versions/V1/panels/ArchUpdaterPanel.qml"
-V1_BLUETOOTH_PANEL="$REPO_ROOT/versions/V1/panels/BluetoothPanel.qml"
-V1_MPRIS_WIDGET="$REPO_ROOT/versions/V1/modules/MprisWidget.qml"
-V1_MPRIS_PANEL="$REPO_ROOT/versions/V1/panels/MprisPanel.qml"
-V2_ARCH_UPDATER="$REPO_ROOT/versions/V1/variants/V2/panels/ArchUpdaterPanel.qml"
-V2_BLUETOOTH_PANEL="$REPO_ROOT/versions/V1/variants/V2/panels/BluetoothPanel.qml"
-V2_MPRIS_WIDGET="$REPO_ROOT/versions/V1/variants/V2/modules/MprisWidget.qml"
-V2_MPRIS_PANEL="$REPO_ROOT/versions/V1/variants/V2/panels/MprisPanel.qml"
+V1_THEME="$REPO_ROOT/variants/V1/Theme.qml"
+V2_THEME="$REPO_ROOT/variants/V2/Theme.qml"
+V2_BAR_SLOT="$REPO_ROOT/variants/V2/BarSlot.qml"
+V2_CONNECTED_PANEL_SURFACE="$REPO_ROOT/variants/V2/modules/ConnectedPanelSurface.qml"
+V1_PALETTE="$REPO_ROOT/shared/logic/Palette.js"
+V1_CONTROL_PANEL="$REPO_ROOT/variants/V1/panels/ControlPanel.qml"
+V1_ARCH_UPDATER="$REPO_ROOT/shared/panels/ArchUpdaterPanel.qml"
+V1_BLUETOOTH_PANEL="$REPO_ROOT/shared/panels/BluetoothPanel.qml"
+V1_MPRIS_WIDGET="$REPO_ROOT/variants/V1/modules/MprisWidget.qml"
+V1_MPRIS_PANEL="$REPO_ROOT/variants/V1/panels/MprisPanel.qml"
+V2_ARCH_UPDATER="$REPO_ROOT/shared/panels/ArchUpdaterPanel.qml"
+V2_BLUETOOTH_PANEL="$REPO_ROOT/shared/panels/BluetoothPanel.qml"
+V2_MPRIS_PANEL="$REPO_ROOT/variants/V2/panels/MprisPanel.qml"
 WORK="$(mktemp -d /tmp/qs-quattro-runtime-test.XXXXXX)"
+HOST_BIN="$WORK/host-bin"
+mkdir -p "$HOST_BIN"
+for tool in /usr/bin/*; do
+  name="${tool##*/}"
+  # Avoid leaking the real Omarchy installation into mocked legacy cases.
+  [[ $name == omarchy* ]] && continue
+  [[ -x $tool ]] && ln -s "$tool" "$HOST_BIN/$name" 2>/dev/null || true
+done
 
 cleanup() {
   rm -rf "$WORK"
@@ -50,6 +57,12 @@ assert_no_file() {
 
 assert_contains() {
   local needle="$1" file="$2" message="$3"
+  if [[ $file == *.qml ]]; then
+    local contents
+    contents="$(python3 "$REPO_ROOT/tests/qml-fixture-source.py" "$file")"
+    [[ $contents == *"$needle"* ]] || fail "$message: missing '$needle'"
+    return
+  fi
   grep -Fq -- "$needle" "$file" || fail "$message: missing '$needle'"
 }
 
@@ -170,14 +183,15 @@ SCRIPT
 build_installer_fixture() {
   local repo="$WORK/installer-source"
 
-  mkdir -p "$repo/contrib/post-boot.d" "$repo/versions/V1/core" \
-    "$repo/versions/V1/variants/V2" \
+  mkdir -p "$repo/contrib/post-boot.d" "$repo/core" \
+    "$repo/variants/V1" "$repo/variants/V2" "$repo/shared/integrations" \
     "$repo/scripts" "$repo/systemd"
-  printf 'import QtQuick\nItem {}\n' > "$repo/versions/V1/shell.qml"
-  printf 'import QtQuick\nItem {}\n' > "$repo/versions/V1/VariantRoot.qml"
-  printf 'import QtQuick\nItem {}\n' > "$repo/versions/V1/variants/V2/VariantRoot.qml"
-  printf '#!/usr/bin/env bash\nexit 0\n' > "$repo/versions/V1/core/qs-system-update.sh"
-  chmod 0755 "$repo/versions/V1/core/qs-system-update.sh"
+  printf 'fixture shared integration\n' > "$repo/shared/integrations/fixture.txt"
+  printf 'import QtQuick\nItem {}\n' > "$repo/shell.qml"
+  printf 'import QtQuick\nItem {}\n' > "$repo/variants/V1/VariantRoot.qml"
+  printf 'import QtQuick\nItem {}\n' > "$repo/variants/V2/VariantRoot.qml"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$repo/core/qs-system-update.sh"
+  chmod 0755 "$repo/core/qs-system-update.sh"
 
   # Stock-bar ownership remains isolated from the host. Installer readiness is
   # intentionally not stubbed here: the fixture ships the real qs-barctl below
@@ -192,7 +206,10 @@ export QSR_STATE_ROOT QSR_BAR_MARKER QSR_BAR_PENDING QSR_TOGGLE_ROOT
 
 qsr_export_omarchy_path() { :; }
 qsr_has_quattro() {
-  command -v omarchy >/dev/null 2>&1 && command -v omarchy-toggle-bar >/dev/null 2>&1
+  # Keep the fixture independent of Omarchy commands installed on the host
+  # running this regression test. Individual cases can explicitly model the
+  # capability without letting the outer PATH change the result.
+  [[ ${QSR_TEST_HAS_QUATTRO:-true} == true ]]
 }
 qsr_owns_stock_bar_hide() {
   [[ -f $QSR_BAR_MARKER || -f $QSR_BAR_PENDING ]]
@@ -226,25 +243,24 @@ qsr_warn_stock_bar_hide_failure() {
 }
 SCRIPT
 
+  # Collector installation is a separate subsystem. Keep this lifecycle fixture inert.
+  cat > "$repo/scripts/install-ai-backends" <<'SCRIPT'
+#!/usr/bin/env bash
+set -euo pipefail
+[[ -d ${1:?} ]]
+printf 'install-ai-backends\n' >> "${QSR_TEST_LOG:?}"
+[[ ${QSR_TEST_AI_FAIL:-false} != true ]]
+SCRIPT
+  chmod 0755 "$repo/scripts/install-ai-backends"
+
   cp "$REPO_ROOT/scripts/qs-barctl" "$repo/scripts/qs-barctl"
   cat > "$repo/scripts/qs-proj" <<'SCRIPT'
 #!/usr/bin/env bash
 exec "$HOME/.config/quickshell/bin/qs-barctl" "$@"
 SCRIPT
 
-  cat > "$repo/scripts/qs-shell-check-update.sh" <<'SCRIPT'
-#!/usr/bin/env bash
-exit 0
-SCRIPT
-  cat > "$repo/scripts/qs-shell-apply-update.sh" <<'SCRIPT'
-#!/usr/bin/env bash
-exit 0
-SCRIPT
-  printf '[Unit]\nDescription=fixture\n' > "$repo/systemd/qs-shell-update-check.service"
-  printf '[Unit]\nDescription=fixture\n' > "$repo/systemd/qs-shell-update-check.timer"
   chmod 0755 "$repo/contrib/post-boot.d/quickshell-rise" \
-    "$repo/scripts/qs-barctl" "$repo/scripts/qs-proj" \
-    "$repo/scripts/qs-shell-check-update.sh" "$repo/scripts/qs-shell-apply-update.sh"
+    "$repo/scripts/qs-barctl" "$repo/scripts/qs-proj"
 
   git init "$repo" >/dev/null
   git -C "$repo" config user.email test@example.invalid
@@ -254,9 +270,7 @@ SCRIPT
     contrib/post-boot.d/quickshell-rise \
     scripts/qs-barctl \
     scripts/qs-proj \
-    scripts/qs-shell-check-update.sh \
-    scripts/qs-shell-apply-update.sh \
-    versions/V1/core/qs-system-update.sh
+    core/qs-system-update.sh
   git -C "$repo" commit -m fixture >/dev/null
 
   sed "s|^REPO_URL=.*|REPO_URL=\"$repo\"|" "$INSTALLER" > "$WORK/install-under-test.sh"
@@ -372,7 +386,7 @@ export QSR_STABLE_ROUNDS=2
 export QSR_POLL_INTERVAL=0
 export QSR_COMMAND_TIMEOUT=1
 export PATH="$root/bin:/usr/bin:/bin"
-exec /usr/bin/bash "$WORK/install-under-test.sh" V1 --no-ai-backend "\$@"
+exec /usr/bin/bash "$WORK/install-under-test.sh" V1 "\$@"
 SCRIPT
   chmod 0755 "$root/run-installer"
 }
@@ -416,7 +430,7 @@ run_installer_preserving_without_tty() {
   QSR_POLL_INTERVAL=0 \
   QSR_COMMAND_TIMEOUT=1 \
   PATH="$root/bin:/usr/bin:/bin" \
-    /usr/bin/bash "$WORK/install-under-test.sh" --no-ai-backend --no-autostart \
+    /usr/bin/bash "$WORK/install-under-test.sh" --no-autostart \
       > "$root/installer.out" 2>&1
 }
 
@@ -502,7 +516,7 @@ case_installer_interactive_prompt_matrix() {
   root="$WORK/installer-legacy"
   make_installer_case "$root"
   rm -f "$root/bin/omarchy-toggle-bar"
-  run_installer_with_tty "$root" y
+  QSR_TEST_HAS_QUATTRO=false run_installer_with_tty "$root" y
   assert_not_contains "$prompt" "$root/installer.out" "legacy prompt"
   assert_no_file "$root/home/.config/omarchy/hooks/post-boot.d/quickshell-rise" "legacy hook"
   assert_not_contains "omarchy toggle bar" "$root/actions.log" "legacy toggle"
@@ -517,6 +531,8 @@ case_installer_interactive_prompt_matrix() {
     "fresh V2 initial selection"
   assert_file "$root/home/.config/quickshell/bar/variants/V2/VariantRoot.qml" \
     "integrated V2 payload"
+  assert_file "$root/home/.config/quickshell/bar/variants/V1/VariantRoot.qml" "integrated V1 payload"
+  assert_file "$root/home/.config/quickshell/bar/shared/integrations/fixture.txt" "shared integration payload"
   assert_contains "ipc lifecycle ready" "$root/actions.log" \
     "fresh V2 lifecycle readiness"
 
@@ -584,7 +600,7 @@ SCRIPT
   assert_contains "Requested 'v2', but the integrated host became ready as 'v1'" \
     "$root/installer.out" "variant fallback diagnostic"
 
-  git -C "$source" rm versions/V1/core/qs-system-update.sh >/dev/null
+  git -C "$source" rm core/qs-system-update.sh >/dev/null
   git -C "$source" commit -m missing-system-update-adapter >/dev/null
   root="$WORK/installer-missing-system-update-adapter"
   make_installer_case "$root"
@@ -596,11 +612,11 @@ SCRIPT
   assert_no_file "$root/home/.config/quickshell/bar/shell.qml" \
     "missing system-update adapter install mutation"
 
-  mkdir -p "$source/versions/V1/core"
-  printf '#!/usr/bin/env bash\nexit 0\n' > "$source/versions/V1/core/qs-system-update.sh"
-  chmod 0644 "$source/versions/V1/core/qs-system-update.sh"
-  git -C "$source" add versions/V1/core/qs-system-update.sh
-  git -C "$source" update-index --chmod=-x versions/V1/core/qs-system-update.sh
+  mkdir -p "$source/core"
+  printf '#!/usr/bin/env bash\nexit 0\n' > "$source/core/qs-system-update.sh"
+  chmod 0644 "$source/core/qs-system-update.sh"
+  git -C "$source" add core/qs-system-update.sh
+  git -C "$source" update-index --chmod=-x core/qs-system-update.sh
   git -C "$source" commit -m nonexecutable-system-update-adapter >/dev/null
   root="$WORK/installer-nonexecutable-system-update-adapter"
   make_installer_case "$root"
@@ -612,9 +628,9 @@ SCRIPT
   assert_no_file "$root/home/.config/quickshell/bar/shell.qml" \
     "non-executable system-update adapter install mutation"
 
-  chmod 0755 "$source/versions/V1/core/qs-system-update.sh"
-  git -C "$source" add versions/V1/core/qs-system-update.sh
-  git -C "$source" update-index --chmod=+x versions/V1/core/qs-system-update.sh
+  chmod 0755 "$source/core/qs-system-update.sh"
+  git -C "$source" add core/qs-system-update.sh
+  git -C "$source" update-index --chmod=+x core/qs-system-update.sh
   git -C "$source" commit -m restore-system-update-adapter >/dev/null
   root="$WORK/installer-system-update-adapter"
   make_installer_case "$root"
@@ -636,8 +652,41 @@ run_uninstaller() {
   QSR_STOP_ROUNDS=3 \
   QSR_STABLE_ROUNDS=1 \
   QSR_COMMAND_TIMEOUT=1 \
-  PATH="$root/bin:/usr/bin:/bin" \
+  PATH="$root/bin:$HOST_BIN" \
     bash "$UNINSTALLER"
+}
+
+case_installer_failure_safety() {
+  local root="$WORK/installer-locked" dest
+  make_installer_case "$root"
+  mkdir -p "$root/state/quickshell-rise" "$root/home/.config/quickshell/.qs-install-stage.active"
+  printf 'keep\n' > "$root/home/.config/quickshell/.qs-install-stage.active/sentinel"
+  (
+    exec 8>"$root/state/quickshell-rise/install.lock"
+    flock -n 8 || fail "fixture lock acquisition"
+    if run_installer_without_tty "$root" --no-autostart; then
+      fail "concurrent installation was accepted"
+    fi
+  )
+  assert_contains "Another Rise installation" "$root/installer.out" "lock rejection"
+  assert_file "$root/home/.config/quickshell/.qs-install-stage.active/sentinel" "active stage preserved"
+  [[ ! -s "$root/actions.log" ]] || fail "locked installer changed runtime"
+
+  root="$WORK/installer-ai-failure"
+  make_installer_case "$root"
+  dest="$root/home/.config/quickshell/bar"
+  mkdir -p "$dest" "$root/state/quickshell-rise"
+  printf 'original payload\n' > "$dest/shell.qml"
+  printf 'V1\n' > "$dest/.qsrise"
+  printf 'v2\n' > "$root/state/quickshell-rise/active-variant"
+  if QSR_TEST_AI_FAIL=true run_installer_without_tty "$root" --no-autostart; then
+    fail "collector failure was ignored"
+  fi
+  assert_contains "original payload" "$dest/shell.qml" "payload preserved on collector failure"
+  assert_contains "v2" "$root/state/quickshell-rise/active-variant" "variant preserved on collector failure"
+  assert_contains "install-ai-backends" "$root/actions.log" "collector attempted"
+  assert_not_contains "stop" "$root/actions.log" "bar not stopped on collector failure"
+  assert_not_contains "hide" "$root/actions.log" "stock bar not hidden on collector failure"
 }
 
 case_runtime_toggle_ownership() (
@@ -822,7 +871,7 @@ case_registry_live_health_and_stop() (
   local runtime="$root/run/quickshell"
   local instance="$runtime/by-id/live-instance"
   local stale="$runtime/by-id/stale-instance"
-  local path_id bar_pid live
+  local path_id bar_pid live python_bin
 
   mkdir -p "$root/bin" "$(dirname "$config")" "$instance" "$stale" \
     "$runtime/by-path" "$runtime/by-pid"
@@ -834,7 +883,13 @@ case_registry_live_health_and_stop() (
   # Deliberately make qs resolve to a different executable. The live process is
   # the bare quickshell candidate, exercising the crash-relaunch allowance.
   ln -s /usr/bin/sleep "$root/bin/qs"
-  ln -s "$(command -v python3)" "$root/bin/quickshell"
+  # Resolve the interpreter itself instead of linking the Mise shim: the shim
+  # dispatches by argv[0], so invoking it as `quickshell` would start the real
+  # Quickshell CLI instead of running this recording process.
+  python_bin="$(python3 -c 'import os, sys; print(os.path.realpath(sys.executable))')" \
+    || fail "could not resolve Python interpreter for registry fixture"
+  [[ -x $python_bin ]] || fail "resolved Python interpreter is not executable: $python_bin"
+  ln -s "$python_bin" "$root/bin/quickshell"
   cat > "$root/bin/pkill" <<'SCRIPT'
 #!/usr/bin/env bash
 exit 1
@@ -1191,7 +1246,7 @@ case_static_contracts() {
   assert_before "if ! qsr_release_owned_stock_bar" "if ! qsr_stop_bar_instances" "$UNINSTALLER" "show before stop"
   assert_contains "left it stopped because the Omarchy stock bar is active" "$UNINSTALLER" "backup double-bar guard"
   assert_contains "Other Hyprland systems" "$MAINTENANCE" "non-Omarchy compatibility docs"
-  assert_contains "Flags let non-interactive installs choose autostart" \
+  assert_contains "Without an autostart flag, an existing Rise hook is refreshed." \
     "$GETTING_STARTED" "non-interactive prompt docs"
   assert_contains "hypridle cava)" "$INSTALLER" "CAVA optional dependency check"
   assert_contains "real-time CAVA waveform" "$USAGE" "CAVA optional dependency docs"
@@ -1223,8 +1278,8 @@ case_static_contracts() {
     assert_contains 'ownerActive:' \
       "$connected_panel" "V2 connected panel owner binding"
   done < <(grep -Rl --include='*.qml' 'ConnectedPanelSurface {' \
-    "$REPO_ROOT/versions/V1/variants/V2/panels")
-  assert_eq "20" "$connected_panel_count" "V2 connected panel owner coverage"
+    "$REPO_ROOT/variants/V2/panels")
+  assert_eq "24" "$connected_panel_count" "V2 connected panel owner coverage"
   for theme_file in "$V1_THEME" "$V2_THEME"; do
     assert_contains 'omarchy-shell idle status' "$theme_file" "live Omarchy idle service probe"
     assert_contains 'omarchy-shell notifications ping' "$theme_file" "live Omarchy notification service probe"
@@ -1307,17 +1362,18 @@ case_static_contracts() {
   assert_contains 'property bool compactMpris:' "$V1_THEME" "V1 MPRIS presentation state"
   assert_contains '(compactMpris      ? "1" : "0")' "$V1_THEME" "V1 MPRIS presentation save"
   assert_contains 'parts.length > wsField + 32' "$V1_THEME" "V1 MPRIS presentation restore"
-  assert_contains 'compactMpris = false' "$V1_THEME" "V1 MPRIS default-layout reset"
-  assert_contains 'model: root.barColorOptions' "$V1_CONTROL_PANEL" "V1 bar palette control"
+  assert_contains 'compactMpris = defaults.compactMpris' "$V1_THEME" "V1 MPRIS default-layout reset"
+  assert_contains 'compactMpris: false' "$REPO_ROOT/variants/V1/modules/V1Defaults.js" "V1 MPRIS shared default"
+  assert_contains 'model: ctrlPanel.root.barColorOptions' "$V1_CONTROL_PANEL" "V1 bar palette control"
   assert_contains 'label: "Now playing"' "$V1_CONTROL_PANEL" "V1 MPRIS presentation control"
-  assert_contains 'readonly property bool fullMode: root.compactMpris' "$V1_MPRIS_WIDGET" "V1 FULL presentation binding"
+  assert_contains 'property bool fullMode: rootMod.root.compactMpris' "$V1_MPRIS_WIDGET" "V1 FULL presentation binding"
 
   # The analyzer config is supplied over an inherited file descriptor. Keeping
   # exec preserves Quickshell's direct process lifecycle while avoiding the old
   # mktemp + unreachable EXIT-trap leak.
   for mpris_file in \
-    "$V1_MPRIS_WIDGET" "$V1_MPRIS_PANEL" \
-    "$V2_MPRIS_WIDGET" "$V2_MPRIS_PANEL"; do
+    "$REPO_ROOT/shared/components/MprisWidget.qml" "$V1_MPRIS_PANEL" \
+    "$V2_MPRIS_PANEL"; do
     assert_contains "exec cava -p <(printf" "$mpris_file" "CAVA fd-backed config"
     assert_not_contains "cfg=\$(mktemp)" "$mpris_file" "CAVA tempfile leak"
   done
@@ -1335,6 +1391,7 @@ case_static_contracts() {
 }
 
 case_installer_interactive_prompt_matrix
+case_installer_failure_safety
 case_runtime_toggle_ownership
 case_runtime_postboot_order_and_fail_open
 case_runtime_postboot_uses_controller_selection

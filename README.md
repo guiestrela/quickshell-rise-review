@@ -1,96 +1,295 @@
-<h1 align="center"> Quickshell Rise </h1>
+# Quickshell Rise
 
-<h4 align="center"> My Quickshell bar for Omarchy — my new Rise journey into Quickshell starts here. Enjoy! </h4>
-<div align="center">
+**Version:** 1.1.3
 
-[![Stars](https://img.shields.io/github/stars/HANCORE-linux/quickshell-dots?style=for-the-badge&labelColor=000000&color=209edb&logo=github&logoColor=209edb&cacheSeconds=21600)](https://github.com/HANCORE-linux/quickshell-dots)
-[![Forks](https://img.shields.io/github/forks/HANCORE-linux/quickshell-dots?style=for-the-badge&labelColor=000000&color=209edb&logo=github&logoColor=209edb&cacheSeconds=21600)](https://github.com/HANCORE-linux/quickshell-dots/network)
-[![Issues](https://img.shields.io/github/issues/HANCORE-linux/quickshell-dots?style=for-the-badge&labelColor=000000&color=209edb&logo=github&logoColor=209edb&cacheSeconds=21600)](https://github.com/HANCORE-linux/quickshell-dots/issues)
-[![Buy Me A Coffee](https://img.shields.io/badge/Buy%20Me%20A%20Coffee-SUPPORT-000000?style=for-the-badge&labelColor=000000&color=209edb&logo=buymeacoffee&logoColor=209edb)](https://buymeacoffee.com/hancore)
+Quickshell Rise is a full-bar plugin for Omarchy. It replaces the built-in
+Omarchy bar with the Rise interface and runs inside Omarchy's existing
+`omarchy-shell` process. V1 and V2 are included and can be switched without
+starting another Quickshell instance.
 
-</div>
+The project includes system panels and integrations for Omarchy themes,
+notifications, audio, network, weather, calendar, NordVPN, and wallpaper
+folders. Its bar styling and interactions follow the Quickshell Rise design.
 
-<table>
-  <tr>
-    <td align="center"><b>Theme Picker</b></td>
-    <td align="center"><b>Bar Functions &amp; Animations</b></td>
-    <td align="center"><b>Unlockbar + Widget Drag/Drop</b></td>
-  </tr>
-  <tr>
-    <td><video src="https://github.com/user-attachments/assets/160ca54f-defb-40de-a0e4-6d2e4139294d" controls="controls" style="max-width: 100%;"></video></td>
-    <td><video src="https://github.com/user-attachments/assets/5e91501e-e12c-4125-be10-caa26678098d" controls="controls" style="max-width: 100%;"></video></td>
-    <td><video src="https://github.com/user-attachments/assets/1971385a-6d8b-43ee-ab1d-763e2e40dbf7" controls="controls" style="max-width: 100%;"></video></td>
-  </tr>
-</table>
+## Requirements
 
-## Install / Remove
+- Omarchy with the Quickshell plugin system and `omarchy-shell`.
+- Quickshell dependencies used by the selected Rise widgets.
+- Required fonts: JetBrainsMono Nerd Font (`ttf-jetbrains-mono-nerd-basic` or
+  `ttf-jetbrains-mono-nerd`) and `ttf-material-symbols-variable`.
+- `cava` with PipeWire support for the Muse/full media audio visualizer (see below).
+- Optional integrations require their respective tools or accounts. See
+  [Integrated services](docs/integrations.md).
 
-Install and start the bar for the current session with V1 initially active:
+## Install
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/HANCORE-linux/quickshell-dots/main/install.sh | bash -s V1
-```
-
-Use `V2` instead to start with the V2 interface. Both UI variants are installed
-as one shell and can be switched later without launching a second Quickshell
-process.
-
-Install and keep the bar after reboot:
+For a complete installation with one command, including fonts, `cava`, Rise,
+AI usage collectors, the post-update recovery hook, and a shell restart, run:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/HANCORE-linux/quickshell-dots/main/install.sh | bash -s V1 --autostart
+(pacman -Q ttf-jetbrains-mono-nerd-basic >/dev/null 2>&1 || \
+  pacman -Q ttf-jetbrains-mono-nerd >/dev/null 2>&1 || \
+  omarchy pkg add ttf-jetbrains-mono-nerd) && \
+omarchy pkg add ttf-material-symbols-variable cava && \
+  fc-cache -f && \
+  omarchy plugin add https://github.com/guiestrela/quickshell-rise-review.git --enable && \
+  "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/scripts/install-ai-backends" \
+    "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise" && \
+  omarchy hook install post-update \
+    "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/contrib/post-boot.d/quickshell-rise" && \
+  omarchy restart shell
 ```
 
-Remove the bar and restore your previous config:
+The command keeps an installed JetBrains Mono Nerd font, including Omarchy’s
+`ttf-jetbrains-mono-nerd-basic`, and installs the full package only if neither
+variant is installed. Do not install both variants: they conflict.
+
+Confirm the repository when Omarchy asks. Each step runs only if the previous
+step succeeds. The first step also installs `cava`, which is required for the
+Muse/full media waveform to react to audio. To install the parts separately,
+use the commands below.
+
+Install Rise with Omarchy's plugin manager. Confirm the repository when
+Omarchy asks:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/HANCORE-linux/quickshell-dots/main/uninstall.sh | bash
+omarchy plugin add https://github.com/guiestrela/quickshell-rise-review.git --enable
 ```
 
-The installer backs up an existing config to `~/.config/quickshell/bar.bak.<timestamp>`.
+To install the AI usage collectors and their user systemd timers, run:
 
-For requirements, autostart options, and installation details, read [Getting started](docs/getting-started.md).
+```bash
+"$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/scripts/install-ai-backends" \
+  "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise"
+```
 
-## Compare V1 and V2
+The optional post-update recovery hook can be installed with:
 
-Both interfaces include theme integration, pickers, updates, notifications, AI usage, media controls, system panels, and draggable widget groups.
+```bash
+omarchy hook install post-update \
+  "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/contrib/post-boot.d/quickshell-rise"
+```
 
-| Area | V1 | V2 |
-|---|---|---|
-| Layout | Original Rise layout with splits and gap animations | Compact redesign with Full, Fit, Dock, and Notch shells |
-| Workspaces | Default, Numbers, and Magic | Default, Numbers, Magic, Kanji, Frame, and Aurora |
-| Widget styling | Global palette, compact modes, border, frost, and shadow | Global palette plus per-widget fill, border, and contrast controls |
-| Now playing | Default controls or FULL waveform view | Default controls or FULL waveform view |
-| State | Separate V1 layout and style cache | Separate V2 layout and style cache |
+The post-update hook makes Omarchy restart its shell after `omarchy update`
+has released the update lock, so the selected Rise bar is loaded from updated
+plugin files.
 
-### V2 preview
+Install the required fonts **before enabling the plugin**:
 
+```bash
+(pacman -Q ttf-jetbrains-mono-nerd-basic >/dev/null 2>&1 || \
+  pacman -Q ttf-jetbrains-mono-nerd >/dev/null 2>&1 || \
+  omarchy pkg add ttf-jetbrains-mono-nerd) && \
+omarchy pkg add ttf-material-symbols-variable && \
+  fc-cache -f
+```
 
-https://github.com/user-attachments/assets/0e43f091-95d0-4a37-8b65-77a65fd17b74
+The plugin manager does not run `install.sh` or install these font dependencies.
+Without **Material Symbols Rounded**, icon names such as `planner_review` and
+`graphic_eq` appear as text and overlap neighboring widgets.
 
+If icons appear as names such as `planner_review` or `graphic_eq`, install
+Material Symbols, refresh the font cache, and restart the shell:
 
+```bash
+omarchy pkg add ttf-material-symbols-variable && \
+  fc-cache -f && \
+  omarchy restart shell
+```
 
+The plugin replaces the built-in bar while enabled. Disable it to return to the
+Omarchy bar:
 
-Click the preview to play the V2 demo.
+```bash
+omarchy plugin disable io.github.guiestrela.quickshell-rise
+omarchy restart shell
+```
+
+To inspect or validate the installed plugin:
+
+```bash
+omarchy plugin list
+omarchy plugin validate ~/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise
+```
+
+## Rise Bar skill for AI agents
+
+The repository includes a portable [Rise Bar skill](skills/rise-bar/SKILL.md)
+for installation, V1/V2 development, configuration and crash diagnosis while
+preserving installed plugins and local settings. Its
+[installation reference](skills/rise-bar/references/installation.md) includes
+the complete bar installation command. The skill is not specific to Codex: install it for
+any AI agent that supports the `SKILL.md` format, using that agent's documented
+skills directory.
+
+From the root of this repository, pass the agent's skills directory:
+
+```bash
+bash scripts/install-rise-skill /path/to/your/agent/skills
+```
+
+Repeat for each AI agent installed on your system. The installer copies the
+complete skill, including its references, and refuses to overwrite an existing
+`rise-bar` directory so you can review or back up local changes first.
+
+For example, for Codex:
+
+```bash
+bash scripts/install-rise-skill "${CODEX_HOME:-$HOME/.codex}/skills"
+```
+
+If Rise is already installed and its plugin directory includes
+`scripts/install-rise-skill`, you can use that copy of the installer:
+
+```bash
+bash "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/scripts/install-rise-skill" \
+  /path/to/your/agent/skills
+```
+
+Start a new agent session after installation and use its skill invocation
+mechanism. In Codex, invoke `$rise-bar`, for example: “Use $rise-bar to diagnose
+a Rise bar crash while preserving my plugins.” For an AI without native skill
+support, provide `SKILL.md` and the referenced files as context; automatic
+skill discovery depends on the application. Installing the skill alone does
+not install or enable the bar; follow [Install](#install) to install the bar.
+
+## Update
+
+Update Rise from its Git repository with Omarchy's plugin manager:
+
+```bash
+omarchy plugin update io.github.guiestrela.quickshell-rise
+```
+
+Omarchy shows the changes for review, fast-forwards the installed plugin, and
+rescans the plugin registry after a successful update. If the running bar does
+not show the new version yet, restart the shell:
+
+```bash
+omarchy restart shell
+```
+
+To update every installed Git-managed plugin instead, run:
+
+```bash
+omarchy plugin update
+```
+
+## Audio visualizer
+
+The Muse/full media waveform uses `cava` to read the playback output through
+PipeWire. It reacts to the sound being played, not the microphone, and does
+not record audio. This is separate from the Reactor animation between bar sections.
+
+Install the dependency on Omarchy:
+
+```bash
+omarchy pkg add cava
+```
+
+Without `cava`, the waveform stays at its minimum height and can look like a
+static row of dots. If playback was already running when you installed it,
+pause and resume the media to restart the visualizer's capture. The full media
+waveform must be enabled and an MPRIS player must report active playback.
+
+## AI usage
+
+The collector command above installs Claude, OpenCode, Codex, and GitHub
+Copilot collectors and their timers. No provider-specific setup is needed.
+
+The installer requires `python3` and a working user `systemd` manager. It
+installs each collector script and service/timer unit regardless of whether
+provider tools, accounts, credentials, or local data exist. It then reloads
+user systemd units and enables/starts all four timers. On missing `systemctl`,
+reload, or timer-enable errors it exits non-zero and reports the incomplete
+state so it can be repaired by rerunning the installer. Re-running is safe.
+
+Collectors do not install provider CLIs, initiate login, or prime caches during
+setup. Each provider only reports data when its own source is available: Claude
+needs its local Claude Code credentials and network access; Codex needs its
+local Codex account/session; OpenCode needs its local usage database; Copilot
+needs an existing `gh` authentication and network access. Missing data does
+not block Rise or imply a quota is available.
+
+The installer writes collectors to `~/.local/bin` and units to
+`~/.config/systemd/user`. It also disables and removes the legacy
+`claude-usage-cookie` and `claude-usage-calc` collectors/units if present.
+It does not install provider tools, change Rise's widget configuration, or
+activate/restart the bar. The AI usage widget remains governed by the user's
+existing Rise widget setting; turn it on in Control Panel → Widgets if desired.
+
+Python 3 is the only collector runtime dependency; provider CLI/account/data
+availability affects reported usage, not installation.
+
+To show the widget, click the **Launcher** on the bar to open the Control Panel,
+then open **Widgets** and turn on **AI usage**. The pill appears when a provider
+has an active session or recent usage data.
+
+## Variants
+
+Rise ships with two interfaces. Both run in the Omarchy shell process and share
+the same panels and system integrations.
+
+| Variant | Interface |
+|---|---|
+| V1 | Original Rise layout with split sections and gap animations |
+| V2 | Compact redesign with Full, Fit, Dock, and Notch bar shells |
+
+Switch variants from Rise's built-in controls, or through its scoped IPC target:
+
+```bash
+quickshell ipc -p "$OMARCHY_PATH/shell" call quickshell-rise.variant activate v2
+```
+
+## Features
+
+- Omarchy theme and system status integration.
+- Motherboard fan profiles and manual PWM control ([setup and compatibility](docs/fan-control.md)).
+- Rise panels for workspaces, audio, network, Bluetooth, brightness, power,
+  media, calendar, weather, updates, and notification history.
+- Weather forecasts and radar, with a configurable location.
+- Local calendar view with optional Google Calendar synchronization.
+- NordVPN controls when the official client is installed.
+- Per-display wallpaper folders, shuffle, pinning, and scaling controls.
+- V1 and V2 layouts, with configurable widget groups and panel styles.
+
+## Screenshots
+
+### V1
+
+![Rise V1 — preview 1](docs/media/v1-preview01.png)
+![Rise V1 — preview 4](docs/media/v1-preview04.png)
+
+### V2
+
+![Rise V2 — preview 1](docs/media/v2-preview01.png)
+![Rise V2 — preview 3](docs/media/v2-preview03.png)
+![Rise V2 — preview 4](docs/media/v2-preview04.png)
+
+## Source layout
+
+- `core/`: variant lifecycle, persistent selection, IPC, and host bridges.
+- `shared/integrations/`: helpers shared by both interfaces.
+- `variants/V1/` and `variants/V2/`: each interface's theme, layout, modules, panels, and assets.
+- `tests/`: regression suites; QML harnesses live in `tests/qml/`.
+
+`Bar.qml` loads Rise inside Omarchy; `shell.qml` is the standalone development entry point.
 
 ## Documentation
 
-Each guide covers one task and links back to this page.
-
 | Guide | Contents |
 |---|---|
-| [Getting started](docs/getting-started.md) | Requirements, installation, removal, and autostart |
 | [Usage](docs/usage.md) | Widgets, styles, variants, keybindings, and IPC |
-| [Maintenance and recovery](docs/maintenance-and-recovery.md) | Lifecycle, updates, logs, compatibility, and recovery |
-| [Development](docs/development.md) | Repository startup, tests, linting, and releases |
-| [Architecture](docs/architecture.md) | Variants, controller, state, IPC, and project layout |
-
-## Credits
-
-Parts of this project are adapted from [Omarchy Shell](https://github.com/basecamp/omarchy/tree/omarchy-shell) and modified to integrate with Quickshell Rise. This includes the Carousel picker and selected widget functionality.
-
-The Tanzaku and Hearthstone pickers are original implementations created for this project.
+| [Integrated services](docs/integrations.md) | Weather, calendar, NordVPN, and wallpaper integration |
+| [Architecture](docs/architecture.md) | Variants, state, IPC, and project structure |
+| [Maintenance and recovery](docs/maintenance-and-recovery.md) | Updates, logs, compatibility, and recovery |
+| [Development](docs/development.md) | Local development and release workflow |
 
 ## License
 
-[MIT](LICENSE) © 2026 HANCORE-linux
+[MIT](LICENSE)
+
+
+## Credits
+
+Quickshell Rise is based on [HANCORE-linux/quickshell-dots](https://github.com/HANCORE-linux/quickshell-dots).

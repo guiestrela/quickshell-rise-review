@@ -61,9 +61,9 @@ Item {
     property int pendingVolumeSteps: 0
 
     readonly property string muteCommand:
-        "if command -v omarchy-audio-output-volume >/dev/null 2>&1; then " +
-        "omarchy-audio-output-volume mute-toggle; else " +
-        "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle || pamixer -t; fi"
+        "(command -v omarchy-swayosd-client >/dev/null 2>&1 && omarchy-swayosd-client --output-volume mute-toggle) || " +
+        "wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle || " +
+        "pamixer -t"
 
     function volumeCommand(steps) { return AudioWidgetLogic.volumeCommand(rootMod, {}, steps) }
 

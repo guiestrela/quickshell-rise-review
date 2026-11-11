@@ -30,9 +30,6 @@ PanelWindow {
     readonly property Item surfaceHost: card
     readonly property int popupW: 328
     readonly property int maxListH: 320
-    readonly property int maxWidgetListH: 180
-    readonly property var widgetRegistry: trayPanel.root.trayWidgetRegistryForScreen(
-        trayPanel.screen ? trayPanel.screen.name : "")
 
     property real reveal: trayPanel.root.trayVisible ? 1 : 0
     Behavior on reveal {
@@ -58,36 +55,7 @@ PanelWindow {
             if (trayPanel.root.trayPinned.indexOf(vals[i].id) < 0 && vals[i].status === Status.NeedsAttention) n++
         return n
     }
-    onHiddenCountChanged: if (trayPanel.root.trayVisible && hiddenCount === 0
-            && trayPanel.root.trayWidgets.length === 0 && !trayPanel.root.trayDragActive)
-        trayPanel.root.trayVisible = false
-    Connections {
-        target: trayPanel.root
-        function onTrayWidgetsChanged() {
-            if (trayPanel.root.trayVisible && trayPanel.hiddenCount === 0
-                    && trayPanel.root.trayWidgets.length === 0 && !trayPanel.root.trayDragActive)
-                trayPanel.root.trayVisible = false
-            dropRectTimer.restart()
-        }
-        function onActivePopupScreenChanged() { dropRectTimer.restart() }
-    }
-
-    function publishDropRect() {
-        if (!trayPanel.screen || !trayPanel.root.activePopupScreenName) return
-        var topLeft = card.mapToGlobal(0, 0)
-        var bottomRight = card.mapToGlobal(card.width, card.height)
-        trayPanel.root.setTrayDropRect(trayPanel.screen.name, {
-            x: Math.min(topLeft.x, bottomRight.x),
-            y: Math.min(topLeft.y, bottomRight.y),
-            width: Math.abs(bottomRight.x - topLeft.x),
-            height: Math.abs(bottomRight.y - topLeft.y)
-        })
-    }
-    Timer { id: dropRectTimer; interval: 0; onTriggered: trayPanel.publishDropRect() }
-    Component.onCompleted: dropRectTimer.restart()
-    Component.onDestruction: {
-        if (trayPanel.screen) trayPanel.root.removeTrayDropRect(trayPanel.screen.name)
-    }
+    onHiddenCountChanged: if (trayPanel.root.trayVisible && hiddenCount === 0) trayPanel.root.trayVisible = false
 
     // click-outside-to-close: full-overlay dismiss area behind the card
     MouseArea { anchors.fill: parent; onClicked: trayPanel.root.trayVisible = false }
@@ -98,12 +66,8 @@ PanelWindow {
         height: col.implicitHeight + 24
         radius: trayPanel.reveal > 0.001 ? trayPanel.frameRadius : 0
         color: trayPanel.frameColor
-        border.color: trayPanel.root.trayDropActive ? trayPanel.root.seal : trayPanel.frameBorderColor
-        border.width: trayPanel.root.trayDropActive ? Math.max(2, trayPanel.frameBorderWidth) : trayPanel.frameBorderWidth
-        onXChanged: dropRectTimer.restart()
-        onYChanged: dropRectTimer.restart()
-        onWidthChanged: dropRectTimer.restart()
-        onHeightChanged: dropRectTimer.restart()
+        border.color: trayPanel.frameBorderColor
+        border.width: trayPanel.frameBorderWidth
         Loader { anchors.fill: parent; sourceComponent: trayPanel.surfaceComponent }
         x: Math.round(Math.max(6, Math.min(trayPanel.root.trayBarX, parent.width - width - 6)))
         y: trayPanel.root.barPosition === "bottom"
@@ -111,13 +75,6 @@ PanelWindow {
             : (trayPanel.barBottom + trayPanel.gap) - trayPanel.revealShift
         opacity: trayPanel.reveal
         focus: trayPanel.root.trayVisible
-
-        HoverHandler {
-            onHoveredChanged: {
-                trayPanel.root.trayHovering = hovered
-                if (hovered) trayPanel.root.trayPanelHoverEntered = true
-            }
-        }
 
         Keys.onPressed: function(event) {
             if (event.key === Qt.Key_Escape) {
@@ -142,7 +99,7 @@ PanelWindow {
                 CommonComponents.UiText {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
-                    text: "Tray"
+                    text: "Tray Apps"
                     color: trayPanel.root.ink
                     font.family: trayPanel.root.mono
                     font.pixelSize: 13
@@ -156,8 +113,6 @@ PanelWindow {
                     anchors.verticalCenter: parent.verticalCenter
                     text: trayPanel.hiddenCount + (trayPanel.hiddenCount === 1 ? " APP" : " APPS")
                         + (trayPanel.attentionCount > 0 ? "  ·  " + trayPanel.attentionCount + " ATTENTION" : "")
-                        + (trayPanel.root.trayWidgets.length > 0
-                            ? "  ·  " + trayPanel.root.trayWidgets.length + " WIDGETS" : "")
                     color: trayPanel.attentionCount > 0 ? trayPanel.root.seal : trayPanel.root.sumiHi
                     font.family: trayPanel.root.mono
                     font.pixelSize: 10
@@ -183,15 +138,11 @@ PanelWindow {
                 }
             }
 
-            Rectangle {
-                width: parent.width; height: 1; color: trayPanel.root.sep
-                visible: trayPanel.hiddenCount > 0 || trayPanel.root.trayWidgets.length > 0
-            }
+            Rectangle { width: parent.width; height: 1; color: trayPanel.root.sep }
 
             Item {
                 width: parent.width
-                visible: trayPanel.hiddenCount > 0
-                height: visible ? Math.min(trayRows.implicitHeight, trayPanel.maxListH) : 0
+                height: Math.min(trayRows.implicitHeight, trayPanel.maxListH)
 
                 Flickable {
                     id: appsFlick
@@ -380,82 +331,6 @@ PanelWindow {
                             }
                         }
                     }
-                }
-            }
-
-            Item {
-                width: parent.width
-                visible: trayPanel.root.trayWidgets.length > 0
-                    || (trayPanel.root.barUnlocked && trayPanel.root.trayDragActive)
-                height: visible ? Math.min(Math.max(36, trayWidgetFlow.implicitHeight), trayPanel.maxWidgetListH) : 0
-
-                Flickable {
-                    anchors.fill: parent
-                    contentHeight: trayWidgetFlow.implicitHeight
-                    clip: true
-                    interactive: contentHeight > height
-                    boundsBehavior: Flickable.StopAtBounds
-
-                    Flow {
-                        id: trayWidgetFlow
-                        width: parent.width
-                        spacing: 6
-
-                        Repeater {
-                            model: trayPanel.root.trayWidgets
-
-                            delegate: Item {
-                                id: trayWidgetTile
-                                required property string modelData
-                                readonly property Component widgetComponent: trayPanel.widgetRegistry[modelData] || null
-                                width: trayWidgetFlow.width
-                                height: widgetComponent ? 36 : 0
-                                visible: !!widgetComponent
-
-                                Loader {
-                                    id: widgetLoader
-                                    x: 8; y: 4
-                                    width: Math.max(1, trayWidgetTile.width - 24)
-                                    height: 28
-                                    clip: true
-                                    sourceComponent: trayWidgetTile.widgetComponent
-                                }
-
-                                Rectangle {
-                                    anchors.right: parent.right
-                                    anchors.top: parent.top
-                                    width: 18; height: 18; radius: 9
-                                    color: returnMa.containsMouse ? trayPanel.root.seal : trayPanel.root.fillIdle
-                                    border.color: trayPanel.root.sep; border.width: 1
-
-                                    CommonComponents.UiText {
-                                        anchors.centerIn: parent
-                                        text: "↩"
-                                        color: returnMa.containsMouse ? trayPanel.root.paper : trayPanel.root.ink
-                                        font.pixelSize: 11
-                                    }
-
-                                    MouseArea {
-                                        id: returnMa
-                                        anchors.fill: parent
-                                        hoverEnabled: true
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: trayPanel.root.restoreTrayWidget(trayWidgetTile.modelData)
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-
-                CommonComponents.UiText {
-                    anchors.centerIn: parent
-                    visible: trayPanel.root.trayWidgets.length === 0
-                        && trayPanel.root.barUnlocked && trayPanel.root.trayDragActive
-                    text: "Drop widget here"
-                    color: trayPanel.root.sumiHi
-                    font.family: trayPanel.root.mono
-                    font.pixelSize: 10
                 }
             }
         }

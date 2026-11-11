@@ -5,7 +5,7 @@ function normalizeSettings(settings) {
     if (result.technology || !result.protocol) return result;
     var raw = String(result.protocol).trim().toUpperCase();
     if (raw === "UDP" || raw === "TCP") return result;
-    var protocol = raw.replace(/^VPN_PROTOCOL_/, "").replace(/[()]/g, "").replace(/[\s-]+/g, "_");
+    var protocol = raw.replace(/^VPN_PROTOCOL_/, "").replace(/[\s-]+/g, "_");
     result["protocol-api"] = "unified";
     result["vpn-protocol"] = String(result.protocol);
     result.technology = "";
@@ -17,19 +17,9 @@ function normalizeSettings(settings) {
         result.technology = "OPENVPN";
         result.protocol = protocol === "OPENVPN_TCP" ? "TCP" : "UDP";
     } else {
-        result["selection-notice"] = "NordVPN returned an unrecognized protocol selection. Protocol controls remain unavailable; no VPN settings or connection state were changed.";
+        result["selection-notice"] = "NordVPN did not report the active protocol. After an update, restart the NordVPN service when convenient. No VPN settings or connection state were changed.";
     }
     return result;
-}
-
-function normalizeActiveProtocol(value) {
-    var protocol = String(value || "").trim().toUpperCase()
-        .replace(/^VPN_PROTOCOL_/, "").replace(/[()]/g, "").replace(/[\s-]+/g, "_");
-    if (protocol === "NORDLYNX") return "NordLynx";
-    if (protocol === "NORDWHISPER") return "NordWhisper";
-    if (protocol === "OPENVPN_UDP") return "OpenVPN (UDP)";
-    if (protocol === "OPENVPN_TCP") return "OpenVPN (TCP)";
-    return "";
 }
 
 // Only use a validated local-daemon readback for an otherwise unknown snapshot.

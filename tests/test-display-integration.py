@@ -38,8 +38,8 @@ if sys.argv[1]=='--apply':
  args=json.loads(sys.argv[2])
  if args[args.index('--mode')+1]!='preferred':
   time.sleep(.15);print('fixture operation denied',file=sys.stderr);sys.exit(1)
- if sys.argv[-1]!='15':print('Expected fifteen-second confirmation',file=sys.stderr);sys.exit(1)
- data=dict(token=token,status='pending',remaining=15,deadline=time.monotonic()+1.2)
+ if sys.argv[-1]!='5':print('Expected five-second confirmation',file=sys.stderr);sys.exit(1)
+ data=dict(token=token,status='pending',remaining=5,deadline=time.monotonic()+1.2)
 elif sys.argv[1]=='--confirm':data=dict(token=token,status='confirmed',remaining=0)
 elif sys.argv[1]=='--revert':data=dict(token=token,status='reverted',remaining=0)
 else:
@@ -62,11 +62,9 @@ Scope {
  id: test
  property int phase: 0
  property int ticks: 0
- property int perMonitorSignalCount: 0
  property var components: []
  FileView { id: gate; path: Quickshell.env("DISPLAY_QUERY_GATE"); printErrors: false }
- QtObject { id: theme; property bool displayManagerAutoWorkspaces: true; property bool omarchyPerMonitorWorkspaces: false }
- Connections { target: theme; function onOmarchyPerMonitorWorkspacesChanged() { test.perMonitorSignalCount++ } }
+ QtObject { id: theme; property bool displayManagerAutoWorkspaces: true }
  Modules.DisplayManagerController { id: c; theme: theme }
  function fail(message) { console.error("DISPLAY_INTEGRATION_FAIL " + message); Qt.quit() }
  Component.onCompleted: {
@@ -75,9 +73,6 @@ Scope {
    components.push(component)
    if (component.status === Component.Error) { fail(component.errorString()); return }
   }
-  theme.omarchyPerMonitorWorkspaces = true
-  theme.omarchyPerMonitorWorkspaces = false
-  if (test.perMonitorSignalCount !== 2) { fail("omarchyPerMonitorWorkspaces notify signal missing"); return }
   c.positions=({"DP-1":{x:999,y:999},"DISCONNECTED":{x:0,y:0}})
   c.refresh()
  }
@@ -87,7 +82,6 @@ Scope {
    test.ticks++
    if(test.ticks>200) { test.fail("bounded fixture timeout phase="+test.phase+" error="+c.error); return }
    if(test.phase===0 && !c.loading) {
-    if(c.confirmationSeconds!==15) { test.fail("confirmation contract must be fifteen seconds"); return }
     if(c.monitors.length!==1 || c.monitors[0].refreshRate!==59.95 || !c.brightnessAvailable) { test.fail("real query lifecycle: "+c.error); return }
     if(c.positions["DP-1"].x!==0 || c.positions["DISCONNECTED"]!==undefined) { test.fail("stale positions survive refresh"); return }
     if(!c.applyMonitor("DP-1","2560x1440@59.95Hz",0,0,1,0,"none")) { test.fail("dispatch"); return }
@@ -120,19 +114,11 @@ Scope {
     c.actionTimeoutMs=15000
     c.applyMonitor("DP-1","preferred",0,0,1,0,"none"); test.phase=6
    } else if(test.phase===6 && !c.busy && !c.loading) {
-    if(c.rollbackPending!==true || c.rollbackSeconds!==15) { test.fail("missing confirmation timer"); return }
+    if(c.rollbackPending!==true || c.rollbackSeconds!==5) { test.fail("missing confirmation timer"); return }
     if(c.saveLayout() || c.applyMonitor("DP-1","preferred",0,0,1,0,"none")) { test.fail("pending guard allows changes/save"); return }
     c.confirmChanges(); test.phase=7
    } else if(test.phase===7 && !c.confirmationBusy && !c.rollbackPending && !c.loading) {
     if(c.error!=="" || c.rollbackSeconds!==0) { test.fail("keep failed "+c.error); return }
-    if(!c.saveLayout()) { test.fail("save dispatch rejected after Keep: "+c.error); return }
-    test.phase=12
-   } else if(test.phase===12 && !c.busy && !c.loading) {
-    if(!c.error.includes("fixture operation denied")) { test.fail("save helper failure not surfaced "+c.error); return }
-    if(!c.setBrightness(71)) { test.fail("brightness dispatch rejected: "+c.error); return }
-    test.phase=13
-   } else if(test.phase===13 && !c.busy && !c.loading) {
-    if(!c.error.includes("fixture operation denied")) { test.fail("brightness helper failure not surfaced "+c.error); return }
     c.applyMonitor("DP-1","preferred",0,0,1,0,"none"); test.phase=8
    } else if(test.phase===8 && !c.busy && !c.loading) {
     if(c.rollbackPending!==true) { test.fail("second apply not protected"); return }
@@ -145,7 +131,7 @@ Scope {
     test.ticks=0; test.phase=11
    } else if(test.phase===11 && !c.rollbackPending && !c.loading) {
     if(!c.error.includes("restored")) { test.fail("automatic revert not reported "+c.error); return }
-    console.log("DISPLAY_INTEGRATION_PASS variants compile; Process query/error/busy/timeouts/confirmation/keep/manual+automatic revert, Save/Brightness helper failures surfaced")
+    console.log("DISPLAY_INTEGRATION_PASS variants compile; Process query/error/busy/timeouts/confirmation/keep/manual+automatic revert")
     Qt.quit()
    }
   }
@@ -158,4 +144,4 @@ Scope {
     output = re.sub(r'\x1b\[[0-9;]*m','', result.stdout+result.stderr)
     assert result.returncode==0 and 'DISPLAY_INTEGRATION_PASS' in output and 'DISPLAY_INTEGRATION_FAIL' not in output, output
     assert not re.search(r'(ReferenceError|TypeError|Cannot assign|is not a type)', output), output
-    print('DISPLAY_INTEGRATION_PASS variants compile; Process query/error/busy/timeouts/confirmation/keep/manual+automatic revert, Save/Brightness helper failures surfaced')
+    print('DISPLAY_INTEGRATION_PASS variants compile; Process query/error/busy/timeouts/confirmation/keep/manual+automatic revert')

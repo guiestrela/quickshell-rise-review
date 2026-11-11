@@ -11,10 +11,6 @@ and uses Omarchy's notification IPC for dismiss, invoke, clear-history, and DND
 actions. Its history window has a separate Wayland namespace from Omarchy's
 toast windows. Mako remains a fallback for standalone sessions.
 
-On Omarchy 4.5, Rise watches the native `live.json` and `history.json` stores.
-The badge and history refresh after Omarchy writes them; a slow safety poll
-catches missed file events. The native service batches writes for up to 250 ms.
-
 ## Weather
 
 The existing weather popup keeps its current conditions and forecast and now

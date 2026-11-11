@@ -24,7 +24,7 @@ with tempfile.TemporaryDirectory(prefix="display-panel-load-", dir=os.environ["T
     (folder / "panels").mkdir()
     (folder / "panels/DisplayManagerPanel.qml").write_bytes(qml_fixture_bytes(SOURCE))
     fixture = qml_fixture_text(HARNESS).replace('import "../../shared/panels"', 'import "panels"')
-    fixture = fixture.replace('property color bg: "#202020"', 'property color bg: "#202020"\n property color paper: "#202020"\n property color fillHover: "#404040"\n property color sumi: "#666666"\n property int pillRadius: 6\n property color pillBorder: "#606060"\n property real pillBorderW: 1\n property bool omarchyPerMonitorWorkspaces: false')
+    fixture = fixture.replace('property color bg: "#202020"', 'property color bg: "#202020"\n property color paper: "#202020"\n property color fillHover: "#404040"')
     fixture = fixture.replace("fakeRoot.displayManagerVisible = true", "fakeRoot.displayManagerVisible = false")
     fixture = fixture.replace("if (fakeController.refreshCount !== 1)", "if (productionPanel.visible || fakeController.refreshCount !== 0)")
     fixture = fixture.replace("DISPLAY_PANEL_INSTANCE_PASS refresh=", "DISPLAY_PANEL_HIDDEN_LOAD_PASS refresh=")

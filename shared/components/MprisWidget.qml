@@ -17,11 +17,6 @@ Item {
     readonly property var  player:  sel.player
     readonly property bool active:  sel.active
     readonly property bool playing: sel.playing
-    readonly property bool canGoPrevious: sel.canGoPrevious
-    readonly property bool canGoNext: sel.canGoNext
-    readonly property bool canTogglePlayback: sel.canTogglePlayback
-
-    function togglePlayback() { return sel.togglePlayback() }
     required property bool fullMode
     required property color contentColor
     required property color accentColor
@@ -175,10 +170,8 @@ Item {
                 : Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.22)
             Behavior on color { ColorAnimation { duration: 150 } }
             MouseArea {
-                anchors.fill: parent
-                enabled: rootMod.canGoPrevious
-                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: if (rootMod.canGoPrevious) rootMod.player.previous()
+                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                onClicked: if (rootMod.player) rootMod.player.previous()
             }
         }
 
@@ -187,13 +180,10 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: rootMod.playing ? "" : ""
             font.pixelSize: 13
-            color: rootMod.canTogglePlayback ? rootMod.accentColor
-                : Qt.rgba(rootMod.accentColor.r, rootMod.accentColor.g, rootMod.accentColor.b, 0.25)
+            color: rootMod.accentColor
             MouseArea {
-                anchors.fill: parent
-                enabled: rootMod.canTogglePlayback
-                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: rootMod.togglePlayback()
+                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                onClicked: if (rootMod.player) rootMod.player.togglePlaying()
             }
         }
 
@@ -207,10 +197,8 @@ Item {
                 : Qt.rgba(rootMod.contentColor.r, rootMod.contentColor.g, rootMod.contentColor.b, 0.22)
             Behavior on color { ColorAnimation { duration: 150 } }
             MouseArea {
-                anchors.fill: parent
-                enabled: rootMod.canGoNext
-                cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: if (rootMod.canGoNext) rootMod.player.next()
+                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                onClicked: if (rootMod.player) rootMod.player.next()
             }
         }
 
@@ -518,8 +506,8 @@ Item {
                 z: 2
                 hoverEnabled: true
                 acceptedButtons: Qt.LeftButton
-                cursorShape: rootMod.canTogglePlayback ? Qt.PointingHandCursor : Qt.ArrowCursor
-                onClicked: rootMod.togglePlayback()
+                cursorShape: Qt.PointingHandCursor
+                onClicked: if (rootMod.player) rootMod.player.togglePlaying()
                 onWheel: function(wheel) {
                     if (!rootMod.player || wheel.angleDelta.y === 0) return
                     if (wheel.angleDelta.y > 0) {

@@ -17,7 +17,6 @@ Item {
     required property real cellWidth
     required property real toggleWidth
     required property real cellSpacing
-    property string screenName: rootMod.root.activePopupScreenName
 
     implicitWidth: trayRow.implicitWidth
     implicitHeight: rootMod.verticalLayout ? trayRow.implicitHeight : 28
@@ -29,7 +28,7 @@ Item {
         id: trayRow
         columns: rootMod.verticalLayout ? 1 : rootMod.reserveHiddenColumns ? trayItems.count + 1 : Math.max(1, visibleCellCount)
         readonly property int visibleCellCount: {
-            var count = toggleBtn.hasDrawer ? 1 : 0
+            var count = toggleBtn.hiddenCount > 0 ? 1 : 0
             var values = SystemTray.items.values
             for (var i = 0; i < values.length; i++)
                 if (rootMod.root.trayPinned.indexOf(values[i].id) >= 0) count++
@@ -84,7 +83,7 @@ Item {
             id: toggleBtn
             implicitWidth: rootMod.toggleWidth
             implicitHeight: 28
-            visible: hasDrawer
+            visible: hiddenCount > 0
 
             // count CURRENTLY-EXISTING tray items that are not pinned (= hidden behind this
             // button), iterating SystemTray.items so stale pinned IDs can't inflate the count
@@ -93,13 +92,9 @@ Item {
                 for (var i = 0; i < vals.length; i++) if (rootMod.root.trayPinned.indexOf(vals[i].id) < 0) n++
                 return n
             }
-            readonly property int drawerWidgetCount: rootMod.root.trayWidgets.length
-            readonly property bool hasDrawer: hiddenCount > 0 || drawerWidgetCount > 0
             readonly property int totalCount:  SystemTray.items.values.length
             readonly property string tooltipText: totalCount + (totalCount === 1 ? " app" : " apps")
                                                   + (hiddenCount > 0 ? " · " + hiddenCount + " hidden" : "")
-                                                  + (drawerWidgetCount > 0 ? " · " + drawerWidgetCount + " widgets" : "")
-                                                  + (hasDrawer ? " · hover to open" : "")
 
             CommonComponents.TooltipMixin { id: tip; root: rootMod.root; owner: toggleBtn; text: toggleBtn.tooltipText }
 
@@ -117,7 +112,7 @@ Item {
             // count badge — top-right
             Rectangle {
                 id: toggleBadge
-                visible: toggleBtn.hasDrawer
+                visible: toggleBtn.hiddenCount > 0
                 width: Math.max(12, toggleBadgeTxt.implicitWidth + 6)
                 height: 12
                 radius: 6
@@ -129,7 +124,7 @@ Item {
                 Text {
                     id: toggleBadgeTxt
                     anchors.centerIn: parent
-                    text: toggleBtn.hiddenCount + toggleBtn.drawerWidgetCount
+                    text: toggleBtn.hiddenCount
                     color: rootMod.badgeTextColor
                     font.family: rootMod.root.mono
                     font.pixelSize: 7
@@ -140,30 +135,11 @@ Item {
             MouseArea {
                 id: toggleMa
                 anchors.fill: parent
-                acceptedButtons: Qt.LeftButton | Qt.RightButton
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
-                onEntered: {
-                    if (rootMod.root.barUnlocked) {
-                        tip.hide()
-                        rootMod.root.trayHovering = false
-                        return
-                    }
-                    // The drawer is click-to-open. Hover only tracks pointer
-                    // presence so an already-open drawer can remain available.
-                    rootMod.root.trayHovering = true
-                }
-                onExited: {
-                    tip.hide()
-                    rootMod.root.trayHovering = false
-                }
-                onClicked: (event) => {
-                    tip.hide()
-                    if (event.button === Qt.RightButton)
-                        rootMod.root.trayVisible = true
-                    else
-                        rootMod.root.trayVisible = !rootMod.root.trayVisible
-                }
+                onEntered: tip.show()
+                onExited: { tip.hide() }
+                onClicked: { tip.hide(); rootMod.root.trayVisible = !rootMod.root.trayVisible }
             }
         }
     }

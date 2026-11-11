@@ -126,22 +126,3 @@ def copy_qml_fixture(source, destination):
         destination.write_bytes(qml_fixture_bytes(source))
         return destination
     return Path(shutil.copy2(source, destination))
-
-
-def write_hyprland_stub(destination):
-    """Provide the monitor/workspace surface used by Rise offscreen fixtures."""
-    destination = Path(destination)
-    module_types = [path for path in sorted(destination.glob('*.qml'))
-                    if path.name != 'Hyprland.qml' and path.stem[:1].isupper()]
-    declarations = [f'{path.stem} 1.0 {path.name}' for path in module_types]
-    (destination / 'qmldir').write_text('\n'.join(
-        ['singleton Hyprland 1.0 Hyprland.qml', *declarations]) + '\n')
-    (destination / 'Hyprland.qml').write_text('''pragma Singleton
-import QtQuick
-QtObject {
-    property var focusedWorkspace: null
-    property var focusedMonitor: null
-    property var workspaces: ({values: []})
-    function monitorFor(screen) { return null }
-}
-''')

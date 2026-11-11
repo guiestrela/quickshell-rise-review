@@ -79,9 +79,17 @@ This separation protects three operations:
 
 ## Deploy and update one generation
 
-`versions/V1` is the deployable payload despite its historical directory name. It contains the common bootstrap, the V1 root, and the complete V2 bundle.
+The runtime lives at the repository root. `Bar.qml` is the plugin entry point;
+`shell.qml` is the standalone development entry point. Both load the same
+`core/` lifecycle controller and sibling `variants/V1/` and `variants/V2/` trees.
+Shared integration helpers live under `shared/integrations/`. Shared JavaScript
+utilities (icons, power commands, palette, wallpaper profiles, and image picker
+models) live under `shared/logic/`; both variants import the same implementations.
 
-The shell updater stages that payload with its controller, hooks, update scripts, and systemd files. It validates pinned repository objects before replacing the installed generation. The active variant state remains outside the transaction.
+The legacy installer stages only `shell.qml`, `core/`, `shared/`, `variants/`, and `scripts/`
+as the runtime payload, keeping the installed `bar/shell.qml` path stable.
+
+The legacy installer stages that payload with its controller, hooks, update scripts, and systemd files. Keeping `scripts/` beside the runtime preserves relative helper URLs. The active variant state remains outside the transaction.
 
 The payload swap uses same-filesystem renames. If a companion step or restart fails, rollback restores the previous payload and companion files before it restarts the prior generation.
 
@@ -90,24 +98,41 @@ The payload swap uses same-filesystem renames. If a companion step or restart fa
 The main project surfaces are:
 
 ```text
-versions/V1/
-├── shell.qml
-├── VariantRoot.qml
-├── core/
-├── variants/V2/
-├── modules/
-└── panels/
+Bar.qml                  # Omarchy full-bar plugin entry point
+shell.qml                # Standalone development entry point
+core/                    # Variant loading, state, IPC, shared host bridges
+shared/integrations/     # Calendar, weather, notifications, wallpaper helpers
+variants/
+├── V1/                  # Original interface, Theme, BarSlot, modules, panels
+└── V2/                  # V2 interface, Theme, BarSlot, modules, panels
+tests/
+├── qml/                 # Isolated QML harnesses
+└── ...                  # Regression suites and fixtures
 scripts/
 hooks/
 contrib/post-boot.d/
 systemd/
-tests/
 install.sh
 uninstall.sh
 ```
 
-The V1 and V2 directories retain their own `Theme.qml`, `BarSlot.qml`, modules, and panels. Move code into a shared layer only when both variants use the same stable contract.
+The V1 and V2 directories retain their own `Theme.qml`, `BarSlot.qml`, modules, and panels. Shared controllers, data adapters, and selected panels now live under `shared/`;
+variants import those implementations directly. V2 no longer
+imports code from V1. Preserve the adapter contracts and check theme and local
+type dependencies before extracting additional components. Matching filenames alone do not imply
+interchangeable components.
 
 Read [Develop Quickshell Rise](development.md) for repository startup, regression suites, linting, and release checks.
 
 [Back to the project README](../README.md)
+
+Shared QML implementations now live under `shared/components/`, `shared/services/`,
+`shared/controllers/`, and `shared/panels/`. Consumers use explicit namespace
+imports directly. Empty forwarding adapters have been removed; the V2 Display
+Manager adapter remains because it defines a different header and surface.
+Direct imports do not create additional service instances or load the inactive variant. See the
+[refactor inventory](shared-components-inventory.md) for migrated components and
+remaining duplication.
+
+Common images, SVG icons, and the compiled logo shader live under
+`shared/assets/`. Variant-only assets remain in their own variant directory.

@@ -21,11 +21,9 @@ with tempfile.TemporaryDirectory(prefix='rise-calendar-workspace-', dir='/tmp') 
     runtime.mkdir(mode=0o700)
     for variant, path in [('V1','variants/V1'),('V2','variants/V2')]:
         folder = temp / variant
-        panels, modules, logic = folder / 'panels', folder / 'modules', folder / 'logic'
+        panels, modules = folder / 'panels', folder / 'modules'
         panels.mkdir(parents=True)
         modules.mkdir()
-        logic.mkdir()
-        (logic / 'MonitorWorkspaces.js').write_bytes(qml_fixture_bytes(qml_fixture_source(repo / 'shared/logic/MonitorWorkspaces.js')))
         model = repo / 'shared/integrations/google-calendar/CalendarModel.js'
         (folder / 'CalendarModel.js').write_bytes(qml_fixture_bytes(qml_fixture_source(model)))
         texts = []
@@ -34,19 +32,16 @@ with tempfile.TemporaryDirectory(prefix='rise-calendar-workspace-', dir='/tmp') 
             texts.append(text)
             text = text.replace('import Quickshell.Hyprland','import "."')
             text = text.replace('Hyprland.workspaces','FixtureHyprland.workspaces').replace(
-                'Hyprland.focusedWorkspace','FixtureHyprland.focusedWorkspace').replace(
-                'Hyprland.monitorFor','FixtureHyprland.monitorFor')
+                'Hyprland.focusedWorkspace','FixtureHyprland.focusedWorkspace')
             text = re.sub(r'^import ".*CalendarModel.js" as CalendarModel$',
                           'import "../CalendarModel.js" as CalendarModel',text,flags=re.M)
             text = text.replace('Process {','InertProcess {').replace('StdioCollector {','InertCollector {')
             if not native:
                 text = re.sub(r'^import Quickshell(?:\.[A-Za-z.]+)?\n','',text,flags=re.M)
-                text = text.replace('FileView {','InertFileView {')
-                text = text.replace('(Quickshell.env("XDG_STATE_HOME") || Quickshell.env("HOME") + "/.local/state")', '"/tmp"')
                 text = text.replace('PanelWindow {','Rectangle {\n    width: 800; height: 900\n    property var screen',1)
                 text = re.sub(r'^    (?:anchors \{ top:|exclusionMode:|WlrLayershell\.).*\n','',text,flags=re.M)
             text = text.replace('id: card\n','id: card; objectName: "card"\n')
-            text = text.replace('id: workspaceRow\n','id: workspaceRow; objectName: "workspace-" + slot\n')
+            text = text.replace('id: workspaceRow\n','id: workspaceRow; objectName: "workspace-" + modelData.id\n')
             for identity in ['calendarEventsProc','calendarActionProc','calendarMutateProc']:
                 text = text.replace('id: '+identity+'\n','id: '+identity+'; objectName: "'+identity+'"\n')
             (panels / f'{name}.qml').write_text(text)
@@ -61,14 +56,11 @@ QtObject { property var command: []; property bool running: false; property var 
         (panels / 'InertCollector.qml').write_text('''import QtQuick
 QtObject { property string text: ""; signal streamFinished() }
 ''')
-        (panels / 'InertFileView.qml').write_text('''import QtQuick\nItem { property string path: \"\"; property bool watchChanges: false; property bool printErrors: true; function reload() {} signal fileChanged(); signal loaded(); signal loadFailed(int code) }\n''')
-        (panels / 'qmldir').write_text('singleton FixtureHyprland 1.0 FixtureHyprland.qml\nCalendarPopup CalendarPopup.qml\nWorkspacePanel WorkspacePanel.qml\nInertProcess InertProcess.qml\nInertCollector InertCollector.qml\nInertFileView InertFileView.qml\n')
+        (panels / 'qmldir').write_text('singleton FixtureHyprland 1.0 FixtureHyprland.qml\nCalendarPopup CalendarPopup.qml\nWorkspacePanel WorkspacePanel.qml\nInertProcess InertProcess.qml\nInertCollector InertCollector.qml\n')
         (panels / 'FixtureHyprland.qml').write_text('''pragma Singleton
 import QtQuick
 QtObject {
     property var focusedWorkspace: ({id: 1})
-    property var focusedMonitor: ({name:"DP-1", activeWorkspace:{id:1}})
-    function monitorFor(screen) { return focusedMonitor }
     property var workspaces: [{id:1,toplevels:{values:[]}},{id:2,toplevels:{values:[]}},{id:-99,toplevels:{values:[]}}]
 }
 ''')
@@ -149,7 +141,7 @@ Item {
             var target = findChild(workspace,"workspace-2")
             mouseClick(mouse(target),5,5)
             compare(theme.selectedWorkspace,2);compare(theme.workspaceVisible,false)
-            verify(findChild(workspace,"workspace-2").visible)
+            compare(findChild(workspace,"workspace--99").visible,false)
             for(var entry of [[calendar,"calendarVisible"],[workspace,"workspaceVisible"]]) {
                 theme[entry[1]] = true
                 tryCompare(entry[0],"visible",true)
