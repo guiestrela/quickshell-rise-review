@@ -39,6 +39,19 @@ elif action == "catalog":
 elif action == "catalog-fail":
     print("fixture denied catalog", file=sys.stderr)
     sys.exit(6)
+elif action == "geocode" and args == ["springfield"]:
+    print(json.dumps({"results": [{"name": "Springfield", "admin1": "Illinois", "country_code": "US", "timezone": "America/Chicago", "latitude": 39.78, "longitude": -89.64}]}))
+elif action == "geocode-slow":
+    import time
+    time.sleep(0.25)
+    print(json.dumps({"results": [{"name": "Boston", "admin1": "Massachusetts", "country_code": "US", "timezone": "America/New_York", "latitude": 42.36, "longitude": -71.06}]}))
+elif action == "geocode-latest":
+    import time
+    time.sleep(0.5)
+    print(json.dumps({"results": [{"name": "Chicago", "admin1": "Illinois", "country_code": "US", "timezone": "America/Chicago", "latitude": 41.88, "longitude": -87.63}]}))
+elif action == "geocode-fail":
+    print("fixture denied geocode", file=sys.stderr)
+    sys.exit(7)
 elif action == "timezone" and args == ["Europe/Paris"]:
     print("fixture accepted requested zone")
 elif action == "timezone":
@@ -60,10 +73,18 @@ with tempfile.TemporaryDirectory(prefix="rise-elsewhen-process-", dir=SCRATCH) a
         source = ROOT / "shared/services" / name
         if source.exists():
             shutil.copy2(source, services / name)
+    components = base / "shared/components"
+    components.mkdir(parents=True)
+    shutil.copy2(ROOT / "shared/components/UiText.qml", components / "UiText.qml")
+    panels = base / "shared/panels"
+    panels.mkdir(parents=True)
+    shutil.copy2(ROOT / "shared/panels/ElsewhenPanelContent.qml", panels / "ElsewhenPanelContent.qml")
     shutil.copytree(ROOT / "shared/integrations/elsewhen", base / "shared/integrations/elsewhen")
     shell = base / "shell.qml"
     shell_text = (ROOT / "tests/tst_elsewhen_process_adapter.qml").read_text(encoding="utf-8")
-    shell.write_text(shell_text.replace('"../shared/services"', '"./shared/services"'), encoding="utf-8")
+    shell_text = shell_text.replace('"../shared/services"', '"./shared/services"')
+    shell_text = shell_text.replace('"../shared/panels"', '"./shared/panels"')
+    shell.write_text(shell_text, encoding="utf-8")
     settings = base / "settings.json"
     settings.write_text(json.dumps(INITIAL_SETTINGS), encoding="utf-8")
     helper = base / "inert-helper"
@@ -93,16 +114,21 @@ with tempfile.TemporaryDirectory(prefix="rise-elsewhen-process-", dir=SCRATCH) a
     assert "ELSEWHEN_ADAPTER_FAIL" not in output, output
     assert not re.search(r"(ReferenceError|TypeError|Cannot assign|is not a type)", output), output
     events = [json.loads(line) for line in command_log.read_text(encoding="utf-8").splitlines()]
-    assert len(events) == 6, events
+    assert len(events) == 10, events
     assert {event["action"] for event in events} == {
-        "catalog", "catalog-fail", "probe", "probe-fail", "timezone"
+        "catalog", "catalog-fail", "geocode", "geocode-fail", "geocode-slow",
+        "geocode-latest", "probe", "probe-fail", "timezone"
     }, events
     assert sum(event["action"] == "probe" for event in events) == 1, events
     assert sum(event["action"] == "probe-fail" for event in events) == 1, events
     assert sum(event["action"] == "catalog" for event in events) == 1, events
     assert sum(event["action"] == "catalog-fail" for event in events) == 1, events
-    assert [event["args"] for event in events if event["action"] == "timezone"] == [
-        ["Europe/Paris"], ["Invalid/Zone"]
+    assert sum(event["action"] == "geocode" for event in events) == 1, events
+    assert sum(event["action"] == "geocode-fail" for event in events) == 1, events
+    assert sum(event["action"] == "geocode-slow" for event in events) == 1, events
+    assert sum(event["action"] == "geocode-latest" for event in events) == 1, events
+    assert [event["args"] for event in events if event["action"].startswith("geocode")] == [
+        ["springfield"], ["nowhere"], ["boston"], ["chicago"]
     ], events
     assert any(event["action"] == "probe" and "Asia/Tokyo" in event["args"] for event in events), events
     print("ELSEWHEN_ADAPTER_PASS inert command log verified")

@@ -2,14 +2,38 @@ import Quickshell
 import Quickshell.Io
 import QtQuick
 import "../shared/services" as Services
+import "../shared/panels" as Panels
 
 ShellRoot {
     id: test
     property int phase: 0
     property int ticks: 0
+    property int phaseTicks: 0
     property string helperPath: Quickshell.env("RISE_ELSEWHEN_TEST_HELPER")
     property bool failProbe: false
     property bool failCatalog: false
+
+    QtObject {
+        id: fakeTheme
+        property color bg: "#1d2021"
+        property color ink: "#ebdbb2"
+        property color seal: "#d79921"
+        property color sep: "#504945"
+        property color fillIdle: "#282828"
+        property color fillHover: "#3c3836"
+        property color sumi: "#928374"
+        property string mono: "monospace"
+    }
+
+    Panels.ElsewhenPanelContent {
+        id: content
+        x: 0
+        y: 0
+        width: 380
+        height: 620
+        root: fakeTheme
+        service: service
+    }
 
     Services.ElsewhenService {
         id: service
@@ -27,6 +51,12 @@ ShellRoot {
                 return command
             },
             catalog: function() { return [test.helperPath, test.failCatalog ? "catalog-fail" : "catalog"] },
+            geocode: function(query) {
+                var action = query === "springfield" ? "geocode"
+                    : query === "boston" ? "geocode-slow"
+                    : query === "chicago" ? "geocode-latest" : "geocode-fail"
+                return [test.helperPath, action, query]
+            },
             timezone: function(zone) { return [test.helperPath, "timezone", zone] }
         })
     }
@@ -104,9 +134,62 @@ ShellRoot {
                     test.fail("probe stderr was not returned to the service")
                     return
                 }
-                service.active = false
-                console.log("ELSEWHEN_ADAPTER_PASS real Process lifecycle, inert success and failure results")
-                Qt.quit()
+                content.zoneSearchInput.text = "Springfield"
+                test.phase = 6
+            } else if (test.phase === 6 && service.placeSearchText === "springfield"
+                       && !service.placeSearchRunning) {
+                if (service.placeSearchError !== "" || service.geocodeOptions.length !== 1
+                        || service.geocodeOptions[0].label !== "Springfield"
+                        || service.geocodeOptions[0].lat !== 39.78
+                        || content.searchResults.length !== 1
+                        || content.searchResults[0].lat !== 39.78) {
+                    test.fail("inert UI-to-service geocoder result did not reach the selectable panel results")
+                    return
+                }
+                content.zoneSearchInput.text = "Nowhere"
+                test.phase = 7
+            } else if (test.phase === 7 && service.placeSearchText === "nowhere"
+                       && !service.placeSearchRunning) {
+                if (service.placeSearchError.indexOf("fixture denied geocode") < 0
+                        || service.geocodeOptions.length !== 0) {
+                    test.fail("geocoder stderr was not returned to the service")
+                    return
+                }
+                if (!service.requestPlaceSearch("Boston")) {
+                    test.fail("slow place-search request was not dispatched")
+                    return
+                }
+                test.phaseTicks = 0
+                test.phase = 8
+            } else if (test.phase === 8) {
+                test.phaseTicks++
+                if (test.phaseTicks >= 2) {
+                    if (!service.requestPlaceSearch("Chicago")) {
+                        test.fail("replacement place-search request was not dispatched")
+                        return
+                    }
+                    test.phaseTicks = 0
+                    test.phase = 9
+                }
+            } else if (test.phase === 9) {
+                test.phaseTicks++
+                if (test.phaseTicks === 8 && !service.placeSearchRunning) {
+                    test.fail("stale process completion cleared the replacement request's busy state")
+                    return
+                }
+                if (test.phaseTicks >= 32) {
+                    if (service.placeSearchRunning || service.placeSearchError !== ""
+                            || service.geocodeOptions.length !== 1
+                            || service.geocodeOptions[0].label !== "Chicago") {
+                        test.fail("replacement geocoder result was not the only accepted response: "
+                                  + JSON.stringify({ running: service.placeSearchRunning,
+                                      error: service.placeSearchError, options: service.geocodeOptions }))
+                        return
+                    }
+                    service.active = false
+                    console.log("ELSEWHEN_ADAPTER_PASS real Process lifecycle, inert success, failure and replacement results")
+                    Qt.quit()
+                }
             }
         }
     }

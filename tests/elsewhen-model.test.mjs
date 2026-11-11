@@ -47,6 +47,24 @@ test("offline city search combines IANA zones and named-city aliases without dup
     .some(option => option.label === "New York" && option.value === "America/New_York"));
 });
 
+test("place search parses geocoder results and merges offline matches without losing coordinates", () => {
+  assert.equal(Model.placeQuery("  Springfield   Illinois  "), "springfield illinois");
+  assert.equal(Model.placeQuery("LA"), "");
+  const payload = JSON.stringify({ results: [{
+    name: "Springfield", admin1: "Illinois", country_code: "US",
+    timezone: "America/Chicago", latitude: 39.78, longitude: -89.64,
+  }] });
+  const places = Model.placeOptions(payload);
+  assert.deepEqual(JSON.parse(JSON.stringify(places)), [{
+    label: "Springfield", value: "America/Chicago", lat: 39.78, lon: -89.64, region: "Illinois, US",
+  }]);
+  const merged = Model.mergePlaces([{ label: "Springfield", value: "America/Chicago" }], places, [], 8);
+  assert.equal(merged.length, 1);
+  assert.equal(merged[0].lat, 39.78);
+  assert.equal(Model.mergePlaces([], places, [{ id: "America/Chicago", lat: 39.78, lon: -89.64 }], 8).length, 0);
+  assert.deepEqual(JSON.parse(JSON.stringify(Model.placeOptions("not json"))), []);
+});
+
 test("city edits preserve order and the final clock", () => {
   const cities = Model.parseCities([
     { name: "Paris", zone: "Europe/Paris" },
@@ -62,6 +80,16 @@ test("timezone action builder keeps the selected IANA zone as a distinct argumen
   const argv = Model.timezoneCommand("Europe/Paris");
   assert.equal(argv.at(-1), "Europe/Paris");
   assert.match(argv[2], /timedatectl set-timezone \"\$1\"/);
+});
+
+test("geocode command limits the captured response and pins HTTPS transport", () => {
+  const argv = Model.geocodeCommand("San Francisco");
+  assert.equal(argv[0], "curl");
+  assert.ok(argv.includes("--max-filesize"));
+  assert.equal(Number(argv[argv.indexOf("--max-filesize") + 1]), 1_048_576);
+  assert.ok(argv.includes("--proto"));
+  assert.equal(argv[argv.indexOf("--proto") + 1], "=https");
+  assert.ok(argv.includes(Model.geocodeUrl("San Francisco")));
 });
 
 test("bundled globe data and orthographic projection are usable offline", () => {
