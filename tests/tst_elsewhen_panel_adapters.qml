@@ -290,10 +290,19 @@ Item {
             fakeService.localZone = "Asia/Tokyo"
             fakeService.nowMs = Date.UTC(2024, 2, 20, 19, 0, 0)
             var content = null
+            var oldSelectionKey = ""
+            var oldSelectionLabel = ""
+            var oldSelectionZone = ""
+            var oldGlobeExpanded = false
             try {
                 load("v2", false, "top")
                 content = findChild(panelLoader.item, "elsewhen-panel-content")
                 verify(content !== null)
+                if (content === null) return
+                oldSelectionKey = content.globeSelectionKey
+                oldSelectionLabel = content.globeSelectionLabel
+                oldSelectionZone = content.globeSelectionZone
+                oldGlobeExpanded = content.globeExpanded
                 var row = content.cityList.itemAtIndex(1)
                 var strip = findChild(row, "elsewhen-daylight-strip")
                 var marker = findChild(strip, "elsewhen-daylight-marker")
@@ -305,6 +314,23 @@ Item {
                 tryCompare(content, "moonShowStep", 2, 1500)
                 tryVerify(function() { return Math.abs(content.moonDemo - 0.25) < 0.005 }, 600)
                 compare(strip.moonPhase, content.moonPhase)
+                // Select Tokyo for the render fixture so row and globe footer are visible together.
+                var selectedPlace = null
+                var places = content.globePlaces()
+                for (var i = 0; i < places.length; i++)
+                    if (places[i].id === "Asia/Tokyo" && places[i].tracked) selectedPlace = places[i]
+                verify(selectedPlace !== null)
+                if (selectedPlace === null) return
+                content.globeSelectionKey = selectedPlace.key
+                content.globeSelectionLabel = selectedPlace.label
+                content.globeSelectionZone = selectedPlace.id
+                tryVerify(function() { return content.globeFooterPlace !== null }, 500)
+                compare(findChild(content, "elsewhen-globe-footer-city").text, "Tokyo")
+                var rowAndFooterMoon = findChild(content, "elsewhen-globe-footer-moon")
+                verify(rowAndFooterMoon !== null)
+                compare(rowAndFooterMoon.visible, true)
+                compare(rowAndFooterMoon.phase, content.moonPhase)
+                captureScene("v2-moon-show-row")
 
                 var zoomButton = findChild(content, "elsewhen-globe-zoom")
                 verify(zoomButton !== null)
@@ -324,6 +350,12 @@ Item {
                 compare(footerMoon.phase, content.moonPhase)
             } finally {
                 if (content && typeof content.stopMoonShow === "function") content.stopMoonShow()
+                if (content) {
+                    content.globeSelectionKey = oldSelectionKey
+                    content.globeSelectionLabel = oldSelectionLabel
+                    content.globeSelectionZone = oldSelectionZone
+                    content.globeExpanded = oldGlobeExpanded
+                }
                 fakeService.localZone = oldLocalZone
                 fakeService.nowMs = oldNowMs
             }
