@@ -33,6 +33,7 @@ Item {
     property double nowMs: Date.now()
     property bool probeRunning: false
     property bool probeQueued: false
+    property var transientZones: []
     property var worldData: []
     property var cityData: []
     property bool worldDataReady: false
@@ -49,6 +50,9 @@ Item {
     property bool timezoneRunning: false
     property int timezoneSerial: 0
     property string pendingTimezoneZone: ""
+    property bool pendingHereUpdate: false
+    property var pendingHere: null
+    property var pendingHereCities: null
     property string timezoneError: ""
 
     readonly property bool staticDataReady: worldDataReady && cityDataReady
@@ -63,6 +67,9 @@ Item {
             if (ids.indexOf(cities[i].id) < 0) ids.push(cities[i].id)
         }
         if (localZone !== "" && ids.indexOf(localZone) < 0) ids.push(localZone)
+        var extra = transientZones || []
+        for (var j = 0; j < extra.length; j++)
+            if (extra[j] !== "" && ids.indexOf(extra[j]) < 0) ids.push(extra[j])
         return ids
     }
 
@@ -88,7 +95,7 @@ Item {
     }
 
     function updateSetting(name, value) {
-        var writable = ["cities", "zones", "hour24", "offsetMode", "globeEnabled", "smoothMotion", "homeZone", "homeCity", "units"]
+        var writable = ["cities", "zones", "hour24", "offsetMode", "globeEnabled", "smoothMotion", "homeZone", "homeCity", "here", "units"]
         if (writable.indexOf(name) < 0) {
             lastError = "Unsupported Elsewhen setting: " + name
             return false
@@ -103,6 +110,18 @@ Item {
         var next = Object.assign({}, preferenceData)
         next.cities = Model.serializeCities(nextCities)
         delete next.zones
+        return persistPreferences(next)
+    }
+
+    function setHere(here, nextCities) {
+        var next = Object.assign({}, preferenceData)
+        if (here === null || here === undefined) delete next.here
+        else next.here = here
+        delete next.homeCity
+        if (Array.isArray(nextCities)) {
+            next.cities = Model.serializeCities(nextCities)
+            delete next.zones
+        }
         return persistPreferences(next)
     }
 
@@ -124,7 +143,7 @@ Item {
         return next === current ? false : setCities(next)
     }
 
-    function requestTimezoneChange(zone) {
+    function requestTimezoneChange(zone, here, nextCities) {
         var targetZone = String(zone || "").trim()
         var parsed = Model.parseZones(targetZone)
         if (!active || !settingsReady || timezoneRunning || parsed.length !== 1 || parsed[0].id !== targetZone) {
@@ -133,6 +152,9 @@ Item {
         }
         timezoneError = ""
         pendingTimezoneZone = targetZone
+        pendingHereUpdate = arguments.length > 1
+        pendingHere = pendingHereUpdate ? here : null
+        pendingHereCities = arguments.length > 2 ? nextCities : null
         timezoneRunning = true
         timezoneSerial++
         timezoneChangeRequested(targetZone, timezoneSerial)
@@ -146,6 +168,9 @@ Item {
             var message = String(errorText || "").trim()
             timezoneError = message !== "" ? message : "Time-zone change failed (exit " + exitCode + ")"
             pendingTimezoneZone = ""
+            pendingHereUpdate = false
+            pendingHere = null
+            pendingHereCities = null
             return false
         }
         localZone = pendingTimezoneZone
@@ -153,6 +178,16 @@ Item {
         var changedZone = localZone
         pendingTimezoneZone = ""
         timezoneError = ""
+        var saveHere = pendingHereUpdate
+        var hereValue = pendingHere
+        var citiesValue = pendingHereCities
+        pendingHereUpdate = false
+        pendingHere = null
+        pendingHereCities = null
+        if (saveHere && !setHere(hereValue, citiesValue)) {
+            timezoneError = lastError || "The time zone changed but the selected home could not be saved"
+            return false
+        }
         timezoneChanged(changedZone)
         return true
     }
@@ -242,6 +277,19 @@ Item {
         return true
     }
 
+    function ensureProbeZone(zone) {
+        var target = String(zone || "").trim()
+        var parsed = Model.parseZones(target)
+        if (parsed.length !== 1 || parsed[0].id !== target) return false
+        var tracked = cities.some(function(city) { return city.id === target })
+        var next = tracked || target === localZone ? [] : [target]
+        if (JSON.stringify(next) !== JSON.stringify(transientZones || [])) {
+            transientZones = next
+            if (active && settingsReady) refresh()
+        }
+        return true
+    }
+
     function requestWeather(keys, points) {
         if (!active || !Array.isArray(keys) || !Array.isArray(points) || keys.length === 0 || keys.length > 20 || keys.length !== points.length || weatherRunning) return false
         for (var i = 0; i < points.length; i++) {
@@ -316,6 +364,9 @@ Item {
             if (weatherRunning) weatherSerial++
             weatherRunning = false
             pendingTimezoneZone = ""
+            pendingHereUpdate = false
+            pendingHere = null
+            pendingHereCities = null
         }
     }
     onSettingsReadyChanged: if (settingsReady && active) {

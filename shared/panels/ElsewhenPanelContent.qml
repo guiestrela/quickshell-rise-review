@@ -8,14 +8,19 @@ import "../integrations/elsewhen/Model.js" as Model
 
 Item {
     id: panel
+    objectName: "elsewhen-panel-content"
     required property var root
     required property var service
     property real scrubMinutes: 0
     property string searchText: ""
+    property string searchMode: ""
+    property int searchSelectionIndex: 0
+    onSearchTextChanged: searchSelectionIndex = 0
     property string statusMessage: ""
     property real globeSpin: 0
     property real globeViewLat: 0
     property bool globeExpanded: false
+    property var globeSessionCities: []
     property string globeSelectionKey: ""
     property string globeSelectionLabel: ""
     property string globeSelectionZone: ""
@@ -24,7 +29,12 @@ Item {
     readonly property var contentRoot: panel
     property bool timezoneConfirmationVisible: false
     readonly property bool panelIsOpen: root.elsewhenVisible !== undefined ? root.elsewhenVisible : true
-    onPanelIsOpenChanged: if (!panelIsOpen) globeExpanded = false
+    onPanelIsOpenChanged: if (!panelIsOpen) {
+        globeExpanded = false
+        searchMode = ""
+        searchText = ""
+        zoneSearchInput.clear()
+    }
     property int peopleEditIndex: -1
     property int draggingCityIndex: -1
     property int rowDragTargetIndex: -1
@@ -37,7 +47,7 @@ Item {
     onKeyboardFocusIdChanged: keyboardFocusKey = ""
     readonly property double effectiveMs: (service.nowMs !== undefined ? service.nowMs : Date.now()) + scrubMinutes * 60000
     readonly property bool hour24: service.preferenceData ? service.preferenceData.hour24 === true : false
-    readonly property var hereZone: Model.resolveHere(null,
+    readonly property var hereZone: Model.resolveHere(service.preferenceData ? service.preferenceData.here : null,
         service.preferenceData ? service.preferenceData.homeCity : "", service.localZone)
     readonly property var displayRows: {
         var zones = service.cities || []
@@ -47,8 +57,35 @@ Item {
         var use24 = service.preferenceData && service.preferenceData.hour24 === true
         return Model.rows(zones, probeData, effectiveMs, offset, use24)
     }
+    readonly property var globeFooterPlace: {
+        var places = globePlaces()
+        for (var i = 0; i < places.length; i++)
+            if (places[i].key === globeSelectionKey) return places[i]
+        return null
+    }
+    readonly property var globeFooterRow: {
+        var place = globeFooterPlace
+        if (!place) return null
+        var offset = service.localOffsetMinutes !== undefined ? service.localOffsetMinutes : 0
+        return Model.rows([{ label: place.label, id: place.id }], service.probe || ({}), effectiveMs, offset, hour24)[0]
+    }
+    readonly property string globeFooterClock: globeFooterRow && globeFooterRow.ready
+        ? globeFooterRow.time + (globeFooterRow.meridiem ? " " + globeFooterRow.meridiem : "") : ""
+    readonly property string globeFooterBadge: {
+        var place = globeFooterPlace
+        if (!place) return ""
+        if (place.id === service.localZone && hereZone && place.label === hereZone.label) return "home"
+        return place.tracked ? "tracked" : ""
+    }
+    readonly property bool globeFooterDaylight: globeFooterPlace && globeFooterRow && globeFooterRow.ready
+        ? Globe.isDaylight(globeFooterPlace.lat, globeFooterPlace.lon, Globe.subsolarPoint(effectiveMs)) : false
+    readonly property real globeFooterMoonPhase: Globe.moonPhase(effectiveMs)
     readonly property var searchResults: typeof service.searchLocations === "function"
         ? service.searchLocations(searchText, 8) : service.searchZones(searchText, 8)
+    onSearchResultsChanged: {
+        if (searchSelectionIndex >= searchResults.length)
+            searchSelectionIndex = Math.max(0, searchResults.length - 1)
+    }
     readonly property real contentHeight: contentColumn.implicitHeight
     property alias refreshButton: refreshAction
     property alias hour24Button: hour24Action
@@ -66,6 +103,7 @@ Item {
     onGlobeSpinChanged: globeCanvasItem.requestPaint()
     onGlobeViewLatChanged: globeCanvasItem.requestPaint()
     onGlobeExpandedChanged: globeCanvasItem.requestPaint()
+    onGlobeSessionCitiesChanged: globeCanvasItem.requestPaint()
     focus: true
     Keys.priority: Keys.AfterItem
     Keys.onPressed: function(event) {
@@ -77,6 +115,10 @@ Item {
             return
         } else if (event.key === Qt.Key_Space) {
             toggleGlobeExpanded()
+        } else if (globeExpanded && (event.text === "+" || event.text === "j"
+                    || event.key === Qt.Key_Plus
+                    || (event.key === Qt.Key_Equal && (event.modifiers & Qt.ShiftModifier)))) {
+            startJumpSearch()
         } else if (event.key === Qt.Key_Up || event.key === Qt.Key_Down
                 || event.text === "k" || event.text === "j") {
             var moveUp = event.key === Qt.Key_Up || event.text === "k"
@@ -94,7 +136,9 @@ Item {
             else toggleHour24()
         } else if (event.key === Qt.Key_A || event.key === Qt.Key_Plus
                 || (event.key === Qt.Key_Equal && (event.modifiers & Qt.ShiftModifier))) {
-            zoneSearchInput.forceActiveFocus()
+            startAddSearch()
+        } else if (event.text.toLowerCase() === "w" && !globeExpanded) {
+            startHereSearch()
         } else if (event.key === Qt.Key_P) {
             var targetIndex = cityIndexForFocus()
             if (targetIndex < 0) return
@@ -183,6 +227,7 @@ Item {
         globeSelectionLabel = String(city.label || city.id)
         globeSelectionZone = zoneId
         faceGlobe(place)
+        if (typeof service.ensureProbeZone === "function") service.ensureProbeZone(zoneId)
         var row = cityList.itemAtIndex(index)
         if (row) {
             var top = row.mapToItem(flick.contentItem, 0, 0).y
@@ -190,6 +235,33 @@ Item {
             else if (top + row.height > flick.contentY + flick.height)
                 flick.contentY = Math.max(0, Math.min(flick.contentHeight - flick.height, top + row.height - flick.height))
         }
+        return true
+    }
+
+    function startAddSearch() {
+        searchMode = "add"
+        searchText = ""
+        zoneSearchInput.clear()
+        zoneSearchInput.forceActiveFocus()
+        return true
+    }
+
+    function startHereSearch() {
+        if (globeExpanded || !service.localZone) return false
+        searchMode = searchMode === "here" ? "" : "here"
+        searchText = ""
+        zoneSearchInput.clear()
+        if (searchMode === "here") zoneSearchInput.forceActiveFocus()
+        else panel.forceActiveFocus()
+        return true
+    }
+
+    function startJumpSearch() {
+        if (!globeExpanded) return false
+        searchMode = "jump"
+        searchText = ""
+        zoneSearchInput.clear()
+        zoneSearchInput.forceActiveFocus()
         return true
     }
 
@@ -215,10 +287,21 @@ Item {
         if (!service.preferenceData || service.preferenceData.globeEnabled === false) return false
         globeExpanded = !globeExpanded
         if (globeExpanded) {
+            searchMode = ""
+            searchText = ""
+            zoneSearchInput.clear()
             var index = keyboardFocusKey !== "" ? cityIndexForFocus() : -1
             var city = index >= 0 ? (service.cities || [])[index] : null
-            var place = city ? placeForCity(city)
-                : (hereZone && hereZone.chosen ? placeForCity({ label: hereZone.label, id: service.localZone }) : null)
+            var home = hereZone ? { label: hereZone.label, id: service.localZone,
+                lat: hereZone.lat, lon: hereZone.lon } : null
+            if (!city && home) {
+                globeSelectionKey = globeCityIdentity(home)
+                globeSelectionLabel = home.label
+                globeSelectionZone = home.id
+                timezoneTarget = home.id
+                if (typeof service.ensureProbeZone === "function") service.ensureProbeZone(home.id)
+            }
+            var place = city ? placeForCity(city) : (home ? placeForCity(home) : null)
             faceGlobe(place)
         }
         return true
@@ -253,6 +336,8 @@ Item {
             append({ label: String(item[0]), id: String(item[1]), lat: Number(item[2]), lon: Number(item[3]) },
                 item[4], false, -1)
         }
+        var session = globeSessionCities || []
+        for (var k = 0; k < session.length; k++) append(session[k], -1, false, -1)
         return result
     }
 
@@ -313,14 +398,17 @@ Item {
         globeSelectionLabel = city.label
         globeSelectionZone = city.id
         timezoneTarget = city.id
+        if (typeof service.ensureProbeZone === "function") service.ensureProbeZone(city.id)
         if (city.tracked) focusCity(city.trackedIndex)
         else faceGlobe(city)
 
-        var preference = service.preferenceData || ({})
-        var homeOverride = String(preference.homeCity || "")
+        var homeOverride = hereZone && hereZone.chosen ? hereZone.label : ""
         var nextHome = Model.homeCityAfterTap(city.label, city.id, homeOverride, service.localZone)
-        if (nextHome !== null && !service.updateSetting("homeCity", nextHome))
-            statusMessage = service.lastError
+        if (nextHome !== null) {
+            var nextHere = nextHome === "" ? null : { name: nextHome, zone: city.id,
+                lat: city.lat, lon: city.lon }
+            if (!service.setHere(nextHere, service.cities)) statusMessage = service.lastError
+        }
         return true
     }
 
@@ -339,6 +427,12 @@ Item {
     function handleEscape() {
         if (timezoneConfirmationVisible) timezoneConfirmationVisible = false
         else if (zoneSearchInput.activeFocus && zoneSearchInput.text.length > 0) zoneSearchInput.clear()
+        else if (searchMode !== "" || zoneSearchInput.activeFocus) {
+            searchMode = ""
+            searchText = ""
+            zoneSearchInput.clear()
+            panel.forceActiveFocus()
+        }
         else if (scrubMinutes !== 0) {
             scrubHold.stop()
             scrubMinutes = 0
@@ -393,6 +487,15 @@ Item {
         if (!rowData || rowData.ready !== true) return ""
         return service.preferenceData && service.preferenceData.offsetMode === "utc"
             ? Model.utcOffsetLabel(rowData.offsetMinutes) : (rowData.relative || "")
+    }
+
+    function toggleOffsetMode() {
+        var current = service.preferenceData && service.preferenceData.offsetMode === "utc" ? "utc" : "home"
+        if (!service.updateSetting("offsetMode", current === "utc" ? "home" : "utc")) {
+            statusMessage = service.lastError
+            return false
+        }
+        return true
     }
 
     function beginRowDrag(index, pitch) {
@@ -497,16 +600,26 @@ Item {
                 width: parent.width
                 height: 28
                 spacing: 8
-                SharedComponents.UiText {
-                    objectName: "elsewhen-here-city"
+                Item {
+                    objectName: "elsewhen-here-title-target"
                     width: parent.width - refreshAction.width - 8
                     height: parent.height
-                    text: panel.hereZone && panel.hereZone.chosen
-                        ? "Here now · " + panel.hereZone.label : "World clock"
-                    color: panel.root.ink
-                    font.pixelSize: 14
-                    font.bold: true
-                    verticalAlignment: Text.AlignVCenter
+                    SharedComponents.UiText {
+                        objectName: "elsewhen-here-city"
+                        anchors.fill: parent
+                        text: panel.hereZone && panel.hereZone.chosen
+                            ? "Here now · " + panel.hereZone.label : "World clock"
+                        color: panel.root.ink
+                        font.pixelSize: 14
+                        font.bold: true
+                        verticalAlignment: Text.AlignVCenter
+                    }
+                    MouseArea {
+                        objectName: "elsewhen-here-search-button"
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: panel.startHereSearch()
+                    }
                 }
                 ActionButton {
                     id: refreshAction
@@ -536,14 +649,16 @@ Item {
             Row {
                 width: parent.width
                 height: visible ? implicitHeight : 0
-                visible: !panel.globeExpanded
+                visible: !panel.globeExpanded || panel.searchMode === "jump"
+                z: panel.globeExpanded && panel.searchMode === "jump" ? 1 : 0
                 spacing: 7
                 TextField {
                     id: zoneSearchInput
                     objectName: "elsewhen-zone-search"
                     width: parent.width - 104
                     height: 32
-                    placeholderText: "Search time zones or places"
+                    placeholderText: panel.searchMode === "here" ? "Where are you?"
+                        : panel.searchMode === "jump" ? "Jump to a place" : "Search time zones or places"
                     selectByMouse: true
                     color: panel.root.ink
                     placeholderTextColor: panel.root.sep
@@ -555,8 +670,26 @@ Item {
                     }
                     onAccepted: {
                         placeSearchDebounce.stop()
-                        if (typeof panel.service.requestPlaceSearch === "function")
+                        if (panel.searchResults.length > 0) {
+                            panel.addSearchResult(panel.searchResults[Model.moveSelection(
+                                panel.searchSelectionIndex, 0, panel.searchResults.length)])
+                        } else if (typeof panel.service.requestPlaceSearch === "function") {
                             panel.service.requestPlaceSearch(text)
+                        }
+                    }
+                    Keys.onUpPressed: function(event) {
+                        if (panel.searchResults.length > 0) {
+                            panel.searchSelectionIndex = Model.moveSelection(panel.searchSelectionIndex,
+                                -1, panel.searchResults.length)
+                            event.accepted = true
+                        }
+                    }
+                    Keys.onDownPressed: function(event) {
+                        if (panel.searchResults.length > 0) {
+                            panel.searchSelectionIndex = Model.moveSelection(panel.searchSelectionIndex,
+                                1, panel.searchResults.length)
+                            event.accepted = true
+                        }
                     }
                     background: Rectangle {
                         radius: 6
@@ -567,9 +700,11 @@ Item {
                 }
                 ActionButton {
                     id: addZoneAction
-                    label: "Add zone"
+                    label: panel.searchMode === "here" ? "Set here"
+                        : panel.searchMode === "jump" ? "Jump" : "Add zone"
                     available: panel.searchResults.length > 0
-                    onClicked: panel.addSearchResult(panel.searchResults[0])
+                    onClicked: panel.addSearchResult(panel.searchResults[Model.moveSelection(
+                        panel.searchSelectionIndex, 0, panel.searchResults.length)])
                 }
             }
 
@@ -578,7 +713,11 @@ Item {
                 objectName: "elsewhen-search-results"
                 width: parent.width
                 height: visible ? contentHeight : 0
-                visible: !panel.globeExpanded && panel.searchText.trim().length >= 2 && count > 0
+                visible: (!panel.globeExpanded || panel.searchMode === "jump")
+                    && panel.searchText.trim().length >= 2 && count > 0
+                currentIndex: panel.searchSelectionIndex
+                highlightFollowsCurrentItem: true
+                highlight: Rectangle { color: panel.root.fillHover; radius: 4 }
                 clip: false
                 interactive: false
                 model: panel.searchResults
@@ -587,7 +726,8 @@ Item {
                     required property int index
                     width: searchList.width
                     height: 32
-                    color: resultMouse.containsMouse ? panel.root.fillHover : panel.root.fillIdle
+                    color: resultMouse.containsMouse || index === panel.searchSelectionIndex
+                        ? panel.root.fillHover : panel.root.fillIdle
                     radius: 4
                     SharedComponents.UiText {
                         anchors.left: parent.left
@@ -602,6 +742,7 @@ Item {
                         id: resultMouse
                         anchors.fill: parent
                         hoverEnabled: true
+                        onEntered: panel.searchSelectionIndex = index
                         onClicked: panel.addSearchResult(modelData)
                     }
                 }
@@ -610,7 +751,7 @@ Item {
             SharedComponents.UiText {
                 objectName: "elsewhen-place-search-status"
                 width: parent.width
-                visible: !panel.globeExpanded && panel.searchText.trim().length >= 3
+                visible: (!panel.globeExpanded || panel.searchMode === "jump") && panel.searchText.trim().length >= 3
                     && panel.service.placeSearchText === Model.placeQuery(panel.searchText)
                     && panel.searchResults.length === 0
                     && panel.service.placeSearchRunning
@@ -622,7 +763,7 @@ Item {
             SharedComponents.UiText {
                 objectName: "elsewhen-place-search-empty"
                 width: parent.width
-                visible: !panel.globeExpanded && panel.searchText.trim().length >= 3
+                visible: (!panel.globeExpanded || panel.searchMode === "jump") && panel.searchText.trim().length >= 3
                     && panel.service.placeSearchText === Model.placeQuery(panel.searchText)
                     && panel.searchResults.length === 0
                     && !panel.service.placeSearchRunning
@@ -767,7 +908,9 @@ Item {
                 }
                 MouseArea {
                     id: globeDragArea
-                    anchors.fill: parent
+                    anchors.centerIn: parent
+                    width: globeCanvasItem.width
+                    height: globeCanvasItem.height
                     acceptedButtons: Qt.LeftButton
                     cursorShape: Qt.OpenHandCursor
                     property bool moved: false
@@ -799,14 +942,97 @@ Item {
                 }
             }
 
-            SharedComponents.UiText {
+            Column {
                 objectName: "elsewhen-globe-selection"
                 width: parent.width
-                visible: panel.globeSelectionLabel !== ""
-                text: visible ? "Selected · " + panel.globeSelectionLabel + " · " + panel.globeSelectionZone : ""
-                color: panel.root.ink
-                font.pixelSize: 10
-                elide: Text.ElideRight
+                visible: panel.globeFooterPlace !== null
+                spacing: 2
+                TextMetrics {
+                    id: globeFooterCapHeight
+                    font.family: globeFooterCity.font.family
+                    font.pixelSize: globeFooterCity.font.pixelSize
+                    font.weight: globeFooterCity.font.weight
+                    text: "M"
+                }
+                Row {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: implicitWidth
+                    spacing: 7
+                    Rectangle {
+                        width: Math.max(6, Math.round(globeFooterCapHeight.tightBoundingRect.height) - 1)
+                        height: width
+                        y: globeFooterCity.baselineOffset - height
+                        radius: width / 2
+                        color: panel.globeFooterDaylight ? panel.root.seal : "transparent"
+                        Elsewhen.MoonDot {
+                            objectName: "elsewhen-globe-footer-moon"
+                            anchors.fill: parent
+                            visible: panel.globeFooterRow && panel.globeFooterRow.ready
+                                && !panel.globeFooterDaylight
+                            phase: panel.globeFooterMoonPhase
+                            color: panel.root.ink
+                        }
+                    }
+                    SharedComponents.UiText {
+                        id: globeFooterCity
+                        objectName: "elsewhen-globe-footer-city"
+                        text: panel.globeFooterPlace ? panel.globeFooterPlace.label : ""
+                        color: panel.root.ink
+                        font.pixelSize: 11
+                        font.bold: true
+                        elide: Text.ElideRight
+                    }
+                    SharedComponents.UiText {
+                        objectName: "elsewhen-globe-footer-clock"
+                        text: panel.globeFooterClock
+                        visible: text !== ""
+                        color: panel.root.ink
+                        font.pixelSize: 11
+                    }
+                    SharedComponents.UiText {
+                        objectName: "elsewhen-globe-footer-badge"
+                        text: panel.globeFooterBadge
+                        visible: text !== ""
+                        color: panel.root.seal
+                        font.pixelSize: 10
+                    }
+                }
+                Item {
+                    width: parent.width
+                    height: 16
+                    Row {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: implicitWidth
+                        spacing: 6
+                        SharedComponents.UiText {
+                            objectName: "elsewhen-globe-footer-zone"
+                            text: panel.globeFooterPlace ? panel.globeFooterPlace.id : ""
+                            color: globeFooterOffsetHover.hovered
+                                ? Qt.darker(panel.root.ink, 1.55) : Qt.darker(panel.root.ink, 2.1)
+                            font.pixelSize: 10
+                        }
+                        SharedComponents.UiText {
+                            objectName: "elsewhen-globe-footer-offset"
+                            text: panel.offsetTextFor(panel.globeFooterRow)
+                            visible: text !== ""
+                            color: globeFooterOffsetHover.hovered
+                                ? panel.root.ink : Qt.darker(panel.root.ink, 1.55)
+                            font.pixelSize: 10
+                        }
+                    }
+                    HoverHandler {
+                        id: globeFooterOffsetHover
+                        cursorShape: Qt.PointingHandCursor
+                    }
+                    MouseArea {
+                        objectName: "elsewhen-globe-footer-offset-toggle"
+                        anchors.fill: parent
+                        enabled: panel.globeFooterRow && panel.globeFooterRow.ready
+                        cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                        onClicked: panel.toggleOffsetMode()
+                    }
+                }
             }
 
             Rectangle {
@@ -879,6 +1105,8 @@ Item {
 
     function addSearchResult(option) {
         if (!option) return false
+        if (searchMode === "here") return pickHereOption(option)
+        if (searchMode === "jump") return jumpToOption(option)
         var place = placeForZone(option.value)
         var facts = option.lat !== undefined && option.lon !== undefined
             ? { lat: option.lat, lon: option.lon, region: option.region }
@@ -888,7 +1116,104 @@ Item {
             return false
         }
         statusMessage = ""
+        searchMode = ""
         zoneSearchInput.clear()
+        return true
+    }
+
+    function pickHereOption(option) {
+        var zone = String(option.value || option.id || "")
+        var pick = { label: option.label, id: zone }
+        if (option.lat !== undefined && option.lon !== undefined) {
+            pick.lat = Number(option.lat)
+            pick.lon = Number(option.lon)
+        } else {
+            var point = placeForCity({ label: option.label, id: zone })
+            if (point) { pick.lat = point.lat; pick.lon = point.lon }
+        }
+        if (option.region) pick.region = option.region
+        var next = Model.hereAfterPick(service.cities || [], hereZone, pick, service.localZone)
+        if (!next) {
+            statusMessage = "Could not resolve this place as a time zone"
+            return false
+        }
+        if (next.zoneChange !== "") {
+            if (!service.requestTimezoneChange(next.zoneChange, next.here, next.zones)) {
+                statusMessage = service.timezoneError || service.lastError || "Could not change the system time zone"
+                return false
+            }
+        } else if (!service.setHere(next.here, next.zones)) {
+            statusMessage = service.lastError || "Could not save this place as here"
+            return false
+        }
+        statusMessage = ""
+        searchMode = ""
+        searchText = ""
+        zoneSearchInput.clear()
+        panel.forceActiveFocus()
+        return true
+    }
+
+    function jumpToOption(option) {
+        var zone = String(option.value || option.id || "")
+        var place = option.lat !== undefined && option.lon !== undefined
+            ? { lat: Number(option.lat), lon: Number(option.lon), region: option.region || "" }
+            : placeForCity({ label: option.label, id: zone })
+        var label = String(option.label || zone)
+        if (!place || !isFinite(Number(place.lat)) || !isFinite(Number(place.lon))) {
+            statusMessage = "This place has no map coordinates"
+            return false
+        }
+        place = { lat: Number(place.lat), lon: Number(place.lon), region: String(option.region || place.region || "") }
+        var places = globePlaces(), match = null, nameTaken = false
+        for (var i = 0; i < places.length; i++) {
+            var existing = places[i]
+            if (String(existing.label).toLowerCase() === label.toLowerCase()) nameTaken = true
+            if (existing.id === zone && String(existing.label).toLowerCase() === label.toLowerCase()
+                    && Model.nearPlace(existing, place)) match = existing
+        }
+        if (!match && nameTaken) {
+            var regional = Model.regionalName(label, place.region)
+            if (regional === label) {
+                faceGlobe(place)
+                searchMode = ""
+                searchText = ""
+                zoneSearchInput.clear()
+                panel.forceActiveFocus()
+                return true
+            }
+            label = regional
+            for (var j = 0; j < places.length; j++) {
+                var renamed = places[j]
+                if (renamed.id === zone && String(renamed.label).toLowerCase() === label.toLowerCase()
+                        && Model.nearPlace(renamed, place)) { match = renamed; break }
+            }
+        }
+        if (match) {
+            globeSelectionKey = match.key
+            globeSelectionLabel = match.label
+            globeSelectionZone = match.id
+            timezoneTarget = match.id
+            if (match.tracked) focusCity(match.trackedIndex)
+            else faceGlobe(match)
+        } else {
+            var sessionCity = { label: label, id: zone, lat: place.lat, lon: place.lon }
+            if (place.region) sessionCity.region = place.region
+            var nextSession = (globeSessionCities || []).slice()
+            nextSession.push(sessionCity)
+            globeSessionCities = nextSession
+            globeSelectionKey = globeCityIdentity(sessionCity)
+            globeSelectionLabel = label
+            globeSelectionZone = zone
+            timezoneTarget = zone
+            faceGlobe(sessionCity)
+        }
+        if (typeof service.ensureProbeZone === "function") service.ensureProbeZone(zone)
+        statusMessage = ""
+        searchMode = ""
+        searchText = ""
+        zoneSearchInput.clear()
+        panel.forceActiveFocus()
         return true
     }
 

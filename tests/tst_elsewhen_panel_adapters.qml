@@ -59,6 +59,10 @@ Item {
         property var cityData: [["Paris", "Europe/Paris", 48.85, 2.35, 1], ["Tokyo", "Asia/Tokyo", 35.68, 139.69, 1]]
         property var weather: ({})
         property bool weatherRunning: false
+        property var probe: ({
+            "Europe/Paris": { offsetMinutes: 60, abbr: "CET" },
+            "Asia/Tokyo": { offsetMinutes: 540, abbr: "JST" }
+        })
         property bool active: false
         property bool cityDataReady: true
         property var cities: [{ label: "Paris", id: "Europe/Paris", people: ["Alice"] }, { label: "Tokyo", id: "Asia/Tokyo", people: ["Tokyo team"] }]
@@ -166,6 +170,40 @@ Item {
             verify(findChild(panelLoader.item, "elsewhen-city-list") !== null)
             compare(fakeService.refreshRequests, 0)
             captureScene("v2-vertical")
+        }
+
+        function test_v1_here_search_render() {
+            load("v1", false, "top")
+            var content = findChild(panelLoader.item, "elsewhen-panel-content")
+            var hereButton = findChild(content, "elsewhen-here-search-button")
+            verify(content !== null && hereButton !== null)
+            mouseClick(hereButton, hereButton.width / 2, hereButton.height / 2)
+            compare(content.searchMode, "here")
+            content.zoneSearchInput.text = "Paris"
+            tryCompare(content.searchList, "count", 1)
+            captureScene("v1-here-search")
+        }
+
+        function test_v2_expanded_globe_and_jump_search_render() {
+            var oldLocalZone = fakeService.localZone
+            fakeService.localZone = "Europe/Paris"
+            try {
+                load("v2", false, "top")
+                var content = findChild(panelLoader.item, "elsewhen-panel-content")
+                var zoomButton = findChild(content, "elsewhen-globe-zoom")
+                verify(content !== null && zoomButton !== null)
+                mouseClick(zoomButton, zoomButton.width / 2, zoomButton.height / 2)
+                tryCompare(content.globeCanvas, "height", 300, 1000)
+                tryVerify(function() { return content.globeFooterPlace !== null }, 1000)
+                compare(findChild(content, "elsewhen-globe-footer-city").text, "Paris")
+                captureScene("v2-expanded-globe")
+                content.startJumpSearch()
+                content.zoneSearchInput.text = "Paris"
+                tryCompare(content.searchList, "count", 1)
+                captureScene("v2-globe-jump-search")
+            } finally {
+                fakeService.localZone = oldLocalZone
+            }
         }
     }
 }

@@ -212,8 +212,19 @@ ShellRoot {
                     test.fail("time-zone change request and result handlers are missing")
                     return
                 }
+                var savedTransientZones = service.transientZones
+                service.active = false
+                if (typeof service.ensureProbeZone !== "function"
+                        || !service.ensureProbeZone("America/Chicago")
+                        || service.probeIds.indexOf("America/Chicago") < 0) {
+                    test.fail("a selected untracked globe zone was not added to transient probe IDs")
+                    service.transientZones = savedTransientZones
+                    return
+                }
+                service.transientZones = savedTransientZones
                 service.active = true
-                if (!service.requestTimezoneChange("Europe/Paris") || test.timezoneCount !== 1
+                var selectedHome = { name: "Paris", zone: "Europe/Paris", lat: 48.8566, lon: 2.3522 }
+                if (!service.requestTimezoneChange("Europe/Paris", selectedHome, service.cities) || test.timezoneCount !== 1
                         || test.lastTimezoneZone !== "Europe/Paris") {
                     test.fail("explicit time-zone request was not dispatched to the command boundary")
                     return
@@ -221,16 +232,21 @@ ShellRoot {
                 var failedTimezoneSerial = test.lastTimezoneSerial
                 if (service.acceptTimezoneChange(1, failedTimezoneSerial, "inert helper denied action")
                         || service.timezoneError.indexOf("inert helper denied action") < 0
-                        || service.localZone !== "Etc/UTC") {
+                        || service.localZone !== "Etc/UTC" || service.preferenceData.here !== undefined
+                        || service.pendingHereUpdate) {
                     test.fail("time-zone command failure was not visible or changed local state")
                     return
                 }
-                if (!service.requestTimezoneChange("Europe/Paris") || test.timezoneCount !== 2) {
+                if (!service.requestTimezoneChange("Europe/Paris", selectedHome, service.cities) || test.timezoneCount !== 2) {
                     test.fail("time-zone request did not recover after a failed attempt")
                     return
                 }
                 if (!service.acceptTimezoneChange(0, test.lastTimezoneSerial, "")
-                        || service.localZone !== "Europe/Paris" || service.timezoneError !== "") {
+                        || service.localZone !== "Europe/Paris" || service.timezoneError !== ""
+                        || service.preferenceData.here.name !== "Paris"
+                        || service.preferenceData.here.zone !== "Europe/Paris"
+                        || service.preferenceData.here.lat !== 48.8566
+                        || service.preferenceData.homeCity !== undefined) {
                     test.fail("successful time-zone command result was not applied")
                     return
                 }

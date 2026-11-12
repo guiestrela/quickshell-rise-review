@@ -89,10 +89,15 @@ with tempfile.TemporaryDirectory(prefix="rise-elsewhen-adapters-", dir=SCRATCH) 
     output = result.stdout + result.stderr
     print(output, end="")
     assert result.returncode == 0, output
-    assert "Totals: 6 passed, 0 failed" in output, output
+    totals = re.search(r"Totals: (\d+) passed, 0 failed, 0 skipped", output)
+    assert totals, output
+    assert int(totals.group(1)) == len(re.findall(r"^PASS\s*:", output, re.MULTILINE)), output
     assert not re.search(r"ERROR|ReferenceError|TypeError|Binding loop|Unable to assign", output), output
     if capture_dir:
-        for name in ("v1-horizontal", "v1-vertical", "v2-horizontal", "v2-vertical"):
+        for name in (
+            "v1-horizontal", "v1-vertical", "v2-horizontal", "v2-vertical",
+            "v1-here-search", "v2-expanded-globe", "v2-globe-jump-search",
+        ):
             image = capture_dir / f"{name}.png"
             assert image.is_file(), f"missing rendered capture: {image}"
             data = image.read_bytes()

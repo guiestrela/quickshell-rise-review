@@ -62,6 +62,10 @@ Item {
         property int moveRequests: 0
         property int timezoneRequests: 0
         property string timezoneTarget: ""
+        property var pendingTimezoneHere: undefined
+        property var pendingTimezoneCities: undefined
+        property int transientZoneRequests: 0
+        property string lastTransientZone: ""
         function refresh() { refreshRequests++; return true }
         function updateSetting(name, value) {
             var next = Object.assign({}, preferenceData)
@@ -100,7 +104,28 @@ Item {
             return true
         }
         function moveCity(from, to) { moveRequests++; return true }
-        function requestTimezoneChange(zone) { timezoneRequests++; timezoneTarget = zone; return true }
+        function setHere(here, nextCities) {
+            var next = Object.assign({}, preferenceData)
+            if (here === null || here === undefined) delete next.here
+            else next.here = here
+            delete next.homeCity
+            if (nextCities !== undefined && nextCities !== null) cities = nextCities
+            preferenceData = next
+            settingsWrites++
+            return true
+        }
+        function requestTimezoneChange(zone, here, nextCities) {
+            timezoneRequests++
+            timezoneTarget = zone
+            pendingTimezoneHere = arguments.length > 1 ? here : undefined
+            pendingTimezoneCities = arguments.length > 2 ? nextCities : undefined
+            return true
+        }
+        function ensureProbeZone(zone) {
+            transientZoneRequests++
+            lastTransientZone = zone
+            return true
+        }
     }
 
     Panels.ElsewhenPanelContent {
@@ -251,7 +276,7 @@ Item {
                 compare(content.globePlaces()[2].label, "Cebu")
                 compare(content.globeSelectionLabel, "Cebu")
                 compare(content.timezoneTarget, "Asia/Manila")
-                compare(fakeService.preferenceData.homeCity, "Cebu")
+                compare(fakeService.preferenceData.here.name, "Cebu")
                 compare(fakeService.cities.length, oldCities.length)
                 wait(400)
             } finally {
@@ -297,7 +322,7 @@ Item {
                 mouseClick(content.globeDragArea, point.x, point.y, Qt.LeftButton)
                 compare(content.keyboardFocusId, "Asia/Manila")
                 compare(content.timezoneTarget, "Asia/Manila")
-                compare(fakeService.preferenceData.homeCity, "Cebu")
+                compare(fakeService.preferenceData.here.name, "Cebu")
                 tryVerify(function() { return Math.abs(content.globeSpin - 123.8854) < 0.5 }, 900)
                 tryVerify(function() { return Math.abs(content.globeViewLat - 10.3157) < 0.5 }, 900)
                 var hereLabel = findChild(content, "elsewhen-here-city")
@@ -420,6 +445,138 @@ Item {
             compare(fakeService.refreshRequests, 0)
         }
 
+        function test_search_keyboard_selects_the_highlighted_result() {
+            var oldResults = fakeService.searchPlaceResults
+            var oldAdds = fakeService.cityAdds
+            var oldMode = content.searchMode
+            var oldText = content.zoneSearchInput.text
+            fakeService.searchPlaceResults = [
+                { label: "Santiago", value: "America/Santiago", lat: -33.4489, lon: -70.6693 },
+                { label: "Salvador", value: "America/Bahia", lat: -12.9714, lon: -38.5014 }
+            ]
+            content.startAddSearch()
+            content.zoneSearchInput.text = "S"
+            try {
+                compare(content.searchResults.length, 2)
+                keyClick(Qt.Key_Down)
+                keyClick(Qt.Key_Return)
+                compare(fakeService.cityAdds, oldAdds + 1)
+                compare(fakeService.lastAddedPlace.lat, -12.9714)
+                compare(content.searchMode, "")
+            } finally {
+                fakeService.searchPlaceResults = oldResults
+                fakeService.cityAdds = oldAdds
+                content.searchMode = oldMode
+                content.zoneSearchInput.text = oldText
+            }
+        }
+
+        function test_add_button_uses_highlighted_search_result() {
+            var oldResults = fakeService.searchPlaceResults
+            var oldAdds = fakeService.cityAdds
+            var oldMode = content.searchMode
+            var oldText = content.zoneSearchInput.text
+            fakeService.searchPlaceResults = [
+                { label: "Santiago", value: "America/Santiago", lat: -33.4489, lon: -70.6693 },
+                { label: "Salvador", value: "America/Bahia", lat: -12.9714, lon: -38.5014 }
+            ]
+            content.startAddSearch()
+            content.zoneSearchInput.text = "S"
+            try {
+                compare(content.searchResults.length, 2)
+                keyClick(Qt.Key_Down)
+                compare(content.searchSelectionIndex, 1)
+                var point = content.addZoneButton.mapToItem(testRoot, 0, 0)
+                mouseClick(testRoot, point.x + content.addZoneButton.width / 2,
+                    point.y + content.addZoneButton.height / 2)
+                compare(fakeService.cityAdds, oldAdds + 1)
+                compare(fakeService.lastAddedPlace.lat, -12.9714)
+            } finally {
+                fakeService.searchPlaceResults = oldResults
+                fakeService.cityAdds = oldAdds
+                content.searchMode = oldMode
+                content.zoneSearchInput.text = oldText
+                content.searchSelectionIndex = 0
+            }
+        }
+
+        function test_here_button_uses_highlighted_search_result() {
+            var oldResults = fakeService.searchPlaceResults
+            var oldMode = content.searchMode
+            var oldText = content.zoneSearchInput.text
+            var oldRequests = fakeService.timezoneRequests
+            var oldHere = fakeService.pendingTimezoneHere
+            fakeService.searchPlaceResults = [
+                { label: "Santiago", value: "America/Santiago", lat: -33.4489, lon: -70.6693 },
+                { label: "Salvador", value: "America/Bahia", lat: -12.9714, lon: -38.5014 }
+            ]
+            content.startHereSearch()
+            content.zoneSearchInput.text = "S"
+            try {
+                compare(content.searchResults.length, 2)
+                keyClick(Qt.Key_Down)
+                compare(content.searchSelectionIndex, 1)
+                var point = content.addZoneButton.mapToItem(testRoot, 0, 0)
+                mouseClick(testRoot, point.x + content.addZoneButton.width / 2,
+                    point.y + content.addZoneButton.height / 2)
+                compare(fakeService.timezoneRequests, oldRequests + 1)
+                compare(fakeService.pendingTimezoneHere.name, "Salvador")
+                compare(fakeService.pendingTimezoneHere.lat, -12.9714)
+            } finally {
+                fakeService.searchPlaceResults = oldResults
+                fakeService.timezoneRequests = oldRequests
+                fakeService.pendingTimezoneHere = oldHere
+                content.searchMode = oldMode
+                content.zoneSearchInput.text = oldText
+                content.searchSelectionIndex = 0
+            }
+        }
+
+        function test_jump_button_uses_highlighted_search_result() {
+            var oldResults = fakeService.searchPlaceResults
+            var oldCities = fakeService.cities
+            var oldPreferences = fakeService.preferenceData
+            var oldSessionCities = content.globeSessionCities
+            var oldExpanded = content.globeExpanded
+            var oldMode = content.searchMode
+            var oldSpin = content.globeSpin
+            var oldViewLat = content.globeViewLat
+            fakeService.searchPlaceResults = [
+                { label: "Santiago", value: "America/Santiago", lat: -33.4489, lon: -70.6693 },
+                { label: "Salvador", value: "America/Bahia", lat: -12.9714, lon: -38.5014 }
+            ]
+            content.globeExpanded = true
+            content.globeSpin = 0
+            content.globeViewLat = 0
+            content.startJumpSearch()
+            content.zoneSearchInput.text = "S"
+            try {
+                compare(content.searchResults.length, 2)
+                keyClick(Qt.Key_Down)
+                compare(content.searchSelectionIndex, 1)
+                var point = content.addZoneButton.mapToItem(testRoot, 0, 0)
+                mouseClick(testRoot, point.x + content.addZoneButton.width / 2,
+                    point.y + content.addZoneButton.height / 2)
+                compare(content.globeSelectionLabel, "Salvador")
+                compare(content.globeSessionCities.length, 1)
+                compare(content.globeSessionCities[0].label, "Salvador")
+                compare(fakeService.cities.length, oldCities.length)
+                compare(fakeService.preferenceData, oldPreferences)
+                wait(400)
+            } finally {
+                fakeService.searchPlaceResults = oldResults
+                fakeService.cities = oldCities
+                fakeService.preferenceData = oldPreferences
+                content.globeSessionCities = oldSessionCities
+                content.globeExpanded = oldExpanded
+                content.searchMode = oldMode
+                content.globeSpin = oldSpin
+                content.globeViewLat = oldViewLat
+                content.zoneSearchInput.text = ""
+                content.searchSelectionIndex = 0
+            }
+        }
+
         function test_search_field_arrow_does_not_change_city_focus() {
             var originalTarget = content.timezoneTarget
             var originalFocusId = content.keyboardFocusId
@@ -484,6 +641,24 @@ Item {
             } finally {
                 content.timezoneTarget = originalTarget
                 content.keyboardFocusId = originalFocusId
+            }
+        }
+
+        function test_keyboard_j_starts_jump_search_on_expanded_globe() {
+            var oldExpanded = content.globeExpanded
+            var oldMode = content.searchMode
+            try {
+                content.globeExpanded = true
+                content.searchMode = ""
+                content.zoneSearchInput.focus = false
+                content.forceActiveFocus()
+                keyClick(Qt.Key_J)
+                compare(content.searchMode, "jump")
+                verify(content.zoneSearchInput.activeFocus)
+            } finally {
+                content.globeExpanded = oldExpanded
+                content.searchMode = oldMode
+                content.zoneSearchInput.focus = false
             }
         }
 
@@ -568,16 +743,20 @@ Item {
 
         function test_keyboard_escape_closes_panel() {
             var oldVisible = fakeTheme.elsewhenVisible
+            var oldSearchMode = content.searchMode
             try {
                 fakeTheme.elsewhenVisible = true
                 content.scrubMinutes = 0
                 content.timezoneConfirmationVisible = false
                 content.peopleEditIndex = -1
+                content.searchMode = ""
                 content.zoneSearchInput.text = ""
+                content.zoneSearchInput.focus = false
                 content.forceActiveFocus()
                 keyClick(Qt.Key_Escape)
                 compare(fakeTheme.elsewhenVisible, false)
             } finally {
+                content.searchMode = oldSearchMode
                 fakeTheme.elsewhenVisible = oldVisible
             }
         }
@@ -741,6 +920,195 @@ Item {
             compare(fakeService.cityAdds, 1)
         }
 
+        function test_here_search_saves_selected_coordinates_without_adding_a_clock() {
+            var oldPrefs = fakeService.preferenceData
+            var oldCities = fakeService.cities
+            var oldLocalZone = fakeService.localZone
+            var oldResults = fakeService.searchPlaceResults
+            var oldWrites = fakeService.settingsWrites
+            var oldMode = content.searchMode
+            fakeService.preferenceData = { hour24: false, homeCity: "Old override" }
+            fakeService.localZone = "Asia/Manila"
+            fakeService.searchPlaceResults = [{
+                label: "Cebu", region: "Central Visayas, Philippines", value: "Asia/Manila",
+                lat: 10.3157, lon: 123.8854
+            }]
+            var clocksBefore = fakeService.cities.length
+            try {
+                var hereButton = findChild(content, "elsewhen-here-search-button")
+                verify(hereButton !== null)
+                mouseClick(hereButton, hereButton.width / 2, hereButton.height / 2)
+                compare(content.searchMode, "here")
+                compare(content.searchResults.length, 1)
+                compare(content.addZoneButton.label, "Set here")
+                mouseClick(content.addZoneButton, content.addZoneButton.width / 2, content.addZoneButton.height / 2)
+                compare(fakeService.preferenceData.here.name, "Cebu")
+                compare(fakeService.preferenceData.here.zone, "Asia/Manila")
+                compare(fakeService.preferenceData.here.lat, 10.3157)
+                compare(fakeService.preferenceData.here.lon, 123.8854)
+                compare(fakeService.preferenceData.homeCity, undefined)
+                compare(fakeService.cities.length, clocksBefore)
+                compare(content.hereZone.label, "Cebu")
+                compare(content.searchMode, "")
+            } finally {
+                fakeService.preferenceData = oldPrefs
+                fakeService.cities = oldCities
+                fakeService.localZone = oldLocalZone
+                fakeService.searchPlaceResults = oldResults
+                fakeService.settingsWrites = oldWrites
+                content.searchMode = oldMode
+                content.zoneSearchInput.text = ""
+            }
+        }
+
+        function test_here_search_waits_for_cross_zone_change_result() {
+            var oldPrefs = fakeService.preferenceData
+            var oldResults = fakeService.searchPlaceResults
+            var oldLocalZone = fakeService.localZone
+            var oldRequests = fakeService.timezoneRequests
+            var oldTarget = fakeService.timezoneTarget
+            var oldPendingHere = fakeService.pendingTimezoneHere
+            var oldPendingCities = fakeService.pendingTimezoneCities
+            fakeService.preferenceData = { hour24: false }
+            fakeService.localZone = "Asia/Manila"
+            fakeService.searchPlaceResults = [{
+                label: "Springfield", region: "Illinois, US", value: "America/Chicago",
+                lat: 39.78, lon: -89.64
+            }]
+            fakeService.timezoneRequests = 0
+            try {
+                content.startHereSearch()
+                content.zoneSearchInput.text = "Springfield"
+                compare(content.searchResults.length, 1)
+                mouseClick(content.addZoneButton, content.addZoneButton.width / 2, content.addZoneButton.height / 2)
+                compare(fakeService.timezoneRequests, 1)
+                compare(fakeService.timezoneTarget, "America/Chicago")
+                compare(fakeService.pendingTimezoneHere.name, "Springfield")
+                compare(fakeService.pendingTimezoneHere.zone, "America/Chicago")
+                compare(fakeService.pendingTimezoneHere.lat, 39.78)
+                compare(fakeService.preferenceData.here, undefined)
+            } finally {
+                fakeService.preferenceData = oldPrefs
+                fakeService.searchPlaceResults = oldResults
+                fakeService.localZone = oldLocalZone
+                fakeService.timezoneRequests = oldRequests
+                fakeService.timezoneTarget = oldTarget
+                fakeService.pendingTimezoneHere = oldPendingHere
+                fakeService.pendingTimezoneCities = oldPendingCities
+                content.searchMode = ""
+                content.zoneSearchInput.text = ""
+                content.zoneSearchInput.focus = false
+            }
+        }
+
+        function test_globe_footer_shows_selected_clock_and_toggles_offset_label() {
+            var oldPrefs = fakeService.preferenceData
+            var oldKey = content.globeSelectionKey
+            var oldLabel = content.globeSelectionLabel
+            var oldZone = content.globeSelectionZone
+            var oldTarget = content.timezoneTarget
+            var oldExpanded = content.globeExpanded
+            var oldLocalOffset = fakeService.localOffsetMinutes
+            var oldContentY = content.scrollArea.contentY
+            var oldNowMs = fakeService.nowMs
+            try {
+                fakeService.preferenceData = Object.assign({}, oldPrefs, { offsetMode: "home" })
+                fakeService.localOffsetMinutes = 0
+                fakeService.nowMs = Date.UTC(2024, 2, 20, 0, 0, 0)
+                content.globeExpanded = true
+                content.globeSelectionKey = content.globeCityIdentity(fakeService.cities[0])
+                content.globeSelectionLabel = "Paris"
+                content.globeSelectionZone = "Europe/Paris"
+                content.timezoneTarget = "Europe/Paris"
+                var city = findChild(content, "elsewhen-globe-footer-city")
+                var clock = findChild(content, "elsewhen-globe-footer-clock")
+                var badge = findChild(content, "elsewhen-globe-footer-badge")
+                var zone = findChild(content, "elsewhen-globe-footer-zone")
+                var offsetText = findChild(content, "elsewhen-globe-footer-offset")
+                var offset = findChild(content, "elsewhen-globe-footer-offset-toggle")
+                var moon = findChild(content, "elsewhen-globe-footer-moon")
+                verify(city !== null && clock !== null && badge !== null && zone !== null
+                    && offsetText !== null && offset !== null && moon !== null)
+                content.scrollArea.contentY = Math.max(0, content.scrollArea.contentHeight - content.scrollArea.height)
+                wait(50)
+                verify(offset.enabled && offset.width > 0 && offset.height > 0)
+                compare(city.text, "Paris")
+                compare(zone.text, "Europe/Paris")
+                compare(badge.text.toLowerCase(), "tracked")
+                verify(moon.visible)
+                compare(moon.phase, content.globeFooterMoonPhase)
+                compare(clock.text, content.globeFooterRow.time
+                    + (content.globeFooterRow.meridiem ? " " + content.globeFooterRow.meridiem : ""))
+                mouseClick(offset, offset.width / 2, offset.height / 2)
+                compare(fakeService.preferenceData.offsetMode, "utc")
+                compare(offsetText.text, content.offsetTextFor(content.globeFooterRow))
+            } finally {
+                fakeService.preferenceData = oldPrefs
+                content.globeSelectionKey = oldKey
+                content.globeSelectionLabel = oldLabel
+                content.globeSelectionZone = oldZone
+                content.timezoneTarget = oldTarget
+                content.globeExpanded = oldExpanded
+                fakeService.localOffsetMinutes = oldLocalOffset
+                content.scrollArea.contentY = oldContentY
+                fakeService.nowMs = oldNowMs
+            }
+        }
+
+        function test_globe_jump_adds_only_a_temporary_map_city() {
+            var oldResults = fakeService.searchPlaceResults
+            var oldCities = fakeService.cities
+            var oldPreferences = fakeService.preferenceData
+            var oldSessionCities = content.globeSessionCities
+            var oldExpanded = content.globeExpanded
+            var oldMode = content.searchMode
+            var oldTarget = content.timezoneTarget
+            var oldSpin = content.globeSpin
+            var oldViewLat = content.globeViewLat
+            var oldContentY = content.scrollArea.contentY
+            fakeService.searchPlaceResults = [{
+                label: "Valparaíso", region: "Valparaíso Region, Chile", value: "America/Santiago",
+                lat: -33.0472, lon: -71.6127
+            }]
+            content.globeExpanded = true
+            content.globeSpin = 0
+            content.globeViewLat = 0
+            content.scrollArea.contentY = 0
+            wait(50)
+            content.startJumpSearch()
+            content.zoneSearchInput.text = "Valparaíso"
+            try {
+                compare(content.searchResults.length, 1)
+                compare(content.addZoneButton.label, "Jump")
+                wait(320)
+                var jumpPoint = content.addZoneButton.mapToItem(testRoot, 0, 0)
+                mouseClick(testRoot, jumpPoint.x + content.addZoneButton.width / 2,
+                    jumpPoint.y + content.addZoneButton.height / 2)
+                compare(content.globeExpanded, true)
+                compare(content.searchMode, "")
+                compare(content.globeSessionCities.length, 1)
+                compare(content.globeSessionCities[0].label, "Valparaíso")
+                compare(content.globeSelectionLabel, "Valparaíso")
+                compare(fakeService.cities.length, oldCities.length)
+                compare(fakeService.preferenceData, oldPreferences)
+                tryVerify(function() { return Math.abs(Globe.shortestTurn(content.globeSpin, -71.6127)) < 0.5 }, 900)
+                tryVerify(function() { return Math.abs(content.globeViewLat + 33.0472) < 0.5 }, 900)
+                wait(400)
+            } finally {
+                fakeService.searchPlaceResults = oldResults
+                fakeService.cities = oldCities
+                fakeService.preferenceData = oldPreferences
+                content.globeSessionCities = oldSessionCities
+                content.globeExpanded = oldExpanded
+                content.searchMode = oldMode
+                content.timezoneTarget = oldTarget
+                content.globeSpin = oldSpin
+                content.globeViewLat = oldViewLat
+                content.scrollArea.contentY = oldContentY
+                content.zoneSearchInput.text = ""
+            }
+        }
+
         function test_place_search_debounce_dispatches_only_the_latest_text() {
             var previousRequests = fakeService.placeSearchRequests
             var previousQuery = fakeService.lastPlaceSearchQuery
@@ -844,14 +1212,19 @@ Item {
         function test_escape_exits_expanded_globe_without_closing_panel() {
             var oldExpanded = content.globeExpanded
             var oldVisible = fakeTheme.elsewhenVisible
+            var oldSearchMode = content.searchMode
             try {
                 content.globeExpanded = true
+                content.searchMode = ""
+                content.zoneSearchInput.text = ""
+                content.zoneSearchInput.focus = false
                 fakeTheme.elsewhenVisible = true
                 content.handleEscape()
                 compare(content.globeExpanded, false)
                 compare(fakeTheme.elsewhenVisible, true)
             } finally {
                 content.globeExpanded = oldExpanded
+                content.searchMode = oldSearchMode
                 fakeTheme.elsewhenVisible = oldVisible
             }
         }
@@ -952,6 +1325,7 @@ Item {
 
         function test_timezone_change_requires_an_explicit_confirmation() {
             fakeService.timezoneRequests = 0
+            var requestedZone = content.timezoneTarget
             mouseClick(content.changeTimezoneButton)
             verify(content.timezoneConfirmationVisible)
             compare(fakeService.timezoneRequests, 0)
@@ -962,7 +1336,7 @@ Item {
             mouseClick(content.confirmTimezoneButton, content.confirmTimezoneButton.width / 2,
                        content.confirmTimezoneButton.height / 2)
             tryCompare(fakeService, "timezoneRequests", 1)
-            compare(fakeService.timezoneTarget, "Europe/Paris")
+            compare(fakeService.timezoneTarget, requestedZone)
         }
     }
 }
