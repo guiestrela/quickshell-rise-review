@@ -388,17 +388,30 @@ Item {
 
     function globePlaces() {
         var result = [], seen = Object.create(null), cities = service.cities || []
-        function append(city, rank, tracked, trackedIndex) {
+        function append(city, rank, tracked, trackedIndex, home) {
             if (!city || !city.id) return
             var key = globeCityIdentity(city)
-            if (seen[key]) return
+            var existingIndex = seen[key]
+            if (existingIndex !== undefined) {
+                var existing = result[existingIndex]
+                if (home) existing.home = true
+                if (tracked) {
+                    existing.tracked = true
+                    existing.trackedIndex = trackedIndex
+                    existing.rank = Math.min(existing.rank, Number(rank) || 0)
+                }
+                return
+            }
             var point = placeForCity(city)
             if (!point || !isFinite(point.lat) || !isFinite(point.lon)) return
-            seen[key] = true
+            seen[key] = result.length
             result.push({ label: String(city.label || city.id), id: String(city.id),
                 lat: point.lat, lon: point.lon, rank: Number(rank) || 0,
-                key: key, tracked: tracked, trackedIndex: trackedIndex })
+                key: key, tracked: tracked, trackedIndex: trackedIndex, home: home === true })
         }
+        var home = hereZone ? { label: hereZone.label, id: service.localZone,
+            lat: hereZone.lat, lon: hereZone.lon } : null
+        append(home, 0, false, -1, true)
         for (var i = 0; i < cities.length; i++) append(cities[i], 0, true, i)
         var catalog = service.cityData || []
         for (var j = 0; j < catalog.length; j++) {
@@ -418,7 +431,7 @@ Item {
             var point = Globe.project(place.lat, place.lon, globeSpin, globeViewLat, radius)
             if (!point.visible) continue
             candidates.push({ index: i, x: point.x, y: point.y, cosc: point.cosc,
-                rank: place.rank, keep: place.tracked || place.key === globeSelectionKey })
+                rank: place.rank, keep: place.home || place.tracked || place.key === globeSelectionKey })
         }
         candidates.sort(function(a, b) {
             if (a.keep !== b.keep) return a.keep ? -1 : 1

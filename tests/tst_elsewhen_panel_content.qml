@@ -265,7 +265,9 @@ Item {
                 ["Cébu", "Asia/Manila", 10.3157, 123.8854, 1]
             ])
             fakeService.localZone = "Asia/Manila"
-            fakeService.preferenceData = Object.assign({}, oldPreferenceData)
+            fakeService.preferenceData = Object.assign({}, oldPreferenceData, {
+                here: { name: "Existing home", zone: "Asia/Manila", lat: -30, lon: 0 }
+            })
             try {
                 var city = { label: "Cebu", id: "Asia/Manila", lat: 10.3157, lon: 123.8854 }
                 content.globeSpin = city.lon
@@ -277,8 +279,8 @@ Item {
                     content.globeCanvas.width / 2 + marker.x,
                     content.globeCanvas.height / 2 + marker.y)
                 mouseClick(content.globeDragArea, point.x, point.y, Qt.LeftButton)
-                compare(content.globePlaces().length, 3)
-                compare(content.globePlaces()[2].label, "Cebu")
+                verify(content.globeFooterPlace !== null)
+                compare(content.globeFooterPlace.label, "Cebu")
                 compare(content.globeSelectionLabel, "Cebu")
                 compare(content.timezoneTarget, "Asia/Manila")
                 compare(fakeService.preferenceData.here.name, "Cebu")
@@ -1484,6 +1486,56 @@ Item {
             compare(fakeService.lastAddedPlace.lon, -89.64)
             compare(fakeService.lastAddedPlace.region, "Illinois, US")
             fakeService.searchPlaceResults = []
+        }
+
+        function test_globe_scene_keeps_home_marker_before_selection() {
+            var oldLocalZone = fakeService.localZone
+            var oldPreferences = fakeService.preferenceData
+            var oldCityData = fakeService.cityData
+            var oldCities = fakeService.cities
+            var oldSessionCities = content.globeSessionCities
+            var oldSelectionKey = content.globeSelectionKey
+            var oldSpin = content.globeSpin
+            var oldViewLat = content.globeViewLat
+            try {
+                fakeService.localZone = "Etc/UTC"
+                fakeService.preferenceData = Object.assign({}, oldPreferences, {
+                    here: { name: "Home", zone: "Etc/UTC", lat: 0, lon: 0 }
+                })
+                fakeService.cityData = [["Decoy", "Etc/UTC", 0, 0, 9]]
+                fakeService.cities = []
+                content.globeSessionCities = []
+                content.globeSelectionKey = ""
+                content.globeSpin = 0
+                content.globeViewLat = 0
+
+                var scene = content.globeScene(80)
+                var homeIndex = -1
+                var decoyIndex = -1
+                for (var i = 0; i < scene.places.length; i++) {
+                    if (scene.places[i].label === "Home") homeIndex = i
+                    if (scene.places[i].label === "Decoy") decoyIndex = i
+                }
+                verify(homeIndex >= 0)
+                verify(decoyIndex >= 0)
+                var homePlotted = false
+                var decoyPlotted = false
+                for (var j = 0; j < scene.plotted.length; j++) {
+                    if (scene.plotted[j].index === homeIndex) homePlotted = true
+                    if (scene.plotted[j].index === decoyIndex) decoyPlotted = true
+                }
+                verify(homePlotted)
+                verify(!decoyPlotted)
+            } finally {
+                fakeService.localZone = oldLocalZone
+                fakeService.preferenceData = oldPreferences
+                fakeService.cityData = oldCityData
+                fakeService.cities = oldCities
+                content.globeSessionCities = oldSessionCities
+                content.globeSelectionKey = oldSelectionKey
+                content.globeSpin = oldSpin
+                content.globeViewLat = oldViewLat
+            }
         }
 
         function test_custom_city_coordinates_override_timezone_catalog_on_globe() {
