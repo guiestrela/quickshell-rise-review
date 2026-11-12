@@ -15,6 +15,9 @@ Item {
     property string statusMessage: ""
     property real globeSpin: 0
     property real globeViewLat: 0
+    property string globeSelectionKey: ""
+    property string globeSelectionLabel: ""
+    property string globeSelectionZone: ""
     property real globeDragX: 0
     property real globeDragY: 0
     readonly property var contentRoot: panel
@@ -169,6 +172,9 @@ Item {
         timezoneTarget = zoneId
         var city = cities[index]
         var place = placeForCity(city)
+        globeSelectionKey = globeCityIdentity(city)
+        globeSelectionLabel = String(city.label || city.id)
+        globeSelectionZone = zoneId
         if (place && isFinite(place.lon)) {
             globeFocusAnimation.stop()
             globeFocusAnimation.from = globeSpin
@@ -185,29 +191,99 @@ Item {
         return true
     }
 
+    function globeCityIdentity(city) {
+        var name = String(city.label || city.id || "").trim().toLowerCase()
+        try {
+            if (typeof name.normalize === "function")
+                name = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+        } catch (error) {}
+        return name + "|" + String(city.id || "")
+    }
+
+    function globePlaces() {
+        var result = [], seen = Object.create(null), cities = service.cities || []
+        function append(city, rank, tracked, trackedIndex) {
+            if (!city || !city.id) return
+            var key = globeCityIdentity(city)
+            if (seen[key]) return
+            var point = placeForCity(city)
+            if (!point || !isFinite(point.lat) || !isFinite(point.lon)) return
+            seen[key] = true
+            result.push({ label: String(city.label || city.id), id: String(city.id),
+                lat: point.lat, lon: point.lon, rank: Number(rank) || 0,
+                key: key, tracked: tracked, trackedIndex: trackedIndex })
+        }
+        for (var i = 0; i < cities.length; i++) append(cities[i], 0, true, i)
+        var catalog = service.cityData || []
+        for (var j = 0; j < catalog.length; j++) {
+            var item = catalog[j]
+            append({ label: String(item[0]), id: String(item[1]), lat: Number(item[2]), lon: Number(item[3]) },
+                item[4], false, -1)
+        }
+        return result
+    }
+
+    function globeScene(radius) {
+        var places = globePlaces(), candidates = []
+        for (var i = 0; i < places.length; i++) {
+            var place = places[i]
+            var point = Globe.project(place.lat, place.lon, globeSpin, globeViewLat, radius)
+            if (!point.visible) continue
+            candidates.push({ index: i, x: point.x, y: point.y, cosc: point.cosc,
+                rank: place.rank, keep: place.tracked || place.key === globeSelectionKey })
+        }
+        candidates.sort(function(a, b) {
+            if (a.keep !== b.keep) return a.keep ? -1 : 1
+            if (a.rank !== b.rank) return a.rank - b.rank
+            return b.cosc - a.cosc
+        })
+        var plotted = Globe.declutter(candidates, Math.max(9, radius * 0.18))
+        var labelCandidates = []
+        for (var j = 0; j < plotted.length; j++) {
+            var marker = plotted[j]
+            if (marker.cosc < 0.12) continue
+            labelCandidates.push({ index: marker.index, name: places[marker.index].label,
+                x: marker.x, y: marker.y, rank: marker.keep ? -1 : marker.rank, cosc: marker.cosc })
+        }
+        var labels = Globe.layoutLabels(labelCandidates, 5.5, 12, 8, radius - 3, 5)
+        return { places: places, plotted: plotted, labels: labels }
+    }
+
     function tapGlobeAt(x, y) {
         var point = globeCanvasItem.mapFromItem(globeDragArea, x, y)
         var cx = globeCanvasItem.width / 2, cy = globeCanvasItem.height / 2
         var radius = globePaintRadius(globeCanvasItem.width, globeCanvasItem.height)
-        var cities = service.cities || []
-        var hit = -1, bestDistance = 64
-        for (var i = 0; i < cities.length; i++) {
-            var place = placeForCity(cities[i])
-            if (!place) continue
-            var marker = Globe.project(place.lat, place.lon, globeSpin, globeViewLat, radius)
-            if (!marker.visible) continue
-            var dx = point.x - cx - marker.x, dy = point.y - cy - marker.y
-            var distance = dx * dx + dy * dy
-            if (distance <= bestDistance) { hit = i; bestDistance = distance }
+        var scene = globeScene(radius)
+        var px = point.x - cx, py = point.y - cy
+        var hit = -1
+        for (var i = 0; i < scene.labels.length; i++) {
+            var box = scene.labels[i].box
+            if (px >= box.x - 3 && px <= box.x + box.w + 3
+                    && py >= box.y - 3 && py <= box.y + box.h + 3) {
+                hit = scene.labels[i].index
+                break
+            }
+        }
+        if (hit < 0) {
+            var bestDistance = 144
+            for (var j = 0; j < scene.plotted.length; j++) {
+                var marker = scene.plotted[j]
+                var dx = px - marker.x, dy = py - marker.y
+                var distance = dx * dx + dy * dy
+                if (distance <= bestDistance) { hit = marker.index; bestDistance = distance }
+            }
         }
         if (hit < 0) return false
 
-        var city = cities[hit]
-        var place = placeForCity(city)
-        focusCity(hit)
+        var city = scene.places[hit]
+        globeSelectionKey = city.key
+        globeSelectionLabel = city.label
+        globeSelectionZone = city.id
+        timezoneTarget = city.id
+        if (city.tracked) focusCity(city.trackedIndex)
         globeViewAnimation.stop()
         globeViewAnimation.from = globeViewLat
-        globeViewAnimation.to = Math.max(-70, Math.min(70, Number(place.lat)))
+        globeViewAnimation.to = Math.max(-70, Math.min(70, Number(city.lat)))
         globeViewAnimation.restart()
 
         var preference = service.preferenceData || ({})
@@ -602,17 +678,28 @@ Item {
                             ctx.stroke()
                         }
                         var sun = Globe.subsolarPoint(panel.effectiveMs)
-                        for (var cityIndex = 0; cityIndex < panel.service.cities.length; cityIndex++) {
-                            var city = panel.service.cities[cityIndex]
-                            var place = panel.placeForCity(city)
-                            if (!place) continue
-                            var marker = Globe.project(place.lat, place.lon, spin, panel.globeViewLat, radius)
-                            if (!marker.visible) continue
+                        var scene = panel.globeScene(radius)
+                        for (var cityIndex = 0; cityIndex < scene.plotted.length; cityIndex++) {
+                            var plotted = scene.plotted[cityIndex]
+                            var city = scene.places[plotted.index]
+                            var point = { x: plotted.x, y: plotted.y }
                             ctx.beginPath()
-                            ctx.arc(cx + marker.x, cy + marker.y, 2.4, 0, Math.PI * 2)
-                            ctx.fillStyle = Globe.isDaylight(place.lat, place.lon, sun)
-                                ? panel.root.seal.toString() : panel.root.ink.toString()
+                            ctx.arc(cx + point.x, cy + point.y,
+                                city.key === panel.globeSelectionKey ? 3.2 : (city.tracked ? 2.6 : 1.7),
+                                0, Math.PI * 2)
+                            ctx.fillStyle = city.key === panel.globeSelectionKey || city.tracked
+                                ? panel.root.seal.toString()
+                                : (Globe.isDaylight(city.lat, city.lon, sun)
+                                    ? panel.root.seal.toString() : panel.root.ink.toString())
                             ctx.fill()
+                        }
+                        ctx.font = "9px " + panel.root.mono
+                        ctx.textBaseline = "middle"
+                        ctx.fillStyle = panel.root.ink.toString()
+                        for (var labelIndex = 0; labelIndex < scene.labels.length; labelIndex++) {
+                            var label = scene.labels[labelIndex]
+                            var box = label.box
+                            ctx.fillText(scene.places[label.index].label, cx + box.x, cy + box.y + box.h / 2)
                         }
                         ctx.restore()
                         ctx.beginPath()
@@ -654,6 +741,16 @@ Item {
                         globeCanvasItem.requestPaint()
                     }
                 }
+            }
+
+            SharedComponents.UiText {
+                objectName: "elsewhen-globe-selection"
+                width: parent.width
+                visible: panel.globeSelectionLabel !== ""
+                text: visible ? "Selected · " + panel.globeSelectionLabel + " · " + panel.globeSelectionZone : ""
+                color: panel.root.ink
+                font.pixelSize: 10
+                elide: Text.ElideRight
             }
 
             Rectangle {

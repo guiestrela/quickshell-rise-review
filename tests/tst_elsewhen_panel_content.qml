@@ -218,6 +218,54 @@ Item {
             compare(fakeService.moveRequests, 1)
         }
 
+        function test_globe_catalog_city_click_sets_home_without_adding_a_clock_row() {
+            var oldCityData = fakeService.cityData
+            var oldLocalZone = fakeService.localZone
+            var oldPreferenceData = fakeService.preferenceData
+            var oldCities = fakeService.cities
+            var oldRows = fakeService.clockRows
+            var oldSelection = content.globeSelectionKey
+            var oldSelectionLabel = content.globeSelectionLabel
+            var oldTarget = content.timezoneTarget
+            var oldFocus = content.keyboardFocusKey
+            var oldSpin = content.globeSpin
+            var oldViewLat = content.globeViewLat
+            fakeService.cityData = oldCityData.concat([
+                ["Cebu", "Asia/Manila", 10.3157, 123.8854, 1],
+                ["Cébu", "Asia/Manila", 10.3157, 123.8854, 1]
+            ])
+            fakeService.localZone = "Asia/Manila"
+            fakeService.preferenceData = Object.assign({}, oldPreferenceData)
+            try {
+                var city = { label: "Cebu", id: "Asia/Manila", lat: 10.3157, lon: 123.8854 }
+                var radius = content.globePaintRadius(content.globeCanvas.width, content.globeCanvas.height)
+                var marker = Globe.project(city.lat, city.lon, content.globeSpin, content.globeViewLat, radius)
+                verify(marker.visible)
+                var point = content.globeCanvas.mapToItem(content.globeDragArea,
+                    content.globeCanvas.width / 2 + marker.x,
+                    content.globeCanvas.height / 2 + marker.y)
+                mouseClick(content.globeDragArea, point.x, point.y, Qt.LeftButton)
+                compare(content.globePlaces().length, 3)
+                compare(content.globePlaces()[2].label, "Cebu")
+                compare(content.globeSelectionLabel, "Cebu")
+                compare(content.timezoneTarget, "Asia/Manila")
+                compare(fakeService.preferenceData.homeCity, "Cebu")
+                compare(fakeService.cities.length, oldCities.length)
+            } finally {
+                fakeService.cityData = oldCityData
+                fakeService.localZone = oldLocalZone
+                fakeService.preferenceData = oldPreferenceData
+                fakeService.cities = oldCities
+                fakeService.clockRows = oldRows
+                content.globeSelectionKey = oldSelection
+                content.globeSelectionLabel = oldSelectionLabel
+                content.timezoneTarget = oldTarget
+                content.keyboardFocusKey = oldFocus
+                content.globeSpin = oldSpin
+                content.globeViewLat = oldViewLat
+            }
+        }
+
         function test_globe_marker_click_selects_city_and_sets_local_home() {
             var oldPreferenceData = fakeService.preferenceData
             var oldLocalZone = fakeService.localZone

@@ -36,5 +36,7 @@ with tempfile.TemporaryDirectory(prefix="rise-elsewhen-panel-content-", dir=SCRA
     output = result.stdout + result.stderr
     print(output, end="")
     assert result.returncode == 0, output
-    assert "Totals: 43 passed, 0 failed" in output, output
+    totals = re.search(r"Totals: (\d+) passed, 0 failed, 0 skipped", output)
+    assert totals, output
+    assert int(totals.group(1)) == len(re.findall(r"^PASS\s*:", output, re.MULTILINE)), output
     assert not re.search(r"ERROR|ReferenceError|TypeError|Binding loop|Unable to assign|Incorrect argument radius", output), output
