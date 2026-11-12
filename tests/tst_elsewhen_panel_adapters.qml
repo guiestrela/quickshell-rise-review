@@ -186,10 +186,11 @@ Item {
 
         function test_v2_expanded_globe_and_jump_search_render() {
             var oldLocalZone = fakeService.localZone
+            var content = null
             fakeService.localZone = "Europe/Paris"
             try {
                 load("v2", false, "top")
-                var content = findChild(panelLoader.item, "elsewhen-panel-content")
+                content = findChild(panelLoader.item, "elsewhen-panel-content")
                 var zoomButton = findChild(content, "elsewhen-globe-zoom")
                 verify(content !== null && zoomButton !== null)
                 mouseClick(zoomButton, zoomButton.width / 2, zoomButton.height / 2)
@@ -202,7 +203,52 @@ Item {
                 tryCompare(content.searchList, "count", 1)
                 captureScene("v2-globe-jump-search")
             } finally {
+                if (content && typeof content.stopMoonShow === "function") content.stopMoonShow()
                 fakeService.localZone = oldLocalZone
+            }
+        }
+
+        function test_v2_moon_show_renders_in_night_footer() {
+            var oldLocalZone = fakeService.localZone
+            var oldNowMs = fakeService.nowMs
+            fakeService.localZone = "Asia/Tokyo"
+            fakeService.nowMs = Date.UTC(2024, 2, 20, 19, 0, 0)
+            var content = null
+            try {
+                load("v2", false, "top")
+                content = findChild(panelLoader.item, "elsewhen-panel-content")
+                verify(content !== null)
+                var row = content.cityList.itemAtIndex(1)
+                var strip = findChild(row, "elsewhen-daylight-strip")
+                var marker = findChild(strip, "elsewhen-daylight-marker")
+                verify(strip !== null && marker !== null)
+                compare(strip.litNow, false)
+                var point = marker.mapToItem(strip.scrubArea, marker.width / 2, marker.height / 2)
+                mouseClick(strip.scrubArea, point.x, point.y, Qt.LeftButton, Qt.ShiftModifier)
+                tryVerify(function() { return content.moonShowing }, 350)
+                tryCompare(content, "moonShowStep", 2, 1500)
+                tryVerify(function() { return Math.abs(content.moonDemo - 0.25) < 0.005 }, 600)
+                compare(strip.moonPhase, content.moonPhase)
+
+                var zoomButton = findChild(content, "elsewhen-globe-zoom")
+                verify(zoomButton !== null)
+                mouseClick(zoomButton, zoomButton.width / 2, zoomButton.height / 2)
+                tryVerify(function() { return content.globeFooterPlace !== null }, 1000)
+                compare(findChild(content, "elsewhen-globe-footer-city").text, "Tokyo")
+                compare(content.globeFooterDaylight, false)
+                var footerMoon = findChild(content, "elsewhen-globe-footer-moon")
+                verify(footerMoon !== null)
+                compare(footerMoon.visible, true)
+                compare(footerMoon.phase, content.moonPhase)
+                captureScene("v2-moon-show")
+
+                tryCompare(content, "moonShowing", false, 5000)
+                compare(content.moonDemo, -1)
+                compare(footerMoon.phase, content.moonPhase)
+            } finally {
+                if (content && typeof content.stopMoonShow === "function") content.stopMoonShow()
+                fakeService.localZone = oldLocalZone
+                fakeService.nowMs = oldNowMs
             }
         }
     }

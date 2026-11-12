@@ -235,7 +235,7 @@ Rectangle {
     nowMs: row.panel.effectiveMs !== undefined ? row.panel.effectiveMs : Date.now()
     hovered: row.hovered
     hour24: row.panel.hour24 === true
-    moonPhase: Globe.moonPhase(nowMs)
+    moonPhase: row.panel.moonPhase !== undefined ? row.panel.moonPhase : Globe.moonPhase(nowMs)
     foreground: row.foreground
     fainter: row.fainter
     daylightMarker: row.panel.root.seal

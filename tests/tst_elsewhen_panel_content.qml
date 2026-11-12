@@ -1301,6 +1301,33 @@ Item {
             compare(strip.sunMarks.length, 2)
         }
 
+        function test_shift_click_current_moon_starts_phase_demo() {
+            var oldNowMs = fakeService.nowMs
+            fakeService.nowMs = Date.UTC(2024, 2, 20, 0, 0, 0)
+            try {
+                var row = content.cityList.itemAtIndex(0)
+                var strip = findChild(row, "elsewhen-daylight-strip")
+                var marker = findChild(strip, "elsewhen-daylight-marker")
+                verify(strip !== null && marker !== null)
+                compare(strip.litNow, false)
+                var point = marker.mapToItem(strip.scrubArea, marker.width / 2, marker.height / 2)
+                mouseClick(strip.scrubArea, point.x, point.y, Qt.LeftButton, Qt.ShiftModifier)
+                tryVerify(function() { return content.moonShowing === true }, 350)
+                tryCompare(content, "moonPhase", 0, 550)
+                compare(strip.moonPhase, content.moonPhase)
+                tryCompare(content, "moonShowStep", 1, 400)
+                verify(content.moonShowing)
+                content.stopMoonShow()
+                compare(content.moonShowing, false)
+                compare(content.moonDemo, -1)
+                compare(content.moonPhase, Globe.moonPhase(content.effectiveMs))
+                compare(strip.moonPhase, content.moonPhase)
+            } finally {
+                if (typeof content.stopMoonShow === "function") content.stopMoonShow()
+                fakeService.nowMs = oldNowMs
+            }
+        }
+
         function test_dragging_strip_temporarily_shifts_city_clock() {
             if (content.displayRows === undefined) {
                 fail("panel should compute display rows against the scrubbed instant")

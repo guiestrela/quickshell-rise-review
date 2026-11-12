@@ -12,6 +12,11 @@ Item {
     required property var root
     required property var service
     property real scrubMinutes: 0
+    property bool moonShowing: false
+    property real moonDemo: -1
+    property int moonShowStep: 0
+    readonly property var moonShowStops: [0, 0.12, 0.25, 0.38, 0.5, 0.62, 0.75, 0.88, 1]
+    readonly property real moonPhase: moonShowing && moonDemo >= 0 ? moonDemo : Globe.moonPhase(effectiveMs)
     property string searchText: ""
     property string searchMode: ""
     property int searchSelectionIndex: 0
@@ -79,7 +84,7 @@ Item {
     }
     readonly property bool globeFooterDaylight: globeFooterPlace && globeFooterRow && globeFooterRow.ready
         ? Globe.isDaylight(globeFooterPlace.lat, globeFooterPlace.lon, Globe.subsolarPoint(effectiveMs)) : false
-    readonly property real globeFooterMoonPhase: Globe.moonPhase(effectiveMs)
+    readonly property real globeFooterMoonPhase: moonPhase
     readonly property var searchResults: typeof service.searchLocations === "function"
         ? service.searchLocations(searchText, 8) : service.searchZones(searchText, 8)
     onSearchResultsChanged: {
@@ -454,6 +459,19 @@ Item {
 
     function endScrub() {
         if (scrubMinutes !== 0) scrubHold.restart()
+    }
+
+    function startMoonShow() {
+        moonShowStep = 0
+        moonShowing = true
+        moonDemo = moonShowStops[0]
+        moonShowTimer.restart()
+    }
+
+    function stopMoonShow() {
+        moonShowTimer.stop()
+        moonShowing = false
+        moonDemo = -1
     }
 
     function startPeopleEdit(index) {
@@ -1215,6 +1233,22 @@ Item {
         zoneSearchInput.clear()
         panel.forceActiveFocus()
         return true
+    }
+
+    Behavior on moonDemo {
+        enabled: panel.moonShowing
+        NumberAnimation { duration: 460; easing.type: Easing.InOutSine }
+    }
+
+    Timer {
+        id: moonShowTimer
+        interval: 620
+        repeat: true
+        onTriggered: {
+            panel.moonShowStep++
+            if (panel.moonShowStep >= panel.moonShowStops.length) panel.stopMoonShow()
+            else panel.moonDemo = panel.moonShowStops[panel.moonShowStep]
+        }
     }
 
     NumberAnimation {
