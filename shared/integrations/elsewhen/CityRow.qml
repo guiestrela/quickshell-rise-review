@@ -231,15 +231,7 @@ Rectangle {
     offsetMinutes: row.rowData.offsetMinutes !== undefined ? row.rowData.offsetMinutes : 0
     progress: row.rowData.progress !== undefined ? row.rowData.progress : 0
     fallbackLit: row.rowData.lit === true
-    place: {
-      if (row.modelData.lat !== undefined && row.modelData.lon !== undefined)
-        return { lat: row.modelData.lat, lon: row.modelData.lon }
-      if (typeof row.panel.placeForZone === "function") {
-        const coordinates = row.panel.placeForZone(row.rowData.id)
-        if (coordinates) return { lat: coordinates[2], lon: coordinates[3] }
-      }
-      return null
-    }
+    place: row.panel.placeForCity(row.rowData)
     nowMs: row.panel.effectiveMs !== undefined ? row.panel.effectiveMs : Date.now()
     hovered: row.hovered
     hour24: row.panel.hour24 === true
@@ -288,10 +280,11 @@ Rectangle {
     onClicked: function(mouse) {
       if (moved) return
       if (temperatureControl.visible) {
-        var point = temperatureControl.mapToItem(row, 0, 0)
+        const point = temperatureControl.mapToItem(row, 0, 0)
         if (mouse.x >= point.x && mouse.x <= point.x + temperatureControl.width
                 && mouse.y >= point.y && mouse.y <= point.y + temperatureControl.height) {
           row.panel.toggleUnits()
+          daylightStrip.dismissChips()
           return
         }
       }

@@ -677,6 +677,14 @@ Item {
             fakeService.searchPlaceResults = []
         }
 
+        function test_custom_city_coordinates_override_timezone_catalog_on_globe() {
+            var brasilia = { label: "Brasília", id: "America/Sao_Paulo", lat: -15.7939, lon: -47.8828 }
+            var place = content.placeForCity(brasilia)
+            verify(place !== null)
+            compare(place.lat, -15.7939)
+            compare(place.lon, -47.8828)
+        }
+
         function test_globe_can_be_hidden_and_restored() {
             mouseClick(content.globeToggleButton)
             compare(fakeService.preferenceData.globeEnabled, false)

@@ -91,15 +91,7 @@ Item {
 
     function temperatureFor(rowData) {
         if (!rowData) return ""
-        var city = null
-        for (var i = 0; i < service.cityData.length; i++) {
-            if (service.cityData[i][1] === rowData.id) { city = service.cityData[i]; break }
-        }
-        var customLat = rowData.lat
-        var customLon = rowData.lon
-        var point = customLat !== undefined && customLon !== undefined
-            ? { lat: customLat, lon: customLon }
-            : city ? { lat: city[2], lon: city[3] } : null
+        var point = placeForCity(rowData)
         if (!point) return ""
         var key = Model.factsKey({ label: rowData.label, id: rowData.id })
         var observation = (service.weather || ({}))[key]
@@ -118,11 +110,7 @@ Item {
         var keys = [], points = [], now = Date.now()
         var cities = service.cities || []
         for (var i = 0; i < cities.length; i++) {
-            var row = cities[i], point = null
-            if (row.lat !== undefined && row.lon !== undefined) point = { lat: row.lat, lon: row.lon }
-            else for (var j = 0; j < service.cityData.length; j++) {
-                if (service.cityData[j][1] === row.id) { point = { lat: service.cityData[j][2], lon: service.cityData[j][3] }; break }
-            }
+            var row = cities[i], point = placeForCity(row)
             if (!point) continue
             var key = Model.factsKey(row)
             if (!Model.weatherStale(service.weather[key], now, point)) continue
@@ -174,12 +162,7 @@ Item {
         keyboardFocusKey = Model.factsKey(cities[index])
         timezoneTarget = zoneId
         var city = cities[index]
-        var place = city.lat !== undefined && city.lon !== undefined
-            ? { lon: Number(city.lon) } : null
-        if (!place) {
-            var catalogPlace = placeForZone(zoneId)
-            if (catalogPlace) place = { lon: Number(catalogPlace[3]) }
-        }
+        var place = placeForCity(city)
         if (place && isFinite(place.lon)) {
             globeFocusAnimation.stop()
             globeFocusAnimation.from = globeSpin
@@ -580,9 +563,9 @@ Item {
                         var sun = Globe.subsolarPoint(panel.effectiveMs)
                         for (var cityIndex = 0; cityIndex < panel.service.cities.length; cityIndex++) {
                             var city = panel.service.cities[cityIndex]
-                            var place = panel.placeForZone(city.id)
+                            var place = panel.placeForCity(city)
                             if (!place) continue
-                            var marker = Globe.project(place[2], place[3], spin, 0, radius)
+                            var marker = Globe.project(place.lat, place.lon, spin, 0, radius)
                             if (!marker.visible) continue
                             ctx.beginPath()
                             ctx.arc(cx + marker.x, cy + marker.y, 2.4, 0, Math.PI * 2)
@@ -665,6 +648,15 @@ Item {
         for (var i = 0; i < service.cityData.length; i++)
             if (service.cityData[i][1] === zone) return service.cityData[i]
         return null
+    }
+
+    function placeForCity(city) {
+        if (!city) return null
+        var lat = Number(city.lat), lon = Number(city.lon)
+        if (city.lat !== undefined && city.lon !== undefined && isFinite(lat) && isFinite(lon))
+            return { lat: lat, lon: lon }
+        var catalogPlace = placeForZone(city.id)
+        return catalogPlace ? { lat: Number(catalogPlace[2]), lon: Number(catalogPlace[3]) } : null
     }
 
     function addSearchResult(option) {
