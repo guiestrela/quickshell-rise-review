@@ -113,6 +113,34 @@ barctl="$HOME/.config/quickshell/bin/qs-barctl"
 
 The controller forwards arbitrary targets, functions, and string arguments to the single registered Rise instance. It rejects calls when no instance or more than one matching instance exists.
 
+## World clock IPC
+
+The shared World Clock registers the Rise-owned target `quickshell-rise.elsewhen`:
+
+| Function | Effect / arguments |
+|---|---|
+| `open`, `close`, `hide`, `toggle` | Open, close, or toggle the panel; `hide` is equivalent to `close` |
+| `refresh` | Refresh clock data |
+| `globe` | Toggle globe/list view; returns `globe`, `list`, `disabled`, or `unavailable` |
+| `times` | Return serialized clock rows |
+| `add <zone> <label>` | Add a city by IANA zone and label |
+| `remove <zone>` | Remove a city by IANA zone |
+| `who <city> <people>` | Set people/handles for a city |
+| `here <city>` | Set the local city label |
+
+Use `open` for the original Omarchy `show` action: `show` collides with the
+`qs ipc show` CLI subcommand and is not callable through Quickshell IPC. Rise
+uses its own target and does not claim `omarchy.elsewhen`.
+
+Example:
+
+```bash
+barctl="$HOME/.config/quickshell/bin/qs-barctl"
+"$barctl" ipc quickshell-rise.elsewhen open
+"$barctl" ipc quickshell-rise.elsewhen globe
+"$barctl" ipc quickshell-rise.elsewhen add Europe/Paris Paris
+```
+
 ## Route Omarchy keybindings to Rise
 
 Omarchy normally binds its theme and wallpaper menus to `Super` combinations. Add these bindings to `~/.config/hypr/bindings.conf` to open the Rise pickers instead:

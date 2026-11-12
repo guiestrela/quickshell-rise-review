@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
+import "../services" as Services
 
 PanelWindow {
     id: panel
@@ -27,6 +28,19 @@ PanelWindow {
     WlrLayershell.namespace: "rise-elsewhen"
     WlrLayershell.keyboardFocus: root.elsewhenVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
     visible: root.elsewhenVisible
+    onVisibleChanged: {
+        if (!visible || !service || typeof service.requestProfiles !== "function") return
+        Qt.callLater(function() {
+            if (panel.visible && panel.service && typeof panel.service.requestProfiles === "function")
+                panel.service.requestProfiles()
+        })
+    }
+
+    Services.ElsewhenIpcHandler {
+        service: panel.service
+        owner: panel.root
+        content: body
+    }
 
     function close() { root.elsewhenVisible = false }
     MouseArea { anchors.fill: parent; onClicked: panel.close() }

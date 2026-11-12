@@ -76,6 +76,13 @@ Item {
         property string catalogError: ""
         property string timezoneError: ""
         property int refreshRequests: 0
+        property int profileRequests: 0
+        function requestProfiles() {
+            if (!active || !settingsReady) return false
+            profileRequests++
+            return true
+        }
+        function requestWeather(keys, points) { return false }
         function refresh() { refreshRequests++; return true }
         function updateSetting(name, value) {
             var next = Object.assign({}, preferenceData)
@@ -136,6 +143,20 @@ Item {
             verify(accepted)
             tryVerify(function() { return testRoot.captureDone }, 5000)
             verify(testRoot.captureSaved)
+        }
+
+        function test_profile_request_survives_service_activation_ordering() {
+            load("v1", false, "top")
+            theme.elsewhenVisible = false
+            fakeService.active = false
+            fakeService.profileRequests = 0
+            wait(20)
+            theme.elsewhenVisible = true
+            fakeService.active = true
+            wait(50)
+            compare(fakeService.profileRequests, 1)
+            theme.elsewhenVisible = false
+            fakeService.active = false
         }
 
         function test_v1_horizontal_renders_clock_rows_and_anchors() {

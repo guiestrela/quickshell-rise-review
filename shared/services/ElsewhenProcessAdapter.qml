@@ -14,7 +14,8 @@ Item {
         catalog: function() { return ["timedatectl", "list-timezones"] },
         geocode: function(query) { return Model.geocodeCommand(query) },
         timezone: function(zone) { return Model.timezoneCommand(zone) },
-        weather: function(points) { return ["curl", "-fsSL", "--max-time", "8", "--proto", "=https", "--url", Model.forecastUrl(points)] }
+        weather: function(points) { return ["curl", "-fsSL", "--max-time", "8", "--proto", "=https", "--url", Model.forecastUrl(points)] },
+        profiles: function(handles) { return Model.profilesCommand(handles) }
     })
     property bool geocodeBusy: false
     property var pendingGeocode: null
@@ -26,6 +27,7 @@ Item {
         if (geocodeProcess.running) geocodeProcess.running = false
         if (weatherProcess.running) weatherProcess.running = false
         if (timezoneProcess.running) timezoneProcess.running = false
+        if (profilesProcess.running) profilesProcess.running = false
     }
 
     function startProbe(ids, serial) {
@@ -104,6 +106,20 @@ Item {
         }
     }
 
+    function startProfiles(handles, serial) {
+        if (profilesProcess.running) {
+            service.acceptProfiles("", 1, serial, "A profile lookup is already running")
+            return
+        }
+        try {
+            profilesProcess.requestSerial = serial
+            profilesProcess.command = commandFactory.profiles(handles)
+            profilesProcess.running = true
+        } catch (error) {
+            service.acceptProfiles("", 1, serial, String(error))
+        }
+    }
+
     Connections {
         target: adapter.service
         function onProbeRequested(ids, serial) { adapter.startProbe(ids, serial) }
@@ -111,6 +127,7 @@ Item {
         function onPlaceSearchRequested(query, serial) { adapter.startGeocode(query, serial) }
         function onTimezoneChangeRequested(zone, serial) { adapter.startTimezoneChange(zone, serial) }
         function onWeatherRequested(keys, points, serial) { adapter.startWeather(keys, points, serial) }
+        function onProfilesRequested(handles, serial) { adapter.startProfiles(handles, serial) }
         function onCancelRequested() { adapter.stopAll() }
     }
 
@@ -177,6 +194,17 @@ Item {
         stderr: StdioCollector { id: timezoneError; waitForEnd: true }
         onExited: function(exitCode) {
             adapter.service.acceptTimezoneChange(exitCode, requestSerial, timezoneError.text)
+        }
+    }
+
+    Process {
+        id: profilesProcess
+        property int requestSerial: 0
+        command: []
+        stdout: StdioCollector { id: profilesOutput; waitForEnd: true }
+        stderr: StdioCollector { id: profilesError; waitForEnd: true }
+        onExited: function(exitCode) {
+            adapter.service.acceptProfiles(profilesOutput.text, exitCode, requestSerial, profilesError.text)
         }
     }
 

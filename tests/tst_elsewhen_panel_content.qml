@@ -33,6 +33,8 @@ Item {
         ]
         property var cityData: [["Paris", "Europe/Paris", 48.85, 2.35, 1], ["Tokyo", "Asia/Tokyo", 35.68, 139.69, 1]]
         property var weather: ({})
+        property var profiles: ({})
+        property double profileStamp: 0
         property bool active: false
         property bool weatherRunning: false
         property var cities: [{ label: "Paris", id: "Europe/Paris", people: ["Alice"] }, { label: "Tokyo", id: "Asia/Tokyo" }]
@@ -368,6 +370,38 @@ Item {
                 content.keyboardFocusId = previousFocusId
                 content.globeSpin = previousSpin
                 content.globeViewLat = previousViewLat
+            }
+        }
+
+        function test_people_profile_enrichment_renders_name_and_initial_avatar() {
+            var oldCities = fakeService.cities
+            var oldProfiles = fakeService.profiles
+            var oldStamp = fakeService.profileStamp
+            try {
+                fakeService.cities = [
+                    Object.assign({}, oldCities[0], { people: ["@alice"] }), oldCities[1]
+                ]
+                fakeService.profiles = {
+                    alice: { login: "alice", name: "Alice Example", avatar: "" }
+                }
+                fakeService.profileStamp = 1234
+                tryCompare(content.cityList, "count", 2)
+                var row = content.cityList.itemAtIndex(0)
+                verify(row !== null)
+                var names = findChild(row, "elsewhen-people-names")
+                verify(names !== null)
+                compare(names.text, "Alice Example")
+                var avatar = findChild(row, "elsewhen-person-avatar")
+                verify(avatar !== null)
+                compare(avatar.name, "Alice Example")
+                verify(!avatar.pictured)
+                var initial = findChild(avatar, "elsewhen-person-avatar-initial")
+                verify(initial !== null)
+                compare(initial.text, "A")
+            } finally {
+                fakeService.cities = oldCities
+                fakeService.profiles = oldProfiles
+                fakeService.profileStamp = oldStamp
             }
         }
 

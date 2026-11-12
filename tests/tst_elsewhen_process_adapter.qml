@@ -57,7 +57,8 @@ ShellRoot {
                     : query === "chicago" ? "geocode-latest" : "geocode-fail"
                 return [test.helperPath, action, query]
             },
-            timezone: function(zone) { return [test.helperPath, "timezone", zone] }
+            timezone: function(zone) { return [test.helperPath, "timezone", zone] },
+            profiles: function(handles) { return [test.helperPath, "profiles"].concat(handles) }
         })
     }
 
@@ -186,10 +187,22 @@ ShellRoot {
                                       error: service.placeSearchError, options: service.geocodeOptions }))
                         return
                     }
-                    service.active = false
-                    console.log("ELSEWHEN_ADAPTER_PASS real Process lifecycle, inert success, failure and replacement results")
-                    Qt.quit()
+                    if (!service.setCities([{ label: "Tokyo", id: "Asia/Tokyo", people: ["@OctoCat"] }])
+                            || !service.profilesRunning) {
+                        test.fail("profile process was not dispatched for a newly saved GitHub handle")
+                        return
+                    }
+                    test.phase = 10
                 }
+            } else if (test.phase === 10 && !service.profilesRunning) {
+                if (!service.profiles.octocat || service.profiles.octocat.name !== "Octo Cat"
+                        || service.profiles.octocat.avatar !== "" || service.profilesError !== "") {
+                    test.fail("profile process output did not enrich the cached handle")
+                    return
+                }
+                service.active = false
+                console.log("ELSEWHEN_ADAPTER_PASS real Process lifecycle, inert success, failure, replacement and profile results")
+                Qt.quit()
             }
         }
     }

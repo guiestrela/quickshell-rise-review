@@ -82,6 +82,35 @@ test("timezone action builder keeps the selected IANA zone as a distinct argumen
   assert.match(argv[2], /timedatectl set-timezone \"\$1\"/);
 });
 
+test("profile helpers normalize handles, enrich display names, and keep public avatar fetches safe", () => {
+  const zones = [
+    { people: ["Ada Lovelace", "@OctoCat", "@octocat", "@octo-cat"] },
+    { people: ["@Ghost", "not a handle @bad/name"] },
+  ];
+  assert.deepEqual(JSON.parse(JSON.stringify(Model.handlesIn(zones))), ["octocat", "octo-cat", "ghost"]);
+  assert.equal(Model.personName("@OctoCat", {
+    octocat: { login: "octocat", name: "Octo Cat", avatar: "/cache/octocat.avatar" },
+  }), "Octo Cat");
+  assert.equal(Model.personName("@Ghost", { ghost: { login: "ghost", name: "", avatar: "" } }), "ghost");
+  assert.equal(Model.personName("Ada Lovelace", {}), "Ada Lovelace");
+  assert.deepEqual(JSON.parse(JSON.stringify(Model.parseProfiles([
+    JSON.stringify({ handle: "OctoCat", login: "octocat", name: " Octo Cat ", avatar: "/cache/a.png" }),
+    "not json",
+    JSON.stringify({ handle: "../oops", login: "oops", name: "Oops", avatar: "/tmp/oops" }),
+  ].join(String.fromCharCode(10))))), {
+    octocat: { login: "octocat", name: "Octo Cat", avatar: "/cache/a.png" },
+  });
+  const injected = "$(touch /tmp/should-not-run)";
+  const argv = Model.profilesCommand(["OctoCat", "../oops", injected]);
+  assert.equal(argv[0], "bash");
+  assert.equal(argv[1], "-c");
+  assert.equal(argv.at(-1), "octocat");
+  assert.ok(!argv.includes("../oops") && !argv.includes(injected));
+  assert.match(argv[2], /--proto =https/);
+  assert.match(argv[2], /--proto-redir =https/);
+  assert.ok(argv[2].includes("quickshell-rise/elsewhen/people"));
+});
+
 test("geocode command limits the captured response and pins HTTPS transport", () => {
   const argv = Model.geocodeCommand("San Francisco");
   assert.equal(argv[0], "curl");

@@ -56,7 +56,8 @@ Item {
     property int draggingCityIndex: -1
     property int rowDragTargetIndex: -1
     property real rowDragPitch: 104
-    property var profiles: ({})
+    readonly property var profiles: service.profiles || ({})
+    readonly property double profileStamp: Number(service.profileStamp || 0)
     property string temperatureLabel: ""
     property string timezoneTarget: service.clockRows.length ? service.clockRows[0].id : service.localZone
     property string keyboardFocusId: ""

@@ -39,6 +39,14 @@ with tempfile.TemporaryDirectory(prefix="rise-elsewhen-adapters-", dir=SCRATCH) 
     host = base / "shared/panels/ElsewhenPanel.qml"
     text = host.read_text()
     text = re.sub(r"^import Quickshell(?:\.[A-Za-z.]+)?\n", "", text, flags=re.M)
+    # The offscreen QtTest harness lacks Quickshell.Io; IPC is exercised separately.
+    service_import = 'import "../services" as Services' + chr(10)
+    text = text.replace(service_import, "")
+    ipc_start = text.find("    Services.ElsewhenIpcHandler {")
+    if ipc_start < 0:
+        raise SystemExit("Elsewhen IPC child removal point is missing")
+    ipc_end = text.index("    }", ipc_start) + len("    }")
+    text = text[:ipc_start] + text[ipc_end:]
     text = text.replace(
         "PanelWindow {",
         "Rectangle {\n    width: parent ? parent.width : 800\n    height: parent ? parent.height : 800\n    property var screen\n",

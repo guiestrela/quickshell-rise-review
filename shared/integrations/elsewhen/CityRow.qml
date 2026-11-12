@@ -90,13 +90,39 @@ Rectangle {
       }
 
       Row {
+        objectName: "elsewhen-people-row"
         width: parent.width
         height: 18
         visible: row.people.length > 0 && !row.editingPeople
         spacing: 6
+        Row {
+          id: peopleAvatars
+          objectName: "elsewhen-people-avatars"
+          spacing: -4
+          width: Math.min(row.people.length, 4) * 15 + Math.max(0, Math.min(row.people.length, 4) - 1) * spacing
+          height: parent.height
+
+          Repeater {
+            model: row.people.slice(0, 4)
+            Elsewhen.Avatar {
+              required property var modelData
+              name: Model.personName(modelData, row.panel.profiles || ({}))
+              source: {
+                var profiles = row.panel.profiles || ({})
+                var profile = profiles[Model.personHandle(modelData)]
+                return profile ? profile.avatar : ""
+              }
+              stamp: Number(row.panel.profileStamp || 0)
+              size: 15
+              foreground: row.foreground
+              ground: row.color
+              fontFamily: row.fontFamily
+            }
+          }
+        }
         SharedComponents.UiText {
           objectName: "elsewhen-people-names"
-          width: parent.width
+          width: Math.max(0, parent.width - peopleAvatars.width - parent.spacing)
           text: row.people.map(function(person) { return Model.personName(person, row.panel.profiles || ({})) }).join(", ")
           color: row.dim
           font.family: row.fontFamily

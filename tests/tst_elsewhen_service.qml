@@ -17,6 +17,12 @@ ShellRoot {
     property string lastTimezoneZone: ""
     property int lastTimezoneSerial: 0
     property int weatherCount: 0
+    property int profileRequestCount: 0
+    property var lastProfileHandles: []
+    property int lastProfileSerial: 0
+    property int firstProfileSerial: 0
+    property string firstProfilePayload: ""
+    property var profileOriginalCities: []
     property var lastWeatherKeys: []
     property var lastWeatherPoints: []
     property int lastWeatherSerial: 0
@@ -47,6 +53,11 @@ ShellRoot {
             test.lastWeatherKeys = keys
             test.lastWeatherPoints = points
             test.lastWeatherSerial = serial
+        }
+        function onProfilesRequested(handles, serial) {
+            test.profileRequestCount++
+            test.lastProfileHandles = handles
+            test.lastProfileSerial = serial
         }
         function onPlaceSearchRequested(query, serial) {
             test.geocodeCount++
@@ -335,8 +346,70 @@ ShellRoot {
                     test.fail("fixture weather result was not stored against its city")
                     return
                 }
+                var peopleCities = [
+                    { label: "Tokyo", id: "Asia/Tokyo", people: ["@OctoCat", "@octocat", "Ada"] }
+                ]
+                test.profileOriginalCities = service.cities.slice()
+                if (typeof service.requestProfiles !== "function" || typeof service.acceptProfiles !== "function"
+                        || !service.setCities(peopleCities) || test.profileRequestCount !== 1
+                        || JSON.stringify(test.lastProfileHandles) !== JSON.stringify(["octocat"])) {
+                    test.fail("profile enrichment did not queue one normalized handle through the service boundary")
+                    return
+                }
+                var firstProfileSerial = test.lastProfileSerial
+                var queuedCities = service.cities.slice()
+                queuedCities[0] = Object.assign({}, queuedCities[0], { people: ["@OctoCat", "@Ghost"] })
+                if (!service.setCities(queuedCities) || !service.profilesQueued || test.profileRequestCount !== 1) {
+                    test.fail("new profile handles were not queued behind the in-flight profile lookup")
+                    return
+                }
+                var firstProfilePayload = JSON.stringify({
+                    handle: "octocat", login: "octocat", name: "Octo Cat", avatar: "/cache/octocat.avatar"
+                })
+                if (!service.acceptProfiles(firstProfilePayload, 0, firstProfileSerial, "")
+                        || service.profiles.octocat.name !== "Octo Cat"
+                        || service.profiles.octocat.avatar !== "/cache/octocat.avatar") {
+                    test.fail("profile fixture result was not merged into the service cache")
+                    return
+                }
+                test.firstProfileSerial = firstProfileSerial
+                test.firstProfilePayload = firstProfilePayload
+                test.phase = 10
+            } else if (test.phase === 10 && test.profileRequestCount === 2) {
+                if (service.profilesQueued
+                        || JSON.stringify(test.lastProfileHandles) !== JSON.stringify(["ghost"])) {
+                    test.fail("queued profile handles were not drained after the first request")
+                    return
+                }
+                var secondProfileSerial = test.lastProfileSerial
+                if (!service.acceptProfiles("", 0, secondProfileSerial, "")
+                        || service.profilesError.indexOf("ghost") < 0 || service.profilesTried.ghost === true) {
+                    test.fail("empty profile response should report missing data and allow a later retry")
+                    return
+                }
+                if (!service.requestProfiles() || test.profileRequestCount !== 3
+                        || JSON.stringify(test.lastProfileHandles) !== JSON.stringify(["ghost"])) {
+                    test.fail("a failed profile lookup could not be retried")
+                    return
+                }
+                test.phase = 11
+            } else if (test.phase === 11 && test.profileRequestCount === 3) {
+                var retryProfileSerial = test.lastProfileSerial
+                if (!service.acceptProfiles(JSON.stringify({
+                        handle: "ghost", login: "ghost", name: "", avatar: ""
+                    }), 0, retryProfileSerial, "")
+                        || service.profiles.ghost.login !== "ghost"
+                        || service.acceptProfiles(test.firstProfilePayload, 0, test.firstProfileSerial, "")) {
+                    test.fail("retried profile result fallback or stale-response rejection failed")
+                    return
+                }
+                if (!service.setCities(test.profileOriginalCities)
+                        || service.cities.length !== 1 || service.cities[0].id !== "Europe/Paris") {
+                    test.fail("profile test cleanup did not restore the saved city fixture")
+                    return
+                }
                 service.active = false
-                console.log("ELSEWHEN_SERVICE_PASS lifecycle, settings, cities, probes, place search, time-zone and weather results")
+                console.log("ELSEWHEN_SERVICE_PASS lifecycle, settings, cities, probes, place search, time-zone, weather and profiles")
                 Qt.quit()
             }
         }

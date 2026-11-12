@@ -57,6 +57,8 @@ elif action == "timezone" and args == ["Europe/Paris"]:
 elif action == "timezone":
     print("fixture denied requested zone", file=sys.stderr)
     sys.exit(3)
+elif action == "profiles" and args == ["octocat"]:
+    print(json.dumps({"handle": "octocat", "login": "octocat", "name": "Octo Cat", "avatar": ""}))
 else:
     print("unexpected inert helper action", file=sys.stderr)
     sys.exit(4)
@@ -114,10 +116,10 @@ with tempfile.TemporaryDirectory(prefix="rise-elsewhen-process-", dir=SCRATCH) a
     assert "ELSEWHEN_ADAPTER_FAIL" not in output, output
     assert not re.search(r"(ReferenceError|TypeError|Cannot assign|is not a type)", output), output
     events = [json.loads(line) for line in command_log.read_text(encoding="utf-8").splitlines()]
-    assert len(events) == 10, events
+    assert len(events) == 11, events
     assert {event["action"] for event in events} == {
         "catalog", "catalog-fail", "geocode", "geocode-fail", "geocode-slow",
-        "geocode-latest", "probe", "probe-fail", "timezone"
+        "geocode-latest", "probe", "probe-fail", "timezone", "profiles"
     }, events
     assert sum(event["action"] == "probe" for event in events) == 1, events
     assert sum(event["action"] == "probe-fail" for event in events) == 1, events
@@ -131,4 +133,5 @@ with tempfile.TemporaryDirectory(prefix="rise-elsewhen-process-", dir=SCRATCH) a
         ["springfield"], ["nowhere"], ["boston"], ["chicago"]
     ], events
     assert any(event["action"] == "probe" and "Asia/Tokyo" in event["args"] for event in events), events
+    assert [event["args"] for event in events if event["action"] == "profiles"] == [["octocat"]], events
     print("ELSEWHEN_ADAPTER_PASS inert command log verified")

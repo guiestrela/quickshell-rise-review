@@ -524,7 +524,7 @@ function setPeopleAt(zones, index, people) {
 // so each handle is refreshed under a lock, and checked again once it is held.
 function profilesCommand(handles) {
   var script = [
-    'dir="${XDG_CACHE_HOME:-$HOME/.cache}/omarchy/elsewhen/people"',
+    'dir="${XDG_CACHE_HOME:-$HOME/.cache}/quickshell-rise/elsewhen/people"',
     'mkdir -p "$dir" && chmod 700 "$dir" || exit 0',
     'fetch() {',
     '  local tmp',

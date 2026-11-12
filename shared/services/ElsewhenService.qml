@@ -26,6 +26,14 @@ Item {
     property var weather: ({})
     property bool weatherRunning: false
     property int weatherSerial: 0
+    property var profiles: ({})
+    property var profilesTried: ({})
+    property var profilesInFlight: []
+    property double profileStamp: 0
+    property bool profilesRunning: false
+    property bool profilesQueued: false
+    property int profilesSerial: 0
+    property string profilesError: ""
     property string localZone: ""
     property int localOffsetMinutes: -(new Date().getTimezoneOffset())
     property string lastError: ""
@@ -78,6 +86,7 @@ Item {
     signal placeSearchRequested(string query, int serial)
     signal timezoneChangeRequested(string zone, int serial)
     signal weatherRequested(var keys, var points, int serial)
+    signal profilesRequested(var handles, int serial)
     signal timezoneChanged(string zone)
     signal cancelRequested()
     signal settingsLoaded()
@@ -110,7 +119,59 @@ Item {
         var next = Object.assign({}, preferenceData)
         next.cities = Model.serializeCities(nextCities)
         delete next.zones
-        return persistPreferences(next)
+        var saved = persistPreferences(next)
+        if (saved && active) requestProfiles()
+        return saved
+    }
+
+    function requestProfiles() {
+        if (!active || !settingsReady) return false
+        var wanted = Model.handlesIn(cities).filter(function(handle) { return !profilesTried[handle] })
+        if (wanted.length === 0) return false
+        if (profilesRunning) {
+            profilesQueued = true
+            return false
+        }
+        var tried = Object.assign({}, profilesTried)
+        wanted.forEach(function(handle) { tried[handle] = true })
+        profilesTried = tried
+        profilesInFlight = wanted.slice()
+        profilesQueued = false
+        profilesRunning = true
+        profilesSerial++
+        profilesError = ""
+        profilesRequested(wanted, profilesSerial)
+        return true
+    }
+
+    function acceptProfiles(output, exitCode, serial, stderr) {
+        if (!profilesRunning || serial !== profilesSerial) return false
+        profilesRunning = false
+        var attempted = profilesInFlight.slice()
+        profilesInFlight = []
+        var tried = Object.assign({}, profilesTried)
+        if (exitCode === 0) {
+            var parsed = Model.parseProfiles(output)
+            profiles = Object.assign({}, profiles, parsed)
+            profileStamp = Date.now()
+            var missing = []
+            for (var i = 0; i < attempted.length; i++) {
+                if (parsed[attempted[i]]) continue
+                delete tried[attempted[i]]
+                missing.push(attempted[i])
+            }
+            profilesError = missing.length > 0
+                ? "No GitHub profile data returned for: " + missing.join(", ") : ""
+        } else {
+            for (var j = 0; j < attempted.length; j++) delete tried[attempted[j]]
+            profilesError = String(stderr || "GitHub profile lookup failed").trim()
+        }
+        profilesTried = tried
+        if (profilesQueued) {
+            profilesQueued = false
+            Qt.callLater(function() { if (service.active) service.requestProfiles() })
+        }
+        return true
     }
 
     function setHere(here, nextCities) {
@@ -351,16 +412,20 @@ Item {
             if (settingsReady && placeSearchText !== "" && !placeSearchRunning) requestPlaceSearch(placeSearchText)
         } else {
             clockTimer.stop()
-            if (probeRunning || catalogRunning || placeSearchRunning || timezoneRunning) cancelRequested()
+            if (probeRunning || catalogRunning || placeSearchRunning || timezoneRunning || profilesRunning) cancelRequested()
             if (probeRunning) requestSerial++
             if (catalogRunning) catalogSerial++
             if (placeSearchRunning) placeSearchSerial++
             if (timezoneRunning) timezoneSerial++
+            if (profilesRunning) profilesSerial++
             probeRunning = false
             probeQueued = false
             catalogRunning = false
             placeSearchRunning = false
             timezoneRunning = false
+            profilesRunning = false
+            profilesQueued = false
+            profilesInFlight = []
             if (weatherRunning) weatherSerial++
             weatherRunning = false
             pendingTimezoneZone = ""
