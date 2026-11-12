@@ -92,6 +92,21 @@ test("geocode command limits the captured response and pins HTTPS transport", ()
   assert.ok(argv.includes(Model.geocodeUrl("San Francisco")));
 });
 
+test("weather fixtures parse temperatures per requested city and reject malformed replies", () => {
+  const keys = ["Tokyo|Asia/Tokyo", "Paris|Europe/Paris"];
+  const points = [{ lat: 35.68, lon: 139.69 }, { lat: 48.85, lon: 2.35 }];
+  const parsed = Model.parseForecast(JSON.stringify([
+    { current: { temperature_2m: 18.4, weather_code: 2 } },
+    { current: { temperature_2m: -1, weather_code: 71 } },
+  ]), keys, 1234, points);
+  assert.deepEqual(JSON.parse(JSON.stringify(parsed)), {
+    "Tokyo|Asia/Tokyo": { c: 18.4, w: 2, at: 1234, lat: 35.68, lon: 139.69 },
+    "Paris|Europe/Paris": { c: -1, w: 71, at: 1234, lat: 48.85, lon: 2.35 },
+  });
+  assert.deepEqual(JSON.parse(JSON.stringify(Model.parseForecast("bad", keys, 1234, points))), {});
+  assert.equal(Model.tempLabel(parsed["Tokyo|Asia/Tokyo"], "F"), "65°F");
+});
+
 test("bundled globe data and orthographic projection are usable offline", () => {
   const land = JSON.parse(read("world.json"));
   const cities = JSON.parse(read("cities.json"));

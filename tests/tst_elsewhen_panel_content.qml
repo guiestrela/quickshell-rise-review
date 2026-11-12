@@ -31,6 +31,9 @@ Item {
             { label: "New York", value: "America/New_York" }
         ]
         property var cityData: [["Paris", "Europe/Paris", 48.85, 2.35, 1], ["Tokyo", "Asia/Tokyo", 35.68, 139.69, 1]]
+        property var weather: ({})
+        property bool active: false
+        property bool weatherRunning: false
         property var cities: [{ label: "Paris", id: "Europe/Paris", people: ["Alice"] }, { label: "Tokyo", id: "Asia/Tokyo" }]
         property var worldData: [[-180, -80, 0, -80, 180, -80, 180, 80, 0, 80, -180, 80]]
         property double nowMs: Date.UTC(2024, 2, 20, 12, 0, 0)
@@ -113,6 +116,20 @@ Item {
         function test_world_clock_rows_render() {
             compare(content.cityList.count, 2)
             verify(content.cityList.visible)
+        }
+
+        function test_weather_temperature_is_city_specific_and_uses_units() {
+            fakeService.weather = ({
+                "Paris|Europe/Paris": { c: 20, w: 0, at: 1, lat: 48.85, lon: 2.35 },
+                "Tokyo|Asia/Tokyo": { c: 10, w: 3, at: 1, lat: 35.68, lon: 139.69 }
+            })
+            fakeService.preferenceData = ({ hour24: false, globeEnabled: true, smoothMotion: true, units: "C" })
+            compare(content.temperatureFor(fakeService.cities[0]), "20°C")
+            compare(content.temperatureFor(fakeService.cities[1]), "10°C")
+            fakeService.preferenceData = ({ hour24: false, globeEnabled: true, smoothMotion: true, units: "F" })
+            compare(content.temperatureFor(fakeService.cities[0]), "68°F")
+            fakeService.weather = ({})
+            fakeService.preferenceData = ({ hour24: false, globeEnabled: true, smoothMotion: true })
         }
 
         function test_city_list_expands_into_parent_scroll_flow() {

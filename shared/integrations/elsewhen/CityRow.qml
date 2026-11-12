@@ -74,12 +74,13 @@ Rectangle {
         SharedComponents.UiText {
           objectName: "elsewhen-weather-temperature"
           width: 48
-          visible: row.panel.temperatureLabel !== undefined && row.panel.temperatureLabel !== ""
-          text: row.panel.temperatureLabel || ""
+          visible: row.panel.temperatureFor !== undefined && row.panel.temperatureFor(row.rowData) !== ""
+          text: row.panel.temperatureFor !== undefined ? row.panel.temperatureFor(row.rowData) : ""
           color: row.dim
           font.family: row.fontFamily
           font.pixelSize: 9
           horizontalAlignment: Text.AlignRight
+          TapHandler { onTapped: row.panel.toggleUnits() }
         }
       }
 

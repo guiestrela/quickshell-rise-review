@@ -23,6 +23,9 @@ Item {
         smoothMotion: true
     })
     property var probe: ({})
+    property var weather: ({})
+    property bool weatherRunning: false
+    property int weatherSerial: 0
     property string localZone: ""
     property int localOffsetMinutes: -(new Date().getTimezoneOffset())
     property string lastError: ""
@@ -67,6 +70,7 @@ Item {
     signal catalogRequested(int serial)
     signal placeSearchRequested(string query, int serial)
     signal timezoneChangeRequested(string zone, int serial)
+    signal weatherRequested(var keys, var points, int serial)
     signal timezoneChanged(string zone)
     signal cancelRequested()
     signal settingsLoaded()
@@ -84,7 +88,7 @@ Item {
     }
 
     function updateSetting(name, value) {
-        var writable = ["cities", "zones", "hour24", "offsetMode", "globeEnabled", "smoothMotion", "homeZone"]
+        var writable = ["cities", "zones", "hour24", "offsetMode", "globeEnabled", "smoothMotion", "homeZone", "units"]
         if (writable.indexOf(name) < 0) {
             lastError = "Unsupported Elsewhen setting: " + name
             return false
@@ -238,6 +242,28 @@ Item {
         return true
     }
 
+    function requestWeather(keys, points) {
+        if (!active || !Array.isArray(keys) || !Array.isArray(points) || keys.length === 0 || keys.length > 20 || keys.length !== points.length || weatherRunning) return false
+        for (var i = 0; i < points.length; i++) {
+            if (!points[i] || !isFinite(Number(points[i].lat)) || !isFinite(Number(points[i].lon))
+                    || Number(points[i].lat) < -90 || Number(points[i].lat) > 90
+                    || Number(points[i].lon) < -180 || Number(points[i].lon) > 180) return false
+        }
+        weatherRunning = true
+        weatherSerial++
+        weatherRequested(keys.slice(), points.slice(), weatherSerial)
+        return true
+    }
+
+    function acceptWeather(output, exitCode, keys, points, serial) {
+        if (!weatherRunning || serial !== weatherSerial) return false
+        weatherRunning = false
+        if (exitCode !== 0) return false
+        var fresh = Model.parseForecast(output, keys, Date.now(), points)
+        weather = Object.assign({}, weather, fresh)
+        return true
+    }
+
     function finishProbeCycle() {
         if (probeQueued && active) {
             probeQueued = false
@@ -287,6 +313,8 @@ Item {
             catalogRunning = false
             placeSearchRunning = false
             timezoneRunning = false
+            if (weatherRunning) weatherSerial++
+            weatherRunning = false
             pendingTimezoneZone = ""
         }
     }

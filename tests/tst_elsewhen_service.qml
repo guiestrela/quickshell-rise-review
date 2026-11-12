@@ -16,6 +16,10 @@ ShellRoot {
     property int lastGeocodeSerial: 0
     property string lastTimezoneZone: ""
     property int lastTimezoneSerial: 0
+    property int weatherCount: 0
+    property var lastWeatherKeys: []
+    property var lastWeatherPoints: []
+    property int lastWeatherSerial: 0
     property double initialTimerMs: 0
     property bool failureObserved: false
     property var lastProbeIds: []
@@ -37,6 +41,12 @@ ShellRoot {
             test.timezoneCount++
             test.lastTimezoneZone = zone
             test.lastTimezoneSerial = serial
+        }
+        function onWeatherRequested(keys, points, serial) {
+            test.weatherCount++
+            test.lastWeatherKeys = keys
+            test.lastWeatherPoints = points
+            test.lastWeatherSerial = serial
         }
         function onPlaceSearchRequested(query, serial) {
             test.geocodeCount++
@@ -293,8 +303,20 @@ ShellRoot {
                     test.fail("reactivated geocoder result did not populate the latest query")
                     return
                 }
+                if (!service.requestWeather(["Tokyo|Asia/Tokyo"], [{ lat: 35.68, lon: 139.69 }])
+                        || test.weatherCount !== 1 || test.lastWeatherPoints[0].lat !== 35.68) {
+                    test.fail("weather request did not dispatch the city key and coordinates")
+                    return
+                }
+                if (!service.acceptWeather(JSON.stringify({ current: { temperature_2m: 18.4, weather_code: 2 } }),
+                        0, test.lastWeatherKeys, test.lastWeatherPoints, test.lastWeatherSerial)
+                        || service.weather["Tokyo|Asia/Tokyo"].c !== 18.4
+                        || service.weather["Tokyo|Asia/Tokyo"].w !== 2) {
+                    test.fail("fixture weather result was not stored against its city")
+                    return
+                }
                 service.active = false
-                console.log("ELSEWHEN_SERVICE_PASS lifecycle, settings, cities, probes, place search and time-zone results")
+                console.log("ELSEWHEN_SERVICE_PASS lifecycle, settings, cities, probes, place search, time-zone and weather results")
                 Qt.quit()
             }
         }

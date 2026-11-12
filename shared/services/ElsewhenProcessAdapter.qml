@@ -13,7 +13,8 @@ Item {
         probe: function(ids) { return Model.probeCommand(ids, true) },
         catalog: function() { return ["timedatectl", "list-timezones"] },
         geocode: function(query) { return Model.geocodeCommand(query) },
-        timezone: function(zone) { return Model.timezoneCommand(zone) }
+        timezone: function(zone) { return Model.timezoneCommand(zone) },
+        weather: function(points) { return ["curl", "-fsSL", "--max-time", "8", "--proto", "=https", "--url", Model.forecastUrl(points)] }
     })
     property bool geocodeBusy: false
     property var pendingGeocode: null
@@ -23,6 +24,7 @@ Item {
         if (probeProcess.running) probeProcess.running = false
         if (catalogProcess.running) catalogProcess.running = false
         if (geocodeProcess.running) geocodeProcess.running = false
+        if (weatherProcess.running) weatherProcess.running = false
         if (timezoneProcess.running) timezoneProcess.running = false
     }
 
@@ -75,6 +77,19 @@ Item {
         launchGeocode(query, serial)
     }
 
+    function startWeather(keys, points, serial) {
+        if (weatherProcess.running) return
+        try {
+            weatherProcess.requestSerial = serial
+            weatherProcess.keys = keys
+            weatherProcess.points = points
+            weatherProcess.command = commandFactory.weather(points)
+            weatherProcess.running = true
+        } catch (error) {
+            service.acceptWeather("", 1, keys, points, serial)
+        }
+    }
+
     function startTimezoneChange(zone, serial) {
         if (timezoneProcess.running) {
             service.acceptTimezoneChange(1, serial, "A time-zone change is already running")
@@ -95,6 +110,7 @@ Item {
         function onCatalogRequested(serial) { adapter.startCatalog(serial) }
         function onPlaceSearchRequested(query, serial) { adapter.startGeocode(query, serial) }
         function onTimezoneChangeRequested(zone, serial) { adapter.startTimezoneChange(zone, serial) }
+        function onWeatherRequested(keys, points, serial) { adapter.startWeather(keys, points, serial) }
         function onCancelRequested() { adapter.stopAll() }
     }
 
@@ -137,6 +153,19 @@ Item {
                 adapter.pendingGeocode = null
                 adapter.launchGeocode(next.query, next.serial)
             }
+        }
+    }
+
+    Process {
+        id: weatherProcess
+        property int requestSerial: 0
+        property var keys: []
+        property var points: []
+        command: []
+        stdout: StdioCollector { id: weatherOutput; waitForEnd: true }
+        stderr: StdioCollector { id: weatherError; waitForEnd: true }
+        onExited: function(exitCode) {
+            adapter.service.acceptWeather(weatherOutput.text, exitCode, keys, points, requestSerial)
         }
     }
 

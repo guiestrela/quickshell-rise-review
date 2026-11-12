@@ -57,6 +57,10 @@ Item {
             { label: "Tokyo", value: "Asia/Tokyo" }
         ]
         property var cityData: [["Paris", "Europe/Paris", 48.85, 2.35, 1], ["Tokyo", "Asia/Tokyo", 35.68, 139.69, 1]]
+        property var weather: ({})
+        property bool weatherRunning: false
+        property bool active: false
+        property bool cityDataReady: true
         property var cities: [{ label: "Paris", id: "Europe/Paris", people: ["Alice"] }, { label: "Tokyo", id: "Asia/Tokyo", people: ["Tokyo team"] }]
         property var worldData: [[-180, -80, 0, -80, 180, -80, 180, 80, 0, 80, -180, 80]]
         property double nowMs: Date.UTC(2024, 2, 20, 12, 0, 0)

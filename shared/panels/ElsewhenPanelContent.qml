@@ -55,7 +55,8 @@ Item {
     focus: true
     Keys.priority: Keys.AfterItem
     Keys.onPressed: function(event) {
-        if (event.modifiers & (Qt.ControlModifier | Qt.AltModifier | Qt.MetaModifier)) return
+        if ((event.modifiers & (Qt.ControlModifier | Qt.MetaModifier))
+                || ((event.modifiers & Qt.AltModifier) && event.key !== Qt.Key_T)) return
         if (event.key === Qt.Key_Escape) {
             handleEscape()
         } else if (zoneSearchInput.activeFocus || peopleEditIndex >= 0) {
@@ -73,7 +74,8 @@ Item {
         } else if (event.key === Qt.Key_R) {
             if (!service.refresh()) statusMessage = service.lastError
         } else if (event.key === Qt.Key_T) {
-            toggleHour24()
+            if (event.modifiers & Qt.AltModifier) toggleUnits()
+            else toggleHour24()
         } else if (event.key === Qt.Key_A || event.key === Qt.Key_Plus
                 || (event.key === Qt.Key_Equal && (event.modifiers & Qt.ShiftModifier))) {
             zoneSearchInput.forceActiveFocus()
@@ -85,6 +87,52 @@ Item {
             return
         }
         event.accepted = true
+    }
+
+    function temperatureFor(rowData) {
+        if (!rowData) return ""
+        var city = null
+        for (var i = 0; i < service.cityData.length; i++) {
+            if (service.cityData[i][1] === rowData.id) { city = service.cityData[i]; break }
+        }
+        var customLat = rowData.lat
+        var customLon = rowData.lon
+        var point = customLat !== undefined && customLon !== undefined
+            ? { lat: customLat, lon: customLon }
+            : city ? { lat: city[2], lon: city[3] } : null
+        if (!point) return ""
+        var key = Model.factsKey({ label: rowData.label, id: rowData.id })
+        var observation = (service.weather || ({}))[key]
+        if (observation) return Model.tempLabel(observation, preferenceUnits())
+        return ""
+    }
+
+    function preferenceUnits() {
+        var locale = Qt.locale()
+        var automatic = locale.measurementSystem === Locale.ImperialUSSystem ? "F" : "C"
+        return Model.resolveUnits(service.preferenceData ? service.preferenceData.units : "", automatic)
+    }
+
+    function requestCityWeather() {
+        if (!service.active || service.weatherRunning) return
+        var keys = [], points = [], now = Date.now()
+        var cities = service.cities || []
+        for (var i = 0; i < cities.length; i++) {
+            var row = cities[i], point = null
+            if (row.lat !== undefined && row.lon !== undefined) point = { lat: row.lat, lon: row.lon }
+            else for (var j = 0; j < service.cityData.length; j++) {
+                if (service.cityData[j][1] === row.id) { point = { lat: service.cityData[j][2], lon: service.cityData[j][3] }; break }
+            }
+            if (!point) continue
+            var key = Model.factsKey(row)
+            if (!Model.weatherStale(service.weather[key], now, point)) continue
+            keys.push(key); points.push(point)
+        }
+        if (keys.length) service.requestWeather(keys, points)
+    }
+
+    function toggleUnits() {
+        if (!service.updateSetting("units", preferenceUnits() === "C" ? "F" : "C")) statusMessage = service.lastError
     }
 
     function toggleHour24() {
@@ -621,13 +669,22 @@ Item {
         return true
     }
 
+    Timer {
+        interval: 20 * 60 * 1000
+        repeat: true
+        running: panel.service.active
+        onTriggered: panel.requestCityWeather()
+    }
+
     Connections {
         target: panel.service
-        function onClockRowsChanged() { globeCanvasItem.requestPaint() }
+        function onActiveChanged() { if (panel.service.active) panel.requestCityWeather() }
+        function onCitiesChanged() { panel.requestCityWeather(); globeCanvasItem.requestPaint() }
+        function onCityDataReadyChanged() { panel.requestCityWeather() }
+        function onWeatherChanged() { globeCanvasItem.requestPaint() }
         function onNowMsChanged() { globeCanvasItem.requestPaint() }
         function onWorldDataChanged() { globeCanvasItem.requestPaint() }
         function onCityDataChanged() { globeCanvasItem.requestPaint() }
-        function onCitiesChanged() { globeCanvasItem.requestPaint() }
     }
 
     Component.onCompleted: globeCanvasItem.requestPaint()
