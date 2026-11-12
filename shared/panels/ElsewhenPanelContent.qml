@@ -14,7 +14,9 @@ Item {
     property string searchText: ""
     property string statusMessage: ""
     property real globeSpin: 0
+    property real globeViewLat: 0
     property real globeDragX: 0
+    property real globeDragY: 0
     readonly property var contentRoot: panel
     property bool timezoneConfirmationVisible: false
     property int peopleEditIndex: -1
@@ -29,6 +31,8 @@ Item {
     onKeyboardFocusIdChanged: keyboardFocusKey = ""
     readonly property double effectiveMs: (service.nowMs !== undefined ? service.nowMs : Date.now()) + scrubMinutes * 60000
     readonly property bool hour24: service.preferenceData ? service.preferenceData.hour24 === true : false
+    readonly property var hereZone: Model.resolveHere(null,
+        service.preferenceData ? service.preferenceData.homeCity : "", service.localZone)
     readonly property var displayRows: {
         var zones = service.cities || []
         var probeData = service.probe || ({})
@@ -52,6 +56,8 @@ Item {
     property alias globeDragArea: globeDragArea
     property alias changeTimezoneButton: changeTimezoneAction
     property alias confirmTimezoneButton: confirmTimezoneAction
+    onGlobeSpinChanged: globeCanvasItem.requestPaint()
+    onGlobeViewLatChanged: globeCanvasItem.requestPaint()
     focus: true
     Keys.priority: Keys.AfterItem
     Keys.onPressed: function(event) {
@@ -176,6 +182,39 @@ Item {
             else if (top + row.height > flick.contentY + flick.height)
                 flick.contentY = Math.max(0, Math.min(flick.contentHeight - flick.height, top + row.height - flick.height))
         }
+        return true
+    }
+
+    function tapGlobeAt(x, y) {
+        var point = globeCanvasItem.mapFromItem(globeDragArea, x, y)
+        var cx = globeCanvasItem.width / 2, cy = globeCanvasItem.height / 2
+        var radius = globePaintRadius(globeCanvasItem.width, globeCanvasItem.height)
+        var cities = service.cities || []
+        var hit = -1, bestDistance = 64
+        for (var i = 0; i < cities.length; i++) {
+            var place = placeForCity(cities[i])
+            if (!place) continue
+            var marker = Globe.project(place.lat, place.lon, globeSpin, globeViewLat, radius)
+            if (!marker.visible) continue
+            var dx = point.x - cx - marker.x, dy = point.y - cy - marker.y
+            var distance = dx * dx + dy * dy
+            if (distance <= bestDistance) { hit = i; bestDistance = distance }
+        }
+        if (hit < 0) return false
+
+        var city = cities[hit]
+        var place = placeForCity(city)
+        focusCity(hit)
+        globeViewAnimation.stop()
+        globeViewAnimation.from = globeViewLat
+        globeViewAnimation.to = Math.max(-70, Math.min(70, Number(place.lat)))
+        globeViewAnimation.restart()
+
+        var preference = service.preferenceData || ({})
+        var homeOverride = String(preference.homeCity || "")
+        var nextHome = Model.homeCityAfterTap(city.label, city.id, homeOverride, service.localZone)
+        if (nextHome !== null && !service.updateSetting("homeCity", nextHome))
+            statusMessage = service.lastError
         return true
     }
 
@@ -352,9 +391,11 @@ Item {
                 height: 28
                 spacing: 8
                 SharedComponents.UiText {
+                    objectName: "elsewhen-here-city"
                     width: parent.width - refreshAction.width - 8
                     height: parent.height
-                    text: "World clock"
+                    text: panel.hereZone && panel.hereZone.chosen
+                        ? "Here now · " + panel.hereZone.label : "World clock"
                     color: panel.root.ink
                     font.pixelSize: 14
                     font.bold: true
@@ -536,7 +577,7 @@ Item {
                             ctx.beginPath()
                             var started = false
                             for (var lon = -180; lon <= 180; lon += 4) {
-                                var point = Globe.project(lat, lon, spin, 0, radius)
+                                var point = Globe.project(lat, lon, spin, panel.globeViewLat, radius)
                                 if (!point.visible) { started = false; continue }
                                 if (!started) { ctx.moveTo(cx + point.x, cy + point.y); started = true }
                                 else ctx.lineTo(cx + point.x, cy + point.y)
@@ -548,7 +589,7 @@ Item {
                         for (var ringIndex = 0; ringIndex < panel.service.worldData.length; ringIndex++) {
                             var ring = panel.service.worldData[ringIndex]
                             if (!Array.isArray(ring) || ring.length < 8) continue
-                            var clipped = Globe.clipRingToDisc(ring, spin, 0, radius * 0.98)
+                            var clipped = Globe.clipRingToDisc(ring, spin, panel.globeViewLat, radius * 0.98)
                             if (clipped.length < 3) continue
                             ctx.beginPath()
                             ctx.moveTo(cx + clipped[0].x, cy + clipped[0].y)
@@ -565,11 +606,11 @@ Item {
                             var city = panel.service.cities[cityIndex]
                             var place = panel.placeForCity(city)
                             if (!place) continue
-                            var marker = Globe.project(place.lat, place.lon, spin, 0, radius)
+                            var marker = Globe.project(place.lat, place.lon, spin, panel.globeViewLat, radius)
                             if (!marker.visible) continue
                             ctx.beginPath()
                             ctx.arc(cx + marker.x, cy + marker.y, 2.4, 0, Math.PI * 2)
-                            ctx.fillStyle = Globe.isDaylight(place[2], place[3], sun)
+                            ctx.fillStyle = Globe.isDaylight(place.lat, place.lon, sun)
                                 ? panel.root.seal.toString() : panel.root.ink.toString()
                             ctx.fill()
                         }
@@ -586,12 +627,30 @@ Item {
                     anchors.fill: parent
                     acceptedButtons: Qt.LeftButton
                     cursorShape: Qt.OpenHandCursor
-                    onPressed: function(mouse) { panel.globeDragX = mouse.x; cursorShape = Qt.ClosedHandCursor }
-                    onReleased: cursorShape = Qt.OpenHandCursor
+                    property bool moved: false
+                    onPressed: function(mouse) {
+                        panel.globeDragX = mouse.x
+                        panel.globeDragY = mouse.y
+                        moved = false
+                        cursorShape = Qt.ClosedHandCursor
+                    }
+                    onReleased: function(mouse) {
+                        cursorShape = Qt.OpenHandCursor
+                        if (!moved) panel.tapGlobeAt(mouse.x, mouse.y)
+                    }
+                    onCanceled: {
+                        moved = false
+                        cursorShape = Qt.OpenHandCursor
+                    }
                     onPositionChanged: function(mouse) {
                         if (!pressed) return
-                        panel.globeSpin = (panel.globeSpin + (mouse.x - panel.globeDragX) * 0.7 + 360) % 360
+                        var dx = mouse.x - panel.globeDragX
+                        var dy = mouse.y - panel.globeDragY
+                        if (Math.abs(dx) + Math.abs(dy) > 2) moved = true
+                        panel.globeSpin = (panel.globeSpin + dx * 0.7 + 360) % 360
+                        panel.globeViewLat = Math.max(-70, Math.min(70, panel.globeViewLat + dy * 0.35))
                         panel.globeDragX = mouse.x
+                        panel.globeDragY = mouse.y
                         globeCanvasItem.requestPaint()
                     }
                 }
@@ -684,6 +743,14 @@ Item {
         id: globeFocusAnimation
         target: panel
         property: "globeSpin"
+        duration: 500
+        easing.type: Easing.OutCubic
+    }
+
+    NumberAnimation {
+        id: globeViewAnimation
+        target: panel
+        property: "globeViewLat"
         duration: 500
         easing.type: Easing.OutCubic
     }

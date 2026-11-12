@@ -88,7 +88,7 @@ Item {
     }
 
     function updateSetting(name, value) {
-        var writable = ["cities", "zones", "hour24", "offsetMode", "globeEnabled", "smoothMotion", "homeZone", "units"]
+        var writable = ["cities", "zones", "hour24", "offsetMode", "globeEnabled", "smoothMotion", "homeZone", "homeCity", "units"]
         if (writable.indexOf(name) < 0) {
             lastError = "Unsupported Elsewhen setting: " + name
             return false

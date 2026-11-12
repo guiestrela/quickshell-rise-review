@@ -1,6 +1,7 @@
 import QtQuick
 import QtTest
 import "../shared/panels" as Panels
+import "../shared/integrations/elsewhen/GlobeModel.js" as Globe
 
 Item {
     id: testRoot
@@ -215,6 +216,51 @@ Item {
             verify(first.dragArea !== null)
             mouseDrag(first.dragArea, 30, 30, 0, 104, Qt.LeftButton)
             compare(fakeService.moveRequests, 1)
+        }
+
+        function test_globe_marker_click_selects_city_and_sets_local_home() {
+            var oldPreferenceData = fakeService.preferenceData
+            var oldLocalZone = fakeService.localZone
+            var oldCities = fakeService.cities
+            var oldClockRows = fakeService.clockRows
+            var oldFocus = content.keyboardFocusId
+            var oldFocusKey = content.keyboardFocusKey
+            var oldTarget = content.timezoneTarget
+            var oldSpin = content.globeSpin
+            var oldViewLat = content.globeViewLat
+            fakeService.localZone = "Asia/Manila"
+            fakeService.cities = [{ label: "Cebu", id: "Asia/Manila", lat: 10.3157, lon: 123.8854 }]
+            fakeService.clockRows = [{ label: "Cebu", id: "Asia/Manila", time: "13:00", offset: "UTC+8", abbr: "PHT", ready: true, offsetMinutes: 480, progress: 0.5, lit: true }]
+            fakeService.preferenceData = Object.assign({}, oldPreferenceData)
+            try {
+                var city = fakeService.cities[0]
+                var place = content.placeForCity(city)
+                var radius = content.globePaintRadius(content.globeCanvas.width, content.globeCanvas.height)
+                var marker = Globe.project(place.lat, place.lon, content.globeSpin, 0, radius)
+                verify(marker.visible)
+                var point = content.globeCanvas.mapToItem(content.globeDragArea,
+                    content.globeCanvas.width / 2 + marker.x,
+                    content.globeCanvas.height / 2 + marker.y)
+                mouseClick(content.globeDragArea, point.x, point.y, Qt.LeftButton)
+                compare(content.keyboardFocusId, "Asia/Manila")
+                compare(content.timezoneTarget, "Asia/Manila")
+                compare(fakeService.preferenceData.homeCity, "Cebu")
+                tryVerify(function() { return Math.abs(content.globeSpin - 123.8854) < 0.5 }, 900)
+                tryVerify(function() { return Math.abs(content.globeViewLat - 10.3157) < 0.5 }, 900)
+                var hereLabel = findChild(content, "elsewhen-here-city")
+                verify(hereLabel !== null)
+                tryCompare(hereLabel, "text", "Here now · Cebu")
+            } finally {
+                fakeService.localZone = oldLocalZone
+                fakeService.cities = oldCities
+                fakeService.clockRows = oldClockRows
+                fakeService.preferenceData = oldPreferenceData
+                content.keyboardFocusId = oldFocus
+                content.keyboardFocusKey = oldFocusKey
+                content.timezoneTarget = oldTarget
+                content.globeSpin = oldSpin
+                content.globeViewLat = oldViewLat
+            }
         }
 
         function test_city_click_focuses_city_and_rotates_globe_without_drag() {
@@ -713,6 +759,14 @@ Item {
             var before = content.globeSpin
             mouseDrag(content.globeDragArea, 40, 80, 32, 0, Qt.LeftButton)
             verify(content.globeSpin !== before)
+        }
+
+        function test_globe_vertical_drag_tilts_projection_without_tapping_city() {
+            var before = content.globeViewLat
+            var focusBefore = content.keyboardFocusKey
+            mouseDrag(content.globeDragArea, 40, 80, 0, 20, Qt.LeftButton)
+            compare(content.globeViewLat, before + 7)
+            compare(content.keyboardFocusKey, focusBefore)
         }
 
         function test_globe_tiny_width_has_nonnegative_canvas_geometry() {

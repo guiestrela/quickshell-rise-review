@@ -134,6 +134,10 @@ ShellRoot {
                     test.fail("setting update did not update the in-memory clock format")
                     return
                 }
+                if (!service.updateSetting("homeCity", "Cebu") || service.preferenceData.homeCity !== "Cebu") {
+                    test.fail("the local city override was not accepted as a setting")
+                    return
+                }
                 test.phase = 3
                 test.phaseTicks = 0
             } else if (test.phase === 3) {

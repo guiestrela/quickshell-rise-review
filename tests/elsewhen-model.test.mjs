@@ -107,6 +107,13 @@ test("weather fixtures parse temperatures per requested city and reject malforme
   assert.equal(Model.tempLabel(parsed["Tokyo|Asia/Tokyo"], "F"), "65°F");
 });
 
+test("globe taps update the local-city override only for the machine zone", () => {
+  assert.equal(Model.homeCityAfterTap("Cebu", "Asia/Manila", "", "Asia/Manila"), "Cebu");
+  assert.equal(Model.homeCityAfterTap("Cebu", "Asia/Manila", "Cebu", "Asia/Manila"), null);
+  assert.equal(Model.homeCityAfterTap("Manila", "Asia/Manila", "Cebu", "Asia/Manila"), "");
+  assert.equal(Model.homeCityAfterTap("Tokyo", "Asia/Tokyo", "Cebu", "Asia/Manila"), null);
+});
+
 test("bundled globe data and orthographic projection are usable offline", () => {
   const land = JSON.parse(read("world.json"));
   const cities = JSON.parse(read("cities.json"));
