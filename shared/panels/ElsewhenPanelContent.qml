@@ -117,7 +117,7 @@ Item {
         if (place.id === service.localZone && hereZone && place.label === hereZone.label) return "home"
         return place.tracked ? "tracked" : ""
     }
-    readonly property bool globeFooterDaylight: globeFooterPlace && globeFooterRow && globeFooterRow.ready
+    readonly property bool globeFooterDaylight: globeFooterPlace
         ? Globe.isDaylight(globeFooterPlace.lat, globeFooterPlace.lon, Globe.subsolarPoint(effectiveMs)) : false
     readonly property real globeFooterMoonPhase: moonPhase
     readonly property var searchResults: typeof service.searchLocations === "function"
@@ -1162,8 +1162,7 @@ Item {
                         Elsewhen.MoonDot {
                             objectName: "elsewhen-globe-footer-moon"
                             anchors.fill: parent
-                            visible: panel.globeFooterRow && panel.globeFooterRow.ready
-                                && !panel.globeFooterDaylight
+                            visible: panel.globeFooterPlace !== null && !panel.globeFooterDaylight
                             phase: panel.globeFooterMoonPhase
                             color: panel.root.ink
                         }

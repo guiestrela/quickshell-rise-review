@@ -1352,6 +1352,41 @@ Item {
             }
         }
 
+        function test_globe_footer_moon_uses_coordinates_while_timezone_probe_pending() {
+            var oldProbe = fakeService.probe
+            var oldNowMs = fakeService.nowMs
+            var oldKey = content.globeSelectionKey
+            var oldLabel = content.globeSelectionLabel
+            var oldZone = content.globeSelectionZone
+            var oldExpanded = content.globeExpanded
+            try {
+                fakeService.probe = ({})
+                content.globeExpanded = true
+                content.globeSelectionKey = content.globeCityIdentity(fakeService.cities[0])
+                content.globeSelectionLabel = "Paris"
+                content.globeSelectionZone = "Europe/Paris"
+                var moon = findChild(content, "elsewhen-globe-footer-moon")
+                verify(moon !== null)
+
+                fakeService.nowMs = Date.UTC(2024, 2, 20, 0, 0, 0)
+                compare(content.globeFooterRow.ready, false)
+                tryCompare(moon, "visible", true)
+                verify(!content.globeFooterDaylight)
+
+                fakeService.nowMs = Date.UTC(2024, 2, 20, 12, 0, 0)
+                compare(content.globeFooterRow.ready, false)
+                tryCompare(moon, "visible", false)
+                verify(content.globeFooterDaylight)
+            } finally {
+                fakeService.probe = oldProbe
+                fakeService.nowMs = oldNowMs
+                content.globeSelectionKey = oldKey
+                content.globeSelectionLabel = oldLabel
+                content.globeSelectionZone = oldZone
+                content.globeExpanded = oldExpanded
+            }
+        }
+
         function test_globe_jump_adds_only_a_temporary_map_city() {
             var oldResults = fakeService.searchPlaceResults
             var oldCities = fakeService.cities
