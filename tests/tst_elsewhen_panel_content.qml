@@ -172,6 +172,94 @@ Item {
             verify(content.cityList.visible)
         }
 
+        function test_city_row_hover_shows_local_greeting_until_pointer_leaves() {
+            var oldNowMs = fakeService.nowMs
+            var oldProbe = fakeService.probe
+            var row = content.cityList.itemAtIndex(0)
+            try {
+                mouseMove(testRoot, testRoot.width - 1, testRoot.height - 1)
+                fakeService.nowMs = Date.UTC(2024, 2, 20, 8, 0, 0)
+                fakeService.probe = Object.assign({}, oldProbe, {
+                    "Europe/Paris": { offsetMinutes: 60, abbr: "CET" }
+                })
+                wait(40)
+                var dateLine = findChild(row, "elsewhen-city-date-line")
+                var greetingLine = findChild(row, "elsewhen-city-greeting-line")
+                verify(dateLine !== null && greetingLine !== null)
+                tryVerify(function() { return dateLine.visible })
+                tryVerify(function() { return !row.hovered }, 500)
+                tryCompare(greetingLine, "visible", false, 500)
+
+                mouseMove(row, row.width / 2, row.height / 2)
+                tryCompare(greetingLine, "visible", true, 500)
+                tryCompare(dateLine, "visible", false, 500)
+                var greeting = findChild(greetingLine, "elsewhen-city-greeting-text")
+                verify(greeting !== null)
+                compare(greeting.text, "Bonjour")
+
+                mouseMove(testRoot, testRoot.width - 1, testRoot.height - 1)
+                tryCompare(dateLine, "visible", true, 500)
+                tryCompare(greetingLine, "visible", false, 500)
+            } finally {
+                mouseMove(testRoot, testRoot.width - 1, testRoot.height - 1)
+                fakeService.nowMs = oldNowMs
+                fakeService.probe = oldProbe
+            }
+        }
+
+        function test_city_row_greeting_slot_is_fixed_and_hides_without_ready_probe() {
+            var oldNowMs = fakeService.nowMs
+            var oldProbe = fakeService.probe
+            var oldClockRows = fakeService.clockRows
+            var oldPeopleEditIndex = content.peopleEditIndex
+            var row = content.cityList.itemAtIndex(0)
+            try {
+                mouseMove(testRoot, testRoot.width - 1, testRoot.height - 1)
+                fakeService.nowMs = Date.UTC(2024, 2, 20, 8, 0, 0)
+                fakeService.probe = Object.assign({}, oldProbe, {
+                    "Europe/Paris": { offsetMinutes: 60, abbr: "CET" }
+                })
+                wait(40)
+                var slot = findChild(row, "elsewhen-city-date-slot")
+                var dateLine = findChild(row, "elsewhen-city-date-line")
+                var greetingLine = findChild(row, "elsewhen-city-greeting-line")
+                var date = findChild(row, "elsewhen-city-date")
+                verify(slot !== null && dateLine !== null && greetingLine !== null && date !== null)
+                compare(slot.implicitHeight, dateLine.implicitHeight)
+                compare(slot.height, dateLine.implicitHeight)
+                compare(dateLine.y, greetingLine.y)
+                verify(greetingLine.implicitHeight <= slot.height)
+                var slotHeight = slot.height
+
+                mouseMove(row, row.width / 2, row.height / 2)
+                tryCompare(greetingLine, "visible", true, 500)
+                compare(slot.height, slotHeight)
+                compare(slot.implicitHeight, slotHeight)
+                content.peopleEditIndex = 0
+                verify(!row.greetingVisible)
+                verify(!slot.visible)
+                content.peopleEditIndex = -1
+
+                fakeService.probe = ({})
+                fakeService.clockRows = [
+                    { label: "Paris", id: "Europe/Paris", ready: false },
+                    { label: "Tokyo", id: "Asia/Tokyo", ready: false }
+                ]
+                wait(40)
+                mouseMove(row, row.width / 2, row.height / 2)
+                tryVerify(function() { return row.hovered }, 500)
+                compare(row.rowData.ready, false)
+                verify(!row.greetingVisible)
+                compare(date.text, "…")
+            } finally {
+                mouseMove(testRoot, testRoot.width - 1, testRoot.height - 1)
+                content.peopleEditIndex = oldPeopleEditIndex
+                fakeService.nowMs = oldNowMs
+                fakeService.probe = oldProbe
+                fakeService.clockRows = oldClockRows
+            }
+        }
+
         function test_weather_temperature_is_city_specific_and_uses_units() {
             fakeService.weather = ({
                 "Paris|Europe/Paris": { c: 20, w: 0, at: 1, lat: 48.85, lon: 2.35 },

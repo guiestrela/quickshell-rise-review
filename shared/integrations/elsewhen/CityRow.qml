@@ -4,6 +4,7 @@ import QtQuick.Controls
 import "../../components" as SharedComponents
 import "Model.js" as Model
 import "GlobeModel.js" as Globe
+import "Greetings.js" as Greet
 import "." as Elsewhen
 
 Rectangle {
@@ -22,6 +23,8 @@ Rectangle {
   readonly property var people: modelData.people || []
   readonly property bool editingPeople: panel.peopleEditIndex === index
   readonly property bool hovered: rowHover.hovered
+  readonly property bool greetingVisible: hovered && row.rowData.ready === true && !editingPeople
+  readonly property var greeting: Greet.greeting(row.rowData.id || modelData.id, row.rowData.ready === true ? row.rowData.hour : 0)
   readonly property bool removable: panel.displayRows ? panel.displayRows.length > 1 : true
   readonly property bool keyboardFocused: panel.keyboardFocusId !== undefined
     && String(panel.keyboardFocusId || "") !== ""
@@ -165,17 +168,56 @@ Rectangle {
         Keys.onEscapePressed: row.panel.cancelPeopleEdit()
       }
 
-      SharedComponents.UiText {
-        objectName: "elsewhen-city-date"
+      Item {
+        objectName: "elsewhen-city-date-slot"
         width: parent.width
+        height: dateLine.implicitHeight
+        implicitHeight: dateLine.implicitHeight
         visible: !row.editingPeople
-        text: row.rowData.ready === true
-          ? String(row.rowData.date || "") + (row.rowData.dayLabel ? "  ·  " + row.rowData.dayLabel : "")
-          : "…"
-        color: row.fainter
-        font.family: row.fontFamily
-        font.pixelSize: 9
-        elide: Text.ElideRight
+        Row {
+          id: dateLine
+          objectName: "elsewhen-city-date-line"
+          width: parent.width
+          opacity: row.greetingVisible ? 0 : 1
+          visible: opacity > 0
+          Behavior on opacity { NumberAnimation { duration: 110 } }
+          SharedComponents.UiText {
+            objectName: "elsewhen-city-date"
+            width: parent.width
+            text: row.rowData.ready === true
+              ? String(row.rowData.date || "") + (row.rowData.dayLabel ? "  ·  " + row.rowData.dayLabel : "")
+              : "…"
+            color: row.fainter
+            font.family: row.fontFamily
+            font.pixelSize: 9
+            elide: Text.ElideRight
+          }
+        }
+        Row {
+          id: greetingLine
+          objectName: "elsewhen-city-greeting-line"
+          width: parent.width
+          spacing: 4
+          opacity: row.greetingVisible ? 1 : 0
+          visible: opacity > 0
+          Behavior on opacity { NumberAnimation { duration: 110 } }
+          SharedComponents.UiText {
+            objectName: "elsewhen-city-greeting-text"
+            text: row.greeting.text
+            color: row.foreground
+            font.family: row.fontFamily
+            font.pixelSize: 9
+            elide: Text.ElideRight
+          }
+          SharedComponents.UiText {
+            objectName: "elsewhen-city-greeting-roman"
+            text: row.greeting.roman
+            visible: text !== ""
+            color: row.fainter
+            font.family: row.fontFamily
+            font.pixelSize: 9
+          }
+        }
       }
     }
 

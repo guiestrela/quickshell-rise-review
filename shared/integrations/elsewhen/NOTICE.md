@@ -20,3 +20,13 @@ Permission is hereby granted, free of charge, to any person obtaining a copy of 
 The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
 
 THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+
+## Omarchy greetings port
+
+`Greetings.js` is copied from Omarchy Elsewhen 1.1.0 by Jason Fried:
+
+- Source: https://github.com/omacom/omarchy/tree/quattro/shell/plugins/panels/elsewhen/Greetings.js
+- The Omarchy Elsewhen manifest declares MIT; see https://github.com/omacom/omarchy/blob/quattro/LICENSE
+- Copyright (c) 2026 Jason Fried
+
+The notice and MIT permission/warranty terms above apply to the copied source.
