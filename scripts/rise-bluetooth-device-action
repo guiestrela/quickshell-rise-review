@@ -21,10 +21,38 @@ def main():
         print("Bluetooth device address is invalid.", file=sys.stderr)
         return 2
 
-    commands = f"select {adapter}\n{phase} {mac}\nquit\n"
+    # BlueZ exposes hciN as an object path, but bluetoothctl selects by address.
+    # Resolve the exact owning adapter; never fall back to another controller.
+    try:
+        controller = subprocess.run(
+            ["/usr/bin/busctl", "--system", "--timeout=5s", "get-property",
+             "org.bluez", f"/org/bluez/{adapter}", "org.bluez.Adapter1", "Address"],
+            text=True, capture_output=True, timeout=6, check=False,
+        )
+    except subprocess.TimeoutExpired:
+        print("Bluetooth controller lookup timed out.", file=sys.stderr)
+        return 124
+    except OSError as error:
+        print(f"Could not query Bluetooth controller: {error}", file=sys.stderr)
+        return 127
+    address = re.fullmatch(r's "((?:[0-9A-Fa-f]{2}:){5}[0-9A-Fa-f]{2})"', controller.stdout.strip())
+    if controller.returncode != 0 or not address:
+        print(f"Bluetooth controller {adapter} is unavailable.", file=sys.stderr)
+        return 1
+
+    commands = f"select {address.group(1)}\n{phase} {mac}\nquit\n"
+    command = ["/usr/bin/bluetoothctl"]
+    if phase in {"connect", "disconnect"}:
+        # These methods are asynchronous inside bluetoothctl: piping quit after
+        # them can exit before the reply. busctl waits for the BlueZ method reply
+        # and addresses the device on its exact owning adapter.
+        device_path = f"/org/bluez/{adapter}/dev_{mac.upper().replace(':', '_')}"
+        command = ["/usr/bin/busctl", "--system", "--timeout=11s", "call",
+                   "org.bluez", device_path, "org.bluez.Device1", phase.capitalize()]
+        commands = None
     try:
         result = subprocess.run(
-            ["/usr/bin/bluetoothctl"],
+            command,
             input=commands,
             text=True,
             capture_output=True,
