@@ -506,6 +506,62 @@ Item {
             }
         }
 
+        function test_header_compact_layout_switches_at_intrinsic_width_boundary() {
+            var oldWidth = testRoot.width
+            const header = findChild(content, "elsewhen-world-clock-header")
+            verify(header !== null)
+            const oldHeaderWidth = header.width
+            try {
+                testRoot.width = 800
+                wait(80)
+                const titleRow = findChild(header, "elsewhen-world-title-row")
+                verify(titleRow !== null)
+                if (titleRow === null) return
+                const requiredWidth = titleRow.implicitWidth + 2 * (content.refreshButton.width + 8)
+                verify(header.width > requiredWidth)
+
+                testRoot.width += requiredWidth - 1 - header.width
+                tryCompare(header, "width", requiredWidth - 1, 1000)
+                tryCompare(header, "compactLayout", true, 1000)
+                testRoot.width += requiredWidth + 1 - header.width
+                tryCompare(header, "width", requiredWidth + 1, 1000)
+                tryCompare(header, "compactLayout", false, 1000)
+            } finally {
+                testRoot.width = oldWidth
+                tryCompare(header, "width", oldHeaderWidth, 1000)
+            }
+        }
+
+        function test_header_extremely_narrow_keeps_title_inside_header() {
+            var oldWidth = testRoot.width
+            const header = findChild(content, "elsewhen-world-clock-header")
+            verify(header !== null)
+            const oldHeaderWidth = header.width
+            try {
+                testRoot.width = 140
+                wait(80)
+                const titleRow = findChild(header, "elsewhen-world-title-row")
+                const worldTitle = findChild(content, "elsewhen-world-title")
+                const clockTitle = findChild(content, "elsewhen-clock-title")
+                verify(titleRow !== null && worldTitle !== null && clockTitle !== null)
+                if (titleRow === null) return
+                verify(header.compactLayout)
+                const contentBox = content.mapToItem(testRoot, 0, 0)
+                const titleBox = titleRow.mapToItem(testRoot, 0, 0)
+                verify(titleRow.width > 0)
+                verify(titleRow.width <= content.width)
+                verify(titleBox.x >= contentBox.x)
+                verify(titleBox.x + titleRow.width <= contentBox.x + content.width)
+                const titleTop = titleRow.mapToItem(content, 0, 0).y
+                const refreshBox = content.refreshButton.mapToItem(content, 0, 0)
+                verify(titleTop >= refreshBox.y + content.refreshButton.height)
+                verify(worldTitle.width > 0 && clockTitle.width > 0)
+            } finally {
+                testRoot.width = oldWidth
+                tryCompare(header, "width", oldHeaderWidth, 1000)
+            }
+        }
+
         function test_arc_caption_falls_back_to_shaped_complex_text() {
             var caption = findChild(content, "elsewhen-here-city")
             verify(caption !== null)

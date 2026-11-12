@@ -194,6 +194,39 @@ Item {
             captureScene("v2-vertical")
         }
 
+        function test_v1_hover_greeting_render() {
+            var oldNowMs = fakeService.nowMs
+            var oldProbe = fakeService.probe
+            var row = null
+            try {
+                load("v1", false, "top")
+                const content = findChild(panelLoader.item, "elsewhen-panel-content")
+                verify(content !== null)
+                row = content.cityList.itemAtIndex(0)
+                verify(row !== null)
+                compare(row.rowData.id, "Europe/Paris")
+                fakeService.nowMs = Date.UTC(2024, 2, 20, 8, 0, 0)
+                fakeService.probe = Object.assign({}, oldProbe, {
+                    "Europe/Paris": { offsetMinutes: 60, abbr: "CET" }
+                })
+                wait(40)
+                const greetingLine = findChild(row, "elsewhen-city-greeting-line")
+                verify(greetingLine !== null)
+                const greetingText = findChild(greetingLine, "elsewhen-city-greeting-text")
+                verify(greetingText !== null)
+                mouseMove(row, row.width / 2, row.height / 2)
+                tryVerify(function() { return row.hovered }, 500)
+                tryCompare(greetingLine, "visible", true, 500)
+                compare(greetingText.text, "Bonjour")
+                captureScene("v1-hover-greeting")
+            } finally {
+                mouseMove(testRoot, testRoot.width - 1, testRoot.height - 1)
+                if (row !== null) tryVerify(function() { return !row.hovered }, 500)
+                fakeService.nowMs = oldNowMs
+                fakeService.probe = oldProbe
+            }
+        }
+
         function test_v1_here_search_render() {
             load("v1", false, "top")
             var content = findChild(panelLoader.item, "elsewhen-panel-content")

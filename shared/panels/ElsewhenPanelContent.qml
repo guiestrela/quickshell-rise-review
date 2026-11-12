@@ -749,6 +749,7 @@ Item {
 
                     Row {
                         id: titleRow
+                        objectName: "elsewhen-world-title-row"
                         anchors.horizontalCenter: parent.horizontalCenter
                         height: 28
                         spacing: 9

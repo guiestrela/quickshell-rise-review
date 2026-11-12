@@ -104,7 +104,7 @@ with tempfile.TemporaryDirectory(prefix="rise-elsewhen-adapters-", dir=SCRATCH) 
     if capture_dir:
         for name in (
             "v1-horizontal", "v1-vertical", "v2-horizontal", "v2-vertical",
-            "v1-here-search", "v2-expanded-globe", "v2-globe-jump-search", "v2-opening-spin", "v2-moon-show",
+            "v1-here-search", "v1-hover-greeting", "v2-expanded-globe", "v2-globe-jump-search", "v2-opening-spin", "v2-moon-show",
         ):
             image = capture_dir / f"{name}.png"
             assert image.is_file(), f"missing rendered capture: {image}"
