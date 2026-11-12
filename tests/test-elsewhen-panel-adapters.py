@@ -18,6 +18,16 @@ with tempfile.TemporaryDirectory(prefix="rise-elsewhen-adapters-", dir=SCRATCH) 
     runtime = base / "runtime"
     runtime.mkdir(mode=0o700)
 
+    # Keep translation/notification calls in the composed adapters, but replace
+    # only host I/O. qmltestrunner cannot register Quickshell's native services.
+    commons = base / "qs/Commons"
+    commons.mkdir(parents=True)
+    (commons / "qmldir").write_text("module qs.Commons\nsingleton I18n 1.0 I18n.qml\n")
+    (commons / "I18n.qml").write_text(
+        'pragma Singleton\nimport QtQuick\nQtObject {\n'
+        '  function t(key) { return key + " %1 %2" }\n}\n'
+    )
+
     for subdir in ("components", "panels", "integrations/elsewhen"):
         source = ROOT / "shared" / subdir
         target = base / "shared" / subdir
@@ -39,6 +49,9 @@ with tempfile.TemporaryDirectory(prefix="rise-elsewhen-adapters-", dir=SCRATCH) 
     host = base / "shared/panels/ElsewhenPanel.qml"
     text = host.read_text()
     text = re.sub(r"^import Quickshell(?:\.[A-Za-z.]+)?\n", "", text, flags=re.M)
+    notification_call = 'Quickshell.execDetached(["omarchy-notification-send", String(message)])'
+    assert notification_call in text, "notification boundary changed; review fixture"
+    text = text.replace(notification_call, 'panel.root.notify(String(message))')
     # The offscreen QtTest harness lacks Quickshell.Io; IPC is exercised separately.
     service_import = 'import "../services" as Services' + chr(10)
     text = text.replace(service_import, "")
@@ -88,7 +101,7 @@ with tempfile.TemporaryDirectory(prefix="rise-elsewhen-adapters-", dir=SCRATCH) 
     )
     env.pop("WAYLAND_DISPLAY", None)
     result = subprocess.run(
-        [RUNNER, "-input", str(base / "tst_elsewhen_panel_adapters.qml")],
+        [RUNNER, "-import", str(base), "-input", str(base / "tst_elsewhen_panel_adapters.qml")],
         env=env,
         capture_output=True,
         text=True,

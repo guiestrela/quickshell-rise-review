@@ -44,10 +44,14 @@ Item {
         property real panelInsetX: 0
         function verticalAnchorY(name) { return 400 }
         function setPanelInsetX(x) { panelInsetX = x }
+        property var notificationMessages: []
+        function notify(message) { notificationMessages = notificationMessages.concat([message]) }
     }
 
     QtObject {
         id: fakeService
+        signal timezoneChanged(string zone)
+        signal timezoneChangeFailed(string zone, string error)
         property var clockRows: [
             { label: "Paris", id: "Europe/Paris", time: "13:00", date: "Wed, Mar 20", dayLabel: "Wednesday", offset: "UTC+1", relative: "+1h", abbr: "CET", ready: true, offsetMinutes: 60, progress: 13 / 24, lit: true },
             { label: "Tokyo", id: "Asia/Tokyo", time: "21:00", date: "Wed, Mar 20", dayLabel: "Wednesday", offset: "UTC+9", relative: "+9h", abbr: "JST", ready: true, offsetMinutes: 540, progress: 21 / 24, lit: false }
@@ -114,6 +118,19 @@ Item {
     TestCase {
         name: "ElsewhenPanelAdapters"
         when: windowShown
+
+        function test_timezone_notifications_through_both_adapters() {
+            for (var variant of ["v1", "v2"]) {
+                load(variant, false, "top")
+                theme.notificationMessages = []
+                fakeService.timezoneChanged("Europe/Paris")
+                compare(theme.notificationMessages.length, 1)
+                verify(theme.notificationMessages[0].indexOf("Europe/Paris") >= 0)
+                fakeService.timezoneChangeFailed("Asia/Tokyo", "fixture denied")
+                compare(theme.notificationMessages.length, 2)
+                verify(theme.notificationMessages[1].indexOf("Asia/Tokyo") >= 0)
+            }
+        }
 
         function load(variant, vertical, position) {
             theme.elsewhenVisible = false

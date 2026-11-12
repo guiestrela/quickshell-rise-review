@@ -13,6 +13,9 @@ with tempfile.TemporaryDirectory(prefix='display-integration-', dir=os.environ['
     root = Path(folder)
     for directory in ('variants', 'core', 'shared'):
         shutil.copytree(repo / directory, root / directory)
+    # The real panel host uses Omarchy translations. Preserve that import in
+    # the native compile graph rather than silently stripping it from fixtures.
+    (root / 'Commons').symlink_to('/usr/share/omarchy/shell/Commons', target_is_directory=True)
     helper = root / 'helper'
     helper.write_text('''#!/usr/bin/python3
 import json, sys, time, os

@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls
 import Quickshell
 import Quickshell.Wayland
+import qs.Commons as Commons
 import "../services" as Services
 
 PanelWindow {
@@ -65,6 +66,14 @@ PanelWindow {
             anchors.margins: 12
             root: panel.root
             service: panel.service
+            notificationSink: function(message) {
+                Quickshell.execDetached(["omarchy-notification-send", String(message)])
+            }
+            notificationFormatter: function(succeeded, location, zone) {
+                return succeeded
+                    ? Commons.I18n.t("elsewhen.timezoneChanged").arg(location).arg(zone)
+                    : Commons.I18n.t("elsewhen.timezoneFailed").arg(zone)
+            }
         }
     }
 }

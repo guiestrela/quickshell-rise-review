@@ -37,6 +37,8 @@ Item {
     property real globeDragY: 0
     readonly property var contentRoot: panel
     property bool timezoneConfirmationVisible: false
+    property var notificationSink: null
+    property var notificationFormatter: null
     readonly property bool panelIsOpen: root.elsewhenVisible !== undefined ? root.elsewhenVisible : true
     onPanelIsOpenChanged: {
         if (!panelIsOpen) {
@@ -51,6 +53,15 @@ Item {
             keyboardFocusKey = ""
             startOpeningSpin()
         }
+    }
+    function notifyTimezoneChange(succeeded, zone) {
+        var location = hereZone ? hereZone.label : zone
+        var message = typeof notificationFormatter === "function"
+            ? notificationFormatter(succeeded, location, zone)
+            : succeeded ? "Now in " + location + ", and the clock is on " + zone
+                         : "Couldn't move the clock to " + zone
+        if (typeof notificationSink === "function") notificationSink(message)
+        else if (root && typeof root.notify === "function") root.notify(message)
     }
     property int peopleEditIndex: -1
     property int draggingCityIndex: -1
@@ -1559,6 +1570,8 @@ Item {
         }
         function onLocalZoneChanged() { if (panel.openingSpinPending) panel.startOpeningSpin() }
         function onPreferenceDataChanged() { if (panel.openingSpinPending) panel.startOpeningSpin() }
+        function onTimezoneChanged(zone) { panel.notifyTimezoneChange(true, zone) }
+        function onTimezoneChangeFailed(zone) { panel.notifyTimezoneChange(false, zone) }
     }
 
     Component.onCompleted: globeCanvasItem.requestPaint()

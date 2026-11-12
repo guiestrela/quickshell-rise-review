@@ -70,6 +70,7 @@ check "AI authentication cache fallback" python3 tests/test-ai-auth-status.py
 check "notification snapshot resilience" python3 tests/test-notification-snapshot.py
 check "notification DND state V1/V2" python3 tests/test-notification-dnd-runtime.py
 check "native network diagnostics, bands and portal" python3 tests/test-network-diagnostics.py
+check "Bluetooth adapter selection and synchronous actions" python3 tests/test-bluetooth-device-action.py
 
 if [[ -x /usr/lib/qt6/bin/qmllint ]]; then
   qmllint=/usr/lib/qt6/bin/qmllint
@@ -104,6 +105,7 @@ check_qml() {
 }
 check_qml
 check "source layout and local imports" python3 tests/test-source-layout.py
+check "native V1/V2 imports and inert monitor lifecycle" python3 tests/test-display-integration.py
 check "Omarchy native indicators" python3 tests/test-omarchy-indicators.py
 check "independent Indicators module V1/V2" python3 tests/test-v2-inline-indicators.py
 check "active Indicators visual centering" python3 tests/test-indicators-visible-centering.py
@@ -120,6 +122,7 @@ check "Elsewhen first-run preference lifecycle" python3 tests/test-elsewhen-firs
 check "Elsewhen settings error recovery" python3 tests/test-elsewhen-settings-errors.py
 check "Elsewhen service lifecycle, persistence and reopen" python3 tests/test-elsewhen-service.py
 check "Elsewhen inert process adapter" python3 tests/test-elsewhen-process-adapter.py
+check "Elsewhen shared IPC ownership" python3 tests/test-elsewhen-ipc.py
 check "Elsewhen world-clock content actions" python3 tests/test-elsewhen-panel-content.py
 check "Elsewhen V1/V2 panel adapters" python3 tests/test-elsewhen-panel-adapters.py
 check "Elsewhen G24 surface style serialization" node --test tests/elsewhen-g24-styles.test.mjs

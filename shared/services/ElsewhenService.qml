@@ -88,6 +88,7 @@ Item {
     signal weatherRequested(var keys, var points, int serial)
     signal profilesRequested(var handles, int serial)
     signal timezoneChanged(string zone)
+    signal timezoneChangeFailed(string zone, string error)
     signal cancelRequested()
     signal settingsLoaded()
 
@@ -226,12 +227,14 @@ Item {
         if (!timezoneRunning || (serial !== undefined && serial !== timezoneSerial)) return false
         timezoneRunning = false
         if (exitCode !== 0) {
+            var failedZone = pendingTimezoneZone
             var message = String(errorText || "").trim()
             timezoneError = message !== "" ? message : "Time-zone change failed (exit " + exitCode + ")"
             pendingTimezoneZone = ""
             pendingHereUpdate = false
             pendingHere = null
             pendingHereCities = null
+            timezoneChangeFailed(failedZone, timezoneError)
             return false
         }
         localZone = pendingTimezoneZone

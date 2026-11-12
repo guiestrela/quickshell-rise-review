@@ -11,6 +11,11 @@ ShellRoot {
     property int probeCount: 0
     property int cancelCount: 0
     property int timezoneCount: 0
+    property int timezoneFailureCount: 0
+    property string lastTimezoneFailureZone: ""
+    property string lastTimezoneFailureMessage: ""
+    property int timezoneSuccessCount: 0
+    property string lastTimezoneSuccessZone: ""
     property int geocodeCount: 0
     property string lastGeocodeQuery: ""
     property int lastGeocodeSerial: 0
@@ -47,6 +52,15 @@ ShellRoot {
             test.timezoneCount++
             test.lastTimezoneZone = zone
             test.lastTimezoneSerial = serial
+        }
+        function onTimezoneChangeFailed(zone, message) {
+            test.timezoneFailureCount++
+            test.lastTimezoneFailureZone = zone
+            test.lastTimezoneFailureMessage = message
+        }
+        function onTimezoneChanged(zone) {
+            test.timezoneSuccessCount++
+            test.lastTimezoneSuccessZone = zone
         }
         function onWeatherRequested(keys, points, serial) {
             test.weatherCount++
@@ -244,7 +258,9 @@ ShellRoot {
                 if (service.acceptTimezoneChange(1, failedTimezoneSerial, "inert helper denied action")
                         || service.timezoneError.indexOf("inert helper denied action") < 0
                         || service.localZone !== "Etc/UTC" || service.preferenceData.here !== undefined
-                        || service.pendingHereUpdate) {
+                        || service.pendingHereUpdate || test.timezoneFailureCount !== 1
+                        || test.lastTimezoneFailureZone !== "Europe/Paris"
+                        || test.lastTimezoneFailureMessage.indexOf("inert helper denied action") < 0) {
                     test.fail("time-zone command failure was not visible or changed local state")
                     return
                 }
@@ -257,7 +273,9 @@ ShellRoot {
                         || service.preferenceData.here.name !== "Paris"
                         || service.preferenceData.here.zone !== "Europe/Paris"
                         || service.preferenceData.here.lat !== 48.8566
-                        || service.preferenceData.homeCity !== undefined) {
+                        || service.preferenceData.homeCity !== undefined
+                        || test.timezoneSuccessCount !== 1
+                        || test.lastTimezoneSuccessZone !== "Europe/Paris") {
                     test.fail("successful time-zone command result was not applied")
                     return
                 }

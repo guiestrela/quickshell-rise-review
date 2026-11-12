@@ -19,10 +19,16 @@ Item {
         property color fillHover: "#3c3836"
         property string mono: "monospace"
         property bool elsewhenVisible: true
+        property var notificationMessages: []
+        function notify(message) {
+            notificationMessages = notificationMessages.concat([String(message)])
+        }
     }
 
     QtObject {
         id: fakeService
+        signal timezoneChanged(string zone)
+        signal timezoneChangeFailed(string zone, string error)
         property var clockRows: [
             { label: "Paris", id: "Europe/Paris", time: "13:00", offset: "UTC+1", abbr: "CET", ready: true, offsetMinutes: 60, progress: 0.5, lit: true },
             { label: "Tokyo", id: "Asia/Tokyo", time: "21:00", offset: "UTC+9", abbr: "JST", ready: true, offsetMinutes: 540, progress: 0.5, lit: true }
@@ -143,6 +149,22 @@ Item {
     TestCase {
         name: "ElsewhenPanelContent"
         when: windowShown
+
+        function test_timezone_change_notifications_are_forwarded() {
+            var originalMessages = fakeTheme.notificationMessages
+            fakeTheme.notificationMessages = []
+            try {
+                fakeService.timezoneChanged("Europe/Paris")
+                compare(fakeTheme.notificationMessages.length, 1)
+                verify(fakeTheme.notificationMessages[0].indexOf("Europe/Paris") >= 0)
+
+                fakeService.timezoneChangeFailed("Asia/Tokyo", "fixture denied")
+                compare(fakeTheme.notificationMessages.length, 2)
+                verify(fakeTheme.notificationMessages[1].indexOf("Asia/Tokyo") >= 0)
+            } finally {
+                fakeTheme.notificationMessages = originalMessages
+            }
+        }
 
         function test_weather_temperature_click_toggles_celsius_fahrenheit() {
             var first = content.cityList.itemAtIndex(0)
