@@ -238,6 +238,8 @@ Item {
             fakeService.preferenceData = Object.assign({}, oldPreferenceData)
             try {
                 var city = { label: "Cebu", id: "Asia/Manila", lat: 10.3157, lon: 123.8854 }
+                content.globeSpin = city.lon
+                content.globeViewLat = 0
                 var radius = content.globePaintRadius(content.globeCanvas.width, content.globeCanvas.height)
                 var marker = Globe.project(city.lat, city.lon, content.globeSpin, content.globeViewLat, radius)
                 verify(marker.visible)
@@ -251,6 +253,7 @@ Item {
                 compare(content.timezoneTarget, "Asia/Manila")
                 compare(fakeService.preferenceData.homeCity, "Cebu")
                 compare(fakeService.cities.length, oldCities.length)
+                wait(400)
             } finally {
                 fakeService.cityData = oldCityData
                 fakeService.localZone = oldLocalZone
@@ -283,8 +286,10 @@ Item {
             try {
                 var city = fakeService.cities[0]
                 var place = content.placeForCity(city)
+                content.globeSpin = city.lon
+                content.globeViewLat = 0
                 var radius = content.globePaintRadius(content.globeCanvas.width, content.globeCanvas.height)
-                var marker = Globe.project(place.lat, place.lon, content.globeSpin, 0, radius)
+                var marker = Globe.project(place.lat, place.lon, content.globeSpin, content.globeViewLat, radius)
                 verify(marker.visible)
                 var point = content.globeCanvas.mapToItem(content.globeDragArea,
                     content.globeCanvas.width / 2 + marker.x,
@@ -298,6 +303,7 @@ Item {
                 var hereLabel = findChild(content, "elsewhen-here-city")
                 verify(hereLabel !== null)
                 tryCompare(hereLabel, "text", "Here now · Cebu")
+                wait(400)
             } finally {
                 fakeService.localZone = oldLocalZone
                 fakeService.cities = oldCities
@@ -317,6 +323,7 @@ Item {
             var previousTarget = content.timezoneTarget
             var previousFocusId = content.keyboardFocusId
             var previousSpin = content.globeSpin
+            var previousViewLat = content.globeViewLat
             try {
                 compare(previousTarget, "Europe/Paris")
                 fakeService.moveRequests = 0
@@ -325,12 +332,15 @@ Item {
                 compare(content.keyboardFocusId, "Asia/Tokyo")
                 compare(second.keyboardFocused, true)
                 tryVerify(function() { return Math.abs(content.globeSpin - 139.69) < 0.5 }, 800)
+                tryVerify(function() { return Math.abs(content.globeViewLat - 35.68) < 0.5 }, 800)
+                wait(400)
                 compare(content.draggingCityIndex, -1)
                 compare(fakeService.moveRequests, 0)
             } finally {
                 content.timezoneTarget = previousTarget
                 content.keyboardFocusId = previousFocusId
                 content.globeSpin = previousSpin
+                content.globeViewLat = previousViewLat
             }
         }
 
@@ -557,14 +567,19 @@ Item {
         }
 
         function test_keyboard_escape_closes_panel() {
-            fakeTheme.elsewhenVisible = true
-            content.scrubMinutes = 0
-            content.timezoneConfirmationVisible = false
-            content.peopleEditIndex = -1
-            content.zoneSearchInput.text = ""
-            content.forceActiveFocus()
-            keyClick(Qt.Key_Escape)
-            compare(fakeTheme.elsewhenVisible, false)
+            var oldVisible = fakeTheme.elsewhenVisible
+            try {
+                fakeTheme.elsewhenVisible = true
+                content.scrubMinutes = 0
+                content.timezoneConfirmationVisible = false
+                content.peopleEditIndex = -1
+                content.zoneSearchInput.text = ""
+                content.forceActiveFocus()
+                keyClick(Qt.Key_Escape)
+                compare(fakeTheme.elsewhenVisible, false)
+            } finally {
+                fakeTheme.elsewhenVisible = oldVisible
+            }
         }
 
         function test_keyboard_h_and_l_shift_clock_by_hour() {
@@ -795,12 +810,74 @@ Item {
         }
 
         function test_globe_can_be_hidden_and_restored() {
-            mouseClick(content.globeToggleButton)
-            compare(fakeService.preferenceData.globeEnabled, false)
-            verify(!content.globeCanvas.visible)
-            mouseClick(content.globeToggleButton)
-            compare(fakeService.preferenceData.globeEnabled, true)
-            verify(content.globeCanvas.visible)
+            var oldPreferences = fakeService.preferenceData
+            try {
+                mouseClick(content.globeToggleButton)
+                compare(fakeService.preferenceData.globeEnabled, false)
+                verify(!content.globeCanvas.visible)
+                mouseClick(content.globeToggleButton)
+                compare(fakeService.preferenceData.globeEnabled, true)
+                verify(content.globeCanvas.visible)
+            } finally {
+                fakeService.preferenceData = oldPreferences
+            }
+        }
+
+        function test_globe_zoom_button_expands_map_and_hides_clock_list() {
+            var oldExpanded = content.globeExpanded
+            try {
+                var zoomButton = findChild(content, "elsewhen-globe-zoom")
+                verify(zoomButton !== null)
+                mouseClick(zoomButton, zoomButton.width / 2, zoomButton.height / 2)
+                compare(content.globeExpanded, true)
+                compare(content.cityList.visible, false)
+                tryCompare(content.globeCanvas, "height", 300, 600)
+                mouseClick(zoomButton, zoomButton.width / 2, zoomButton.height / 2)
+                compare(content.globeExpanded, false)
+                compare(content.cityList.visible, true)
+                wait(400)
+            } finally {
+                content.globeExpanded = oldExpanded
+            }
+        }
+
+        function test_escape_exits_expanded_globe_without_closing_panel() {
+            var oldExpanded = content.globeExpanded
+            var oldVisible = fakeTheme.elsewhenVisible
+            try {
+                content.globeExpanded = true
+                fakeTheme.elsewhenVisible = true
+                content.handleEscape()
+                compare(content.globeExpanded, false)
+                compare(fakeTheme.elsewhenVisible, true)
+            } finally {
+                content.globeExpanded = oldExpanded
+                fakeTheme.elsewhenVisible = oldVisible
+            }
+        }
+
+        function test_keyboard_space_toggles_expanded_globe() {
+            content.forceActiveFocus()
+            keyClick(Qt.Key_Space)
+            compare(content.globeExpanded, true)
+            keyClick(Qt.Key_Space)
+            compare(content.globeExpanded, false)
+            wait(400)
+        }
+
+        function test_panel_close_resets_expanded_globe() {
+            var oldExpanded = content.globeExpanded
+            var oldVisible = fakeTheme.elsewhenVisible
+            try {
+                fakeTheme.elsewhenVisible = true
+                content.globeExpanded = true
+                fakeTheme.elsewhenVisible = false
+                compare(content.panelIsOpen, false)
+                compare(content.globeExpanded, false)
+            } finally {
+                fakeTheme.elsewhenVisible = oldVisible
+                content.globeExpanded = oldExpanded
+            }
         }
 
         function test_globe_drag_rotates_projection() {

@@ -15,6 +15,7 @@ Item {
     property string statusMessage: ""
     property real globeSpin: 0
     property real globeViewLat: 0
+    property bool globeExpanded: false
     property string globeSelectionKey: ""
     property string globeSelectionLabel: ""
     property string globeSelectionZone: ""
@@ -22,6 +23,8 @@ Item {
     property real globeDragY: 0
     readonly property var contentRoot: panel
     property bool timezoneConfirmationVisible: false
+    readonly property bool panelIsOpen: root.elsewhenVisible !== undefined ? root.elsewhenVisible : true
+    onPanelIsOpenChanged: if (!panelIsOpen) globeExpanded = false
     property int peopleEditIndex: -1
     property int draggingCityIndex: -1
     property int rowDragTargetIndex: -1
@@ -56,11 +59,13 @@ Item {
     property alias scrollArea: flick
     property alias globeCanvas: globeCanvasItem
     property alias globeToggleButton: globeToggleAction
+    property alias globeZoomButton: globeZoomAction
     property alias globeDragArea: globeDragArea
     property alias changeTimezoneButton: changeTimezoneAction
     property alias confirmTimezoneButton: confirmTimezoneAction
     onGlobeSpinChanged: globeCanvasItem.requestPaint()
     onGlobeViewLatChanged: globeCanvasItem.requestPaint()
+    onGlobeExpandedChanged: globeCanvasItem.requestPaint()
     focus: true
     Keys.priority: Keys.AfterItem
     Keys.onPressed: function(event) {
@@ -70,6 +75,8 @@ Item {
             handleEscape()
         } else if (zoneSearchInput.activeFocus || peopleEditIndex >= 0) {
             return
+        } else if (event.key === Qt.Key_Space) {
+            toggleGlobeExpanded()
         } else if (event.key === Qt.Key_Up || event.key === Qt.Key_Down
                 || event.text === "k" || event.text === "j") {
             var moveUp = event.key === Qt.Key_Up || event.text === "k"
@@ -175,18 +182,44 @@ Item {
         globeSelectionKey = globeCityIdentity(city)
         globeSelectionLabel = String(city.label || city.id)
         globeSelectionZone = zoneId
-        if (place && isFinite(place.lon)) {
-            globeFocusAnimation.stop()
-            globeFocusAnimation.from = globeSpin
-            globeFocusAnimation.to = globeSpin + Globe.shortestTurn(globeSpin, place.lon)
-            globeFocusAnimation.restart()
-        }
+        faceGlobe(place)
         var row = cityList.itemAtIndex(index)
         if (row) {
             var top = row.mapToItem(flick.contentItem, 0, 0).y
             if (top < flick.contentY) flick.contentY = top
             else if (top + row.height > flick.contentY + flick.height)
                 flick.contentY = Math.max(0, Math.min(flick.contentHeight - flick.height, top + row.height - flick.height))
+        }
+        return true
+    }
+
+    function faceGlobe(place) {
+        if (!place) return false
+        var lat = Number(place.lat), lon = Number(place.lon)
+        if (isFinite(lon)) {
+            globeFocusAnimation.stop()
+            globeFocusAnimation.from = globeSpin
+            globeFocusAnimation.to = globeSpin + Globe.shortestTurn(globeSpin, lon)
+            globeFocusAnimation.restart()
+        }
+        if (isFinite(lat)) {
+            globeViewAnimation.stop()
+            globeViewAnimation.from = globeViewLat
+            globeViewAnimation.to = Math.max(-70, Math.min(70, lat))
+            globeViewAnimation.restart()
+        }
+        return isFinite(lat) || isFinite(lon)
+    }
+
+    function toggleGlobeExpanded() {
+        if (!service.preferenceData || service.preferenceData.globeEnabled === false) return false
+        globeExpanded = !globeExpanded
+        if (globeExpanded) {
+            var index = keyboardFocusKey !== "" ? cityIndexForFocus() : -1
+            var city = index >= 0 ? (service.cities || [])[index] : null
+            var place = city ? placeForCity(city)
+                : (hereZone && hereZone.chosen ? placeForCity({ label: hereZone.label, id: service.localZone }) : null)
+            faceGlobe(place)
         }
         return true
     }
@@ -281,10 +314,7 @@ Item {
         globeSelectionZone = city.id
         timezoneTarget = city.id
         if (city.tracked) focusCity(city.trackedIndex)
-        globeViewAnimation.stop()
-        globeViewAnimation.from = globeViewLat
-        globeViewAnimation.to = Math.max(-70, Math.min(70, Number(city.lat)))
-        globeViewAnimation.restart()
+        else faceGlobe(city)
 
         var preference = service.preferenceData || ({})
         var homeOverride = String(preference.homeCity || "")
@@ -312,7 +342,8 @@ Item {
         else if (scrubMinutes !== 0) {
             scrubHold.stop()
             scrubMinutes = 0
-        } else root.elsewhenVisible = false
+        } else if (globeExpanded) globeExpanded = false
+        else root.elsewhenVisible = false
     }
 
     function scrubTo(rowData, fraction) {
@@ -490,8 +521,9 @@ Item {
                 id: cityList
                 objectName: "elsewhen-city-list"
                 width: parent.width
-                height: contentHeight
+                height: panel.globeExpanded ? 0 : contentHeight
                 implicitHeight: height
+                visible: !panel.globeExpanded
                 clip: false
                 interactive: false
                 model: panel.service.cities && panel.service.cities.length > 0 ? panel.service.cities : panel.service.clockRows || []
@@ -503,6 +535,8 @@ Item {
 
             Row {
                 width: parent.width
+                height: visible ? implicitHeight : 0
+                visible: !panel.globeExpanded
                 spacing: 7
                 TextField {
                     id: zoneSearchInput
@@ -544,7 +578,7 @@ Item {
                 objectName: "elsewhen-search-results"
                 width: parent.width
                 height: visible ? contentHeight : 0
-                visible: panel.searchText.trim().length >= 2 && count > 0
+                visible: !panel.globeExpanded && panel.searchText.trim().length >= 2 && count > 0
                 clip: false
                 interactive: false
                 model: panel.searchResults
@@ -576,7 +610,7 @@ Item {
             SharedComponents.UiText {
                 objectName: "elsewhen-place-search-status"
                 width: parent.width
-                visible: panel.searchText.trim().length >= 3
+                visible: !panel.globeExpanded && panel.searchText.trim().length >= 3
                     && panel.service.placeSearchText === Model.placeQuery(panel.searchText)
                     && panel.searchResults.length === 0
                     && panel.service.placeSearchRunning
@@ -588,7 +622,7 @@ Item {
             SharedComponents.UiText {
                 objectName: "elsewhen-place-search-empty"
                 width: parent.width
-                visible: panel.searchText.trim().length >= 3
+                visible: !panel.globeExpanded && panel.searchText.trim().length >= 3
                     && panel.service.placeSearchText === Model.placeQuery(panel.searchText)
                     && panel.searchResults.length === 0
                     && !panel.service.placeSearchRunning
@@ -603,12 +637,14 @@ Item {
                 spacing: 7
                 ActionButton {
                     id: hour24Action
+                    visible: !panel.globeExpanded
                     label: panel.service.preferenceData.hour24 ? "24-hour" : "12-hour"
                     highlighted: panel.service.preferenceData.hour24 === true
                     onClicked: panel.toggleHour24()
                 }
                 ActionButton {
                     id: globeToggleAction
+                    visible: !panel.globeExpanded
                     label: panel.service.preferenceData.globeEnabled === false ? "Show globe" : "Hide globe"
                     highlighted: panel.service.preferenceData.globeEnabled !== false
                     onClicked: panel.service.updateSetting("globeEnabled", panel.service.preferenceData.globeEnabled === false)
@@ -619,22 +655,42 @@ Item {
                     available: panel.timezoneTarget !== ""
                     onClicked: panel.timezoneConfirmationVisible = true
                 }
+                ActionButton {
+                    id: globeZoomAction
+                    objectName: "elsewhen-globe-zoom"
+                    label: panel.globeExpanded ? "Back" : "Zoom"
+                    highlighted: panel.globeExpanded
+                    available: panel.service.preferenceData.globeEnabled !== false
+                    onClicked: panel.toggleGlobeExpanded()
+                }
             }
 
             Rectangle {
                 width: parent.width
-                height: panel.service.preferenceData.globeEnabled === false ? 0 : 170
-                visible: height > 0
+                height: panel.service.preferenceData.globeEnabled === false ? 0 : (panel.globeExpanded ? 312 : 170)
+                visible: panel.service.preferenceData.globeEnabled !== false
                 color: panel.root.fillIdle
                 radius: 8
                 border.color: panel.root.sep
                 border.width: 1
+                Behavior on height {
+                    NumberAnimation {
+                        duration: panel.service.preferenceData.smoothMotion === false ? 0 : 280
+                        easing.type: Easing.OutCubic
+                    }
+                }
                 Canvas {
                     id: globeCanvasItem
                     objectName: "elsewhen-globe"
                     anchors.centerIn: parent
-                    width: Math.max(0, Math.min(parent.width - 12, 260))
-                    height: 158
+                    width: Math.max(0, Math.min(parent.width - 12, panel.globeExpanded ? 300 : 260))
+                    height: panel.globeExpanded ? 300 : 158
+                    Behavior on height {
+                        NumberAnimation {
+                            duration: panel.service.preferenceData.smoothMotion === false ? 0 : 280
+                            easing.type: Easing.OutCubic
+                        }
+                    }
                     onPaint: {
                         var ctx = getContext("2d")
                         var cx = width / 2
