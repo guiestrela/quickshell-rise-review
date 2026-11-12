@@ -173,6 +173,19 @@ Item {
         keyboardFocusId = zoneId
         keyboardFocusKey = Model.factsKey(cities[index])
         timezoneTarget = zoneId
+        var city = cities[index]
+        var place = city.lat !== undefined && city.lon !== undefined
+            ? { lon: Number(city.lon) } : null
+        if (!place) {
+            var catalogPlace = placeForZone(zoneId)
+            if (catalogPlace) place = { lon: Number(catalogPlace[3]) }
+        }
+        if (place && isFinite(place.lon)) {
+            globeFocusAnimation.stop()
+            globeFocusAnimation.from = globeSpin
+            globeFocusAnimation.to = globeSpin + Globe.shortestTurn(globeSpin, place.lon)
+            globeFocusAnimation.restart()
+        }
         var row = cityList.itemAtIndex(index)
         if (row) {
             var top = row.mapToItem(flick.contentItem, 0, 0).y
@@ -667,6 +680,14 @@ Item {
         statusMessage = ""
         zoneSearchInput.clear()
         return true
+    }
+
+    NumberAnimation {
+        id: globeFocusAnimation
+        target: panel
+        property: "globeSpin"
+        duration: 500
+        easing.type: Easing.OutCubic
     }
 
     Timer {

@@ -113,6 +113,29 @@ Item {
         name: "ElsewhenPanelContent"
         when: windowShown
 
+        function test_weather_temperature_click_toggles_celsius_fahrenheit() {
+            var first = content.cityList.itemAtIndex(0)
+            var oldPrefs = fakeService.preferenceData
+            var oldWeather = fakeService.weather
+            fakeService.preferenceData = Object.assign({}, oldPrefs, { units: "C" })
+            fakeService.weather = ({ "Paris|Europe/Paris": { c: 20, w: 0, at: 1, lat: 48.85, lon: 2.35 } })
+            var temperature = findChild(first, "elsewhen-weather-temperature")
+            var control = findChild(first, "elsewhen-weather-temperature-control")
+            verify(temperature !== null)
+            verify(control !== null)
+            try {
+                tryCompare(temperature, "visible", true)
+                compare(temperature.text, "20°C")
+                var point = control.mapToItem(first, 0, 0)
+                mouseClick(first, point.x + control.width / 2, point.y + control.height / 2)
+                compare(fakeService.preferenceData.units, "F")
+                compare(temperature.text, "68°F")
+            } finally {
+                fakeService.preferenceData = oldPrefs
+                fakeService.weather = oldWeather
+            }
+        }
+
         function test_world_clock_rows_render() {
             compare(content.cityList.count, 2)
             verify(content.cityList.visible)
@@ -194,22 +217,26 @@ Item {
             compare(fakeService.moveRequests, 1)
         }
 
-        function test_city_label_click_selects_timezone_without_drag() {
+        function test_city_click_focuses_city_and_rotates_globe_without_drag() {
             var second = content.cityList.itemAtIndex(1)
             verify(second !== null)
             var previousTarget = content.timezoneTarget
             var previousFocusId = content.keyboardFocusId
+            var previousSpin = content.globeSpin
             try {
                 compare(previousTarget, "Europe/Paris")
                 fakeService.moveRequests = 0
                 mouseClick(second, 24, 27, Qt.LeftButton)
                 compare(content.timezoneTarget, "Asia/Tokyo")
                 compare(content.keyboardFocusId, "Asia/Tokyo")
+                compare(second.keyboardFocused, true)
+                tryVerify(function() { return Math.abs(content.globeSpin - 139.69) < 0.5 }, 800)
                 compare(content.draggingCityIndex, -1)
                 compare(fakeService.moveRequests, 0)
             } finally {
                 content.timezoneTarget = previousTarget
                 content.keyboardFocusId = previousFocusId
+                content.globeSpin = previousSpin
             }
         }
 
@@ -247,8 +274,8 @@ Item {
             compare(fakeService.refreshRequests, 1)
         }
 
-        function test_keyboard_t_and_shift_t_toggle_hour24() {
-            fakeService.preferenceData = Object.assign({}, fakeService.preferenceData, { hour24: false })
+        function test_keyboard_t_and_shift_t_toggle_hour24_and_alt_t_toggle_units() {
+            fakeService.preferenceData = Object.assign({}, fakeService.preferenceData, { hour24: false, units: "C" })
             fakeService.settingsWrites = 0
             content.forceActiveFocus()
             keyClick(Qt.Key_T)
@@ -257,6 +284,9 @@ Item {
             keyClick(Qt.Key_T, Qt.ShiftModifier)
             compare(fakeService.preferenceData.hour24, false)
             compare(fakeService.settingsWrites, 2)
+            keyClick(Qt.Key_T, Qt.AltModifier)
+            compare(fakeService.preferenceData.units, "F")
+            compare(fakeService.settingsWrites, 3)
         }
 
         function test_keyboard_a_focuses_search() {
@@ -556,6 +586,20 @@ Item {
             mouseClick(content.hour24Button, content.hour24Button.width / 2, content.hour24Button.height / 2)
             compare(fakeService.preferenceData.hour24, true)
             compare(fakeService.settingsWrites, 1)
+        }
+
+        function test_city_offset_click_toggles_between_relative_and_utc() {
+            var first = content.cityList.itemAtIndex(0)
+            var original = fakeService.preferenceData
+            fakeService.preferenceData = Object.assign({}, original, { offsetMode: "home" })
+            var offset = findChild(first, "elsewhen-city-offset")
+            verify(offset !== null)
+            try {
+                mouseClick(offset, offset.width / 2, offset.height / 2)
+                compare(fakeService.preferenceData.offsetMode, "utc")
+                mouseClick(offset, offset.width / 2, offset.height / 2)
+                compare(fakeService.preferenceData.offsetMode, "home")
+            } finally { fakeService.preferenceData = original }
         }
 
         function test_city_time_click_toggles_hour_format_each_way() {

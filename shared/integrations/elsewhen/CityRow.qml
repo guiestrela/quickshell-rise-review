@@ -71,16 +71,21 @@ Rectangle {
 
         Item { width: Math.max(0, parent.width - parent.children[0].width - 82); height: 1 }
 
-        SharedComponents.UiText {
-          objectName: "elsewhen-weather-temperature"
+        Item {
+          id: temperatureControl
+          objectName: "elsewhen-weather-temperature-control"
           width: 48
+          height: 14
           visible: row.panel.temperatureFor !== undefined && row.panel.temperatureFor(row.rowData) !== ""
-          text: row.panel.temperatureFor !== undefined ? row.panel.temperatureFor(row.rowData) : ""
-          color: row.dim
-          font.family: row.fontFamily
-          font.pixelSize: 9
-          horizontalAlignment: Text.AlignRight
-          TapHandler { onTapped: row.panel.toggleUnits() }
+          SharedComponents.UiText {
+            objectName: "elsewhen-weather-temperature"
+            anchors.fill: parent
+            text: row.panel.temperatureFor !== undefined ? row.panel.temperatureFor(row.rowData) : ""
+            color: row.dim
+            font.family: row.fontFamily
+            font.pixelSize: 9
+            horizontalAlignment: Text.AlignRight
+          }
         }
       }
 
@@ -280,11 +285,17 @@ Rectangle {
       if (typeof row.panel.cancelRowDrag === "function") row.panel.cancelRowDrag()
       moved = false
     }
-    onClicked: {
-      if (moved || row.panel.timezoneTarget === undefined) return
-      row.panel.timezoneTarget = row.modelData.id
-      if (row.panel.keyboardFocusId !== undefined) row.panel.keyboardFocusId = row.modelData.id
-      if (row.panel.keyboardFocusKey !== undefined) row.panel.keyboardFocusKey = Model.factsKey(row.modelData)
+    onClicked: function(mouse) {
+      if (moved) return
+      if (temperatureControl.visible) {
+        var point = temperatureControl.mapToItem(row, 0, 0)
+        if (mouse.x >= point.x && mouse.x <= point.x + temperatureControl.width
+                && mouse.y >= point.y && mouse.y <= point.y + temperatureControl.height) {
+          row.panel.toggleUnits()
+          return
+        }
+      }
+      if (typeof row.panel.focusCity === "function") row.panel.focusCity(row.index)
     }
   }
 
