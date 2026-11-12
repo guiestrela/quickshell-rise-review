@@ -67,6 +67,18 @@ Item {
     readonly property bool hour24: service.preferenceData ? service.preferenceData.hour24 === true : false
     readonly property var hereZone: Model.resolveHere(service.preferenceData ? service.preferenceData.here : null,
         service.preferenceData ? service.preferenceData.homeCity : "", service.localZone)
+    readonly property string hereLine: {
+        var offset = service.localOffsetMinutes !== undefined
+            ? service.localOffsetMinutes : -(new Date().getTimezoneOffset())
+        var parts = Model.zoneParts(effectiveMs, offset)
+        var localTime = Model.formatTime(parts, hour24)
+            + (hour24 ? "" : " " + Model.meridiem(parts))
+        var line = hereZone && hereZone.chosen
+            ? "It's " + localTime + " here in " + hereZone.label
+            : "It's " + localTime + " here"
+        var shift = Model.formatScrubDelta(scrubMinutes)
+        return line + (shift !== "" ? "  " + shift : "")
+    }
     readonly property var heroRestPlace: {
         var cities = service.cities || []
         if (keyboardFocusKey !== "") {
@@ -275,6 +287,29 @@ Item {
         zoneSearchInput.clear()
         zoneSearchInput.forceActiveFocus()
         return true
+    }
+
+    function handleHereCaptionClick() {
+        if (keyboardFocusKey !== "" || keyboardFocusId !== "") {
+            if (!hereZone) return false
+            var home = { label: hereZone.label, id: hereZone.id,
+                lat: hereZone.lat, lon: hereZone.lon }
+            var place = placeForCity(home)
+            if (!place || !isFinite(Number(place.lat)) || !isFinite(Number(place.lon))) return false
+            var heroFrom = Number(heroSpin)
+            if (!isFinite(heroFrom)) heroFrom = 0
+            keyboardFocusId = ""
+            keyboardFocusKey = ""
+            timezoneTarget = home.id
+            globeSelectionKey = globeCityIdentity(home)
+            globeSelectionLabel = home.label
+            globeSelectionZone = home.id
+            if (typeof service.ensureProbeZone === "function") service.ensureProbeZone(home.id)
+            turnHeroToFocus(place, heroFrom)
+            faceGlobe(place)
+            return true
+        }
+        return startHereSearch()
     }
 
     function startHereSearch() {
@@ -644,83 +679,146 @@ Item {
             width: flick.width
             spacing: 10
 
-            Row {
+            Item {
+                id: worldClockHeader
+                objectName: "elsewhen-world-clock-header"
                 width: parent.width
-                height: 28
-                spacing: 8
-                Item {
-                    objectName: "elsewhen-here-title-target"
-                    width: parent.width - refreshAction.width - heroGlobeButton.width - 16
-                    height: parent.height
-                    SharedComponents.UiText {
-                        objectName: "elsewhen-here-city"
-                        anchors.fill: parent
-                        text: panel.hereZone && panel.hereZone.chosen
-                            ? "Here now · " + panel.hereZone.label : "World clock"
-                        color: panel.root.ink
-                        font.pixelSize: 14
-                        font.bold: true
-                        verticalAlignment: Text.AlignVCenter
+                readonly property bool compactLayout: width < titleRow.implicitWidth + 2 * (refreshAction.width + 8)
+                height: titleArea.implicitHeight + (compactLayout ? refreshAction.height + 8 : 0)
+
+                Column {
+                    id: titleArea
+                    width: worldClockHeader.compactLayout ? parent.width
+                        : Math.max(0, parent.width - 2 * (refreshAction.width + 8))
+                    x: worldClockHeader.compactLayout ? 0 : refreshAction.width + 8
+                    y: worldClockHeader.compactLayout ? refreshAction.height + 8 : 0
+                    spacing: 2
+
+                    Item {
+                        objectName: "elsewhen-here-title-target"
+                        width: parent.width
+                        height: hereCaption.implicitHeight
+
+                        Elsewhen.ArcText {
+                            id: hereCaption
+                            objectName: "elsewhen-here-city"
+                            anchors.fill: parent
+                            text: panel.hereLine
+                            rise: 6
+                            color: panel.scrubMinutes !== 0 ? panel.root.accent : Qt.darker(panel.root.ink, 1.55)
+                            fontFamily: panel.root.mono
+                            pixelSize: 10
+                        }
+                        MouseArea {
+                            objectName: "elsewhen-here-search-button"
+                            anchors.fill: parent
+                            enabled: panel.keyboardFocusKey !== "" || panel.keyboardFocusId !== ""
+                                || (!!panel.service.localZone && !panel.globeExpanded)
+                            activeFocusOnTab: enabled
+                            Accessible.role: Accessible.Button
+                            Accessible.name: panel.keyboardFocusKey !== "" || panel.keyboardFocusId !== ""
+                                ? "Return to home time zone"
+                                : panel.searchMode === "here" ? "Cancel choosing home time zone" : "Choose home time zone"
+                            cursorShape: enabled ? Qt.PointingHandCursor : Qt.ArrowCursor
+                            Keys.onReturnPressed: function(event) {
+                                if (!enabled) return
+                                panel.handleHereCaptionClick()
+                                event.accepted = true
+                            }
+                            Keys.onSpacePressed: function(event) {
+                                if (!enabled) return
+                                panel.handleHereCaptionClick()
+                                event.accepted = true
+                            }
+                            onClicked: panel.handleHereCaptionClick()
+                        }
                     }
-                    MouseArea {
-                        objectName: "elsewhen-here-search-button"
-                        anchors.fill: parent
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: panel.startHereSearch()
-                    }
-                }
-                Item {
-                    id: heroGlobeButton
-                    objectName: "elsewhen-hero-globe-button"
-                    width: 28
-                    height: 28
-                    enabled: panel.service.preferenceData.globeEnabled !== false
-                    Accessible.role: Accessible.Button
-                    Accessible.name: panel.globeExpanded ? "Return to world clock" : "Expand world clock globe"
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 5
-                        color: heroGlobeMouse.containsMouse ? panel.root.fillHover : "transparent"
-                    }
-                    Elsewhen.MiniGlobe {
-                        id: heroGlobeCanvas
-                        objectName: "elsewhen-hero-globe-icon"
-                        anchors.fill: parent
-                        anchors.margins: 3
-                        spin: panel.heroSpin
-                        worldData: panel.service.worldData || []
-                        ink: panel.root.ink
-                        land: panel.root.seal
-                        rotation: Globe.AXIAL_TILT
-                        opacity: panel.globeExpanded ? 0 : 1
-                        visible: opacity > 0
-                        Behavior on opacity { NumberAnimation { duration: 180 } }
-                    }
-                    Text {
-                        anchors.centerIn: parent
-                        text: "×"
-                        color: panel.root.ink
-                        font.pixelSize: 24
-                        rotation: -Globe.AXIAL_TILT
-                        opacity: panel.globeExpanded ? 1 : 0
-                        visible: opacity > 0
-                        Behavior on opacity { NumberAnimation { duration: 180 } }
-                    }
-                    MouseArea {
-                        id: heroGlobeMouse
-                        anchors.fill: parent
-                        enabled: heroGlobeButton.enabled
-                        hoverEnabled: true
-                        acceptedButtons: Qt.LeftButton
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: function(mouse) {
-                            panel.toggleGlobeExpanded((mouse.modifiers & Qt.ShiftModifier) !== 0)
+
+                    Row {
+                        id: titleRow
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        height: 28
+                        spacing: 9
+
+                        Text {
+                            objectName: "elsewhen-world-title"
+                            text: "World"
+                            color: panel.root.ink
+                            font.family: panel.root.mono
+                            font.pixelSize: 14
+                            font.weight: Font.DemiBold
+                            textFormat: Text.PlainText
+                            verticalAlignment: Text.AlignVCenter
+                        }
+
+                        Item {
+                            id: heroGlobeButton
+                            objectName: "elsewhen-hero-globe-button"
+                            width: 28
+                            height: 28
+                            enabled: panel.service.preferenceData.globeEnabled !== false
+                            Accessible.role: Accessible.Button
+                            Accessible.name: panel.globeExpanded ? "Return to world clock" : "Expand world clock globe"
+                            Rectangle {
+                                anchors.fill: parent
+                                radius: 5
+                                color: heroGlobeMouse.containsMouse ? panel.root.fillHover : "transparent"
+                            }
+                            Elsewhen.MiniGlobe {
+                                id: heroGlobeCanvas
+                                objectName: "elsewhen-hero-globe-icon"
+                                anchors.fill: parent
+                                anchors.margins: 3
+                                spin: panel.heroSpin
+                                worldData: panel.service.worldData || []
+                                ink: panel.root.ink
+                                land: panel.root.seal
+                                rotation: Globe.AXIAL_TILT
+                                opacity: panel.globeExpanded ? 0 : 1
+                                visible: opacity > 0
+                                Behavior on opacity { NumberAnimation { duration: 180 } }
+                            }
+                            Text {
+                                anchors.centerIn: parent
+                                text: "×"
+                                color: panel.root.ink
+                                font.pixelSize: 24
+                                rotation: -Globe.AXIAL_TILT
+                                opacity: panel.globeExpanded ? 1 : 0
+                                visible: opacity > 0
+                                Behavior on opacity { NumberAnimation { duration: 180 } }
+                            }
+                            MouseArea {
+                                id: heroGlobeMouse
+                                anchors.fill: parent
+                                enabled: heroGlobeButton.enabled
+                                hoverEnabled: true
+                                acceptedButtons: Qt.LeftButton
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: function(mouse) {
+                                    panel.toggleGlobeExpanded((mouse.modifiers & Qt.ShiftModifier) !== 0)
+                                }
+                            }
+                        }
+
+                        Text {
+                            objectName: "elsewhen-clock-title"
+                            text: "Clock"
+                            color: panel.root.ink
+                            font.family: panel.root.mono
+                            font.pixelSize: 14
+                            font.weight: Font.DemiBold
+                            textFormat: Text.PlainText
+                            verticalAlignment: Text.AlignVCenter
                         }
                     }
                 }
+
                 ActionButton {
                     id: refreshAction
                     label: "Refresh"
+                    x: parent.width - width
+                    y: worldClockHeader.compactLayout ? 0 : (parent.height - height) / 2
                     onClicked: {
                         if (!panel.service.refresh()) panel.statusMessage = panel.service.lastError
                     }

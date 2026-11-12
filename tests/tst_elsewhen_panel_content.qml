@@ -14,6 +14,7 @@ Item {
         property color ink: "#ebdbb2"
         property color seal: "#d79921"
         property color sep: "#504945"
+        property color accent: "#cc241d"
         property color fillIdle: "#282828"
         property color fillHover: "#3c3836"
         property string mono: "monospace"
@@ -331,7 +332,7 @@ Item {
                 tryVerify(function() { return Math.abs(content.globeViewLat - 10.3157) < 0.5 }, 900)
                 var hereLabel = findChild(content, "elsewhen-here-city")
                 verify(hereLabel !== null)
-                tryCompare(hereLabel, "text", "Here now · Cebu")
+                tryCompare(hereLabel, "text", "It's 12:00 PM here in Cebu")
                 wait(400)
             } finally {
                 fakeService.localZone = oldLocalZone
@@ -343,6 +344,260 @@ Item {
                 content.timezoneTarget = oldTarget
                 content.globeSpin = oldSpin
                 content.globeViewLat = oldViewLat
+            }
+        }
+
+        function test_here_caption_arcs_local_time_and_world_clock_title() {
+            var oldNowMs = fakeService.nowMs
+            var oldOffset = fakeService.localOffsetMinutes
+            var oldPreferences = fakeService.preferenceData
+            try {
+                fakeService.nowMs = Date.UTC(2024, 2, 20, 12, 0, 0)
+                fakeService.localOffsetMinutes = 0
+                fakeService.preferenceData = Object.assign({}, oldPreferences, { hour24: false })
+                var caption = findChild(content, "elsewhen-here-city")
+                verify(caption !== null)
+                compare(caption.text, "It's 12:00 PM here")
+                compare(caption.flat, false)
+                compare(caption.pixelSize, 10)
+                compare(caption.color, Qt.darker(fakeTheme.ink, 1.55))
+                verify(caption.width > 0 && caption.height > 0)
+                var worldTitle = findChild(content, "elsewhen-world-title")
+                var clockTitle = findChild(content, "elsewhen-clock-title")
+                verify(worldTitle !== null && clockTitle !== null)
+                var titleLeft = worldTitle.mapToItem(content, 0, 0).x
+                var titleRight = clockTitle.mapToItem(content, clockTitle.width, 0).x
+                verify(Math.abs((titleLeft + titleRight) / 2 - content.width / 2) < 1)
+                verify(Math.abs(caption.mapToItem(content, caption.width / 2, 0).x - content.width / 2) < 1)
+                verify(caption.glyphs.length === caption.text.length && caption.placed.width > 0)
+                var firstGlyph = findChild(caption, "elsewhen-arc-glyph")
+                verify(firstGlyph !== null && firstGlyph.width > 0 && firstGlyph.height > 0)
+                verify(findChild(content, "elsewhen-world-title") !== null)
+                verify(findChild(content, "elsewhen-clock-title") !== null)
+            } finally {
+                fakeService.nowMs = oldNowMs
+                fakeService.localOffsetMinutes = oldOffset
+                fakeService.preferenceData = oldPreferences
+            }
+        }
+
+        function test_header_centering_keeps_title_and_caption_clear_of_refresh_when_narrow() {
+            var oldWidth = testRoot.width
+            try {
+                testRoot.width = 260
+                wait(80)
+                var header = findChild(content, "elsewhen-world-clock-header")
+                var worldTitle = findChild(content, "elsewhen-world-title")
+                var clockTitle = findChild(content, "elsewhen-clock-title")
+                var caption = findChild(content, "elsewhen-here-city")
+                verify(header !== null && worldTitle !== null && clockTitle !== null && caption !== null)
+                compare(header.width, content.width)
+                var titleLeft = worldTitle.mapToItem(content, 0, 0).x
+                var titleRight = clockTitle.mapToItem(content, clockTitle.width, 0).x
+                var titleTop = worldTitle.mapToItem(content, 0, 0).y
+                var titleBottom = clockTitle.mapToItem(content, clockTitle.width, clockTitle.height).y
+                var refreshBox = content.refreshButton.mapToItem(content, 0, 0)
+                var titleOverlapsRefresh = titleRight > refreshBox.x
+                    && titleLeft < refreshBox.x + content.refreshButton.width
+                    && titleBottom > refreshBox.y
+                    && titleTop < refreshBox.y + content.refreshButton.height
+                verify(Math.abs((titleLeft + titleRight) / 2 - content.width / 2) < 1)
+                verify(!titleOverlapsRefresh)
+                var captionLeft = caption.mapToItem(content, 0, 0).x
+                var captionTop = caption.mapToItem(content, 0, 0).y
+                var captionBottom = caption.mapToItem(content, caption.width, caption.height).y
+                var captionOverlapsRefresh = captionLeft + caption.width > refreshBox.x
+                    && captionLeft < refreshBox.x + content.refreshButton.width
+                    && captionBottom > refreshBox.y
+                    && captionTop < refreshBox.y + content.refreshButton.height
+                verify(!captionOverlapsRefresh)
+            } finally {
+                testRoot.width = oldWidth
+            }
+        }
+
+        function test_arc_caption_falls_back_to_shaped_complex_text() {
+            var caption = findChild(content, "elsewhen-here-city")
+            verify(caption !== null)
+            try {
+                caption.text = "العربية"
+                compare(caption.flat, true)
+                compare(caption.glyphs.length, 0)
+                var shapedText = findChild(caption, "elsewhen-arc-flat-text")
+                verify(shapedText !== null && shapedText.visible)
+                compare(shapedText.text, caption.text)
+            } finally {
+                caption.text = Qt.binding(function() { return content.hereLine })
+            }
+        }
+
+        function test_arc_caption_falls_back_for_extended_marks_and_joiners() {
+            var caption = findChild(content, "elsewhen-here-city")
+            verify(caption !== null)
+            var complexTexts = ["a\u0301", "a\u1AB0", "a\u20D0", "\u2764\uFE0F", "A\u200D", "\uD83D\uDC69\u200D\uD83D\uDCBB"]
+            try {
+                for (var i = 0; i < complexTexts.length; i++) {
+                    caption.text = complexTexts[i]
+                    verify(caption.flat)
+                    compare(caption.glyphs.length, 0)
+                    var shapedText = findChild(caption, "elsewhen-arc-flat-text")
+                    verify(shapedText !== null && shapedText.visible)
+                    compare(shapedText.text, complexTexts[i])
+                }
+            } finally {
+                caption.text = Qt.binding(function() { return content.hereLine })
+            }
+        }
+
+        function test_here_caption_action_exposes_accessible_name_and_role() {
+            var captionButton = findChild(content, "elsewhen-here-search-button")
+            var oldFocusId = content.keyboardFocusId
+            var oldFocusKey = content.keyboardFocusKey
+            var oldSearchMode = content.searchMode
+            try {
+                content.keyboardFocusId = ""
+                content.keyboardFocusKey = ""
+                content.searchMode = ""
+                verify(captionButton !== null)
+                compare(captionButton.Accessible.role, Accessible.Button)
+                compare(captionButton.Accessible.name, "Choose home time zone")
+                content.keyboardFocusId = "Asia/Tokyo"
+                compare(captionButton.Accessible.name, "Return to home time zone")
+                content.keyboardFocusId = ""
+                content.searchMode = "here"
+                compare(captionButton.Accessible.name, "Cancel choosing home time zone")
+            } finally {
+                content.keyboardFocusId = oldFocusId
+                content.keyboardFocusKey = oldFocusKey
+                content.searchMode = oldSearchMode
+            }
+        }
+
+        function test_here_caption_action_activates_with_keyboard() {
+            var captionButton = findChild(content, "elsewhen-here-search-button")
+            verify(captionButton !== null && captionButton.enabled)
+            content.searchMode = ""
+            content.searchText = ""
+            content.keyboardFocusId = ""
+            content.keyboardFocusKey = ""
+            content.globeExpanded = false
+            captionButton.forceActiveFocus()
+            keyClick(Qt.Key_Return)
+            compare(content.searchMode, "here")
+            content.searchMode = ""
+            captionButton.forceActiveFocus()
+            keyClick(Qt.Key_Space)
+            compare(content.searchMode, "here")
+            content.searchMode = ""
+            content.forceActiveFocus()
+        }
+
+        function test_here_caption_tracks_scrubbed_time_and_delta() {
+            var oldNowMs = fakeService.nowMs
+            var oldOffset = fakeService.localOffsetMinutes
+            var oldPreferences = fakeService.preferenceData
+            var oldScrub = content.scrubMinutes
+            try {
+                fakeService.nowMs = Date.UTC(2024, 2, 20, 12, 0, 0)
+                fakeService.localOffsetMinutes = 0
+                fakeService.preferenceData = Object.assign({}, oldPreferences, { hour24: false })
+                content.scrubMinutes = 180
+                var caption = findChild(content, "elsewhen-here-city")
+                verify(caption !== null)
+                compare(caption.text, "It's 3:00 PM here  +3h")
+                compare(caption.color, fakeTheme.accent)
+            } finally {
+                fakeService.nowMs = oldNowMs
+                fakeService.localOffsetMinutes = oldOffset
+                fakeService.preferenceData = oldPreferences
+                content.scrubMinutes = oldScrub
+            }
+        }
+
+        function test_here_caption_returns_home_focus_from_expanded_globe() {
+            var oldLocalZone = fakeService.localZone
+            var oldCityData = fakeService.cityData
+            var oldPreferences = fakeService.preferenceData
+            var oldFocusId = content.keyboardFocusId
+            var oldFocusKey = content.keyboardFocusKey
+            var oldTarget = content.timezoneTarget
+            var oldSelectionKey = content.globeSelectionKey
+            var oldSelectionLabel = content.globeSelectionLabel
+            var oldSelectionZone = content.globeSelectionZone
+            var oldExpanded = content.globeExpanded
+            try {
+                fakeService.localZone = "Asia/Manila"
+                fakeService.cityData = oldCityData.concat([["Cebu", "Asia/Manila", 10.3157, 123.8854, 1]])
+                fakeService.preferenceData = Object.assign({}, oldPreferences, {
+                    here: { name: "Cebu", zone: "Asia/Manila", lat: 10.3157, lon: 123.8854 }
+                })
+                content.keyboardFocusId = "Asia/Tokyo"
+                content.keyboardFocusKey = "focused-city"
+                content.timezoneTarget = "Asia/Tokyo"
+                content.globeSelectionKey = "tokyo|Asia/Tokyo"
+                content.globeSelectionLabel = "Tokyo"
+                content.globeSelectionZone = "Asia/Tokyo"
+                content.globeExpanded = true
+                var captionButton = findChild(content, "elsewhen-here-search-button")
+                verify(captionButton !== null && captionButton.enabled)
+                mouseClick(captionButton, captionButton.width / 2, captionButton.height / 2)
+                compare(content.keyboardFocusId, "")
+                compare(content.keyboardFocusKey, "")
+                compare(content.timezoneTarget, fakeService.localZone)
+                compare(content.globeSelectionZone, fakeService.localZone)
+                compare(content.globeSelectionLabel, content.hereZone.label)
+                compare(content.searchMode, "")
+            } finally {
+                fakeService.localZone = oldLocalZone
+                fakeService.cityData = oldCityData
+                fakeService.preferenceData = oldPreferences
+                content.keyboardFocusId = oldFocusId
+                content.keyboardFocusKey = oldFocusKey
+                content.timezoneTarget = oldTarget
+                content.globeSelectionKey = oldSelectionKey
+                content.globeSelectionLabel = oldSelectionLabel
+                content.globeSelectionZone = oldSelectionZone
+                content.globeExpanded = oldExpanded
+            }
+        }
+
+        function test_here_caption_keeps_focus_when_home_place_cannot_be_resolved() {
+            var oldLocalZone = fakeService.localZone
+            var oldCityData = fakeService.cityData
+            var oldFocusId = content.keyboardFocusId
+            var oldFocusKey = content.keyboardFocusKey
+            var oldTarget = content.timezoneTarget
+            var oldSelectionKey = content.globeSelectionKey
+            var oldSelectionLabel = content.globeSelectionLabel
+            var oldSelectionZone = content.globeSelectionZone
+            var oldExpanded = content.globeExpanded
+            try {
+                fakeService.localZone = "Etc/Unavailable"
+                fakeService.cityData = []
+                content.keyboardFocusId = "Asia/Tokyo"
+                content.keyboardFocusKey = "focused-city"
+                content.timezoneTarget = "Asia/Tokyo"
+                content.globeSelectionKey = "tokyo|Asia/Tokyo"
+                content.globeSelectionLabel = "Tokyo"
+                content.globeSelectionZone = "Asia/Tokyo"
+                content.globeExpanded = true
+                var captionButton = findChild(content, "elsewhen-here-search-button")
+                verify(captionButton !== null && captionButton.enabled)
+                mouseClick(captionButton, captionButton.width / 2, captionButton.height / 2)
+                compare(content.keyboardFocusId, "Asia/Tokyo")
+                compare(content.keyboardFocusKey, "focused-city")
+                compare(content.timezoneTarget, "Asia/Tokyo")
+                compare(content.globeSelectionZone, "Asia/Tokyo")
+            } finally {
+                fakeService.localZone = oldLocalZone
+                fakeService.cityData = oldCityData
+                content.keyboardFocusId = oldFocusId
+                content.keyboardFocusKey = oldFocusKey
+                content.timezoneTarget = oldTarget
+                content.globeSelectionKey = oldSelectionKey
+                content.globeSelectionLabel = oldSelectionLabel
+                content.globeSelectionZone = oldSelectionZone
+                content.globeExpanded = oldExpanded
             }
         }
 
@@ -963,6 +1218,8 @@ Item {
             var oldResults = fakeService.searchPlaceResults
             var oldWrites = fakeService.settingsWrites
             var oldMode = content.searchMode
+            var oldFocusId = content.keyboardFocusId
+            var oldFocusKey = content.keyboardFocusKey
             fakeService.preferenceData = { hour24: false, homeCity: "Old override" }
             fakeService.localZone = "Asia/Manila"
             fakeService.searchPlaceResults = [{
@@ -971,6 +1228,8 @@ Item {
             }]
             var clocksBefore = fakeService.cities.length
             try {
+                content.keyboardFocusId = ""
+                content.keyboardFocusKey = ""
                 var hereButton = findChild(content, "elsewhen-here-search-button")
                 verify(hereButton !== null)
                 mouseClick(hereButton, hereButton.width / 2, hereButton.height / 2)
@@ -993,6 +1252,8 @@ Item {
                 fakeService.searchPlaceResults = oldResults
                 fakeService.settingsWrites = oldWrites
                 content.searchMode = oldMode
+                content.keyboardFocusId = oldFocusId
+                content.keyboardFocusKey = oldFocusKey
                 content.zoneSearchInput.text = ""
             }
         }
