@@ -24,7 +24,11 @@ Item {
     property string statusMessage: ""
     property real globeSpin: 0
     property real globeViewLat: 0
+    property real heroSpin: 0
     property bool globeExpanded: false
+    property int globeZoomDuration: 280
+    property int globeZoomEasing: Easing.OutCubic
+    property bool openingSpinPending: false
     property var globeSessionCities: []
     property string globeSelectionKey: ""
     property string globeSelectionLabel: ""
@@ -34,11 +38,19 @@ Item {
     readonly property var contentRoot: panel
     property bool timezoneConfirmationVisible: false
     readonly property bool panelIsOpen: root.elsewhenVisible !== undefined ? root.elsewhenVisible : true
-    onPanelIsOpenChanged: if (!panelIsOpen) {
-        globeExpanded = false
-        searchMode = ""
-        searchText = ""
-        zoneSearchInput.clear()
+    onPanelIsOpenChanged: {
+        if (!panelIsOpen) {
+            openingSpinPending = false
+            openingSpinFallback.stop()
+            globeExpanded = false
+            searchMode = ""
+            searchText = ""
+            zoneSearchInput.clear()
+        } else {
+            keyboardFocusId = ""
+            keyboardFocusKey = ""
+            startOpeningSpin()
+        }
     }
     property int peopleEditIndex: -1
     property int draggingCityIndex: -1
@@ -54,6 +66,16 @@ Item {
     readonly property bool hour24: service.preferenceData ? service.preferenceData.hour24 === true : false
     readonly property var hereZone: Model.resolveHere(service.preferenceData ? service.preferenceData.here : null,
         service.preferenceData ? service.preferenceData.homeCity : "", service.localZone)
+    readonly property var heroRestPlace: {
+        var cities = service.cities || []
+        if (keyboardFocusKey !== "") {
+            for (var i = 0; i < cities.length; i++)
+                if (Model.factsKey(cities[i]) === keyboardFocusKey) return placeForCity(cities[i])
+        }
+        if (!hereZone) return null
+        return placeForCity({ label: hereZone.label, id: hereZone.id, lat: hereZone.lat, lon: hereZone.lon })
+    }
+    readonly property real heroRestLon: heroRestPlace ? Number(heroRestPlace.lon) : 0
     readonly property var displayRows: {
         var zones = service.cities || []
         var probeData = service.probe || ({})
@@ -223,11 +245,14 @@ Item {
         if (index < 0 || index >= cities.length) return false
         var zoneId = String(cities[index].id || "")
         if (!zoneId) return false
+        var heroFrom = Number(heroSpin)
+        if (!isFinite(heroFrom)) heroFrom = 0
         keyboardFocusId = zoneId
         keyboardFocusKey = Model.factsKey(cities[index])
         timezoneTarget = zoneId
         var city = cities[index]
         var place = placeForCity(city)
+        if (place) turnHeroToFocus(place, heroFrom)
         globeSelectionKey = globeCityIdentity(city)
         globeSelectionLabel = String(city.label || city.id)
         globeSelectionZone = zoneId
@@ -288,9 +313,13 @@ Item {
         return isFinite(lat) || isFinite(lon)
     }
 
-    function toggleGlobeExpanded() {
+    function toggleGlobeExpanded(slow) {
         if (!service.preferenceData || service.preferenceData.globeEnabled === false) return false
-        globeExpanded = !globeExpanded
+        var opening = !globeExpanded
+        globeZoomDuration = service.preferenceData.smoothMotion === false ? 0
+            : (opening ? 800 : 500) * (slow === true ? 3 : 1)
+        globeZoomEasing = opening ? Easing.OutQuart : Easing.InOutCubic
+        globeExpanded = opening
         if (globeExpanded) {
             searchMode = ""
             searchText = ""
@@ -620,7 +649,7 @@ Item {
                 spacing: 8
                 Item {
                     objectName: "elsewhen-here-title-target"
-                    width: parent.width - refreshAction.width - 8
+                    width: parent.width - refreshAction.width - heroGlobeButton.width - 16
                     height: parent.height
                     SharedComponents.UiText {
                         objectName: "elsewhen-here-city"
@@ -637,6 +666,55 @@ Item {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
                         onClicked: panel.startHereSearch()
+                    }
+                }
+                Item {
+                    id: heroGlobeButton
+                    objectName: "elsewhen-hero-globe-button"
+                    width: 28
+                    height: 28
+                    enabled: panel.service.preferenceData.globeEnabled !== false
+                    Accessible.role: Accessible.Button
+                    Accessible.name: panel.globeExpanded ? "Return to world clock" : "Expand world clock globe"
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: 5
+                        color: heroGlobeMouse.containsMouse ? panel.root.fillHover : "transparent"
+                    }
+                    Elsewhen.MiniGlobe {
+                        id: heroGlobeCanvas
+                        objectName: "elsewhen-hero-globe-icon"
+                        anchors.fill: parent
+                        anchors.margins: 3
+                        spin: panel.heroSpin
+                        worldData: panel.service.worldData || []
+                        ink: panel.root.ink
+                        land: panel.root.seal
+                        rotation: Globe.AXIAL_TILT
+                        opacity: panel.globeExpanded ? 0 : 1
+                        visible: opacity > 0
+                        Behavior on opacity { NumberAnimation { duration: 180 } }
+                    }
+                    Text {
+                        anchors.centerIn: parent
+                        text: "×"
+                        color: panel.root.ink
+                        font.pixelSize: 24
+                        rotation: -Globe.AXIAL_TILT
+                        opacity: panel.globeExpanded ? 1 : 0
+                        visible: opacity > 0
+                        Behavior on opacity { NumberAnimation { duration: 180 } }
+                    }
+                    MouseArea {
+                        id: heroGlobeMouse
+                        anchors.fill: parent
+                        enabled: heroGlobeButton.enabled
+                        hoverEnabled: true
+                        acceptedButtons: Qt.LeftButton
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: function(mouse) {
+                            panel.toggleGlobeExpanded((mouse.modifiers & Qt.ShiftModifier) !== 0)
+                        }
                     }
                 }
                 ActionButton {
@@ -834,8 +912,8 @@ Item {
                 border.width: 1
                 Behavior on height {
                     NumberAnimation {
-                        duration: panel.service.preferenceData.smoothMotion === false ? 0 : 280
-                        easing.type: Easing.OutCubic
+                        duration: panel.globeZoomDuration
+                        easing.type: panel.globeZoomEasing
                     }
                 }
                 Canvas {
@@ -846,8 +924,8 @@ Item {
                     height: panel.globeExpanded ? 300 : 158
                     Behavior on height {
                         NumberAnimation {
-                            duration: panel.service.preferenceData.smoothMotion === false ? 0 : 280
-                            easing.type: Easing.OutCubic
+                            duration: panel.globeZoomDuration
+                            easing.type: panel.globeZoomEasing
                         }
                     }
                     onPaint: {
@@ -1121,6 +1199,53 @@ Item {
         return catalogPlace ? { lat: Number(catalogPlace[2]), lon: Number(catalogPlace[3]) } : null
     }
 
+    function turnHeroToFocus(place, from) {
+        if (!place) return false
+        var target = Number(place.lon)
+        var start = Number(from)
+        if (!isFinite(start)) start = Number(heroSpin)
+        if (!isFinite(target) || !isFinite(start)) return false
+        openingSpinPending = false
+        openingSpinFallback.stop()
+        heroOpeningSpin.stop()
+        heroFocusAnimation.stop()
+        heroFocusAnimation.from = start
+        heroFocusAnimation.to = start + Globe.shortestTurn(start, target)
+        heroFocusAnimation.restart()
+        return true
+    }
+
+    function startOpeningSpin(usePreviousEndpoints) {
+        if (!panelIsOpen) return false
+        if (usePreviousEndpoints) {
+            openingSpinPending = false
+            openingSpinFallback.stop()
+            heroOpeningSpin.restart()
+            return true
+        }
+        if (service.settingsReady === false || service.cityDataReady === false
+                || String(service.localZone || "") === "") {
+            openingSpinPending = true
+            openingSpinFallback.restart()
+            return false
+        }
+        var home = hereZone ? { label: hereZone.label, id: hereZone.id, lat: hereZone.lat, lon: hereZone.lon } : null
+        var place = placeForCity(home)
+        var target = place ? Number(place.lon) : NaN
+        if (!isFinite(target)) {
+            openingSpinPending = true
+            openingSpinFallback.restart()
+            return false
+        }
+        openingSpinPending = false
+        openingSpinFallback.stop()
+        heroOpeningSpin.stop()
+        heroOpeningSpin.from = target - 1080
+        heroOpeningSpin.to = target
+        heroOpeningSpin.restart()
+        return true
+    }
+
     function addSearchResult(option) {
         if (!option) return false
         if (searchMode === "here") return pickHereOption(option)
@@ -1251,6 +1376,39 @@ Item {
         }
     }
 
+    Binding {
+        target: panel
+        property: "heroSpin"
+        value: panel.heroRestLon
+        when: !heroOpeningSpin.running && !heroFocusAnimation.running
+        restoreMode: Binding.RestoreNone
+    }
+
+    NumberAnimation {
+        id: heroOpeningSpin
+        target: panel
+        property: "heroSpin"
+        duration: panel.service.preferenceData && panel.service.preferenceData.smoothMotion === false ? 0 : 1250
+        easing.type: Easing.OutQuart
+    }
+
+    NumberAnimation {
+        id: heroFocusAnimation
+        target: panel
+        property: "heroSpin"
+        duration: panel.service.preferenceData && panel.service.preferenceData.smoothMotion === false ? 0 : 700
+        easing.type: Easing.OutCubic
+    }
+
+    Timer {
+        id: openingSpinFallback
+        interval: 1500
+        repeat: false
+        onTriggered: {
+            if (panel.openingSpinPending && panel.panelIsOpen) panel.startOpeningSpin(true)
+        }
+    }
+
     NumberAnimation {
         id: globeFocusAnimation
         target: panel
@@ -1278,11 +1436,17 @@ Item {
         target: panel.service
         function onActiveChanged() { if (panel.service.active) panel.requestCityWeather() }
         function onCitiesChanged() { panel.requestCityWeather(); globeCanvasItem.requestPaint() }
-        function onCityDataReadyChanged() { panel.requestCityWeather() }
+        function onSettingsReadyChanged() { if (panel.openingSpinPending) panel.startOpeningSpin() }
+        function onCityDataReadyChanged() { panel.requestCityWeather(); if (panel.openingSpinPending) panel.startOpeningSpin() }
         function onWeatherChanged() { globeCanvasItem.requestPaint() }
         function onNowMsChanged() { globeCanvasItem.requestPaint() }
         function onWorldDataChanged() { globeCanvasItem.requestPaint() }
-        function onCityDataChanged() { globeCanvasItem.requestPaint() }
+        function onCityDataChanged() {
+            if (panel.openingSpinPending) panel.startOpeningSpin()
+            globeCanvasItem.requestPaint()
+        }
+        function onLocalZoneChanged() { if (panel.openingSpinPending) panel.startOpeningSpin() }
+        function onPreferenceDataChanged() { if (panel.openingSpinPending) panel.startOpeningSpin() }
     }
 
     Component.onCompleted: globeCanvasItem.requestPaint()

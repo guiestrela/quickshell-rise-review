@@ -44,6 +44,8 @@ Item {
             "Asia/Tokyo": { offsetMinutes: 540, abbr: "JST" }
         })
         property bool staticDataReady: true
+        property bool settingsReady: true
+        property bool cityDataReady: true
         property var preferenceData: ({ hour24: false, globeEnabled: true, smoothMotion: true })
         property string localZone: "Etc/UTC"
         property string lastError: ""
@@ -1183,10 +1185,33 @@ Item {
                 mouseClick(content.globeToggleButton)
                 compare(fakeService.preferenceData.globeEnabled, false)
                 verify(!content.globeCanvas.visible)
+                var heroButton = findChild(content, "elsewhen-hero-globe-button")
+                verify(heroButton !== null)
+                verify(!heroButton.enabled)
                 mouseClick(content.globeToggleButton)
                 compare(fakeService.preferenceData.globeEnabled, true)
                 verify(content.globeCanvas.visible)
+                verify(heroButton.enabled)
             } finally {
+                fakeService.preferenceData = oldPreferences
+            }
+        }
+
+        function test_disabled_hero_globe_hit_target_is_inactive() {
+            var oldPreferences = fakeService.preferenceData
+            var oldExpanded = content.globeExpanded
+            try {
+                fakeService.preferenceData = Object.assign({}, oldPreferences, { globeEnabled: false })
+                var button = findChild(content, "elsewhen-hero-globe-button")
+                verify(button !== null)
+                verify(!button.enabled)
+                var hitTarget = button.childAt(button.width / 2, button.height / 2)
+                verify(hitTarget !== null)
+                verify(!hitTarget.enabled)
+                mouseClick(button, button.width / 2, button.height / 2)
+                compare(content.globeExpanded, oldExpanded)
+            } finally {
+                content.globeExpanded = oldExpanded
                 fakeService.preferenceData = oldPreferences
             }
         }
@@ -1199,7 +1224,7 @@ Item {
                 mouseClick(zoomButton, zoomButton.width / 2, zoomButton.height / 2)
                 compare(content.globeExpanded, true)
                 compare(content.cityList.visible, false)
-                tryCompare(content.globeCanvas, "height", 300, 600)
+                tryCompare(content.globeCanvas, "height", 300, 1000)
                 mouseClick(zoomButton, zoomButton.width / 2, zoomButton.height / 2)
                 compare(content.globeExpanded, false)
                 compare(content.cityList.visible, true)
@@ -1229,6 +1254,38 @@ Item {
             }
         }
 
+        function test_hero_globe_button_toggles_expanded_mode() {
+            var button = findChild(content, "elsewhen-hero-globe-button")
+            verify(button !== null)
+            verify(button.enabled)
+            mouseClick(button)
+            compare(content.globeExpanded, true)
+            tryCompare(content.globeCanvas, "height", 300, 1000)
+            mouseClick(button)
+            compare(content.globeExpanded, false)
+            tryCompare(content.globeCanvas, "height", 158, 700)
+        }
+
+        function test_hero_globe_shift_click_uses_slow_zoom_duration() {
+            var oldExpanded = content.globeExpanded
+            var button = findChild(content, "elsewhen-hero-globe-button")
+            verify(button !== null)
+            try {
+                mouseClick(button, button.width / 2, button.height / 2, Qt.LeftButton, Qt.ShiftModifier)
+                compare(content.globeExpanded, true)
+                compare(content.globeZoomDuration, 2400)
+                compare(content.globeZoomEasing, Easing.OutQuart)
+                tryCompare(content.globeCanvas, "height", 300, 2600)
+                mouseClick(button, button.width / 2, button.height / 2, Qt.LeftButton, Qt.ShiftModifier)
+                compare(content.globeExpanded, false)
+                compare(content.globeZoomDuration, 1500)
+                compare(content.globeZoomEasing, Easing.InOutCubic)
+                tryCompare(content.globeCanvas, "height", 158, 1700)
+            } finally {
+                content.globeExpanded = oldExpanded
+            }
+        }
+
         function test_keyboard_space_toggles_expanded_globe() {
             content.forceActiveFocus()
             keyClick(Qt.Key_Space)
@@ -1236,6 +1293,115 @@ Item {
             keyClick(Qt.Key_Space)
             compare(content.globeExpanded, false)
             wait(400)
+        }
+
+        function test_panel_open_spins_hero_globe_to_here_longitude() {
+            var oldVisible = fakeTheme.elsewhenVisible
+            var oldZone = fakeService.localZone
+            var oldPreferences = fakeService.preferenceData
+            var oldHeroSpin
+            var oldGlobeSpin
+            try {
+                fakeTheme.elsewhenVisible = false
+                wait(600)
+                oldHeroSpin = content.heroSpin
+                oldGlobeSpin = content.globeSpin
+                content.heroSpin = 0
+                fakeService.localZone = "Europe/Paris"
+                wait(20)
+                fakeTheme.elsewhenVisible = true
+                verify(findChild(content, "elsewhen-hero-globe-icon") !== null)
+                tryVerify(function() { return content.heroSpin < -1000 }, 250)
+                tryVerify(function() { return Math.abs(content.heroSpin - 2.35) < 0.1 }, 1800)
+                compare(content.globeSpin, oldGlobeSpin)
+            } finally {
+                fakeTheme.elsewhenVisible = false
+                content.heroSpin = oldHeroSpin
+                fakeService.localZone = oldZone
+                fakeService.preferenceData = Object.assign({}, oldPreferences, { smoothMotion: false })
+                fakeTheme.elsewhenVisible = oldVisible
+                content.heroSpin = oldHeroSpin
+                fakeService.preferenceData = oldPreferences
+            }
+        }
+
+        function test_hero_globe_turns_to_city_focus_and_home() {
+            var oldVisible = fakeTheme.elsewhenVisible
+            var oldZone = fakeService.localZone
+            var oldPreferences = fakeService.preferenceData
+            var oldHeroSpin
+            var oldGlobeSpin = content.globeSpin
+            var oldGlobeViewLat = content.globeViewLat
+            var oldFocusId = content.keyboardFocusId
+            var oldFocusKey = content.keyboardFocusKey
+            var oldTarget = content.timezoneTarget
+            try {
+                fakeTheme.elsewhenVisible = false
+                wait(600)
+                oldHeroSpin = content.heroSpin
+                fakeService.localZone = "Europe/Paris"
+                content.keyboardFocusId = ""
+                content.keyboardFocusKey = ""
+                fakeTheme.elsewhenVisible = true
+                tryVerify(function() { return Math.abs(content.heroSpin - 2.35) < 0.1 }, 1800)
+                verify(content.focusCity(1))
+                tryVerify(function() { return Math.abs(content.heroSpin - 139.69) < 0.1 }, 1100)
+                verify(content.focusCity(0))
+                tryVerify(function() { return Math.abs(content.heroSpin - 2.35) < 0.1 }, 1100)
+            } finally {
+                fakeTheme.elsewhenVisible = false
+                wait(600)
+                content.keyboardFocusId = oldFocusId
+                content.keyboardFocusKey = oldFocusKey
+                content.timezoneTarget = oldTarget
+                content.globeSpin = oldGlobeSpin
+                content.globeViewLat = oldGlobeViewLat
+                content.heroSpin = oldHeroSpin
+                fakeService.localZone = oldZone
+                fakeService.preferenceData = Object.assign({}, oldPreferences, { smoothMotion: false })
+                fakeTheme.elsewhenVisible = oldVisible
+                content.heroSpin = oldHeroSpin
+                fakeService.preferenceData = oldPreferences
+            }
+        }
+
+        function test_opening_spin_waits_for_home_data_and_replays_last_endpoints_without_coordinates() {
+            var oldVisible = fakeTheme.elsewhenVisible
+            var oldZone = fakeService.localZone
+            var oldReady = fakeService.cityDataReady
+            var oldPreferences = fakeService.preferenceData
+            var oldHeroSpin
+            try {
+                fakeTheme.elsewhenVisible = false
+                wait(600)
+                oldHeroSpin = content.heroSpin
+                content.heroSpin = 0
+                fakeService.localZone = "Europe/Paris"
+                fakeService.cityDataReady = false
+                fakeTheme.elsewhenVisible = true
+                compare(content.openingSpinPending, true)
+                fakeTheme.elsewhenVisible = false
+                compare(content.openingSpinPending, false)
+                fakeService.cityDataReady = true
+                fakeTheme.elsewhenVisible = true
+                tryVerify(function() { return Math.abs(content.heroSpin - 2.35) < 0.1 }, 1800)
+
+                fakeTheme.elsewhenVisible = false
+                fakeService.localZone = "Etc/UTC"
+                fakeTheme.elsewhenVisible = true
+                compare(content.openingSpinPending, true)
+                tryVerify(function() { return content.heroSpin < -1000 }, 1900)
+                tryVerify(function() { return Math.abs(content.heroSpin - 2.35) < 0.1 }, 1800)
+            } finally {
+                fakeTheme.elsewhenVisible = false
+                content.heroSpin = oldHeroSpin
+                fakeService.localZone = oldZone
+                fakeService.cityDataReady = oldReady
+                fakeService.preferenceData = Object.assign({}, oldPreferences, { smoothMotion: false })
+                fakeTheme.elsewhenVisible = oldVisible
+                content.heroSpin = oldHeroSpin
+                fakeService.preferenceData = oldPreferences
+            }
         }
 
         function test_panel_close_resets_expanded_globe() {

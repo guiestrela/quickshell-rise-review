@@ -65,6 +65,7 @@ Item {
         })
         property bool active: false
         property bool cityDataReady: true
+        property bool settingsReady: true
         property var cities: [{ label: "Paris", id: "Europe/Paris", people: ["Alice"] }, { label: "Tokyo", id: "Asia/Tokyo", people: ["Tokyo team"] }]
         property var worldData: [[-180, -80, 0, -80, 180, -80, 180, 80, 0, 80, -180, 80]]
         property double nowMs: Date.UTC(2024, 2, 20, 12, 0, 0)
@@ -208,6 +209,27 @@ Item {
             }
         }
 
+        function test_v2_hero_globe_opening_spin_render() {
+            var oldLocalZone = fakeService.localZone
+            fakeService.localZone = "Europe/Paris"
+            try {
+                load("v2", false, "top")
+                var content = findChild(panelLoader.item, "elsewhen-panel-content")
+                var heroButton = findChild(content, "elsewhen-hero-globe-button")
+                verify(content !== null && heroButton !== null)
+                verify(findChild(content, "elsewhen-hero-globe-icon") !== null)
+                tryVerify(function() { return content.heroSpin !== 0 }, 300)
+                captureScene("v2-opening-spin")
+                tryVerify(function() { return Math.abs(content.heroSpin - 2.35) < 0.1 }, 1800)
+                mouseClick(heroButton)
+                compare(content.globeExpanded, true)
+                mouseClick(heroButton)
+                compare(content.globeExpanded, false)
+            } finally {
+                fakeService.localZone = oldLocalZone
+            }
+        }
+
         function test_v2_moon_show_renders_in_night_footer() {
             var oldLocalZone = fakeService.localZone
             var oldNowMs = fakeService.nowMs
@@ -233,6 +255,7 @@ Item {
                 var zoomButton = findChild(content, "elsewhen-globe-zoom")
                 verify(zoomButton !== null)
                 mouseClick(zoomButton, zoomButton.width / 2, zoomButton.height / 2)
+                tryCompare(content.globeCanvas, "height", 300, 1000)
                 tryVerify(function() { return content.globeFooterPlace !== null }, 1000)
                 compare(findChild(content, "elsewhen-globe-footer-city").text, "Tokyo")
                 compare(content.globeFooterDaylight, false)
