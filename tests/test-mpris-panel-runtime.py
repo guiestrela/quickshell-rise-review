@@ -33,12 +33,19 @@ Item {
  property var player: fake
  property bool active:true
  property bool playing:fake.playing
+ property bool canTogglePlayback: !!player && !!player.canTogglePlaying
+ function togglePlayback() {
+  if (!canTogglePlayback) return false
+  player.togglePlaying()
+  return true
+ }
  QtObject { id:fake
   property string identity:"Fixture"; property string dbusName:"fixture"
   property string trackArtUrl:""; property string trackTitle:"Fixture song"
   property string trackArtist:"Fixture artist"; property string trackAlbum:"Fixture album"
   property real position:15; property real length:120
-  property bool playing:false; property bool canGoPrevious:true; property bool canGoNext:true
+  property bool playing:false; property bool canTogglePlaying:true
+  property bool canGoPrevious:true; property bool canGoNext:true
   property int toggles:0
   function togglePlaying() { toggles++; playing=!playing }
   function previous() {} function next() {}
