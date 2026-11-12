@@ -685,6 +685,21 @@ Item {
             compare(place.lon, -47.8828)
         }
 
+        function test_city_name_overrides_shared_timezone_catalog_coordinates() {
+            var oldCityData = fakeService.cityData
+            fakeService.cityData = oldCityData.concat([
+                ["Sao Paulo", "America/Sao_Paulo", -23.55, -46.64, 1],
+                ["Brasília", "America/Sao_Paulo", -15.7939, -47.8828, 1]
+            ])
+            try {
+                var place = content.placeForCity({ label: "Brasília", id: "America/Sao_Paulo" })
+                compare(place.lat, -15.7939)
+                compare(place.lon, -47.8828)
+            } finally {
+                fakeService.cityData = oldCityData
+            }
+        }
+
         function test_globe_can_be_hidden_and_restored() {
             mouseClick(content.globeToggleButton)
             compare(fakeService.preferenceData.globeEnabled, false)

@@ -113,9 +113,14 @@ test("bundled globe data and orthographic projection are usable offline", () => 
   assert.ok(land.length > 0);
   assert.ok(land.every(ring => Array.isArray(ring) && ring.length >= 8 && ring.length % 2 === 0));
   assert.ok(cities.some(city => city[0] === "Tokyo" && city[1] === "Asia/Tokyo"));
-  const center = Globe.project(0, 0, 0, 0, 100);
-  assert.equal(center.visible, true);
-  assert.ok(Math.abs(center.x) < 1e-9 && Math.abs(center.y) < 1e-9);
+  const brasilia = cities.find(city => city[0] === "Brasília" && city[1] === "America/Sao_Paulo");
+  assert.ok(brasilia, "Brasília must have its own city coordinates, not São Paulo's zone representative");
+  assert.ok(Math.abs(brasilia[2] - (-15.7939)) < 0.01);
+  assert.ok(Math.abs(brasilia[3] - (-47.8828)) < 0.01);
+  const brasiliaAtCenter = Globe.project(brasilia[2], brasilia[3], brasilia[3], 0, 100);
+  assert.equal(brasiliaAtCenter.visible, true);
+  assert.ok(Math.abs(brasiliaAtCenter.x) < 1e-9);
+  assert.ok(land.length > 0);
   assert.equal(Globe.shortestTurn(350, 10), 20);
   assert.equal(Globe.decimateRing(land[0], 2, 8).length % 2, 0);
 });

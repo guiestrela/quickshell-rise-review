@@ -655,6 +655,12 @@ Item {
         var lat = Number(city.lat), lon = Number(city.lon)
         if (city.lat !== undefined && city.lon !== undefined && isFinite(lat) && isFinite(lon))
             return { lat: lat, lon: lon }
+        var wantedLabel = String(city.label || "").trim().toLowerCase()
+        for (var i = 0; i < service.cityData.length; i++) {
+            var namedPlace = service.cityData[i]
+            if (namedPlace[1] === city.id && String(namedPlace[0]).toLowerCase() === wantedLabel)
+                return { lat: Number(namedPlace[2]), lon: Number(namedPlace[3]) }
+        }
         var catalogPlace = placeForZone(city.id)
         return catalogPlace ? { lat: Number(catalogPlace[2]), lon: Number(catalogPlace[3]) } : null
     }
