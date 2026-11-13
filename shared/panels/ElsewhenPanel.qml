@@ -20,6 +20,30 @@ PanelWindow {
     property Component surfaceComponent
     readonly property Item surfaceHost: card
     readonly property var service: root.elsewhenService
+    readonly property var clockWords: {
+        var locale = Qt.locale(Commons.I18n.formatLocale)
+        return {
+            t: function(key, fallback) { return Commons.I18n.t(key, fallback) },
+            tn: function(key, count, fallback) { return Commons.I18n.tn(key, count, fallback) },
+            fmt: function(value, decimals) { return Commons.I18n.formatNumber(value, decimals) },
+            am: locale.amText,
+            pm: locale.pmText,
+            date: function(parts) {
+                return new Date(parts.year, parts.month, parts.day, 12)
+                    .toLocaleString(locale, Commons.I18n.t("elsewhen.dateFormat", "ddd MMM d"))
+            }
+        }
+    }
+    Binding {
+        target: panel.service && panel.service.formatLocale !== undefined ? panel.service : null
+        property: "formatLocale"
+        value: Commons.I18n.formatLocale
+    }
+    Binding {
+        target: panel.service && panel.service.words !== undefined ? panel.service : null
+        property: "words"
+        value: panel.clockWords
+    }
     readonly property real reveal: root.elsewhenVisible ? 1 : 0
     screen: root.activePopupScreen
     color: "transparent"
@@ -66,6 +90,10 @@ PanelWindow {
             anchors.margins: 12
             root: panel.root
             service: panel.service
+            globeStageHeight: Commons.Style.space(378)
+            titleFontSize: Commons.Style.font.title
+            captionFontSize: Commons.Style.font.caption
+            motionDuration: function(ms) { return Commons.Style.duration(ms) }
             notificationSink: function(message) {
                 Quickshell.execDetached(["omarchy-notification-send", String(message)])
             }

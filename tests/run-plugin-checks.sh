@@ -163,6 +163,7 @@ check "V2 horizontal slot pointer interactions" python3 tests/test-v2-horizontal
 check "workspace focus and navigation" python3 tests/test-workspace-focus-runtime.py
 check "AI collector installation" bash tests/install-ai-backends-integration.sh
 check "Codex cache fallback" env TMPDIR="$tmp" python3 tests/codex-cache-fallback-regression.py
+check "OpenCode usage database schema" python3 tests/qs-opencode-usage-regression.py
 check "Codex pipe framing" python3 tests/codex-rpc-buffer-regression.py
 check "wallpaper scanner" env TMPDIR="$tmp" python3 tests/test_qr04w_scan.py
 

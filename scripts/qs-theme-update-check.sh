@@ -32,7 +32,8 @@
 #   QS_THEME_STATE  state json path  (default ~/.cache/qs-theme-updates.json)
 #   QS_THEME_LOCK   lock file path   (default ~/.cache/qs-theme-update.lock)
 #   QS_CURRENT_FILE current theme.name path
-#   QS_THEME_TIMEOUT        ls-remote, seconds (default 10)
+#   QS_THEME_TIMEOUT        ls-remote, seconds (default 25 — reachable probes
+#                           measured just over 10s and were cut off at 10s)
 #   QS_THEME_FETCH_TIMEOUT  fetch, seconds     (default 45 — image-heavy themes
 #                           measured 8-13.5s; 10s misclassified them unreachable)
 #   QS_THEME_BUDGET         whole sweep, seconds (default 180)
@@ -49,7 +50,7 @@ elif command -v omarchy-shell >/dev/null 2>&1 && [ -f "$HOME/.local/state/omarch
 else
   CURRENT_FILE="$HOME/.config/omarchy/current/theme.name"
 fi
-NET_TIMEOUT="${QS_THEME_TIMEOUT:-10}"
+NET_TIMEOUT="${QS_THEME_TIMEOUT:-25}"
 FETCH_TIMEOUT="${QS_THEME_FETCH_TIMEOUT:-45}"
 BUDGET="${QS_THEME_BUDGET:-180}"
 JOBS="${QS_THEME_JOBS:-4}"
@@ -115,7 +116,7 @@ check_one() {
   local dir="$1" outdir="$2"
   local name; name="$(basename "$dir")"
   local out="$outdir/$name.json"
-  local T="${NET_TIMEOUT:-10}"
+  local T="${NET_TIMEOUT:-25}"
 
   # git on an UNTRUSTED theme repo goes through the tg[] prefix: repo-local config
   # that could execute a command is neutralised on the command line (higher

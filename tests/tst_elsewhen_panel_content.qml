@@ -27,6 +27,8 @@ Item {
 
     QtObject {
         id: fakeService
+        property string formatLocale: "en_US"
+        property var words: null
         signal timezoneChanged(string zone)
         signal timezoneChangeFailed(string zone, string error)
         property var clockRows: [
@@ -149,6 +151,137 @@ Item {
     TestCase {
         name: "ElsewhenPanelContent"
         when: windowShown
+
+        function test_unset_hour_format_follows_shell_locale_and_keeps_explicit_choice() {
+            var oldPrefs = fakeService.preferenceData
+            var oldLocale = fakeService.formatLocale
+            try {
+                var prefs = Object.assign({}, oldPrefs)
+                delete prefs.hour24
+                fakeService.formatLocale = "en_GB"
+                fakeService.preferenceData = prefs
+                compare(content.hour24, true)
+                fakeService.formatLocale = "en_US"
+                compare(content.hour24, false)
+                fakeService.preferenceData = Object.assign({}, prefs, {hour24:true})
+                compare(content.hour24, true)
+                fakeService.formatLocale = "en_GB"
+                fakeService.preferenceData = Object.assign({}, prefs, {hour24:false})
+                compare(content.hour24, false)
+            } finally {
+                fakeService.preferenceData = oldPrefs
+                fakeService.formatLocale = oldLocale
+            }
+        }
+
+        function test_hour_format_button_displays_effective_locale_when_unset() {
+            var oldPrefs = fakeService.preferenceData
+            var oldLocale = fakeService.formatLocale
+            try {
+                var prefs = Object.assign({}, oldPrefs)
+                delete prefs.hour24
+                fakeService.preferenceData = prefs
+                fakeService.formatLocale = "en_GB"
+                compare(content.hour24Button.label, "24-hour")
+                verify(content.hour24Button.highlighted)
+                fakeService.formatLocale = "en_US"
+                compare(content.hour24Button.label, "12-hour")
+                verify(!content.hour24Button.highlighted)
+            } finally {
+                fakeService.preferenceData = oldPrefs
+                fakeService.formatLocale = oldLocale
+            }
+        }
+
+        function test_hour_format_button_persists_opposite_of_locale_when_unset() {
+            var oldPrefs = fakeService.preferenceData
+            var oldLocale = fakeService.formatLocale
+            var oldWrites = fakeService.settingsWrites
+            try {
+                var prefs = Object.assign({}, oldPrefs)
+                delete prefs.hour24
+                fakeService.preferenceData = prefs
+                fakeService.formatLocale = "en_GB"
+                fakeService.settingsWrites = 0
+                mouseClick(content.hour24Button, content.hour24Button.width / 2, content.hour24Button.height / 2)
+                compare(fakeService.preferenceData.hour24, false)
+                compare(fakeService.settingsWrites, 1)
+                tryCompare(content.hour24Button, "label", "12-hour")
+
+                fakeService.preferenceData = Object.assign({}, prefs)
+                fakeService.formatLocale = "en_US"
+                fakeService.settingsWrites = 0
+                mouseClick(content.hour24Button, content.hour24Button.width / 2, content.hour24Button.height / 2)
+                compare(fakeService.preferenceData.hour24, true)
+                compare(fakeService.settingsWrites, 1)
+                tryCompare(content.hour24Button, "label", "24-hour")
+            } finally {
+                fakeService.preferenceData = oldPrefs
+                fakeService.formatLocale = oldLocale
+                fakeService.settingsWrites = oldWrites
+            }
+        }
+
+        function test_shell_words_translate_header_and_confirmation() {
+            var oldWords = fakeService.words
+            try {
+                fakeService.words = {
+                    t: function(key, fallback) {
+                        var strings = {"elsewhen.world":"Mundo", "elsewhen.clock":"Relogio",
+                            "elsewhen.here":"Aqui sao %1", "elsewhen.hereIn":"Aqui sao %1 em %2",
+                            "common.confirm":"Confirmar", "common.cancel":"Cancelar"}
+                        return strings[key] || fallback
+                    },
+                    fmt: function(n) { return String(n) }
+                }
+                compare(findChild(content, "elsewhen-world-title").text, "Mundo")
+                compare(findChild(content, "elsewhen-clock-title").text, "Relogio")
+                compare(content.confirmTimezoneButton.label, "Confirmar")
+                verify(content.hereLine.indexOf("Aqui sao") === 0)
+            } finally {
+                fakeService.words = oldWords
+            }
+        }
+
+        function test_smooth_motion_reduces_labels_only_while_moving() {
+            var oldPrefs = fakeService.preferenceData
+            var oldSpin = content.globeSpin
+            var oldLat = content.globeViewLat
+            try {
+                fakeService.preferenceData = Object.assign({}, oldPrefs, {smoothMotion:false, globeEnabled:true})
+                content.globeSpin = 2.35
+                content.globeViewLat = 48.85
+                mousePress(content.globeDragArea, content.globeDragArea.width / 2, content.globeDragArea.height / 2)
+                verify(content.globeDragArea.pressed)
+                verify(content.globeScene(70).labels.length > 0)
+                fakeService.preferenceData = Object.assign({}, oldPrefs, {smoothMotion:true, globeEnabled:true})
+                compare(content.globeScene(70).labels.length, 0)
+                mouseRelease(content.globeDragArea, content.globeDragArea.width / 2, content.globeDragArea.height / 2)
+                tryVerify(function() { return !content.globeReduced }, 1500)
+                verify(content.globeScene(70).labels.length > 0)
+            } finally {
+                mouseRelease(content.globeDragArea)
+                fakeService.preferenceData = oldPrefs
+                content.globeSpin = oldSpin
+                content.globeViewLat = oldLat
+            }
+        }
+
+        function test_smooth_motion_does_not_disable_zoom_animation() {
+            var oldPrefs = fakeService.preferenceData
+            var oldExpanded = content.globeExpanded
+            try {
+                fakeService.preferenceData = Object.assign({}, oldPrefs, {smoothMotion:false, globeEnabled:true})
+                content.globeExpanded = false
+                verify(content.toggleGlobeExpanded(false))
+                compare(content.globeZoomDuration, 800)
+                verify(content.toggleGlobeExpanded(true))
+                compare(content.globeZoomDuration, 1500)
+            } finally {
+                fakeService.preferenceData = oldPrefs
+                content.globeExpanded = oldExpanded
+            }
+        }
 
         function test_timezone_change_notifications_are_forwarded() {
             var originalMessages = fakeTheme.notificationMessages
@@ -1772,7 +1905,8 @@ Item {
                 mouseClick(zoomButton, zoomButton.width / 2, zoomButton.height / 2)
                 compare(content.globeExpanded, true)
                 compare(content.cityList.visible, false)
-                tryCompare(content.globeCanvas, "height", 300, 1000)
+                tryCompare(content.globeCanvas, "height", 378, 1000)
+                verify(content.globeCanvas.height <= content.globeCanvas.parent.height)
                 mouseClick(zoomButton, zoomButton.width / 2, zoomButton.height / 2)
                 compare(content.globeExpanded, false)
                 compare(content.cityList.visible, true)
@@ -1808,7 +1942,7 @@ Item {
             verify(button.enabled)
             mouseClick(button)
             compare(content.globeExpanded, true)
-            tryCompare(content.globeCanvas, "height", 300, 1000)
+            tryCompare(content.globeCanvas, "height", 378, 1000)
             mouseClick(button)
             compare(content.globeExpanded, false)
             tryCompare(content.globeCanvas, "height", 158, 700)
@@ -1823,7 +1957,7 @@ Item {
                 compare(content.globeExpanded, true)
                 compare(content.globeZoomDuration, 2400)
                 compare(content.globeZoomEasing, Easing.OutQuart)
-                tryCompare(content.globeCanvas, "height", 300, 2600)
+                tryCompare(content.globeCanvas, "height", 378, 2600)
                 mouseClick(button, button.width / 2, button.height / 2, Qt.LeftButton, Qt.ShiftModifier)
                 compare(content.globeExpanded, false)
                 compare(content.globeZoomDuration, 1500)

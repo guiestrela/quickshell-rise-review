@@ -28,6 +28,17 @@ Item {
     property bool globeExpanded: false
     property int globeZoomDuration: 280
     property int globeZoomEasing: Easing.OutCubic
+    property var motionDuration: null
+    property real globeStageHeight: 378
+    property real titleFontSize: 14
+    property real captionFontSize: 10
+    function scaledDuration(ms) {
+        return typeof motionDuration === "function" ? motionDuration(ms) : ms
+    }
+    readonly property bool globeReduced: service.preferenceData.smoothMotion !== false
+        && (globeDragArea.pressed || globeFocusAnimation.running || globeViewAnimation.running
+            || Math.abs(globeCanvasItem.height - (globeExpanded ? globeStageHeight : 158)) > 0.5)
+    onGlobeReducedChanged: globeCanvasItem.requestPaint()
     property bool openingSpinPending: false
     property var globeSessionCities: []
     property string globeSelectionKey: ""
@@ -75,19 +86,26 @@ Item {
     property string keyboardFocusKey: ""
     onKeyboardFocusIdChanged: keyboardFocusKey = ""
     readonly property double effectiveMs: (service.nowMs !== undefined ? service.nowMs : Date.now()) + scrubMinutes * 60000
-    readonly property bool hour24: service.preferenceData ? service.preferenceData.hour24 === true : false
+    readonly property string formatLocale: service.formatLocale || Qt.locale().name
+    readonly property var words: service.words || null
+    readonly property bool hour24: service.hour24 !== undefined ? service.hour24
+        : Model.resolveHour24(service.preferenceData ? service.preferenceData.hour24 : undefined,
+            Model.usesTwentyFourHour(Qt.locale(formatLocale).timeFormat(Locale.ShortFormat)))
+    function tr(key, fallback) {
+        return words && typeof words.t === "function" ? words.t(key, fallback) : fallback
+    }
     readonly property var hereZone: Model.resolveHere(service.preferenceData ? service.preferenceData.here : null,
         service.preferenceData ? service.preferenceData.homeCity : "", service.localZone)
     readonly property string hereLine: {
         var offset = service.localOffsetMinutes !== undefined
             ? service.localOffsetMinutes : -(new Date().getTimezoneOffset())
         var parts = Model.zoneParts(effectiveMs, offset)
-        var localTime = Model.formatTime(parts, hour24)
-            + (hour24 ? "" : " " + Model.meridiem(parts))
+        var localTime = Model.formatTime(parts, hour24, words)
+            + (hour24 ? "" : " " + Model.meridiem(parts, words))
         var line = hereZone && hereZone.chosen
-            ? "It's " + localTime + " here in " + hereZone.label
-            : "It's " + localTime + " here"
-        var shift = Model.formatScrubDelta(scrubMinutes)
+            ? tr("elsewhen.hereIn", "It's %1 here in %2").arg(localTime).arg(hereZone.label)
+            : tr("elsewhen.here", "It's %1 here").arg(localTime)
+        var shift = Model.formatScrubDelta(scrubMinutes, words)
         return line + (shift !== "" ? "  " + shift : "")
     }
     readonly property var heroRestPlace: {
@@ -105,8 +123,7 @@ Item {
         var probeData = service.probe || ({})
         if (Object.keys(probeData).length === 0) return service.clockRows || []
         var offset = service.localOffsetMinutes !== undefined ? service.localOffsetMinutes : 0
-        var use24 = service.preferenceData && service.preferenceData.hour24 === true
-        return Model.rows(zones, probeData, effectiveMs, offset, use24)
+        return Model.rows(zones, probeData, effectiveMs, offset, hour24, words)
     }
     readonly property var globeFooterPlace: {
         var places = globePlaces()
@@ -118,15 +135,15 @@ Item {
         var place = globeFooterPlace
         if (!place) return null
         var offset = service.localOffsetMinutes !== undefined ? service.localOffsetMinutes : 0
-        return Model.rows([{ label: place.label, id: place.id }], service.probe || ({}), effectiveMs, offset, hour24)[0]
+        return Model.rows([{ label: place.label, id: place.id }], service.probe || ({}), effectiveMs, offset, hour24, words)[0]
     }
     readonly property string globeFooterClock: globeFooterRow && globeFooterRow.ready
         ? globeFooterRow.time + (globeFooterRow.meridiem ? " " + globeFooterRow.meridiem : "") : ""
     readonly property string globeFooterBadge: {
         var place = globeFooterPlace
         if (!place) return ""
-        if (place.id === service.localZone && hereZone && place.label === hereZone.label) return "home"
-        return place.tracked ? "tracked" : ""
+        if (place.id === service.localZone && hereZone && place.label === hereZone.label) return tr("elsewhen.badgeHome", "home")
+        return place.tracked ? tr("elsewhen.badgeTracked", "tracked") : ""
     }
     readonly property bool globeFooterDaylight: globeFooterPlace
         ? Globe.isDaylight(globeFooterPlace.lat, globeFooterPlace.lon, Globe.subsolarPoint(effectiveMs)) : false
@@ -206,12 +223,12 @@ Item {
         if (!point) return ""
         var key = Model.factsKey({ label: rowData.label, id: rowData.id })
         var observation = (service.weather || ({}))[key]
-        if (observation) return Model.tempLabel(observation, preferenceUnits())
+        if (observation) return Model.tempLabel(observation, preferenceUnits(), words)
         return ""
     }
 
     function preferenceUnits() {
-        var locale = Qt.locale()
+        var locale = Qt.locale(formatLocale)
         var automatic = locale.measurementSystem === Locale.ImperialUSSystem ? "F" : "C"
         return Model.resolveUnits(service.preferenceData ? service.preferenceData.units : "", automatic)
     }
@@ -363,8 +380,7 @@ Item {
     function toggleGlobeExpanded(slow) {
         if (!service.preferenceData || service.preferenceData.globeEnabled === false) return false
         var opening = !globeExpanded
-        globeZoomDuration = service.preferenceData.smoothMotion === false ? 0
-            : (opening ? 800 : 500) * (slow === true ? 3 : 1)
+        globeZoomDuration = scaledDuration(opening ? 800 : 500) * (slow === true ? 3 : 1)
         globeZoomEasing = opening ? Easing.OutQuart : Easing.InOutCubic
         globeExpanded = opening
         if (globeExpanded) {
@@ -457,7 +473,7 @@ Item {
             labelCandidates.push({ index: marker.index, name: places[marker.index].label,
                 x: marker.x, y: marker.y, rank: marker.keep ? -1 : marker.rank, cosc: marker.cosc })
         }
-        var labels = Globe.layoutLabels(labelCandidates, 5.5, 12, 8, radius - 3, 5)
+        var labels = globeReduced ? [] : Globe.layoutLabels(labelCandidates, 5.5, 12, 8, radius - 3, 5)
         return { places: places, plotted: plotted, labels: labels }
     }
 
@@ -731,7 +747,7 @@ Item {
                             rise: 6
                             color: panel.scrubMinutes !== 0 ? panel.root.accent : Qt.darker(panel.root.ink, 1.55)
                             fontFamily: panel.root.mono
-                            pixelSize: 10
+                            pixelSize: panel.captionFontSize
                         }
                         MouseArea {
                             objectName: "elsewhen-here-search-button"
@@ -767,10 +783,10 @@ Item {
 
                         Text {
                             objectName: "elsewhen-world-title"
-                            text: "World"
+                            text: panel.tr("elsewhen.world", "World")
                             color: panel.root.ink
                             font.family: panel.root.mono
-                            font.pixelSize: 14
+                            font.pixelSize: panel.titleFontSize
                             font.weight: Font.DemiBold
                             textFormat: Text.PlainText
                             verticalAlignment: Text.AlignVCenter
@@ -828,10 +844,10 @@ Item {
 
                         Text {
                             objectName: "elsewhen-clock-title"
-                            text: "Clock"
+                            text: panel.tr("elsewhen.clock", "Clock")
                             color: panel.root.ink
                             font.family: panel.root.mono
-                            font.pixelSize: 14
+                            font.pixelSize: panel.titleFontSize
                             font.weight: Font.DemiBold
                             textFormat: Text.PlainText
                             verticalAlignment: Text.AlignVCenter
@@ -877,8 +893,9 @@ Item {
                     objectName: "elsewhen-zone-search"
                     width: parent.width - 104
                     height: 32
-                    placeholderText: panel.searchMode === "here" ? "Where are you?"
-                        : panel.searchMode === "jump" ? "Jump to a place" : "Search time zones or places"
+                    placeholderText: panel.searchMode === "here" ? panel.tr("elsewhen.whereAreYou", "Where are you?")
+                        : panel.searchMode === "jump" ? panel.tr("elsewhen.jumpToCity", "Jump to a place")
+                        : panel.tr("elsewhen.searchCities", "Search time zones or places")
                     selectByMouse: true
                     color: panel.root.ink
                     placeholderTextColor: panel.root.sep
@@ -975,7 +992,7 @@ Item {
                     && panel.service.placeSearchText === Model.placeQuery(panel.searchText)
                     && panel.searchResults.length === 0
                     && panel.service.placeSearchRunning
-                text: "Searching places…"
+                text: panel.tr("elsewhen.searchingPlaces", "Searching places…")
                 color: panel.root.seal
                 font.pixelSize: 10
             }
@@ -999,8 +1016,8 @@ Item {
                 ActionButton {
                     id: hour24Action
                     visible: !panel.globeExpanded
-                    label: panel.service.preferenceData.hour24 ? "24-hour" : "12-hour"
-                    highlighted: panel.service.preferenceData.hour24 === true
+                    label: panel.hour24 ? "24-hour" : "12-hour"
+                    highlighted: panel.hour24
                     onClicked: panel.toggleHour24()
                 }
                 ActionButton {
@@ -1028,7 +1045,7 @@ Item {
 
             Rectangle {
                 width: parent.width
-                height: panel.service.preferenceData.globeEnabled === false ? 0 : (panel.globeExpanded ? 312 : 170)
+                height: panel.service.preferenceData.globeEnabled === false ? 0 : (panel.globeExpanded ? panel.globeStageHeight + 12 : 170)
                 visible: panel.service.preferenceData.globeEnabled !== false
                 color: panel.root.fillIdle
                 radius: 8
@@ -1044,8 +1061,8 @@ Item {
                     id: globeCanvasItem
                     objectName: "elsewhen-globe"
                     anchors.centerIn: parent
-                    width: Math.max(0, Math.min(parent.width - 12, panel.globeExpanded ? 300 : 260))
-                    height: panel.globeExpanded ? 300 : 158
+                    width: Math.max(0, Math.min(parent.width - 12, panel.globeExpanded ? panel.globeStageHeight : 260))
+                    height: panel.globeExpanded ? panel.globeStageHeight : 158
                     Behavior on height {
                         NumberAnimation {
                             duration: panel.globeZoomDuration
@@ -1066,7 +1083,7 @@ Item {
                         ctx.fillStyle = panel.root.bg.toString()
                         ctx.fill()
                         ctx.clip()
-                        for (var lat = -60; lat <= 60; lat += 30) {
+                        for (var lat = -60; !panel.globeReduced && lat <= 60; lat += 30) {
                             ctx.beginPath()
                             var started = false
                             for (var lon = -180; lon <= 180; lon += 4) {
@@ -1279,7 +1296,7 @@ Item {
                         spacing: 8
                         ActionButton {
                             id: confirmTimezoneAction
-                            label: "Confirm"
+                            label: panel.tr("common.confirm", "Confirm")
                             highlighted: true
                             onClicked: {
                                 if (!panel.service.requestTimezoneChange(panel.timezoneTarget))
@@ -1288,7 +1305,7 @@ Item {
                             }
                         }
                         ActionButton {
-                            label: "Cancel"
+                            label: panel.tr("common.cancel", "Cancel")
                             onClicked: panel.timezoneConfirmationVisible = false
                         }
                     }
@@ -1517,7 +1534,7 @@ Item {
         id: heroOpeningSpin
         target: panel
         property: "heroSpin"
-        duration: panel.service.preferenceData && panel.service.preferenceData.smoothMotion === false ? 0 : 1250
+        duration: panel.scaledDuration(1250)
         easing.type: Easing.OutQuart
     }
 
@@ -1525,7 +1542,7 @@ Item {
         id: heroFocusAnimation
         target: panel
         property: "heroSpin"
-        duration: panel.service.preferenceData && panel.service.preferenceData.smoothMotion === false ? 0 : 700
+        duration: panel.scaledDuration(700)
         easing.type: Easing.OutCubic
     }
 

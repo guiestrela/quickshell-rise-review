@@ -96,6 +96,27 @@ ShellRoot {
                 return
             }
             if (test.phase === 0 && service.settingsReady && service.staticDataReady) {
+                var savedLocale = service.formatLocale
+                var savedPrefs = service.preferenceData
+                var automaticPrefs = Object.assign({}, savedPrefs)
+                delete automaticPrefs.hour24
+                service.preferenceData = automaticPrefs
+                service.formatLocale = "en_GB"
+                var britishAutomatic = service.autoHour24 && service.hour24
+                service.formatLocale = "en_US"
+                var americanAutomatic = !service.autoHour24 && !service.hour24
+                service.preferenceData = Object.assign({}, automaticPrefs, {hour24:true})
+                var explicit24 = service.hour24
+                service.formatLocale = "en_GB"
+                service.preferenceData = Object.assign({}, automaticPrefs, {hour24:false})
+                var explicit12 = !service.hour24
+                service.preferenceData = savedPrefs
+                service.formatLocale = savedLocale
+                if (!britishAutomatic || !americanAutomatic || !explicit24 || !explicit12) {
+                    test.fail("shell locale or explicit 12/24-hour preference was not respected")
+                    return
+                }
+                console.log("ELSEWHEN_LOCALE_PASS automatic en_GB/en_US and explicit true/false")
                 if (!service.staticDataReady || !service.worldData || service.worldData.length === 0
                         || !service.cityData || !service.cityData.some(function(city) {
                             return city[0] === "Tokyo" && city[1] === "Asia/Tokyo"
