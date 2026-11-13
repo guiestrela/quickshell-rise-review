@@ -17,7 +17,7 @@ Item {
         schemaVersion: 1,
         cities: [],
         zones: Model.DEFAULT_ZONES,
-        hour24: false,
+
         offsetMode: "home",
         globeEnabled: true,
         smoothMotion: true
@@ -65,9 +65,13 @@ Item {
 
     readonly property bool staticDataReady: worldDataReady && cityDataReady
     readonly property bool clockTimerRunning: clockTimer.running
-    readonly property bool hour24: preferenceData.hour24 === true
+    // The host supplies Omarchy's display locale; standalone fixtures use Qt.
+    property string formatLocale: Qt.locale().name
+    property var words: null
+    readonly property bool autoHour24: Model.usesTwentyFourHour(Qt.locale(formatLocale).timeFormat(Locale.ShortFormat))
+    readonly property bool hour24: Model.resolveHour24(preferenceData.hour24, autoHour24)
     readonly property var cities: Model.parseCities(preferenceData.cities, preferenceData.zones)
-    readonly property var clockRows: Model.rows(cities, probe, nowMs, localOffsetMinutes, hour24)
+    readonly property var clockRows: Model.rows(cities, probe, nowMs, localOffsetMinutes, hour24, words)
     readonly property var zoneOptions: Model.zoneOptions(zoneCatalogText, cities)
     readonly property var probeIds: {
         var ids = []

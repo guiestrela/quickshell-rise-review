@@ -22,10 +22,21 @@ with tempfile.TemporaryDirectory(prefix="rise-elsewhen-adapters-", dir=SCRATCH) 
     # only host I/O. qmltestrunner cannot register Quickshell's native services.
     commons = base / "qs/Commons"
     commons.mkdir(parents=True)
-    (commons / "qmldir").write_text("module qs.Commons\nsingleton I18n 1.0 I18n.qml\n")
+    (commons / "qmldir").write_text("module qs.Commons\nsingleton I18n 1.0 I18n.qml\nsingleton Style 1.0 Style.qml\n")
     (commons / "I18n.qml").write_text(
         'pragma Singleton\nimport QtQuick\nQtObject {\n'
-        '  function t(key) { return key + " %1 %2" }\n}\n'
+        '  property string formatLocale: "en_US"\n'
+        '  property var strings: ({})\n'
+        '  function t(key, fallback) { return strings[key] || fallback || key + " %1 %2" }\n'
+        '  function tn(key, count, fallback) { return t(key, fallback) }\n'
+        '  function formatNumber(value, decimals) { return Number(value).toLocaleString(Qt.locale(formatLocale), "f", decimals === undefined ? 0 : decimals) }\n}\n'
+    )
+    (commons / "Style.qml").write_text(
+        'pragma Singleton\nimport QtQuick\nQtObject {\n'
+        '  property real testScale: 1\n'
+        '  property var font: ({title:14 * testScale, caption:10 * testScale})\n'
+        '  function space(px) { return Math.round(px * testScale) }\n'
+        '  function duration(ms) { return ms }\n}\n'
     )
 
     for subdir in ("components", "panels", "integrations/elsewhen"):

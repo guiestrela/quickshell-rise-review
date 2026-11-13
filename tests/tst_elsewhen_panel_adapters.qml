@@ -1,5 +1,6 @@
 import QtQuick
 import QtTest
+import qs.Commons as Commons
 import "variants/V1/panels" as V1
 import "variants/V2/panels" as V2
 
@@ -50,6 +51,8 @@ Item {
 
     QtObject {
         id: fakeService
+        property string formatLocale: "en_US"
+        property var words: null
         signal timezoneChanged(string zone)
         signal timezoneChangeFailed(string zone, string error)
         property var clockRows: [
@@ -118,6 +121,48 @@ Item {
     TestCase {
         name: "ElsewhenPanelAdapters"
         when: windowShown
+
+        function test_shell_locale_words_and_style_reach_every_adapter() {
+            var oldPrefs = fakeService.preferenceData
+            var oldLocale = Commons.I18n.formatLocale
+            var oldStrings = Commons.I18n.strings
+            var oldScale = Commons.Style.testScale
+            try {
+                var prefs = Object.assign({}, oldPrefs)
+                delete prefs.hour24
+                fakeService.preferenceData = prefs
+                Commons.I18n.strings = {"elsewhen.world":"Mundo", "elsewhen.clock":"Relogio",
+                    "elsewhen.here":"Aqui sao %1", "elsewhen.hereIn":"Aqui sao %1 em %2"}
+                for (var variant of ["v1", "v2"]) {
+                    for (var vertical of [false, true]) {
+                        load(variant, vertical, vertical ? "left" : "top")
+                        var content = findChild(panelLoader.item, "elsewhen-panel-content")
+                        Commons.I18n.formatLocale = "en_GB"
+                        compare(fakeService.formatLocale, "en_GB")
+                        compare(content.hour24, true)
+                        Commons.I18n.formatLocale = "en_US"
+                        compare(content.hour24, false)
+                        Commons.I18n.formatLocale = "pt_BR"
+                        compare(content.hour24, true)
+                        compare(findChild(content, "elsewhen-world-title").text, "Mundo")
+                        compare(findChild(content, "elsewhen-clock-title").text, "Relogio")
+                        verify(content.hereLine.indexOf("Aqui sao") === 0)
+                        compare(content.displayRows[0].date, new Date(2024, 2, 20, 12)
+                            .toLocaleString(Qt.locale("pt_BR"), "ddd MMM d"))
+                        Commons.Style.testScale = 2
+                        compare(content.globeStageHeight, Commons.Style.space(378))
+                        compare(findChild(content, "elsewhen-world-title").font.pixelSize, Commons.Style.font.title)
+                        compare(findChild(content, "elsewhen-here-city").pixelSize, Commons.Style.font.caption)
+                        Commons.Style.testScale = 1
+                    }
+                }
+            } finally {
+                fakeService.preferenceData = oldPrefs
+                Commons.I18n.formatLocale = oldLocale
+                Commons.I18n.strings = oldStrings
+                Commons.Style.testScale = oldScale
+            }
+        }
 
         function test_timezone_notifications_through_both_adapters() {
             for (var variant of ["v1", "v2"]) {
@@ -218,7 +263,7 @@ Item {
                     var content = findChild(panelLoader.item, "elsewhen-panel-content")
                     var zoom = findChild(content, "elsewhen-globe-zoom")
                     mouseClick(zoom, zoom.width / 2, zoom.height / 2)
-                    tryCompare(content.globeCanvas, "height", 300, 1000)
+                    tryCompare(content.globeCanvas, "height", 378, 1000)
                     content.timezoneTarget = "America/Sao_Paulo"
                     content.timezoneConfirmationVisible = true
                     wait(60)
@@ -293,7 +338,7 @@ Item {
                 var zoomButton = findChild(content, "elsewhen-globe-zoom")
                 verify(content !== null && zoomButton !== null)
                 mouseClick(zoomButton, zoomButton.width / 2, zoomButton.height / 2)
-                tryCompare(content.globeCanvas, "height", 300, 1000)
+                tryCompare(content.globeCanvas, "height", 378, 1000)
                 tryVerify(function() { return content.globeFooterPlace !== null }, 1000)
                 compare(findChild(content, "elsewhen-globe-footer-city").text, "Paris")
                 captureScene("v2-expanded-globe")
@@ -379,7 +424,7 @@ Item {
                 var zoomButton = findChild(content, "elsewhen-globe-zoom")
                 verify(zoomButton !== null)
                 mouseClick(zoomButton, zoomButton.width / 2, zoomButton.height / 2)
-                tryCompare(content.globeCanvas, "height", 300, 1000)
+                tryCompare(content.globeCanvas, "height", 378, 1000)
                 tryVerify(function() { return content.globeFooterPlace !== null }, 1000)
                 compare(findChild(content, "elsewhen-globe-footer-city").text, "Tokyo")
                 compare(content.globeFooterDaylight, false)
