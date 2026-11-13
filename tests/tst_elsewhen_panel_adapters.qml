@@ -211,6 +211,33 @@ Item {
             captureScene("v2-vertical")
         }
 
+        function test_timezone_confirmation_render_all_adapters() {
+            for (var variant of ["v1", "v2"]) {
+                for (var vertical of [false, true]) {
+                    load(variant, vertical, vertical ? "left" : "top")
+                    var content = findChild(panelLoader.item, "elsewhen-panel-content")
+                    var zoom = findChild(content, "elsewhen-globe-zoom")
+                    mouseClick(zoom, zoom.width / 2, zoom.height / 2)
+                    tryCompare(content.globeCanvas, "height", 300, 1000)
+                    content.timezoneTarget = "America/Sao_Paulo"
+                    content.timezoneConfirmationVisible = true
+                    wait(60)
+                    content.scrollArea.contentY = Math.max(0, content.scrollArea.contentHeight - content.scrollArea.height)
+                    wait(60)
+                    var message = findChild(content, "elsewhen-timezone-confirmation-message")
+                    verify(message !== null && !message.truncated)
+                    var buttons = content.confirmTimezoneButton.parent.children
+                    for (var button of buttons) {
+                        if (button.label !== "Confirm" && button.label !== "Cancel") continue
+                        var point = button.mapToItem(panelLoader.item.surfaceHost, 0, 0)
+                        verify(point.x >= 0 && point.x + button.width <= panelLoader.item.surfaceHost.width)
+                        verify(point.y >= 0 && point.y + button.height <= panelLoader.item.surfaceHost.height)
+                    }
+                    captureScene(variant + (vertical ? "-vertical" : "-horizontal") + "-timezone-confirmation")
+                }
+            }
+        }
+
         function test_v1_hover_greeting_render() {
             var oldNowMs = fakeService.nowMs
             var oldProbe = fakeService.probe

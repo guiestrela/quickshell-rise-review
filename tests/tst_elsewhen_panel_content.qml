@@ -2064,6 +2064,36 @@ Item {
             compare(findChild(restored, "elsewhen-city-time").text, "1:00")
         }
 
+        function test_timezone_confirmation_fits_narrow_panel_without_clipping() {
+            var originalWidth = testRoot.width
+            var originalConfirmation = content.timezoneConfirmationVisible
+            try {
+                content.timezoneConfirmationVisible = true
+                for (var width of [200, 260, 316]) {
+                    testRoot.width = width
+                    wait(50)
+                    var confirm = content.confirmTimezoneButton
+                    var cancel = null
+                    for (var child of confirm.parent.children)
+                        if (child.label === "Cancel") cancel = child
+                    verify(cancel !== null)
+                    for (var button of [confirm, cancel]) {
+                        var point = button.mapToItem(content, 0, 0)
+                        verify(point.x >= 0 && point.x + button.width <= content.width,
+                               "confirmation buttons must fit the panel at width " + width)
+                    }
+                    var message = findChild(content, "elsewhen-timezone-confirmation-message")
+                    verify(message !== null)
+                    verify(!message.truncated, "full timezone message must remain readable")
+                    verify(message.contentWidth <= message.width + 1)
+                    verify(confirm.mapToItem(content, 0, 0).y >= message.mapToItem(content, 0, message.height).y)
+                }
+            } finally {
+                testRoot.width = originalWidth
+                content.timezoneConfirmationVisible = originalConfirmation
+            }
+        }
+
         function test_timezone_change_requires_an_explicit_confirmation() {
             fakeService.timezoneRequests = 0
             var requestedZone = content.timezoneTarget

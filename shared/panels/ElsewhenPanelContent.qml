@@ -1256,35 +1256,41 @@ Item {
 
             Rectangle {
                 width: parent.width
-                height: panel.timezoneConfirmationVisible ? 54 : 0
+                height: panel.timezoneConfirmationVisible ? timezoneConfirmationLayout.implicitHeight + 12 : 0
                 visible: height > 0
                 color: panel.root.bg
                 radius: 6
-                Row {
-                    anchors.fill: parent
-                    anchors.margins: 6
+                Column {
+                    id: timezoneConfirmationLayout
+                    x: 6
+                    y: 6
+                    width: Math.max(0, parent.width - 12)
                     spacing: 8
                     SharedComponents.UiText {
-                        width: parent.width - confirmTimezoneAction.width - 50
+                        objectName: "elsewhen-timezone-confirmation-message"
+                        width: parent.width
                         text: "Set system zone to " + panel.timezoneTarget + "?"
                         color: panel.root.ink
-                        font.pixelSize: 10
-                        verticalAlignment: Text.AlignVCenter
-                        elide: Text.ElideRight
+                        font.pixelSize: 11
+                        wrapMode: Text.Wrap
                     }
-                    ActionButton {
-                        id: confirmTimezoneAction
-                        label: "Confirm"
-                        highlighted: true
-                        onClicked: {
-                            if (!panel.service.requestTimezoneChange(panel.timezoneTarget))
-                                panel.statusMessage = panel.service.timezoneError || panel.service.lastError
-                            panel.timezoneConfirmationVisible = false
+                    Flow {
+                        width: parent.width
+                        spacing: 8
+                        ActionButton {
+                            id: confirmTimezoneAction
+                            label: "Confirm"
+                            highlighted: true
+                            onClicked: {
+                                if (!panel.service.requestTimezoneChange(panel.timezoneTarget))
+                                    panel.statusMessage = panel.service.timezoneError || panel.service.lastError
+                                panel.timezoneConfirmationVisible = false
+                            }
                         }
-                    }
-                    ActionButton {
-                        label: "Cancel"
-                        onClicked: panel.timezoneConfirmationVisible = false
+                        ActionButton {
+                            label: "Cancel"
+                            onClicked: panel.timezoneConfirmationVisible = false
+                        }
                     }
                 }
             }
