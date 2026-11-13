@@ -5,7 +5,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHECK="${CHECK:-$REPO_ROOT/scripts/qs-theme-update-check.sh}"
 APPLY="${APPLY:-$REPO_ROOT/scripts/qs-theme-apply-update.sh}"
 HOOK="${HOOK:-$REPO_ROOT/hooks/50-quickshell-bar.sh}"
-WORK="$(mktemp -d /tmp/qs-theme-update-test.XXXXXX)"
+WORK="$(mktemp -d "${TMPDIR:-/tmp}/qs-theme-update-test.XXXXXX")"
 
 cleanup() {
   rm -rf "$WORK"
