@@ -82,6 +82,37 @@ with tempfile.TemporaryDirectory(prefix="rise-elsewhen-process-", dir=SCRATCH) a
     panels.mkdir(parents=True)
     shutil.copy2(ROOT / "shared/panels/ElsewhenPanelContent.qml", panels / "ElsewhenPanelContent.qml")
     shutil.copytree(ROOT / "shared/integrations/elsewhen", base / "shared/integrations/elsewhen")
+    commons = base / "qs/Commons"
+    commons.mkdir(parents=True)
+    (commons / "qmldir").write_text(
+        "module qs.Commons\nsingleton Style 1.0 Style.qml\nsingleton Color 1.0 Color.qml\n"
+    )
+    (commons / "Style.qml").write_text(
+        'pragma Singleton\nimport QtQuick\nQtObject {\n'
+        '  property int cornerRadius: 6\n'
+        '  readonly property var font: ({family: "monospace",body:12,bodySmall:11,caption:10,title:14,display:24})\n'
+        '  readonly property var spacing: ({inputPaddingY:7})\n'
+        '  readonly property int normalBorderWidth: 1\n'
+        '  function normalBorderFor(foreground, accent, urgent) { return Qt.rgba(foreground.r, foreground.g, foreground.b, 0.4) }\n'
+        '  function space(px) { return Math.round(px) }\n'
+        '  function duration(ms) { return ms }\n'
+        '}\n'
+    )
+    (commons / "Color.qml").write_text(
+        'pragma Singleton\nimport QtQuick\nQtObject {\n'
+        '  readonly property color accent: "#7aa2f7"\n'
+        '  readonly property color muted: "#565f89"\n'
+        '  readonly property color background: "#1a1b26"\n'
+        '  readonly property QtObject popups: QtObject {\n'
+        '    readonly property color background: "#1a1b26"\n'
+        '    readonly property color text: "#a9b1d6"\n'
+        '    readonly property color border: "#7aa2f7"\n'
+        '  }\n'
+        '  readonly property QtObject menu: QtObject {\n'
+        '    readonly property color selectedBackground: "#24283b"\n'
+        '  }\n'
+        '}\n'
+    )
     shell = base / "shell.qml"
     shell_text = (ROOT / "tests/tst_elsewhen_process_adapter.qml").read_text(encoding="utf-8")
     shell_text = shell_text.replace('"../shared/services"', '"./shared/services"')
@@ -98,6 +129,7 @@ with tempfile.TemporaryDirectory(prefix="rise-elsewhen-process-", dir=SCRATCH) a
         RISE_ELSEWHEN_SETTINGS_PATH=str(settings),
         RISE_ELSEWHEN_TEST_HELPER=str(helper),
         RISE_ELSEWHEN_COMMAND_LOG=str(command_log),
+        QML2_IMPORT_PATH=str(base),
         QT_QPA_PLATFORM="wayland",
         QT_QUICK_BACKEND="software",
         QT_QPA_PLATFORMTHEME="",

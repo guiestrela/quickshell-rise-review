@@ -91,6 +91,7 @@ PanelWindow {
             root: panel.root
             service: panel.service
             globeStageHeight: Commons.Style.space(378)
+            actionButtonRadius: panel.buttonRadius
             titleFontSize: Commons.Style.font.title
             captionFontSize: Commons.Style.font.caption
             motionDuration: function(ms) { return Commons.Style.duration(ms) }

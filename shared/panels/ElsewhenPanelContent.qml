@@ -5,12 +5,35 @@ import "../components" as SharedComponents
 import "../integrations/elsewhen" as Elsewhen
 import "../integrations/elsewhen/GlobeModel.js" as Globe
 import "../integrations/elsewhen/Model.js" as Model
+import qs.Commons as Commons
 
 Item {
     id: panel
     objectName: "elsewhen-panel-content"
     required property var root
     required property var service
+    readonly property var palette: ({
+        bg: Commons.Color.popups.background,
+        ink: Commons.Color.popups.text,
+        accent: Commons.Color.accent,
+        seal: Commons.Color.accent,
+        sep: Commons.Color.popups.border,
+        fillIdle: Commons.Color.popups.background,
+        fillHover: Commons.Color.menu.selectedBackground,
+        sumi: Commons.Color.muted,
+        mono: Commons.Style.font.family,
+        tileRadius: Commons.Style.cornerRadius,
+        panelButtonRadius: Commons.Style.cornerRadius
+    })
+    property real actionButtonRadius: 6
+    readonly property var actionButtonStyle: ({
+        fillIdle: palette.fillIdle,
+        fillHover: Qt.rgba(root.seal.r, root.seal.g, root.seal.b, root.fillHoverAlpha),
+        ink: palette.ink,
+        seal: root.seal,
+        sep: palette.sep,
+        mono: palette.mono
+    })
     property real scrubMinutes: 0
     property bool moonShowing: false
     property real moonDemo: -1
@@ -26,18 +49,25 @@ Item {
     property real globeViewLat: 0
     property real heroSpin: 0
     property bool globeExpanded: false
+    property bool optionsExpanded: false
     property int globeZoomDuration: 280
     property int globeZoomEasing: Easing.OutCubic
     property var motionDuration: null
     property real globeStageHeight: 378
+    readonly property real globeFooterHeight: Commons.Style.space(34)
+    readonly property real globeJumpButtonHeight: globeJumpTextMetrics.height
+        + 2 * Commons.Style.spacing.inputPaddingY + 2 * Commons.Style.normalBorderWidth
+    readonly property real globeJumpGap: Commons.Style.space(4)
+    readonly property real globeDiscCenterY: Math.max(0,
+        (globeCanvasItem.height - globeFooterHeight - globeJumpButtonHeight - globeJumpGap) / 2)
     property real titleFontSize: 14
     property real captionFontSize: 10
     function scaledDuration(ms) {
         return typeof motionDuration === "function" ? motionDuration(ms) : ms
     }
     readonly property bool globeReduced: service.preferenceData.smoothMotion !== false
-        && (globeDragArea.pressed || globeFocusAnimation.running || globeViewAnimation.running
-            || Math.abs(globeCanvasItem.height - (globeExpanded ? globeStageHeight : 158)) > 0.5)
+        && (globeDragArea.moved || globeFocusAnimation.running || globeViewAnimation.running
+            || Math.abs(globeCanvasItem.height - (globeExpanded ? globeStageHeight : 0)) > 0.5)
     onGlobeReducedChanged: globeCanvasItem.requestPaint()
     property bool openingSpinPending: false
     property var globeSessionCities: []
@@ -56,6 +86,7 @@ Item {
             openingSpinPending = false
             openingSpinFallback.stop()
             globeExpanded = false
+            optionsExpanded = false
             searchMode = ""
             searchText = ""
             zoneSearchInput.clear()
@@ -78,6 +109,12 @@ Item {
     property int draggingCityIndex: -1
     property int rowDragTargetIndex: -1
     property real rowDragPitch: 104
+    readonly property color daylightMarker: root.seal
+    onDaylightMarkerChanged: globeCanvasItem.requestPaint()
+    readonly property color globeSeaInk: panel.palette.ink
+    readonly property color globeLandInk: panel.palette.bg
+    readonly property color globeNightMarker: Qt.rgba(Commons.Color.background.r,
+        Commons.Color.background.g, Commons.Color.background.b, 0.92)
     readonly property var profiles: service.profiles || ({})
     readonly property double profileStamp: Number(service.profileStamp || 0)
     property string temperatureLabel: ""
@@ -156,6 +193,7 @@ Item {
     }
     readonly property real contentHeight: contentColumn.implicitHeight
     property alias refreshButton: refreshAction
+    property alias addCityButton: addCityAction
     property alias hour24Button: hour24Action
     property alias zoneSearchInput: zoneSearchInput
     property alias cityList: cityList
@@ -181,6 +219,8 @@ Item {
             handleEscape()
         } else if (zoneSearchInput.activeFocus || peopleEditIndex >= 0) {
             return
+        } else if (event.key === Qt.Key_O || event.text.toLowerCase() === "o") {
+            optionsExpanded = !optionsExpanded
         } else if (event.key === Qt.Key_Space) {
             toggleGlobeExpanded()
         } else if (globeExpanded && (event.text === "+" || event.text === "j"
@@ -224,6 +264,19 @@ Item {
         var key = Model.factsKey({ label: rowData.label, id: rowData.id })
         var observation = (service.weather || ({}))[key]
         if (observation) return Model.tempLabel(observation, preferenceUnits(), words)
+        return ""
+    }
+
+    function weatherGlyphFor(rowData) {
+        if (!rowData) return ""
+        var observation = (service.weather || ({}))[Model.factsKey(rowData)]
+        if (!observation || observation.w === undefined) return ""
+        var kind = Model.weatherKind(observation.w)
+        if (kind === "sunny") return "\udb81\udda8"
+        if (kind === "partly") return "\udb81\udd95"
+        if (kind === "cloudy") return "\udb81\udd90"
+        if (kind === "rain") return "\udb81\udd97"
+        if (kind === "snow") return "\udb81\udd98"
         return ""
     }
 
@@ -380,6 +433,7 @@ Item {
     function toggleGlobeExpanded(slow) {
         if (!service.preferenceData || service.preferenceData.globeEnabled === false) return false
         var opening = !globeExpanded
+        optionsExpanded = false
         globeZoomDuration = scaledDuration(opening ? 800 : 500) * (slow === true ? 3 : 1)
         globeZoomEasing = opening ? Easing.OutQuart : Easing.InOutCubic
         globeExpanded = opening
@@ -465,7 +519,7 @@ Item {
             if (a.rank !== b.rank) return a.rank - b.rank
             return b.cosc - a.cosc
         })
-        var plotted = Globe.declutter(candidates, Math.max(9, radius * 0.18))
+        var plotted = Globe.declutter(candidates, Commons.Style.space(19))
         var labelCandidates = []
         for (var j = 0; j < plotted.length; j++) {
             var marker = plotted[j]
@@ -473,13 +527,28 @@ Item {
             labelCandidates.push({ index: marker.index, name: places[marker.index].label,
                 x: marker.x, y: marker.y, rank: marker.keep ? -1 : marker.rank, cosc: marker.cosc })
         }
-        var labels = globeReduced ? [] : Globe.layoutLabels(labelCandidates, 5.5, 12, 8, radius - 3, 5)
+        var maxLabelX = globeCanvasItem.width > 0
+            ? globeCanvasItem.width / 2 - Commons.Style.space(4)
+            : radius - Commons.Style.space(4)
+        var labels = globeReduced ? [] : Globe.layoutLabels(labelCandidates,
+            Commons.Style.font.caption * 0.62,
+            Commons.Style.font.caption + Commons.Style.space(3), 14,
+            maxLabelX, Commons.Style.space(6))
         return { places: places, plotted: plotted, labels: labels }
+    }
+
+    function strokeGlobePath(ctx, points, radius, centerX, centerY) {
+        var segments = Globe.visibleSegments(points, globeSpin, globeViewLat, radius)
+        for (var i = 0; i < segments.length; i++) {
+            ctx.moveTo(centerX + segments[i][0].x, centerY + segments[i][0].y)
+            for (var j = 1; j < segments[i].length; j++)
+                ctx.lineTo(centerX + segments[i][j].x, centerY + segments[i][j].y)
+        }
     }
 
     function tapGlobeAt(x, y) {
         var point = globeCanvasItem.mapFromItem(globeDragArea, x, y)
-        var cx = globeCanvasItem.width / 2, cy = globeCanvasItem.height / 2
+        var cx = globeCanvasItem.width / 2, cy = globeDiscCenterY
         var radius = globePaintRadius(globeCanvasItem.width, globeCanvasItem.height)
         var scene = globeScene(radius)
         var px = point.x - cx, py = point.y - cy
@@ -546,7 +615,10 @@ Item {
         else if (scrubMinutes !== 0) {
             scrubHold.stop()
             scrubMinutes = 0
-        } else if (globeExpanded) globeExpanded = false
+        } else if (globeExpanded) {
+            globeExpanded = false
+            optionsExpanded = false
+        }
         else root.elsewhenVisible = false
     }
 
@@ -674,7 +746,14 @@ Item {
         var w = Number(width)
         var h = Number(height)
         if (!isFinite(w) || !isFinite(h) || w <= 0 || h <= 0) return 0
-        return Math.min(w, h) * 0.45
+        return Math.max(40, Math.min(w,
+            h - globeFooterHeight - globeJumpButtonHeight - globeJumpGap) / 2 - Commons.Style.space(6))
+    }
+
+    FontMetrics {
+        id: globeJumpTextMetrics
+        font.family: Commons.Style.font.family
+        font.pixelSize: Commons.Style.font.body
     }
 
     component ActionButton: Rectangle {
@@ -683,18 +762,20 @@ Item {
         property bool highlighted: false
         property bool available: true
         signal clicked()
+        Accessible.role: Accessible.Button
+        Accessible.name: label
         width: Math.max(46, label.length * 7 + 18)
         height: 28
-        radius: panel.root.tileRadius !== undefined ? panel.root.tileRadius : 7
-        color: action.available ? (action.highlighted ? panel.root.seal : panel.root.fillIdle) : panel.root.bg
-        border.color: panel.root.sep
+        radius: panel.palette.tileRadius !== undefined ? panel.palette.tileRadius : 7
+        color: action.available ? (action.highlighted ? panel.palette.seal : panel.palette.fillIdle) : panel.palette.bg
+        border.color: panel.palette.sep
         border.width: 1
         opacity: action.available ? 1 : 0.45
         SharedComponents.UiText {
             anchors.centerIn: parent
             text: action.label
-            color: action.highlighted ? panel.root.bg : panel.root.ink
-            font.family: panel.root.mono
+            color: action.highlighted ? panel.palette.bg : panel.palette.ink
+            font.family: panel.palette.mono
             font.pixelSize: 11
         }
         MouseArea {
@@ -705,33 +786,86 @@ Item {
         }
     }
 
+    component CityActionButton: Rectangle {
+        id: cityAction
+        property string label: ""
+        property string accessibleName: ""
+        signal activated()
+        readonly property bool highlighted: cityActionPointer.containsMouse || activeFocus
+        height: 28
+        radius: panel.actionButtonRadius
+        color: highlighted ? panel.actionButtonStyle.fillHover : panel.actionButtonStyle.fillIdle
+        border.color: highlighted ? panel.actionButtonStyle.seal : panel.actionButtonStyle.sep
+        border.width: 1
+        activeFocusOnTab: true
+        Accessible.role: Accessible.Button
+        Accessible.name: accessibleName === "" ? label : accessibleName
+        Accessible.onPressAction: {
+            if (cityAction.enabled) cityAction.activated()
+        }
+        Keys.onPressed: function(event) {
+            if (!cityAction.enabled) return
+            if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                cityAction.activated()
+                event.accepted = true
+            }
+        }
+        Behavior on color { ColorAnimation { duration: 120 } }
+        SharedComponents.UiText {
+            anchors.centerIn: parent
+            text: cityAction.label
+            color: cityAction.highlighted ? panel.actionButtonStyle.seal : panel.actionButtonStyle.ink
+            font.family: panel.actionButtonStyle.mono
+            font.pixelSize: 11
+        }
+        MouseArea {
+            id: cityActionPointer
+            anchors.fill: parent
+            hoverEnabled: true
+            cursorShape: Qt.PointingHandCursor
+            onClicked: {
+                cityAction.forceActiveFocus()
+                cityAction.activated()
+            }
+        }
+    }
+
     Flickable {
         id: flick
         anchors.fill: parent
+        anchors.rightMargin: -Commons.Style.space(12)
         contentWidth: width
         contentHeight: contentColumn.implicitHeight
         clip: true
+        interactive: false
         boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+        WheelHandler {
+            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+            onWheel: function(event) {
+                var delta = event.pixelDelta.y !== 0 ? event.pixelDelta.y
+                    : event.angleDelta.y / 120 * Commons.Style.space(40)
+                flick.contentY = Math.max(0, Math.min(flick.contentHeight - flick.height,
+                    flick.contentY - delta))
+            }
+        }
 
         Column {
             id: contentColumn
-            width: flick.width
-            spacing: 10
+            width: flick.width - Commons.Style.space(12)
+            spacing: 14
 
             Item {
                 id: worldClockHeader
                 objectName: "elsewhen-world-clock-header"
                 width: parent.width
-                readonly property bool compactLayout: width < titleRow.implicitWidth + 2 * (refreshAction.width + 8)
-                height: titleArea.implicitHeight + (compactLayout ? refreshAction.height + 8 : 0)
+                height: titleArea.implicitHeight
 
                 Column {
                     id: titleArea
-                    width: worldClockHeader.compactLayout ? parent.width
-                        : Math.max(0, parent.width - 2 * (refreshAction.width + 8))
-                    x: worldClockHeader.compactLayout ? 0 : refreshAction.width + 8
-                    y: worldClockHeader.compactLayout ? refreshAction.height + 8 : 0
+                    width: parent.width
+                    x: 0
+                    y: 0
                     spacing: 2
 
                     Item {
@@ -745,8 +879,8 @@ Item {
                             anchors.fill: parent
                             text: panel.hereLine
                             rise: 6
-                            color: panel.scrubMinutes !== 0 ? panel.root.accent : Qt.darker(panel.root.ink, 1.55)
-                            fontFamily: panel.root.mono
+                            color: panel.scrubMinutes !== 0 ? panel.palette.accent : Qt.darker(panel.palette.ink, 1.55)
+                            fontFamily: panel.palette.mono
                             pixelSize: panel.captionFontSize
                         }
                         MouseArea {
@@ -778,14 +912,14 @@ Item {
                         id: titleRow
                         objectName: "elsewhen-world-title-row"
                         anchors.horizontalCenter: parent.horizontalCenter
-                        height: 28
                         spacing: 9
 
                         Text {
                             objectName: "elsewhen-world-title"
+                            anchors.verticalCenter: parent.verticalCenter
                             text: panel.tr("elsewhen.world", "World")
-                            color: panel.root.ink
-                            font.family: panel.root.mono
+                            color: panel.palette.ink
+                            font.family: panel.palette.mono
                             font.pixelSize: panel.titleFontSize
                             font.weight: Font.DemiBold
                             textFormat: Text.PlainText
@@ -795,25 +929,19 @@ Item {
                         Item {
                             id: heroGlobeButton
                             objectName: "elsewhen-hero-globe-button"
-                            width: 28
-                            height: 28
+                            width: Math.round(Commons.Style.font.display * 1.3)
+                            height: Math.round(Commons.Style.font.display * 1.3)
                             enabled: panel.service.preferenceData.globeEnabled !== false
                             Accessible.role: Accessible.Button
                             Accessible.name: panel.globeExpanded ? "Return to world clock" : "Expand world clock globe"
-                            Rectangle {
-                                anchors.fill: parent
-                                radius: 5
-                                color: heroGlobeMouse.containsMouse ? panel.root.fillHover : "transparent"
-                            }
                             Elsewhen.MiniGlobe {
                                 id: heroGlobeCanvas
                                 objectName: "elsewhen-hero-globe-icon"
                                 anchors.fill: parent
-                                anchors.margins: 3
                                 spin: panel.heroSpin
                                 worldData: panel.service.worldData || []
-                                ink: panel.root.ink
-                                land: panel.root.seal
+                                ink: panel.palette.ink
+                                land: panel.palette.ink
                                 rotation: Globe.AXIAL_TILT
                                 opacity: panel.globeExpanded ? 0 : 1
                                 visible: opacity > 0
@@ -822,8 +950,9 @@ Item {
                             Text {
                                 anchors.centerIn: parent
                                 text: "×"
-                                color: panel.root.ink
-                                font.pixelSize: 24
+                                color: heroGlobeMouse.containsMouse ? panel.palette.ink
+                                    : Qt.darker(panel.palette.ink, 1.55)
+                                font.pixelSize: Math.round(parent.width * 0.8)
                                 rotation: -Globe.AXIAL_TILT
                                 opacity: panel.globeExpanded ? 1 : 0
                                 visible: opacity > 0
@@ -844,9 +973,10 @@ Item {
 
                         Text {
                             objectName: "elsewhen-clock-title"
+                            anchors.verticalCenter: parent.verticalCenter
                             text: panel.tr("elsewhen.clock", "Clock")
-                            color: panel.root.ink
-                            font.family: panel.root.mono
+                            color: panel.palette.ink
+                            font.family: panel.palette.mono
                             font.pixelSize: panel.titleFontSize
                             font.weight: Font.DemiBold
                             textFormat: Text.PlainText
@@ -855,21 +985,64 @@ Item {
                     }
                 }
 
+
+            }
+
+            Flow {
+                objectName: "elsewhen-options-row"
+                width: parent.width
+                height: visible ? implicitHeight : 0
+                spacing: 7
+                visible: panel.optionsExpanded
                 ActionButton {
                     id: refreshAction
+                    objectName: "elsewhen-refresh"
                     label: "Refresh"
-                    x: parent.width - width
-                    y: worldClockHeader.compactLayout ? 0 : (parent.height - height) / 2
                     onClicked: {
                         if (!panel.service.refresh()) panel.statusMessage = panel.service.lastError
                     }
+                }
+                ActionButton {
+                    id: hour24Action
+                    visible: !panel.globeExpanded
+                    label: panel.hour24 ? "24-hour" : "12-hour"
+                    highlighted: panel.hour24
+                    onClicked: panel.toggleHour24()
+                }
+                ActionButton {
+                    id: globeToggleAction
+                    visible: !panel.globeExpanded
+                    label: panel.service.preferenceData.globeEnabled === false ? "Show globe" : "Hide globe"
+                    highlighted: panel.service.preferenceData.globeEnabled !== false
+                    onClicked: panel.service.updateSetting("globeEnabled", panel.service.preferenceData.globeEnabled === false)
+                }
+                ActionButton {
+                    id: changeTimezoneAction
+                    label: "Set zone"
+                    available: panel.timezoneTarget !== ""
+                    onClicked: panel.timezoneConfirmationVisible = true
+                }
+                ActionButton {
+                    id: globeZoomAction
+                    objectName: "elsewhen-globe-zoom"
+                    label: panel.globeExpanded ? "Back" : "Zoom"
+                    highlighted: panel.globeExpanded
+                    available: panel.service.preferenceData.globeEnabled !== false
+                    onClicked: panel.toggleGlobeExpanded()
                 }
             }
 
             ListView {
                 id: cityList
                 objectName: "elsewhen-city-list"
-                width: parent.width
+                width: Math.max(0, parent.width - 6)
+                x: Math.round((parent.width - width) / 2)
+                spacing: 6
+                header: Item {
+                    objectName: "elsewhen-reference-list-top-spacing"
+                    width: cityList.width
+                    height: 5
+                }
                 height: panel.globeExpanded ? 0 : contentHeight
                 implicitHeight: height
                 visible: !panel.globeExpanded
@@ -882,10 +1055,29 @@ Item {
                 }
             }
 
+            Item {
+                objectName: "elsewhen-add-city-bottom-gap"
+                width: parent.width
+                height: 2
+                visible: !panel.globeExpanded && panel.searchMode === ""
+            }
+
+            CityActionButton {
+                id: addCityAction
+                objectName: "elsewhen-add-city"
+                width: Math.max(0, parent.width - 6)
+                x: Math.round((parent.width - width) / 2)
+                visible: !panel.globeExpanded && panel.searchMode === ""
+                label: panel.tr("elsewhen.addCity", "Add city")
+                accessibleName: "Add city"
+                onActivated: panel.startAddSearch()
+            }
+
             Row {
+                objectName: "elsewhen-search-row"
                 width: parent.width
                 height: visible ? implicitHeight : 0
-                visible: !panel.globeExpanded || panel.searchMode === "jump"
+                visible: panel.globeExpanded ? panel.searchMode === "jump" : panel.searchMode !== ""
                 z: panel.globeExpanded && panel.searchMode === "jump" ? 1 : 0
                 spacing: 7
                 TextField {
@@ -897,8 +1089,8 @@ Item {
                         : panel.searchMode === "jump" ? panel.tr("elsewhen.jumpToCity", "Jump to a place")
                         : panel.tr("elsewhen.searchCities", "Search time zones or places")
                     selectByMouse: true
-                    color: panel.root.ink
-                    placeholderTextColor: panel.root.sep
+                    color: panel.palette.ink
+                    placeholderTextColor: panel.palette.sep
                     font.pixelSize: 11
                     onTextChanged: {
                         panel.searchText = text
@@ -930,8 +1122,8 @@ Item {
                     }
                     background: Rectangle {
                         radius: 6
-                        color: panel.root.fillIdle
-                        border.color: zoneSearchInput.activeFocus ? panel.root.seal : panel.root.sep
+                        color: panel.palette.fillIdle
+                        border.color: zoneSearchInput.activeFocus ? panel.palette.seal : panel.palette.sep
                         border.width: 1
                     }
                 }
@@ -954,7 +1146,7 @@ Item {
                     && panel.searchText.trim().length >= 2 && count > 0
                 currentIndex: panel.searchSelectionIndex
                 highlightFollowsCurrentItem: true
-                highlight: Rectangle { color: panel.root.fillHover; radius: 4 }
+                highlight: Rectangle { color: panel.palette.fillHover; radius: 4 }
                 clip: false
                 interactive: false
                 model: panel.searchResults
@@ -964,19 +1156,20 @@ Item {
                     width: searchList.width
                     height: 32
                     color: resultMouse.containsMouse || index === panel.searchSelectionIndex
-                        ? panel.root.fillHover : panel.root.fillIdle
+                        ? panel.palette.fillHover : panel.palette.fillIdle
                     radius: 4
                     SharedComponents.UiText {
                         anchors.left: parent.left
                         anchors.leftMargin: 8
                         anchors.verticalCenter: parent.verticalCenter
                         text: modelData.label + (modelData.region ? ", " + modelData.region : "") + "  ·  " + modelData.value
-                        color: panel.root.ink
+                        color: panel.palette.ink
                         font.pixelSize: 10
                         elide: Text.ElideRight
                     }
                     MouseArea {
                         id: resultMouse
+                        objectName: "elsewhen-zone-search-result-hit-target"
                         anchors.fill: parent
                         hoverEnabled: true
                         onEntered: panel.searchSelectionIndex = index
@@ -993,7 +1186,7 @@ Item {
                     && panel.searchResults.length === 0
                     && panel.service.placeSearchRunning
                 text: panel.tr("elsewhen.searchingPlaces", "Searching places…")
-                color: panel.root.seal
+                color: panel.palette.seal
                 font.pixelSize: 10
             }
 
@@ -1006,51 +1199,17 @@ Item {
                     && !panel.service.placeSearchRunning
                     && !panel.service.placeSearchError
                 text: "No matching time zones or places."
-                color: panel.root.seal
+                color: panel.palette.seal
                 font.pixelSize: 10
             }
-
-            Row {
-                width: parent.width
-                spacing: 7
-                ActionButton {
-                    id: hour24Action
-                    visible: !panel.globeExpanded
-                    label: panel.hour24 ? "24-hour" : "12-hour"
-                    highlighted: panel.hour24
-                    onClicked: panel.toggleHour24()
-                }
-                ActionButton {
-                    id: globeToggleAction
-                    visible: !panel.globeExpanded
-                    label: panel.service.preferenceData.globeEnabled === false ? "Show globe" : "Hide globe"
-                    highlighted: panel.service.preferenceData.globeEnabled !== false
-                    onClicked: panel.service.updateSetting("globeEnabled", panel.service.preferenceData.globeEnabled === false)
-                }
-                ActionButton {
-                    id: changeTimezoneAction
-                    label: "Set zone"
-                    available: panel.timezoneTarget !== ""
-                    onClicked: panel.timezoneConfirmationVisible = true
-                }
-                ActionButton {
-                    id: globeZoomAction
-                    objectName: "elsewhen-globe-zoom"
-                    label: panel.globeExpanded ? "Back" : "Zoom"
-                    highlighted: panel.globeExpanded
-                    available: panel.service.preferenceData.globeEnabled !== false
-                    onClicked: panel.toggleGlobeExpanded()
-                }
-            }
-
             Rectangle {
+                id: globeStage
                 width: parent.width
-                height: panel.service.preferenceData.globeEnabled === false ? 0 : (panel.globeExpanded ? panel.globeStageHeight + 12 : 170)
-                visible: panel.service.preferenceData.globeEnabled !== false
-                color: panel.root.fillIdle
-                radius: 8
-                border.color: panel.root.sep
-                border.width: 1
+                objectName: "elsewhen-globe-stage"
+                height: panel.globeExpanded ? panel.globeStageHeight : 0
+                visible: panel.globeExpanded && panel.service.preferenceData.globeEnabled !== false
+                color: "transparent"
+                border.width: 0
                 Behavior on height {
                     NumberAnimation {
                         duration: panel.globeZoomDuration
@@ -1061,8 +1220,8 @@ Item {
                     id: globeCanvasItem
                     objectName: "elsewhen-globe"
                     anchors.centerIn: parent
-                    width: Math.max(0, Math.min(parent.width - 12, panel.globeExpanded ? panel.globeStageHeight : 260))
-                    height: panel.globeExpanded ? panel.globeStageHeight : 158
+                    width: Math.max(0, Math.min(parent.width - 6, panel.globeExpanded ? panel.globeStageHeight : 260))
+                    height: panel.globeExpanded ? panel.globeStageHeight : 0
                     Behavior on height {
                         NumberAnimation {
                             duration: panel.globeZoomDuration
@@ -1072,7 +1231,7 @@ Item {
                     onPaint: {
                         var ctx = getContext("2d")
                         var cx = width / 2
-                        var cy = height / 2
+                        var cy = panel.globeDiscCenterY
                         var radius = panel.globePaintRadius(width, height)
                         var spin = panel.globeSpin
                         ctx.clearRect(0, 0, width, height)
@@ -1080,65 +1239,127 @@ Item {
                         ctx.save()
                         ctx.beginPath()
                         ctx.arc(cx, cy, radius, 0, Math.PI * 2)
-                        ctx.fillStyle = panel.root.bg.toString()
+                        ctx.fillStyle = Model.mix(panel.palette.bg, panel.palette.ink, 0.05).toString()
                         ctx.fill()
                         ctx.clip()
-                        for (var lat = -60; !panel.globeReduced && lat <= 60; lat += 30) {
-                            ctx.beginPath()
-                            var started = false
-                            for (var lon = -180; lon <= 180; lon += 4) {
-                                var point = Globe.project(lat, lon, spin, panel.globeViewLat, radius)
-                                if (!point.visible) { started = false; continue }
-                                if (!started) { ctx.moveTo(cx + point.x, cy + point.y); started = true }
-                                else ctx.lineTo(cx + point.x, cy + point.y)
-                            }
-                            ctx.strokeStyle = panel.root.sep.toString()
-                            ctx.lineWidth = 0.45
-                            ctx.stroke()
+                        var gridStep = panel.globeReduced ? 60 : 30
+                        ctx.beginPath()
+                        var gridPoints
+                        for (var lon = -180; lon < 180; lon += gridStep) {
+                            gridPoints = []
+                            for (var lat = -90; lat <= 90; lat += 3) gridPoints.push([lat, lon])
+                            panel.strokeGlobePath(ctx, gridPoints, radius, cx, cy)
                         }
+                        for (var gridLat = -60; gridLat <= 60; gridLat += gridStep) {
+                            gridPoints = []
+                            for (var gridLon = -180; gridLon <= 180; gridLon += 3)
+                                gridPoints.push([gridLat, gridLon])
+                            panel.strokeGlobePath(ctx, gridPoints, radius, cx, cy)
+                        }
+                        ctx.strokeStyle = Qt.rgba(panel.palette.ink.r, panel.palette.ink.g,
+                            panel.palette.ink.b, 0.10).toString()
+                        ctx.lineWidth = 1
+                        ctx.stroke()
+                        var sun = Globe.subsolarPoint(panel.effectiveMs)
+                        ctx.beginPath()
+                        panel.strokeGlobePath(ctx, Globe.terminator(sun, 180), radius, cx, cy)
+                        ctx.lineWidth = 1
+                        ctx.strokeStyle = Qt.rgba(panel.daylightMarker.r, panel.daylightMarker.g,
+                            panel.daylightMarker.b, 0.55).toString()
+                        ctx.stroke()
+                        var landPolys = []
+                        ctx.beginPath()
                         for (var ringIndex = 0; ringIndex < panel.service.worldData.length; ringIndex++) {
                             var ring = panel.service.worldData[ringIndex]
                             if (!Array.isArray(ring) || ring.length < 8) continue
                             var clipped = Globe.clipRingToDisc(ring, spin, panel.globeViewLat, radius * 0.98)
                             if (clipped.length < 3) continue
-                            ctx.beginPath()
+                            landPolys.push(clipped)
                             ctx.moveTo(cx + clipped[0].x, cy + clipped[0].y)
                             for (var p = 1; p < clipped.length; p++) ctx.lineTo(cx + clipped[p].x, cy + clipped[p].y)
                             ctx.closePath()
-                            ctx.fillStyle = Qt.rgba(panel.root.seal.r, panel.root.seal.g, panel.root.seal.b, 0.22).toString()
-                            ctx.fill()
-                            ctx.strokeStyle = Qt.rgba(panel.root.seal.r, panel.root.seal.g, panel.root.seal.b, 0.55).toString()
-                            ctx.lineWidth = 0.5
-                            ctx.stroke()
                         }
-                        var sun = Globe.subsolarPoint(panel.effectiveMs)
+                        ctx.fillStyle = Model.mix(panel.palette.bg, panel.palette.ink, 0.92).toString()
+                        ctx.fill()
                         var scene = panel.globeScene(radius)
                         for (var cityIndex = 0; cityIndex < scene.plotted.length; cityIndex++) {
                             var plotted = scene.plotted[cityIndex]
                             var city = scene.places[plotted.index]
-                            var point = { x: plotted.x, y: plotted.y }
+                            var cityDaylight = Globe.isDaylight(city.lat, city.lon, sun)
+                            var citySelected = city.key === panel.globeSelectionKey
                             ctx.beginPath()
-                            ctx.arc(cx + point.x, cy + point.y,
-                                city.key === panel.globeSelectionKey ? 3.2 : (city.tracked ? 2.6 : 1.7),
+                            ctx.arc(cx + plotted.x, cy + plotted.y, citySelected ? 3.6 : 2.2,
                                 0, Math.PI * 2)
-                            ctx.fillStyle = city.key === panel.globeSelectionKey || city.tracked
-                                ? panel.root.seal.toString()
-                                : (Globe.isDaylight(city.lat, city.lon, sun)
-                                    ? panel.root.seal.toString() : panel.root.ink.toString())
+                            ctx.fillStyle = cityDaylight ? panel.daylightMarker.toString()
+                                : panel.globeNightMarker.toString()
                             ctx.fill()
+                            ctx.lineWidth = 1.2
+                            ctx.strokeStyle = cityDaylight
+                                ? Qt.rgba(panel.palette.bg.r, panel.palette.bg.g, panel.palette.bg.b, 0.7).toString()
+                                : Qt.rgba(panel.palette.ink.r, panel.palette.ink.g, panel.palette.ink.b, 0.85).toString()
+                            ctx.stroke()
+                            if (city.home) {
+                                ctx.beginPath()
+                                ctx.arc(cx + plotted.x, cy + plotted.y, 3.4, 0, Math.PI * 2)
+                                ctx.fillStyle = panel.palette.accent.toString()
+                                ctx.fill()
+                                ctx.lineWidth = 1.2
+                                ctx.strokeStyle = Qt.rgba(panel.palette.bg.r, panel.palette.bg.g,
+                                    panel.palette.bg.b, 0.5).toString()
+                                ctx.stroke()
+                                ctx.beginPath()
+                                ctx.arc(cx + plotted.x, cy + plotted.y, 6.4, 0, Math.PI * 2)
+                                ctx.lineWidth = 1.4
+                                ctx.strokeStyle = Qt.rgba(panel.palette.accent.r, panel.palette.accent.g,
+                                    panel.palette.accent.b, 0.65).toString()
+                                ctx.stroke()
+                            } else if (city.tracked) {
+                                ctx.beginPath()
+                                ctx.arc(cx + plotted.x, cy + plotted.y, 4.6, 0, Math.PI * 2)
+                                ctx.lineWidth = 1.3
+                                ctx.strokeStyle = panel.palette.accent.toString()
+                                ctx.stroke()
+                            }
+                            if (citySelected) {
+                                ctx.beginPath()
+                                ctx.arc(cx + plotted.x, cy + plotted.y, 7.5, 0, Math.PI * 2)
+                                ctx.lineWidth = 1.4
+                                ctx.strokeStyle = cityDaylight ? panel.daylightMarker.toString()
+                                    : panel.palette.ink.toString()
+                                ctx.stroke()
+                            }
                         }
-                        ctx.font = "9px " + panel.root.mono
                         ctx.textBaseline = "middle"
-                        ctx.fillStyle = panel.root.ink.toString()
-                        for (var labelIndex = 0; labelIndex < scene.labels.length; labelIndex++) {
-                            var label = scene.labels[labelIndex]
-                            var box = label.box
-                            ctx.fillText(scene.places[label.index].label, cx + box.x, cy + box.y + box.h / 2)
+                        function paintLabels(labelInk) {
+                            ctx.fillStyle = labelInk.toString()
+                            for (var labelIndex = 0; labelIndex < scene.labels.length; labelIndex++) {
+                                var label = scene.labels[labelIndex]
+                                var place = scene.places[label.index]
+                                if (!place) continue
+                                var strong = place.home || place.tracked
+                                ctx.font = (strong ? "bold " : "") + Commons.Style.font.caption
+                                    + "px \"" + panel.palette.mono + "\""
+                                ctx.fillText(place.label, cx + label.box.x, cy + label.box.y + label.box.h / 2)
+                            }
                         }
+                        paintLabels(panel.globeSeaInk)
+                        ctx.save()
+                        ctx.beginPath()
+                        for (var landIndex = 0; landIndex < landPolys.length; landIndex++) {
+                            var landPoly = landPolys[landIndex]
+                            ctx.moveTo(cx + landPoly[0].x, cy + landPoly[0].y)
+                            for (var landPoint = 1; landPoint < landPoly.length; landPoint++)
+                                ctx.lineTo(cx + landPoly[landPoint].x, cy + landPoly[landPoint].y)
+                            ctx.closePath()
+                        }
+                        ctx.clip()
+                        paintLabels(panel.globeLandInk)
+                        ctx.restore()
                         ctx.restore()
                         ctx.beginPath()
                         ctx.arc(cx, cy, radius, 0, Math.PI * 2)
-                        ctx.strokeStyle = panel.root.seal.toString()
+                        ctx.strokeStyle = Qt.rgba(panel.palette.ink.r, panel.palette.ink.g,
+                            panel.palette.ink.b, 0.22).toString()
                         ctx.lineWidth = 1
                         ctx.stroke()
                     }
@@ -1159,7 +1380,9 @@ Item {
                     }
                     onReleased: function(mouse) {
                         cursorShape = Qt.OpenHandCursor
-                        if (!moved) panel.tapGlobeAt(mouse.x, mouse.y)
+                        var didMove = moved
+                        moved = false
+                        if (!didMove) panel.tapGlobeAt(mouse.x, mouse.y)
                     }
                     onCanceled: {
                         moved = false
@@ -1179,9 +1402,22 @@ Item {
                 }
             }
 
+            Item {
+                id: globeFooterListHost
+                width: parent.width
+                height: !panel.globeExpanded && panel.globeFooterPlace !== null
+                    ? panel.globeFooterHeight : 0
+                visible: height > 0
+            }
+
             Column {
+                parent: panel.globeExpanded ? globeStage : globeFooterListHost
                 objectName: "elsewhen-globe-selection"
                 width: parent.width
+                height: panel.globeFooterHeight
+                x: 0
+                y: panel.globeExpanded
+                    ? parent.height - panel.globeJumpButtonHeight - panel.globeJumpGap - height : 0
                 visible: panel.globeFooterPlace !== null
                 spacing: 2
                 TextMetrics {
@@ -1200,20 +1436,20 @@ Item {
                         height: width
                         y: globeFooterCity.baselineOffset - height
                         radius: width / 2
-                        color: panel.globeFooterDaylight ? panel.root.seal : "transparent"
+                        color: panel.globeFooterDaylight ? panel.palette.seal : "transparent"
                         Elsewhen.MoonDot {
                             objectName: "elsewhen-globe-footer-moon"
                             anchors.fill: parent
                             visible: panel.globeFooterPlace !== null && !panel.globeFooterDaylight
                             phase: panel.globeFooterMoonPhase
-                            color: panel.root.ink
+                            color: panel.palette.ink
                         }
                     }
                     SharedComponents.UiText {
                         id: globeFooterCity
                         objectName: "elsewhen-globe-footer-city"
                         text: panel.globeFooterPlace ? panel.globeFooterPlace.label : ""
-                        color: panel.root.ink
+                        color: panel.palette.ink
                         font.pixelSize: 11
                         font.bold: true
                         elide: Text.ElideRight
@@ -1222,14 +1458,14 @@ Item {
                         objectName: "elsewhen-globe-footer-clock"
                         text: panel.globeFooterClock
                         visible: text !== ""
-                        color: panel.root.ink
+                        color: panel.palette.ink
                         font.pixelSize: 11
                     }
                     SharedComponents.UiText {
                         objectName: "elsewhen-globe-footer-badge"
                         text: panel.globeFooterBadge
                         visible: text !== ""
-                        color: panel.root.seal
+                        color: panel.palette.seal
                         font.pixelSize: 10
                     }
                 }
@@ -1245,7 +1481,7 @@ Item {
                             objectName: "elsewhen-globe-footer-zone"
                             text: panel.globeFooterPlace ? panel.globeFooterPlace.id : ""
                             color: globeFooterOffsetHover.hovered
-                                ? Qt.darker(panel.root.ink, 1.55) : Qt.darker(panel.root.ink, 2.1)
+                                ? Qt.darker(panel.palette.ink, 1.55) : Qt.darker(panel.palette.ink, 2.1)
                             font.pixelSize: 10
                         }
                         SharedComponents.UiText {
@@ -1253,7 +1489,7 @@ Item {
                             text: panel.offsetTextFor(panel.globeFooterRow)
                             visible: text !== ""
                             color: globeFooterOffsetHover.hovered
-                                ? panel.root.ink : Qt.darker(panel.root.ink, 1.55)
+                                ? panel.palette.ink : Qt.darker(panel.palette.ink, 1.55)
                             font.pixelSize: 10
                         }
                     }
@@ -1271,11 +1507,25 @@ Item {
                 }
             }
 
+            CityActionButton {
+                parent: globeStage
+                id: globeJumpAction
+                objectName: "elsewhen-globe-jump"
+                x: (parent.width - width) / 2
+                y: parent.height - height
+                width: Math.max(0, parent.width - 6)
+                height: panel.globeJumpButtonHeight
+                visible: panel.globeExpanded && panel.searchMode !== "jump"
+                label: panel.tr("elsewhen.jumpToCity", "Jump to a city")
+                accessibleName: panel.tr("elsewhen.jumpToCity", "Jump to a city")
+                onActivated: panel.startJumpSearch()
+            }
+
             Rectangle {
                 width: parent.width
                 height: panel.timezoneConfirmationVisible ? timezoneConfirmationLayout.implicitHeight + 12 : 0
                 visible: height > 0
-                color: panel.root.bg
+                color: panel.palette.bg
                 radius: 6
                 Column {
                     id: timezoneConfirmationLayout
@@ -1287,7 +1537,7 @@ Item {
                         objectName: "elsewhen-timezone-confirmation-message"
                         width: parent.width
                         text: "Set system zone to " + panel.timezoneTarget + "?"
-                        color: panel.root.ink
+                        color: panel.palette.ink
                         font.pixelSize: 11
                         wrapMode: Text.Wrap
                     }
@@ -1317,7 +1567,7 @@ Item {
                 visible: text !== ""
                 text: String(panel.statusMessage || panel.service.lastError || panel.service.catalogError
                     || panel.service.timezoneError || panel.service.placeSearchError || "")
-                color: panel.root.seal
+                color: panel.palette.seal
                 font.pixelSize: 10
                 wrapMode: Text.Wrap
             }

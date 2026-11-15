@@ -1,5 +1,6 @@
 import QtQuick
 import QtTest
+import qs.Commons as Commons
 import "../shared/panels" as Panels
 import "../shared/integrations/elsewhen/GlobeModel.js" as Globe
 
@@ -17,6 +18,7 @@ Item {
         property color accent: "#cc241d"
         property color fillIdle: "#282828"
         property color fillHover: "#3c3836"
+        property real fillHoverAlpha: 0.12
         property string mono: "monospace"
         property bool elsewhenVisible: true
         property var notificationMessages: []
@@ -152,6 +154,51 @@ Item {
         name: "ElsewhenPanelContent"
         when: windowShown
 
+        function cleanup() {
+            content.optionsExpanded = false
+        }
+
+        function clickControl(item) {
+            verify(item !== null, "control target must exist")
+            verify(item.visible, "control target must be visible: " + item.objectName)
+            verify(item.enabled !== false, "control target must be enabled: " + item.objectName)
+            mouseClick(item, item.width / 2, item.height / 2)
+        }
+
+        function revealOptions() {
+            if (!content.optionsExpanded) {
+                content.forceActiveFocus()
+                keyClick(Qt.Key_O)
+            }
+            compare(content.optionsExpanded, true)
+            verify(waitForRendering(testRoot, 3000), "options and action targets must render before interaction")
+            var row = findChild(content, "elsewhen-options-row")
+            verify(row !== null)
+            tryCompare(row, "visible", true, 500)
+            verify(row.height >= 28, "disclosed options must own vertical layout space")
+            var hourButtonOrigin = content.hour24Button.mapToItem(row, 0, 0)
+            verify(hourButtonOrigin.y >= 0 && hourButtonOrigin.y + content.hour24Button.height <= row.height)
+        }
+
+        function scrollSearchControlsIntoView() {
+            content.scrollArea.contentY = Math.max(0,
+                content.scrollArea.contentHeight - content.scrollArea.height)
+            wait(50)
+        }
+
+        function settleGlobe(expanded, render) {
+            content.globeExpanded = expanded
+            tryCompare(content.globeCanvas, "height", expanded ? content.globeStageHeight : 0, 1500)
+            tryCompare(content, "globeReduced", false, 2000)
+            if (render) {
+                verify(content.globeCanvas.visible && content.globeCanvas.width > 0,
+                    "expanded globe target must be visible with positive geometry")
+                content.globeCanvas.requestPaint()
+                verify(waitForRendering(content.globeCanvas, 3000),
+                    "expanded globe must render before pointer input")
+            }
+        }
+
         function test_unset_hour_format_follows_shell_locale_and_keeps_explicit_choice() {
             var oldPrefs = fakeService.preferenceData
             var oldLocale = fakeService.formatLocale
@@ -203,7 +250,8 @@ Item {
                 fakeService.preferenceData = prefs
                 fakeService.formatLocale = "en_GB"
                 fakeService.settingsWrites = 0
-                mouseClick(content.hour24Button, content.hour24Button.width / 2, content.hour24Button.height / 2)
+                revealOptions()
+                clickControl(content.hour24Button)
                 compare(fakeService.preferenceData.hour24, false)
                 compare(fakeService.settingsWrites, 1)
                 tryCompare(content.hour24Button, "label", "12-hour")
@@ -211,7 +259,7 @@ Item {
                 fakeService.preferenceData = Object.assign({}, prefs)
                 fakeService.formatLocale = "en_US"
                 fakeService.settingsWrites = 0
-                mouseClick(content.hour24Button, content.hour24Button.width / 2, content.hour24Button.height / 2)
+                clickControl(content.hour24Button)
                 compare(fakeService.preferenceData.hour24, true)
                 compare(fakeService.settingsWrites, 1)
                 tryCompare(content.hour24Button, "label", "24-hour")
@@ -247,16 +295,33 @@ Item {
             var oldPrefs = fakeService.preferenceData
             var oldSpin = content.globeSpin
             var oldLat = content.globeViewLat
+            var oldExpanded = content.globeExpanded
+            var oldZoomDuration = content.globeZoomDuration
+            var oldZoomEasing = content.globeZoomEasing
             try {
                 fakeService.preferenceData = Object.assign({}, oldPrefs, {smoothMotion:false, globeEnabled:true})
+                content.globeZoomDuration = 280
+                content.globeZoomEasing = Easing.OutCubic
+                content.globeExpanded = true
+                tryCompare(content.globeCanvas, "height", 378, 1000)
                 content.globeSpin = 2.35
                 content.globeViewLat = 48.85
+                wait(350)
                 mousePress(content.globeDragArea, content.globeDragArea.width / 2, content.globeDragArea.height / 2)
                 verify(content.globeDragArea.pressed)
                 verify(content.globeScene(70).labels.length > 0)
                 fakeService.preferenceData = Object.assign({}, oldPrefs, {smoothMotion:true, globeEnabled:true})
+                compare(content.globeReduced, false,
+                    "a stationary press keeps labels visible and hittable")
+                verify(content.globeScene(70).labels.length > 0)
+                mouseMove(content.globeDragArea, content.globeDragArea.width / 2 + 12,
+                    content.globeDragArea.height / 2)
+                verify(content.globeDragArea.moved)
+                compare(content.globeReduced, true,
+                    "labels are removed only after pointer movement begins")
                 compare(content.globeScene(70).labels.length, 0)
-                mouseRelease(content.globeDragArea, content.globeDragArea.width / 2, content.globeDragArea.height / 2)
+                mouseRelease(content.globeDragArea, content.globeDragArea.width / 2 + 12,
+                    content.globeDragArea.height / 2)
                 tryVerify(function() { return !content.globeReduced }, 1500)
                 verify(content.globeScene(70).labels.length > 0)
             } finally {
@@ -264,6 +329,9 @@ Item {
                 fakeService.preferenceData = oldPrefs
                 content.globeSpin = oldSpin
                 content.globeViewLat = oldLat
+                content.globeExpanded = oldExpanded
+                content.globeZoomDuration = oldZoomDuration
+                content.globeZoomEasing = oldZoomEasing
             }
         }
 
@@ -440,11 +508,20 @@ Item {
                 tryCompare(content.cityList, "count", 8)
                 verify(content.cityList.height > 144)
                 compare(content.cityList.height, content.cityList.contentHeight)
+                compare(content.scrollArea.interactive, false,
+                    "city rows own pointer drags; the reference list scrolls by wheel")
                 tryVerify(function() { return content.scrollArea.contentHeight > content.scrollArea.height }, 500)
                 var last = content.cityList.itemAtIndex(7)
                 verify(last !== null)
                 var maxScroll = content.scrollArea.contentHeight - content.scrollArea.height
                 verify(maxScroll > 0)
+                content.scrollArea.contentY = 0
+                var wheelPoint = content.scrollArea.mapToItem(testRoot,
+                    content.scrollArea.width / 2, content.scrollArea.height / 2)
+                mouseWheel(testRoot, wheelPoint.x, wheelPoint.y, 0, -120,
+                    Qt.NoButton, Qt.NoModifier)
+                tryVerify(function() { return content.scrollArea.contentY > 0 }, 500,
+                    "wheel scrolling remains available without an overlay scrollbar")
                 content.scrollArea.contentY = maxScroll
                 wait(50)
                 var lastPoint = last.mapToItem(content.scrollArea, 24, 27)
@@ -458,28 +535,54 @@ Item {
             }
         }
 
-        function test_city_row_controls_route_remove_and_reorder() {
+        function test_city_row_remove_button_routes_to_service() {
             var originalCities = fakeService.cities
             var originalClockRows = fakeService.clockRows
+            var originalContentY = content.scrollArea.contentY
             try {
-                fakeService.moveRequests = 0
                 fakeService.cityRemoves = 0
-                var second = content.cityList.itemAtIndex(1)
-                mouseMove(second, 30, 30)
-                wait(40)
-                verify(second.moveUpButton.visible)
-                mouseClick(second.moveUpButton, second.moveUpButton.width / 2, second.moveUpButton.height / 2)
-                compare(fakeService.moveRequests, 1)
+                content.scrollArea.contentY = 0
+                verify(waitForRendering(testRoot, 3000),
+                    "the first city row must render before pointer interaction")
                 var first = content.cityList.itemAtIndex(0)
+                verify(first !== null)
+                var rowPoint = first.mapToItem(content.scrollArea, 0, 0)
+                verify(rowPoint.y >= 0 && rowPoint.y + first.height <= content.scrollArea.height,
+                    "the remove target's row must be inside the visible list viewport")
                 mouseMove(first, 30, 30)
                 wait(40)
                 verify(first.removeButton.visible)
-                mouseClick(first.removeButton, first.removeButton.width / 2, first.removeButton.height / 2)
+                // The badge intentionally straddles the row's top edge; target its visible lower half.
+                var removePoint = first.removeButton.mapToItem(testRoot,
+                    first.removeButton.width / 2, first.removeButton.height * 0.75)
+                verify(removePoint.x >= 0 && removePoint.y >= 0
+                    && removePoint.x < testRoot.width && removePoint.y < testRoot.height)
+                var removeMouseAreas = first.removeButton.children.filter(function(child) {
+                    return child.containsMouse !== undefined
+                })
+                compare(removeMouseAreas.length, 1)
+                mouseMove(testRoot, removePoint.x, removePoint.y)
+                tryVerify(function() { return removeMouseAreas[0].containsMouse }, 500,
+                    "the visible remove badge must own the pointer hit target")
+                mouseClick(removeMouseAreas[0], removeMouseAreas[0].width / 2,
+                    removeMouseAreas[0].height * 0.75)
                 compare(fakeService.cityRemoves, 1)
             } finally {
                 fakeService.cities = originalCities
                 fakeService.clockRows = originalClockRows
+                content.scrollArea.contentY = originalContentY
             }
+        }
+
+        function test_hovered_city_row_has_only_reference_actions() {
+            var row = content.cityList.itemAtIndex(1)
+            verify(row !== null)
+            mouseMove(row, 30, 30)
+            wait(40)
+            verify(row.peopleEditButton.visible)
+            verify(row.removeButton.visible)
+            compare(findChild(row, "elsewhen-city-move-up"), null)
+            compare(findChild(row, "elsewhen-city-move-down"), null)
         }
 
         function test_row_drag_requests_service_reorder() {
@@ -503,6 +606,7 @@ Item {
             var oldFocus = content.keyboardFocusKey
             var oldSpin = content.globeSpin
             var oldViewLat = content.globeViewLat
+            var oldExpanded = content.globeExpanded
             fakeService.cityData = oldCityData.concat([
                 ["Cebu", "Asia/Manila", 10.3157, 123.8854, 1],
                 ["Cébu", "Asia/Manila", 10.3157, 123.8854, 1]
@@ -512,15 +616,21 @@ Item {
                 here: { name: "Existing home", zone: "Asia/Manila", lat: -30, lon: 0 }
             })
             try {
+                content.globeExpanded = true
+                tryCompare(content.globeCanvas, "height", 378, 1000)
+                verify(waitForRendering(testRoot, 3000),
+                    "expanded globe must finish layout and paint before marker input")
                 var city = { label: "Cebu", id: "Asia/Manila", lat: 10.3157, lon: 123.8854 }
                 content.globeSpin = city.lon
                 content.globeViewLat = 0
+                verify(waitForRendering(testRoot, 3000),
+                    "focused projection must render before marker hit-testing")
                 var radius = content.globePaintRadius(content.globeCanvas.width, content.globeCanvas.height)
                 var marker = Globe.project(city.lat, city.lon, content.globeSpin, content.globeViewLat, radius)
                 verify(marker.visible)
                 var point = content.globeCanvas.mapToItem(content.globeDragArea,
                     content.globeCanvas.width / 2 + marker.x,
-                    content.globeCanvas.height / 2 + marker.y)
+                    content.globeDiscCenterY + marker.y)
                 mouseClick(content.globeDragArea, point.x, point.y, Qt.LeftButton)
                 verify(content.globeFooterPlace !== null)
                 compare(content.globeFooterPlace.label, "Cebu")
@@ -541,6 +651,7 @@ Item {
                 content.keyboardFocusKey = oldFocus
                 content.globeSpin = oldSpin
                 content.globeViewLat = oldViewLat
+                content.globeExpanded = oldExpanded
             }
         }
 
@@ -554,11 +665,14 @@ Item {
             var oldTarget = content.timezoneTarget
             var oldSpin = content.globeSpin
             var oldViewLat = content.globeViewLat
+            var oldExpanded = content.globeExpanded
             fakeService.localZone = "Asia/Manila"
             fakeService.cities = [{ label: "Cebu", id: "Asia/Manila", lat: 10.3157, lon: 123.8854 }]
             fakeService.clockRows = [{ label: "Cebu", id: "Asia/Manila", time: "13:00", offset: "UTC+8", abbr: "PHT", ready: true, offsetMinutes: 480, progress: 0.5, lit: true }]
             fakeService.preferenceData = Object.assign({}, oldPreferenceData)
             try {
+                content.globeExpanded = true
+                tryCompare(content.globeCanvas, "height", 378, 1000)
                 var city = fakeService.cities[0]
                 var place = content.placeForCity(city)
                 content.globeSpin = city.lon
@@ -568,7 +682,7 @@ Item {
                 verify(marker.visible)
                 var point = content.globeCanvas.mapToItem(content.globeDragArea,
                     content.globeCanvas.width / 2 + marker.x,
-                    content.globeCanvas.height / 2 + marker.y)
+                    content.globeDiscCenterY + marker.y)
                 mouseClick(content.globeDragArea, point.x, point.y, Qt.LeftButton)
                 compare(content.keyboardFocusId, "Asia/Manila")
                 compare(content.timezoneTarget, "Asia/Manila")
@@ -589,6 +703,7 @@ Item {
                 content.timezoneTarget = oldTarget
                 content.globeSpin = oldSpin
                 content.globeViewLat = oldViewLat
+                content.globeExpanded = oldExpanded
             }
         }
 
@@ -605,7 +720,7 @@ Item {
                 compare(caption.text, "It's 12:00 PM here")
                 compare(caption.flat, false)
                 compare(caption.pixelSize, 10)
-                compare(caption.color, Qt.darker(fakeTheme.ink, 1.55))
+                compare(caption.color, Qt.darker(content.palette.ink, 1.55))
                 verify(caption.width > 0 && caption.height > 0)
                 var worldTitle = findChild(content, "elsewhen-world-title")
                 var clockTitle = findChild(content, "elsewhen-clock-title")
@@ -626,7 +741,7 @@ Item {
             }
         }
 
-        function test_header_centering_keeps_title_and_caption_clear_of_refresh_when_narrow() {
+        function test_header_centering_keeps_title_and_caption_clear_without_options_when_narrow() {
             var oldWidth = testRoot.width
             try {
                 testRoot.width = 260
@@ -640,47 +755,30 @@ Item {
                 var titleLeft = worldTitle.mapToItem(content, 0, 0).x
                 var titleRight = clockTitle.mapToItem(content, clockTitle.width, 0).x
                 var titleTop = worldTitle.mapToItem(content, 0, 0).y
-                var titleBottom = clockTitle.mapToItem(content, clockTitle.width, clockTitle.height).y
-                var refreshBox = content.refreshButton.mapToItem(content, 0, 0)
-                var titleOverlapsRefresh = titleRight > refreshBox.x
-                    && titleLeft < refreshBox.x + content.refreshButton.width
-                    && titleBottom > refreshBox.y
-                    && titleTop < refreshBox.y + content.refreshButton.height
                 verify(Math.abs((titleLeft + titleRight) / 2 - content.width / 2) < 1)
-                verify(!titleOverlapsRefresh)
-                var captionLeft = caption.mapToItem(content, 0, 0).x
-                var captionTop = caption.mapToItem(content, 0, 0).y
                 var captionBottom = caption.mapToItem(content, caption.width, caption.height).y
-                var captionOverlapsRefresh = captionLeft + caption.width > refreshBox.x
-                    && captionLeft < refreshBox.x + content.refreshButton.width
-                    && captionBottom > refreshBox.y
-                    && captionTop < refreshBox.y + content.refreshButton.height
-                verify(!captionOverlapsRefresh)
+                verify(captionBottom <= titleTop + 1)
             } finally {
                 testRoot.width = oldWidth
             }
         }
 
-        function test_header_compact_layout_switches_at_intrinsic_width_boundary() {
+        function test_header_remains_centered_without_side_controls_at_narrow_widths() {
             var oldWidth = testRoot.width
             const header = findChild(content, "elsewhen-world-clock-header")
             verify(header !== null)
             const oldHeaderWidth = header.width
             try {
-                testRoot.width = 800
-                wait(80)
                 const titleRow = findChild(header, "elsewhen-world-title-row")
                 verify(titleRow !== null)
                 if (titleRow === null) return
-                const requiredWidth = titleRow.implicitWidth + 2 * (content.refreshButton.width + 8)
-                verify(header.width > requiredWidth)
-
-                testRoot.width += requiredWidth - 1 - header.width
-                tryCompare(header, "width", requiredWidth - 1, 1000)
-                tryCompare(header, "compactLayout", true, 1000)
-                testRoot.width += requiredWidth + 1 - header.width
-                tryCompare(header, "width", requiredWidth + 1, 1000)
-                tryCompare(header, "compactLayout", false, 1000)
+                for (var width of [800, 260, 140]) {
+                    testRoot.width = width
+                    wait(80)
+                    compare(Math.round(titleRow.mapToItem(content, 0, 0).x + titleRow.width / 2),
+                        Math.round(content.width / 2))
+                    verify(titleRow.width <= content.width)
+                }
             } finally {
                 testRoot.width = oldWidth
                 tryCompare(header, "width", oldHeaderWidth, 1000)
@@ -700,7 +798,6 @@ Item {
                 const clockTitle = findChild(content, "elsewhen-clock-title")
                 verify(titleRow !== null && worldTitle !== null && clockTitle !== null)
                 if (titleRow === null) return
-                verify(header.compactLayout)
                 const contentBox = content.mapToItem(testRoot, 0, 0)
                 const titleBox = titleRow.mapToItem(testRoot, 0, 0)
                 verify(titleRow.width > 0)
@@ -708,8 +805,9 @@ Item {
                 verify(titleBox.x >= contentBox.x)
                 verify(titleBox.x + titleRow.width <= contentBox.x + content.width)
                 const titleTop = titleRow.mapToItem(content, 0, 0).y
-                const refreshBox = content.refreshButton.mapToItem(content, 0, 0)
-                verify(titleTop >= refreshBox.y + content.refreshButton.height)
+                var caption = findChild(content, "elsewhen-here-city")
+                var captionBottom = caption.mapToItem(content, caption.width, caption.height).y
+                verify(titleTop >= captionBottom - 1)
                 verify(worldTitle.width > 0 && clockTitle.width > 0)
             } finally {
                 testRoot.width = oldWidth
@@ -806,7 +904,7 @@ Item {
                 var caption = findChild(content, "elsewhen-here-city")
                 verify(caption !== null)
                 compare(caption.text, "It's 3:00 PM here  +3h")
-                compare(caption.color, fakeTheme.accent)
+                compare(caption.color, content.palette.accent)
             } finally {
                 fakeService.nowMs = oldNowMs
                 fakeService.localOffsetMinutes = oldOffset
@@ -984,7 +1082,8 @@ Item {
 
         function test_refresh_button_reaches_service() {
             fakeService.refreshRequests = 0
-            mouseClick(content.refreshButton, content.refreshButton.width / 2, content.refreshButton.height / 2)
+            revealOptions()
+            clickControl(content.refreshButton)
             compare(fakeService.refreshRequests, 1)
         }
 
@@ -1078,6 +1177,7 @@ Item {
                 compare(content.searchResults.length, 2)
                 keyClick(Qt.Key_Down)
                 compare(content.searchSelectionIndex, 1)
+                scrollSearchControlsIntoView()
                 var point = content.addZoneButton.mapToItem(testRoot, 0, 0)
                 mouseClick(testRoot, point.x + content.addZoneButton.width / 2,
                     point.y + content.addZoneButton.height / 2)
@@ -1108,6 +1208,7 @@ Item {
                 compare(content.searchResults.length, 2)
                 keyClick(Qt.Key_Down)
                 compare(content.searchSelectionIndex, 1)
+                scrollSearchControlsIntoView()
                 var point = content.addZoneButton.mapToItem(testRoot, 0, 0)
                 mouseClick(testRoot, point.x + content.addZoneButton.width / 2,
                     point.y + content.addZoneButton.height / 2)
@@ -1146,7 +1247,11 @@ Item {
                 compare(content.searchResults.length, 2)
                 keyClick(Qt.Key_Down)
                 compare(content.searchSelectionIndex, 1)
+                verify(waitForRendering(testRoot, 3000), "jump-search action must render before pointer input")
+                verify(content.addZoneButton.visible && content.addZoneButton.available)
                 var point = content.addZoneButton.mapToItem(testRoot, 0, 0)
+                verify(point.x >= 0 && point.x + content.addZoneButton.width <= testRoot.width)
+                verify(point.y >= 0 && point.y + content.addZoneButton.height <= testRoot.height)
                 mouseClick(testRoot, point.x + content.addZoneButton.width / 2,
                     point.y + content.addZoneButton.height / 2)
                 compare(content.globeSelectionLabel, "Salvador")
@@ -1297,7 +1402,10 @@ Item {
                 content.forceActiveFocus()
                 keyClick(Qt.Key_Down)
                 compare(content.timezoneTarget, "Asia/Tokyo")
-                compare(content.cityList.itemAtIndex(1).border.color, fakeTheme.seal)
+                tryVerify(function() { return content.cityList.itemAtIndex(1) !== null }, 500)
+                var focusedRow = content.cityList.itemAtIndex(1)
+                verify(focusedRow !== null)
+                compare(focusedRow.border.color, content.palette.seal)
             } finally {
                 content.keyboardFocusId = originalFocusId
                 content.timezoneTarget = originalTarget
@@ -1463,7 +1571,8 @@ Item {
 
         function test_hour_format_setting_is_persisted() {
             fakeService.settingsWrites = 0
-            mouseClick(content.hour24Button, content.hour24Button.width / 2, content.hour24Button.height / 2)
+            revealOptions()
+            clickControl(content.hour24Button)
             compare(fakeService.preferenceData.hour24, true)
             compare(fakeService.settingsWrites, 1)
         }
@@ -1504,10 +1613,12 @@ Item {
 
         function test_offline_zone_search_and_add() {
             fakeService.cityAdds = 0
+            content.startAddSearch()
             content.zoneSearchInput.text = "new york"
             compare(content.searchText, "new york")
             compare(content.searchResults.length, 1)
             tryCompare(content.searchList, "count", 1)
+            scrollSearchControlsIntoView()
             mouseClick(content.addZoneButton, content.addZoneButton.width / 2, content.addZoneButton.height / 2)
             compare(fakeService.cityAdds, 1)
         }
@@ -1537,6 +1648,7 @@ Item {
                 compare(content.searchMode, "here")
                 compare(content.searchResults.length, 1)
                 compare(content.addZoneButton.label, "Set here")
+                scrollSearchControlsIntoView()
                 mouseClick(content.addZoneButton, content.addZoneButton.width / 2, content.addZoneButton.height / 2)
                 compare(fakeService.preferenceData.here.name, "Cebu")
                 compare(fakeService.preferenceData.here.zone, "Asia/Manila")
@@ -1578,6 +1690,7 @@ Item {
                 content.startHereSearch()
                 content.zoneSearchInput.text = "Springfield"
                 compare(content.searchResults.length, 1)
+                scrollSearchControlsIntoView()
                 mouseClick(content.addZoneButton, content.addZoneButton.width / 2, content.addZoneButton.height / 2)
                 compare(fakeService.timezoneRequests, 1)
                 compare(fakeService.timezoneTarget, "America/Chicago")
@@ -1776,8 +1889,10 @@ Item {
                 label: "Springfield", region: "Illinois, US", value: "America/Chicago",
                 lat: 39.78, lon: -89.64
             }]
+            content.startAddSearch()
             content.zoneSearchInput.text = "springfield"
             tryCompare(content.searchList, "count", 1)
+            scrollSearchControlsIntoView()
             mouseClick(content.addZoneButton, content.addZoneButton.width / 2, content.addZoneButton.height / 2)
             compare(fakeService.cityAdds, 1)
             verify(fakeService.lastAddedPlace !== null)
@@ -1860,18 +1975,46 @@ Item {
             }
         }
 
+        function test_zz_globe_repaints_when_bar_color_changes() {
+            var oldSeal = fakeTheme.seal
+            var oldExpanded = content.globeExpanded
+            var canvas = content.globeCanvas
+            var paintCount = 0
+            var paintListener = function() { paintCount++ }
+            try {
+                fakeTheme.seal = "#7aa2f7"
+                settleGlobe(true, true)
+                canvas.paint.connect(paintListener)
+                canvas.requestPaint()
+                tryVerify(function() { return paintCount > 0 }, 1000,
+                    "globe canvas must paint before repaint tracking")
+                wait(50)
+                paintCount = 0
+                fakeTheme.seal = "#e6a8d7"
+                compare(content.daylightMarker.toString(), fakeTheme.seal.toString())
+                tryVerify(function() { return paintCount > 0 }, 1000,
+                    "globe canvas must repaint after Bar Color changes")
+            } finally {
+                canvas.paint.disconnect(paintListener)
+                fakeTheme.seal = oldSeal
+                content.globeExpanded = oldExpanded
+                wait(400)
+            }
+        }
+
         function test_globe_can_be_hidden_and_restored() {
             var oldPreferences = fakeService.preferenceData
             try {
-                mouseClick(content.globeToggleButton)
+                revealOptions()
+                clickControl(content.globeToggleButton)
                 compare(fakeService.preferenceData.globeEnabled, false)
                 verify(!content.globeCanvas.visible)
                 var heroButton = findChild(content, "elsewhen-hero-globe-button")
                 verify(heroButton !== null)
                 verify(!heroButton.enabled)
-                mouseClick(content.globeToggleButton)
+                clickControl(content.globeToggleButton)
                 compare(fakeService.preferenceData.globeEnabled, true)
-                verify(content.globeCanvas.visible)
+                verify(!content.globeCanvas.visible)
                 verify(heroButton.enabled)
             } finally {
                 fakeService.preferenceData = oldPreferences
@@ -1900,14 +2043,21 @@ Item {
         function test_globe_zoom_button_expands_map_and_hides_clock_list() {
             var oldExpanded = content.globeExpanded
             try {
+                revealOptions()
                 var zoomButton = findChild(content, "elsewhen-globe-zoom")
                 verify(zoomButton !== null)
-                mouseClick(zoomButton, zoomButton.width / 2, zoomButton.height / 2)
+                clickControl(zoomButton)
                 compare(content.globeExpanded, true)
+                compare(content.optionsExpanded, false)
                 compare(content.cityList.visible, false)
                 tryCompare(content.globeCanvas, "height", 378, 1000)
                 verify(content.globeCanvas.height <= content.globeCanvas.parent.height)
-                mouseClick(zoomButton, zoomButton.width / 2, zoomButton.height / 2)
+                content.forceActiveFocus()
+                keyClick(Qt.Key_O)
+                compare(content.optionsExpanded, true)
+                verify(waitForRendering(testRoot, 3000),
+                    "expanded globe back action must render before pointer input")
+                clickControl(zoomButton)
                 compare(content.globeExpanded, false)
                 compare(content.cityList.visible, true)
                 wait(400)
@@ -1918,19 +2068,26 @@ Item {
 
         function test_escape_exits_expanded_globe_without_closing_panel() {
             var oldExpanded = content.globeExpanded
+            var oldOptionsExpanded = content.optionsExpanded
             var oldVisible = fakeTheme.elsewhenVisible
             var oldSearchMode = content.searchMode
             try {
-                content.globeExpanded = true
                 content.searchMode = ""
                 content.zoneSearchInput.text = ""
                 content.zoneSearchInput.focus = false
                 fakeTheme.elsewhenVisible = true
-                content.handleEscape()
+                revealOptions()
+                clickControl(content.globeZoomButton)
+                compare(content.globeExpanded, true)
+                revealOptions()
+                content.forceActiveFocus()
+                keyClick(Qt.Key_Escape)
                 compare(content.globeExpanded, false)
+                compare(content.optionsExpanded, false)
                 compare(fakeTheme.elsewhenVisible, true)
             } finally {
                 content.globeExpanded = oldExpanded
+                content.optionsExpanded = oldOptionsExpanded
                 content.searchMode = oldSearchMode
                 fakeTheme.elsewhenVisible = oldVisible
             }
@@ -1945,7 +2102,7 @@ Item {
             tryCompare(content.globeCanvas, "height", 378, 1000)
             mouseClick(button)
             compare(content.globeExpanded, false)
-            tryCompare(content.globeCanvas, "height", 158, 700)
+            tryCompare(content.globeCanvas, "height", 0, 700)
         }
 
         function test_hero_globe_shift_click_uses_slow_zoom_duration() {
@@ -1962,7 +2119,7 @@ Item {
                 compare(content.globeExpanded, false)
                 compare(content.globeZoomDuration, 1500)
                 compare(content.globeZoomEasing, Easing.InOutCubic)
-                tryCompare(content.globeCanvas, "height", 158, 1700)
+                tryCompare(content.globeCanvas, "height", 0, 1700)
             } finally {
                 content.globeExpanded = oldExpanded
             }
@@ -2102,17 +2259,41 @@ Item {
         }
 
         function test_globe_drag_rotates_projection() {
-            var before = content.globeSpin
-            mouseDrag(content.globeDragArea, 40, 80, 32, 0, Qt.LeftButton)
-            verify(content.globeSpin !== before)
+            var old = { expanded: content.globeExpanded, spin: content.globeSpin, lat: content.globeViewLat }
+            try {
+                settleGlobe(false, false)
+                content.globeSpin = 0
+                content.globeViewLat = 0
+                settleGlobe(true, true)
+                var before = content.globeSpin
+                mouseDrag(content.globeDragArea, 40, 80, 32, 0, Qt.LeftButton)
+                verify(content.globeSpin !== before)
+            } finally {
+                settleGlobe(false, false)
+                content.globeSpin = old.spin
+                content.globeViewLat = old.lat
+                if (old.expanded) settleGlobe(true, false)
+            }
         }
 
         function test_globe_vertical_drag_tilts_projection_without_tapping_city() {
-            var before = content.globeViewLat
-            var focusBefore = content.keyboardFocusKey
-            mouseDrag(content.globeDragArea, 40, 80, 0, 20, Qt.LeftButton)
-            compare(content.globeViewLat, before + 7)
-            compare(content.keyboardFocusKey, focusBefore)
+            var old = { expanded: content.globeExpanded, spin: content.globeSpin, lat: content.globeViewLat }
+            try {
+                settleGlobe(false, false)
+                content.globeSpin = 0
+                content.globeViewLat = 0
+                settleGlobe(true, true)
+                var before = content.globeViewLat
+                var focusBefore = content.keyboardFocusKey
+                mouseDrag(content.globeDragArea, 40, 80, 0, 20, Qt.LeftButton)
+                compare(content.globeViewLat, before + 7)
+                compare(content.keyboardFocusKey, focusBefore)
+            } finally {
+                settleGlobe(false, false)
+                content.globeSpin = old.spin
+                content.globeViewLat = old.lat
+                if (old.expanded) settleGlobe(true, false)
+            }
         }
 
         function test_globe_tiny_width_has_nonnegative_canvas_geometry() {
@@ -2130,13 +2311,27 @@ Item {
         function test_globe_radius_guard_rejects_nonpositive_size() {
             compare(content.globePaintRadius(0, 158), 0)
             compare(content.globePaintRadius(-8, 158), 0)
-            compare(content.globePaintRadius(260, 158), 71.1)
+            var width = 260
+            var height = 158
+            var availableHeight = height - content.globeFooterHeight
+                - content.globeJumpButtonHeight - content.globeJumpGap
+            var expected = Math.max(40, Math.min(width, availableHeight) / 2
+                - Commons.Style.space(6))
+            compare(content.globePaintRadius(width, height), expected)
         }
 
         function test_globe_canvas_is_live_when_enabled() {
-            verify(content.globeCanvas.visible)
-            verify(content.globeCanvas.width > 0)
-            verify(content.globeCanvas.height > 0)
+            var oldExpanded = content.globeExpanded
+            try {
+                var heroButton = findChild(content, "elsewhen-hero-globe-button")
+                verify(heroButton !== null && heroButton.enabled)
+                mouseClick(heroButton, heroButton.width / 2, heroButton.height / 2)
+                tryCompare(content.globeCanvas, "height", 378, 1000)
+                verify(content.globeCanvas.visible)
+                verify(content.globeCanvas.width > 0)
+            } finally {
+                content.globeExpanded = oldExpanded
+            }
         }
 
         function test_city_row_displays_solar_daylight_strip() {
@@ -2231,7 +2426,8 @@ Item {
         function test_timezone_change_requires_an_explicit_confirmation() {
             fakeService.timezoneRequests = 0
             var requestedZone = content.timezoneTarget
-            mouseClick(content.changeTimezoneButton)
+            revealOptions()
+            clickControl(content.changeTimezoneButton)
             verify(content.timezoneConfirmationVisible)
             compare(fakeService.timezoneRequests, 0)
             verify(content.confirmTimezoneButton.visible)
