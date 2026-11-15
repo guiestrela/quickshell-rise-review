@@ -34,6 +34,13 @@ Item {
         property color ink: "#ebdbb2"
         property color seal: "#d79921"
         property color sep: "#504945"
+        readonly property color fg: ink
+        readonly property color accent: seal
+        property color muted: "#a89984"
+        property bool barFrost: false
+        property real barOpacity: 0.94
+        readonly property color barBg: Qt.rgba(bg.r, bg.g, bg.b,
+            barFrost ? 0.68 : barOpacity)
         property color fillIdle: "#282828"
         property color fillHover: "#3c3836"
         property real fillHoverAlpha: 0.12
@@ -172,6 +179,39 @@ Item {
                 Commons.I18n.formatLocale = oldLocale
                 Commons.I18n.strings = oldStrings
                 Commons.Style.testScale = oldScale
+            }
+        }
+
+        function test_v2_internal_palette_follows_bar_theme_and_v1_stays_commons() {
+            load("v1", false, "top")
+            var v1Content = findChild(panelLoader.item, "elsewhen-panel-content")
+            compare(v1Content.palette.bg, Commons.Color.popups.background)
+
+            load("v2", false, "top")
+            var content = findChild(panelLoader.item, "elsewhen-panel-content")
+            compare(content.palette.bg, theme.bg)
+            compare(content.palette.ink, theme.fg)
+            compare(content.palette.accent, theme.accent)
+            compare(content.palette.seal, theme.seal)
+            compare(content.palette.sep, theme.sep)
+            compare(content.palette.fillIdle, theme.fillIdle)
+            compare(content.palette.fillHover, theme.fillHover)
+            compare(content.palette.sumi, theme.muted)
+            compare(content.actionButtonStyle.ink, theme.fg)
+            compare(content.actionButtonStyle.seal, theme.seal)
+            compare(content.actionButtonStyle.sep, theme.sep)
+            compare(content.daylightMarker, theme.seal)
+            compare(content.globeNightMarker,
+                Qt.rgba(theme.bg.r, theme.bg.g, theme.bg.b, 0.92))
+
+            var oldSeal = theme.seal
+            try {
+                theme.seal = "#b16286"
+                compare(content.palette.seal, theme.seal)
+                compare(content.actionButtonStyle.seal, theme.seal)
+                compare(content.daylightMarker, theme.seal)
+            } finally {
+                theme.seal = oldSeal
             }
         }
 
@@ -319,6 +359,32 @@ Item {
                 captureScene("v2-elsewhen-connected-surface-open")
             } finally {
                 theme.elsewhenVisible = false
+            }
+        }
+
+        function test_v2_elsewhen_surface_fill_tracks_active_bar_alpha() {
+            var savedFrost = theme.barFrost
+            var savedOpacity = theme.barOpacity
+            try {
+                theme.barFrost = true
+                theme.barOpacity = 0.94
+                load("v2", false, "top")
+                var surface = findChild(panelLoader.item, "elsewhen-connected-panel-surface")
+                verify(surface !== null)
+                verify(surface.surfaceFillColor !== undefined,
+                    "connected surface must expose the fill actually drawn by its silhouette")
+                compare(surface.surfaceFillColor.toString(), theme.barBg.toString())
+                compare(surface.surfaceFillColor.a, 0.68)
+
+                theme.barFrost = false
+                theme.barOpacity = 0.73
+                tryVerify(function() {
+                    return surface.surfaceFillColor.toString() === theme.barBg.toString()
+                }, 500)
+                compare(surface.surfaceFillColor.a, 0.73)
+            } finally {
+                theme.barFrost = savedFrost
+                theme.barOpacity = savedOpacity
             }
         }
 
@@ -822,6 +888,7 @@ Item {
                 ink: theme.ink,
                 seal: theme.seal,
                 sep: theme.sep,
+                fillHover: theme.fillHover,
                 mono: theme.mono,
                 tileRadius: theme.tileRadius,
                 panelButtonRadius: theme.panelButtonRadius
@@ -832,23 +899,38 @@ Item {
                 theme.ink = "#d4dbe8"
                 theme.seal = "#8aaeff"
                 theme.sep = "#596275"
-                theme.mono = "monospace"
+                theme.fillHover = Qt.rgba(theme.seal.r, theme.seal.g, theme.seal.b,
+                    theme.fillHoverAlpha)
+                theme.mono = "JetBrainsMono Nerd Font"
                 theme.tileRadius = 4
                 theme.panelButtonRadius = 9
-                var hoverFill = Qt.rgba(theme.seal.r, theme.seal.g, theme.seal.b,
-                    theme.fillHoverAlpha)
                 for (var variant of ["v1", "v2"]) {
+                    theme.fillIdle = "#20242b"
+                    theme.fillHoverAlpha = 0.27
+                    theme.ink = "#d4dbe8"
+                    theme.seal = "#8aaeff"
+                    theme.sep = "#596275"
+                    theme.fillHover = Qt.rgba(theme.seal.r, theme.seal.g, theme.seal.b,
+                        theme.fillHoverAlpha)
+                    theme.mono = "JetBrainsMono Nerd Font"
+                    theme.tileRadius = 4
+                    theme.panelButtonRadius = 9
+                    var hoverFill = theme.fillHover
                     load(variant, false, "top")
                     var content = findChild(panelLoader.item, "elsewhen-panel-content")
                     verify(content !== null)
-                    var stylePalette = content.palette
+                    verify(theme.fillIdle.toString() !== Commons.Color.popups.background.toString())
+                    verify(theme.ink.toString() !== Commons.Color.popups.text.toString())
+                    verify(theme.sep.toString() !== Commons.Color.popups.border.toString())
+                    verify(theme.seal.toString() !== Commons.Color.accent.toString())
+                    verify(theme.mono !== Commons.Style.font.family)
                     var expectedRadius = variant === "v1" ? theme.tileRadius : theme.panelButtonRadius
                     var addCity = findChild(content, "elsewhen-add-city")
                     verify(addCity !== null && addCity.visible)
                     compare(addCity.radius, expectedRadius)
-                    compare(addCity.color.toString(), stylePalette.fillIdle.toString())
+                    compare(addCity.color.toString(), theme.fillIdle.toString())
                     compare(addCity.border.width, 1)
-                    compare(addCity.border.color.toString(), stylePalette.sep.toString())
+                    compare(addCity.border.color.toString(), theme.sep.toString())
                     compare(addCity.activeFocusOnTab, true)
                     compare(addCity.Accessible.role, Accessible.Button)
                     compare(addCity.Accessible.name, "Add city")
@@ -857,8 +939,8 @@ Item {
                     })[0]
                     verify(addLabel !== undefined)
                     compare(addLabel.text, content.tr("elsewhen.addCity", "Add city"))
-                    compare(addLabel.color.toString(), stylePalette.ink.toString())
-                    compare(addLabel.font.family, stylePalette.mono)
+                    compare(addLabel.color.toString(), theme.fg.toString())
+                    compare(addLabel.font.family, theme.mono)
                     compare(addLabel.font.pixelSize, 11)
 
                     mouseMove(addCity, addCity.width / 2, addCity.height / 2)
@@ -872,6 +954,37 @@ Item {
                     compare(addCity.border.color.toString(), theme.seal.toString())
                     compare(addLabel.color.toString(), theme.seal.toString())
 
+                    content.forceActiveFocus()
+                    var addDynamicRadius = variant === "v1" ? 12 : 14
+                    theme.fillIdle = "#193b52"
+                    theme.fillHover = "#2a5d77"
+                    theme.ink = "#f1e6d0"
+                    theme.seal = "#e78a38"
+                    theme.sep = "#4b687b"
+                    theme.mono = "DejaVu Sans Mono"
+                    if (variant === "v1") theme.tileRadius = addDynamicRadius
+                    else theme.panelButtonRadius = addDynamicRadius
+                    tryCompare(addCity, "color", theme.fillIdle, 500)
+                    tryVerify(function() { return addCity.border.color.toString() === theme.sep.toString() }, 500)
+                    tryVerify(function() { return addLabel.color.toString() === theme.fg.toString() }, 500)
+                    tryVerify(function() { return addLabel.font.family === theme.mono }, 500)
+                    tryCompare(addCity, "radius", addDynamicRadius, 500)
+                    mouseMove(addCity, addCity.width / 2, addCity.height / 2)
+                    tryCompare(addCity, "color", theme.fillHover, 500)
+                    tryVerify(function() { return addCity.border.color.toString() === theme.seal.toString() }, 500)
+                    tryVerify(function() { return addLabel.color.toString() === theme.seal.toString() }, 500)
+                    mouseMove(testRoot, testRoot.width - 2, testRoot.height - 2)
+                    content.forceActiveFocus()
+
+                    theme.fillIdle = "#20242b"
+                    theme.fillHover = hoverFill
+                    theme.ink = "#d4dbe8"
+                    theme.seal = "#8aaeff"
+                    theme.sep = "#596275"
+                    theme.mono = "JetBrainsMono Nerd Font"
+                    theme.tileRadius = 4
+                    theme.panelButtonRadius = 9
+
                     var hero = findChild(content, "elsewhen-hero-globe-button")
                     verify(hero !== null && hero.enabled)
                     mouseClick(hero, hero.width / 2, hero.height / 2)
@@ -879,9 +992,9 @@ Item {
                     var jump = findChild(content, "elsewhen-globe-jump")
                     verify(jump !== null && jump.visible)
                     compare(jump.radius, expectedRadius)
-                    compare(jump.color.toString(), stylePalette.fillIdle.toString())
+                    compare(jump.color.toString(), theme.fillIdle.toString())
                     compare(jump.border.width, 1)
-                    compare(jump.border.color.toString(), stylePalette.sep.toString())
+                    compare(jump.border.color.toString(), theme.sep.toString())
                     compare(jump.activeFocusOnTab, true)
                     compare(jump.Accessible.role, Accessible.Button)
                     compare(jump.Accessible.name, content.tr("elsewhen.jumpToCity", "Jump to a city"))
@@ -890,8 +1003,8 @@ Item {
                     })[0]
                     verify(jumpLabel !== undefined)
                     compare(jumpLabel.text, content.tr("elsewhen.jumpToCity", "Jump to a city"))
-                    compare(jumpLabel.color.toString(), stylePalette.ink.toString())
-                    compare(jumpLabel.font.family, stylePalette.mono)
+                    compare(jumpLabel.color.toString(), theme.fg.toString())
+                    compare(jumpLabel.font.family, theme.mono)
                     compare(jumpLabel.font.pixelSize, 11)
                     mouseMove(jump, jump.width / 2, jump.height / 2)
                     tryCompare(jump, "color", hoverFill, 500)
@@ -899,6 +1012,30 @@ Item {
                     compare(jumpLabel.color.toString(), theme.seal.toString())
                     mouseMove(testRoot, testRoot.width - 2, testRoot.height - 2)
                     content.forceActiveFocus()
+
+                    var dynamicRadius = variant === "v1" ? 12 : 14
+                    theme.fillIdle = "#193b52"
+                    theme.fillHover = "#2a5d77"
+                    theme.ink = "#f1e6d0"
+                    theme.seal = "#e78a38"
+                    theme.sep = "#4b687b"
+                    theme.mono = "DejaVu Sans Mono"
+                    if (variant === "v1") theme.tileRadius = dynamicRadius
+                    else theme.panelButtonRadius = dynamicRadius
+                    tryCompare(addCity, "color", theme.fillIdle, 500)
+                    tryVerify(function() { return addCity.border.color.toString() === theme.sep.toString() }, 500)
+                    tryVerify(function() { return addLabel.color.toString() === theme.fg.toString() }, 500)
+                    tryVerify(function() { return addLabel.font.family === theme.mono }, 500)
+                    tryCompare(addCity, "radius", dynamicRadius, 500)
+                    tryCompare(jump, "color", theme.fillIdle, 500)
+                    tryVerify(function() { return jump.border.color.toString() === theme.sep.toString() }, 500)
+                    tryVerify(function() { return jumpLabel.color.toString() === theme.fg.toString() }, 500)
+                    tryVerify(function() { return jumpLabel.font.family === theme.mono }, 500)
+                    tryCompare(jump, "radius", dynamicRadius, 500)
+                    mouseMove(jump, jump.width / 2, jump.height / 2)
+                    tryCompare(jump, "color", theme.fillHover, 500)
+                    tryVerify(function() { return jump.border.color.toString() === theme.seal.toString() }, 500)
+                    tryVerify(function() { return jumpLabel.color.toString() === theme.seal.toString() }, 500)
                 }
             } finally {
                 theme.fillIdle = saved.fillIdle
@@ -906,6 +1043,7 @@ Item {
                 theme.ink = saved.ink
                 theme.seal = saved.seal
                 theme.sep = saved.sep
+                theme.fillHover = saved.fillHover
                 theme.mono = saved.mono
                 theme.tileRadius = saved.tileRadius
                 theme.panelButtonRadius = saved.panelButtonRadius
@@ -1101,8 +1239,14 @@ Item {
                     var content = findChild(panelLoader.item, "elsewhen-panel-content")
                     var row = content.cityList.itemAtIndex(0)
                     verify(row !== null)
-                    compare(row.foreground, Commons.Color.popups.text)
-                    compare(row.surfaceBase, Commons.Color.popups.background)
+                    if (variant === "v1") {
+                        compare(row.foreground, Commons.Color.popups.text)
+                        compare(row.surfaceBase, Commons.Color.popups.background)
+                    } else {
+                        compare(row.foreground, theme.fg)
+                        compare(row.surfaceBase, theme.bg)
+                        compare(content.palette.accent, theme.accent)
+                    }
                     compare(row.fontFamily, Commons.Style.font.family)
                 }
                 theme.bg = "#191a28"
@@ -1696,6 +1840,7 @@ Item {
                 var jump = findChild(content, "elsewhen-globe-jump")
                 verify(jump !== null)
                 verify(jump.visible)
+                mouseMove(testRoot, testRoot.width - 2, testRoot.height - 2)
                 content.forceActiveFocus()
                 var referenceJumpHeight = Math.ceil(originalTextFieldMetrics.height
                     + 2 * Commons.Style.spacing.inputPaddingY
@@ -1703,8 +1848,8 @@ Item {
                 compare(Math.round(jump.height), referenceJumpHeight,
                     "Jump to city matches the original TextField height")
                 compare(jump.border.width, 1)
-                compare(jump.border.color.toString(), content.palette.sep.toString(),
-                    "Jump to city uses the popup palette border token")
+                compare(jump.border.color.toString(), content.actionButtonStyle.sep.toString(),
+                    "Jump to city uses the active variant border token")
                 var point = jump.mapToItem(panelLoader.item.surfaceHost, 0, 0)
                 verify(point.x >= 0 && point.x + jump.width <= panelLoader.item.surfaceHost.width)
                 mouseClick(jump, jump.width / 2, jump.height / 2)
@@ -1721,10 +1866,10 @@ Item {
                 verify(addCity !== null && addCity.visible)
                 compare(addCity.height, 28)
                 compare(addCity.radius, variant === "v1" ? theme.tileRadius : theme.panelButtonRadius)
-                compare(addCity.color.toString(), content.palette.fillIdle.toString())
+                compare(addCity.color.toString(), theme.fillIdle.toString())
                 compare(addCity.border.width, 1)
-                compare(addCity.border.color.toString(), content.palette.sep.toString(),
-                    "Add city uses the popup palette border token")
+                compare(addCity.border.color.toString(), theme.sep.toString(),
+                    "Add city uses the active variant border token")
                 var oldAdds = fakeService.cityAdds
                 mouseClick(addCity, addCity.width / 2, addCity.height / 2)
                 compare(content.searchMode, "add")

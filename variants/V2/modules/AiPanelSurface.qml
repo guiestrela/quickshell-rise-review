@@ -7,6 +7,7 @@ Item {
     id: surface
 
     required property var root
+    property color surfaceFillColor: root.bg
     required property real targetX
     // Shared animated progress from Theme; default keeps hot-reload construction safe.
     property real reveal: 0
@@ -63,7 +64,7 @@ Item {
         ShapePath {
             strokeColor: surface.root.panelOuterBorderColor
             strokeWidth: surface.root.panelOuterBorderW
-            fillColor: surface.root.bg
+            fillColor: surface.surfaceFillColor
             joinStyle: ShapePath.RoundJoin
             startX: surface.r; startY: 0.5
             PathLine { x: sideSurface.tipCenter - surface.caretHalfWidth; y: 0.5 }
@@ -106,7 +107,7 @@ Item {
         ShapePath {
             strokeColor: surface.root.panelOuterBorderColor
             strokeWidth: surface.root.panelOuterBorderW
-            fillColor: surface.root.bg
+            fillColor: surface.surfaceFillColor
             capStyle: ShapePath.FlatCap
             joinStyle: ShapePath.MiterJoin
             startX: surface.r
@@ -159,7 +160,7 @@ Item {
         ShapePath {
             strokeColor: surface.root.panelOuterBorderColor
             strokeWidth: surface.root.panelOuterBorderW
-            fillColor: surface.root.bg
+            fillColor: surface.surfaceFillColor
             capStyle: ShapePath.FlatCap
             joinStyle: ShapePath.MiterJoin
             startX: surface.r

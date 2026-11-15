@@ -18,6 +18,8 @@ PanelWindow {
     required property real buttonRadius
     property real revealShift: 0
     property Component surfaceComponent
+    property var contentPaletteOverride: null
+    property var actionButtonStyleOverride: null
     readonly property Item surfaceHost: card
     readonly property var service: root.elsewhenService
     readonly property var clockWords: {
@@ -90,6 +92,8 @@ PanelWindow {
             anchors.margins: 12
             root: panel.root
             service: panel.service
+            paletteOverride: panel.contentPaletteOverride
+            actionButtonStyleOverride: panel.actionButtonStyleOverride
             globeStageHeight: Commons.Style.space(378)
             actionButtonRadius: panel.buttonRadius
             titleFontSize: Commons.Style.font.title

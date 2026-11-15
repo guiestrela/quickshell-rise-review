@@ -12,27 +12,36 @@ Item {
     objectName: "elsewhen-panel-content"
     required property var root
     required property var service
+    property var paletteOverride: null
+    property var actionButtonStyleOverride: null
     readonly property var palette: ({
-        bg: Commons.Color.popups.background,
-        ink: Commons.Color.popups.text,
-        accent: Commons.Color.accent,
-        seal: Commons.Color.accent,
-        sep: Commons.Color.popups.border,
-        fillIdle: Commons.Color.popups.background,
-        fillHover: Commons.Color.menu.selectedBackground,
-        sumi: Commons.Color.muted,
+        bg: paletteOverride && paletteOverride.bg !== undefined ? paletteOverride.bg : Commons.Color.popups.background,
+        ink: paletteOverride && paletteOverride.ink !== undefined ? paletteOverride.ink : Commons.Color.popups.text,
+        accent: paletteOverride && paletteOverride.accent !== undefined ? paletteOverride.accent : Commons.Color.accent,
+        seal: paletteOverride && paletteOverride.seal !== undefined ? paletteOverride.seal : Commons.Color.accent,
+        sep: paletteOverride && paletteOverride.sep !== undefined ? paletteOverride.sep : Commons.Color.popups.border,
+        fillIdle: paletteOverride && paletteOverride.fillIdle !== undefined ? paletteOverride.fillIdle : Commons.Color.popups.background,
+        fillHover: paletteOverride && paletteOverride.fillHover !== undefined ? paletteOverride.fillHover : Commons.Color.menu.selectedBackground,
+        sumi: paletteOverride && paletteOverride.sumi !== undefined ? paletteOverride.sumi : Commons.Color.muted,
         mono: Commons.Style.font.family,
         tileRadius: Commons.Style.cornerRadius,
         panelButtonRadius: Commons.Style.cornerRadius
     })
     property real actionButtonRadius: 6
     readonly property var actionButtonStyle: ({
-        fillIdle: palette.fillIdle,
-        fillHover: Qt.rgba(root.seal.r, root.seal.g, root.seal.b, root.fillHoverAlpha),
-        ink: palette.ink,
-        seal: root.seal,
-        sep: palette.sep,
-        mono: palette.mono
+        fillIdle: actionButtonStyleOverride && actionButtonStyleOverride.fillIdle !== undefined
+            ? actionButtonStyleOverride.fillIdle : palette.fillIdle,
+        fillHover: actionButtonStyleOverride && actionButtonStyleOverride.fillHover !== undefined
+            ? actionButtonStyleOverride.fillHover
+            : Qt.rgba(root.seal.r, root.seal.g, root.seal.b, root.fillHoverAlpha),
+        ink: actionButtonStyleOverride && actionButtonStyleOverride.ink !== undefined
+            ? actionButtonStyleOverride.ink : palette.ink,
+        seal: actionButtonStyleOverride && actionButtonStyleOverride.seal !== undefined
+            ? actionButtonStyleOverride.seal : root.seal,
+        sep: actionButtonStyleOverride && actionButtonStyleOverride.sep !== undefined
+            ? actionButtonStyleOverride.sep : palette.sep,
+        mono: actionButtonStyleOverride && actionButtonStyleOverride.mono !== undefined
+            ? actionButtonStyleOverride.mono : palette.mono
     })
     property real scrubMinutes: 0
     property bool moonShowing: false
@@ -113,8 +122,8 @@ Item {
     onDaylightMarkerChanged: globeCanvasItem.requestPaint()
     readonly property color globeSeaInk: panel.palette.ink
     readonly property color globeLandInk: panel.palette.bg
-    readonly property color globeNightMarker: Qt.rgba(Commons.Color.background.r,
-        Commons.Color.background.g, Commons.Color.background.b, 0.92)
+    readonly property color globeNightMarker: Qt.rgba(panel.palette.bg.r,
+        panel.palette.bg.g, panel.palette.bg.b, 0.92)
     readonly property var profiles: service.profiles || ({})
     readonly property double profileStamp: Number(service.profileStamp || 0)
     property string temperatureLabel: ""
