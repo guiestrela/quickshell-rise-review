@@ -6,7 +6,10 @@ CHECK="${CHECK:-$REPO_ROOT/scripts/qs-arch-update-check.sh}"
 GATE="${GATE:-$REPO_ROOT/scripts/qs-arch-security-gate.sh}"
 APPLY="${APPLY:-$REPO_ROOT/scripts/qs-arch-apply-update.sh}"
 FRONTEND="${FRONTEND:-$REPO_ROOT/core/qs-system-update.sh}"
-WORK="$(mktemp -d /tmp/qs-arch-update-test.XXXXXX)"
+WORK="$(mktemp -d -p "${TMPDIR:-/tmp}" qs-arch-update-test.XXXXXX)"
+# Helpers resolve executable paths with readlink -f; compare canonical fixture
+# paths too when TMPDIR is a short symlink used by the QML runner.
+WORK="$(cd -- "$WORK" && pwd -P)"
 
 cleanup() { rm -rf "$WORK"; }
 trap cleanup EXIT
@@ -149,8 +152,10 @@ scan_args() {
 
 run_apply_checked() {
   local root="$1"
+  local -a args
+  install_fake_gum "$root"
   mapfile -t args < <(scan_args "$root")
-  run_apply "$root" "${args[@]}"
+  run_apply "$root" --run "${args[@]}"
 }
 
 prepare_checked_gate() {
@@ -420,6 +425,30 @@ SCRIPT
     || fail "presentation launcher did not preserve the exact update argv"
 }
 
+test_plain_arch_requires_explicit_run_before_sudo() {
+  local root="$WORK/no-explicit-run"
+  local -a args
+  init_fixture "$root"
+  prepare_checked_gate "$root" $'linux 1.0 -> 1.1'
+  mapfile -t args < <(scan_args "$root")
+  if run_apply "$root" "${args[@]}" >"$root/apply.out" 2>&1; then
+    fail "plain Arch apply accepted a transaction without --run"
+  fi
+  [ ! -s "$root/sudo.log" ] || fail "missing --run reached sudo"
+  assert_file_absent "$root/pacman.marker" "missing --run reached pacman"
+  assert_contains 'explicit --run' "$root/apply.out" "missing intent was not explained"
+}
+
+test_plain_arch_declined_confirmation_never_reaches_sudo() {
+  local root="$WORK/declined-confirmation"
+  init_fixture "$root"
+  prepare_checked_gate "$root" $'linux 1.0 -> 1.1'
+  FAKE_GUM_RC=1 run_apply_checked "$root" >"$root/apply.out" 2>&1
+  assert_contains 'confirm ' "$root/gum.log" "explicit apply skipped the confirmation"
+  [ ! -s "$root/sudo.log" ] || fail "declined confirmation reached sudo"
+  assert_file_absent "$root/pacman.marker" "declined confirmation reached pacman"
+}
+
 test_success_runs_exact_full_upgrade() {
   local root="$WORK/success"
   init_fixture "$root"
@@ -542,17 +571,25 @@ test_check_without_checkupdates_fails() {
 
 test_state_replaced_after_click_aborts_before_sudo() {
   local root="$WORK/state-replaced"
+  local -a clicked_args
   init_fixture "$root"
+  install_fake_gum "$root"
   prepare_checked_gate "$root" $'linux 1.0 -> 1.1'
   mapfile -t clicked_args < <(scan_args "$root")
+  [ "${#clicked_args[@]}" -eq 4 ] || fail "clicked scan arguments are incomplete"
 
   printf 'linux 1.0 -> 1.2\n' > "$root/checkupdates.out"
   run_check "$root"
+  jq -e --arg clicked_scan "${clicked_args[0]}" '.scanId != $clicked_scan' \
+    "$root/home/.cache/qs-arch-updates.json" >/dev/null \
+    || fail "fixture did not replace the clicked scan"
 
-  if run_apply "$root" "${clicked_args[@]}" >"$root/apply.out" 2>"$root/apply.err"; then
+  if FAKE_GUM_RC=0 run_apply "$root" --run "${clicked_args[@]}" >"$root/apply.out" 2>"$root/apply.err"; then
     fail "apply succeeded after checked state was replaced"
   fi
+  assert_contains "checked scan changed; refresh first" "$root/apply.err" "replaced state did not reach the changed-scan guard"
   assert_file_absent "$root/pacman.marker" "pacman ran after checked state replacement"
+  [ ! -s "$root/pacman.log" ] || fail "pacman ran after checked state replacement"
   [ ! -s "$root/sudo.log" ] || fail "sudo ran after checked state replacement"
 }
 
@@ -681,6 +718,8 @@ test_user_root_fallback_survives_minimal_path
 test_legacy_helper_is_inspected_without_execution
 test_missing_apply_helper_does_not_block_omarchy
 test_presentation_launcher_preserves_update_argv
+test_plain_arch_requires_explicit_run_before_sudo
+test_plain_arch_declined_confirmation_never_reaches_sudo
 test_success_runs_exact_full_upgrade
 test_aur_warnings_do_not_block_full_repo_upgrade
 test_rescan_drift_aborts_before_pacman

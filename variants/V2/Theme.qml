@@ -1692,7 +1692,7 @@ Item {
                  + (modIndicators ? "1" : "0") + " " // +54 Indicators widget
                  + (modElsewhen ? "1" : "0") // +55 Elsewhen; append-only
         widgetSaveProc.command = ["bash", "-c",
-            "echo '" + line + "' > '" + widgetsCachePath + "'"]
+            "printf '%s\\n' \"$2\" > \"$1\"", "rise-widget-cache", widgetsCachePath, line]
         widgetSaveProc.running = false
         widgetSaveProc.running = true
     }

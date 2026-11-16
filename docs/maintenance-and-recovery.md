@@ -45,7 +45,7 @@ that removed updater to stage a generation or roll it back.
 
 Package updates run through the ArchUpdater panel, with two explicit execution models:
 
-- On plain Arch, the security gate checks every displayed repository package against the known-infected Arch User Repository (AUR) list. The apply helper then re-scans and re-runs the gate after authentication before it can execute the complete `pacman -Syu` transaction.
+- On plain Arch, the security gate checks every displayed repository package against the known-infected Arch User Repository (AUR) list. The apply helper requires explicit `--run` intent and an affirmative confirmation before requesting sudo authentication; missing intent fails closed and declining never reaches sudo. It then re-scans and re-runs the gate after authentication before it can execute the complete `pacman -Syu` transaction.
 - On Omarchy, the package results are advisory. The update button opens Omarchy's official updater, which owns its broader system, migration, AUR, and tooling transaction. The Quickshell gate neither filters nor claims to authorize that upstream transaction.
 
 ## Read Quickshell logs

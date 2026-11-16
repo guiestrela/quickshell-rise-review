@@ -66,6 +66,7 @@ for directory in ('scripts', 'core', 'shared', 'tests'):
 PYTHON
 }
 check "Python syntax (including extensionless helpers)" check_python_syntax
+check "cache writes preserve argv boundaries" python3 tests/test-cache-write-argv.py
 check "AI authentication cache fallback" python3 tests/test-ai-auth-status.py
 check "notification snapshot resilience" python3 tests/test-notification-snapshot.py
 check "notification DND state V1/V2" python3 tests/test-notification-dnd-runtime.py
@@ -158,6 +159,7 @@ check "AI panel variants and bundled quotes" python3 tests/test-panel-variant-co
 check "JavaScript regressions" node --test tests/*.test.mjs tests/*.test.cjs tests/test-display-*.cjs
 check "bar style previews" python3 tests/test-bar-style-preview.py
 check "horizontal-only bar" python3 tests/test-horizontal-only-bar.py
+check "V2 startup and reset layout" python3 tests/v2-default-layout-regression.py
 check "V1 horizontal slot pointer interactions" env RISE_HORIZONTAL_VARIANT=V1 python3 tests/test-v2-horizontal-slot-interaction.py
 check "V2 horizontal slot pointer interactions" python3 tests/test-v2-horizontal-slot-interaction.py
 check "workspace focus and navigation" python3 tests/test-workspace-focus-runtime.py
