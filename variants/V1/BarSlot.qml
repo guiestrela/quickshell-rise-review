@@ -273,7 +273,8 @@ PanelWindow {
     function saveOrder() {
         var serialized = serializeOrder()
         orderSaveProc.command = ["bash", "-c",
-            "mkdir -p \"$(dirname '" + orderCachePath + "')\" && printf '%s' '" + serialized + "' > '" + orderCachePath + "'"]
+            "mkdir -p -- \"$(dirname -- \"$1\")\" && printf '%s' \"$2\" > \"$1\"",
+            "rise-order-cache", orderCachePath, serialized]
         orderSaveProc.running = false; orderSaveProc.running = true
         if (!barSlot.root._barLayoutSyncing) barSlot.root.syncBarOrder(barSlot.screenName, serialized)
     }

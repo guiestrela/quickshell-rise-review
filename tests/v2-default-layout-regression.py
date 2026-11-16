@@ -8,7 +8,7 @@ import subprocess
 import unittest
 
 SOURCE = Path(__file__).resolve().parents[1] / 'variants/V2/BarSlot.qml'
-EXPECTED = 'B:G1,B:G2,B:G3,B:_,B:G5,B:G6,B:G4,B:G7,B:_,B:_|B:G8|B:G9,B:G10,B:G20,B:G14,B:G12,B:G13,B:G11,E:G18,E:G19,E:G16,E:G17,E:G15,E:G21,E:G22'
+EXPECTED = 'B:G1,B:G2,B:G3,B:_,B:G5,B:G6,B:G4,B:G7,B:_,B:_|B:G8,E:G23|B:G9,B:G10,B:G20,B:G14,B:G12,B:G13,B:G11,E:G18,E:G19,E:G16,E:G17,E:G15,E:G21,E:G22,E:G24'
 
 def function(source, name):
     start = re.search(r'function ' + name + r'\([^)]*\)\s*\{', source)
@@ -41,17 +41,19 @@ class V2DefaultLayoutTest(unittest.TestCase):
 const model = () => ({rows:[],clear(){this.rows=[]},append(row){this.rows.push(row)}});
 const leftModel=model(), centerModel=model(), rightModel=model();
 const leftBaseSlotCount=10, centerBaseSlotCount=1, rightBaseSlotCount=7;
+const barSlot={root:{trayWidgets:['stale-tray-entry']}};
 const _orderLoaded=true; let saved=0; function saveOrder(){saved++}
 '''
         program += function(source, 'resetModel') + '\n' + function(source, 'resetOrder')
         program += '''
 resetOrder();
-console.log(JSON.stringify({order:[leftModel,centerModel,rightModel].map(m=>m.rows.map(r=>(r.extra?'E:':'B:')+(r.gid||'_')).join(',')).join('|'),saved}));
+console.log(JSON.stringify({order:[leftModel,centerModel,rightModel].map(m=>m.rows.map(r=>(r.extra?'E:':'B:')+(r.gid||'_')).join(',')).join('|'),saved,tray:barSlot.root.trayWidgets}));
 '''
         result = subprocess.run(['node', '-e', program], check=True, capture_output=True, text=True)
         actual = json.loads(result.stdout)
         self.assertEqual(actual['order'], EXPECTED)
         self.assertEqual(actual['saved'], 1)
+        self.assertEqual(actual['tray'], [])
 
 if __name__ == '__main__':
     unittest.main()

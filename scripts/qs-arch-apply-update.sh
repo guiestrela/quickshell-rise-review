@@ -142,6 +142,10 @@ case "$UPDATE_BACKEND" in
     ;;
 esac
 
+# Omarchy owns its updater flow above. Plain Arch must carry explicit intent
+# before inspecting a transaction or requesting any sudo authentication.
+(( CONFIRM_ARCH_UPDATE )) || fail "explicit --run is required for a plain Arch upgrade"
+
 command -v jq >/dev/null 2>&1 || fail "jq is required"
 command -v sudo >/dev/null 2>&1 || fail "sudo is required"
 [ -x "$CHECK_HELPER" ] || fail "arch update check helper is missing"
