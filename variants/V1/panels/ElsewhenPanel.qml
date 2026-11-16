@@ -7,6 +7,16 @@ Shared.ElsewhenPanel {
     id: panel
     barBottom: 35
     gap: 8
+    contentPaletteOverride: ({
+        bg: panel.root.bg,
+        ink: panel.root.fg,
+        accent: panel.root.accent,
+        seal: panel.root.seal,
+        sep: panel.root.sep,
+        fillIdle: panel.root.fillIdle,
+        fillHover: panel.root.fillHover,
+        sumi: panel.root.muted
+    })
     frameRadius: panel.root.pillRadius
     frameColor: panel.root.bg
     frameBorderColor: panel.root.pillBorder

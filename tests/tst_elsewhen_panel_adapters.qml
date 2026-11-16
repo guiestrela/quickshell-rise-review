@@ -182,36 +182,38 @@ Item {
             }
         }
 
-        function test_v2_internal_palette_follows_bar_theme_and_v1_stays_commons() {
-            load("v1", false, "top")
-            var v1Content = findChild(panelLoader.item, "elsewhen-panel-content")
-            compare(v1Content.palette.bg, Commons.Color.popups.background)
-
-            load("v2", false, "top")
-            var content = findChild(panelLoader.item, "elsewhen-panel-content")
-            compare(content.palette.bg, theme.bg)
-            compare(content.palette.ink, theme.fg)
-            compare(content.palette.accent, theme.accent)
-            compare(content.palette.seal, theme.seal)
-            compare(content.palette.sep, theme.sep)
-            compare(content.palette.fillIdle, theme.fillIdle)
-            compare(content.palette.fillHover, theme.fillHover)
-            compare(content.palette.sumi, theme.muted)
-            compare(content.actionButtonStyle.ink, theme.fg)
-            compare(content.actionButtonStyle.seal, theme.seal)
-            compare(content.actionButtonStyle.sep, theme.sep)
-            compare(content.daylightMarker, theme.seal)
-            compare(content.globeNightMarker,
-                Qt.rgba(theme.bg.r, theme.bg.g, theme.bg.b, 0.92))
-
-            var oldSeal = theme.seal
-            try {
-                theme.seal = "#b16286"
+        function test_internal_palette_follows_each_active_variant() {
+            for (var variant of ["v1", "v2"]) {
+                load(variant, false, "top")
+                var content = findChild(panelLoader.item, "elsewhen-panel-content")
+                compare(content.palette.bg, theme.bg)
+                compare(content.palette.ink, theme.fg)
+                compare(content.palette.accent, theme.accent)
                 compare(content.palette.seal, theme.seal)
+                compare(content.palette.sep, theme.sep)
+                compare(content.palette.fillIdle, theme.fillIdle)
+                compare(content.palette.fillHover, theme.fillHover)
+                compare(content.palette.sumi, theme.muted)
+                compare(content.actionButtonStyle.ink, theme.fg)
                 compare(content.actionButtonStyle.seal, theme.seal)
+                compare(content.actionButtonStyle.sep, theme.sep)
                 compare(content.daylightMarker, theme.seal)
-            } finally {
-                theme.seal = oldSeal
+                compare(content.globeNightMarker,
+                    Qt.rgba(theme.bg.r, theme.bg.g, theme.bg.b, 0.92))
+
+                var oldSeal = theme.seal
+                var oldInk = theme.ink
+                try {
+                    theme.seal = "#b16286"
+                    theme.ink = "#d8e5f3"
+                    compare(content.palette.ink, theme.fg)
+                    compare(content.palette.seal, theme.seal)
+                    compare(content.actionButtonStyle.seal, theme.seal)
+                    compare(content.daylightMarker, theme.seal)
+                } finally {
+                    theme.seal = oldSeal
+                    theme.ink = oldInk
+                }
             }
         }
 
@@ -1278,7 +1280,7 @@ Item {
             }
         }
 
-        function test_omarchy_content_palette_and_v2_connected_panel_style() {
+        function test_active_content_palette_and_variant_frame_style() {
             var saved = {
                 bg: theme.bg,
                 panelBorder: theme.panelBorder,
@@ -1297,14 +1299,9 @@ Item {
                     var content = findChild(panelLoader.item, "elsewhen-panel-content")
                     var row = content.cityList.itemAtIndex(0)
                     verify(row !== null)
-                    if (variant === "v1") {
-                        compare(row.foreground, Commons.Color.popups.text)
-                        compare(row.surfaceBase, Commons.Color.popups.background)
-                    } else {
-                        compare(row.foreground, theme.fg)
-                        compare(row.surfaceBase, theme.bg)
-                        compare(content.palette.accent, theme.accent)
-                    }
+                    compare(row.foreground, theme.fg)
+                    compare(row.surfaceBase, theme.bg)
+                    compare(content.palette.accent, theme.accent)
                     compare(row.fontFamily, Commons.Style.font.family)
                 }
                 theme.bg = "#191a28"
