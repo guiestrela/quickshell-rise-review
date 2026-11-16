@@ -21,6 +21,7 @@ ShellRoot {
         property color sep: "#504945"
         property color fillIdle: "#282828"
         property color fillHover: "#3c3836"
+        property real fillHoverAlpha: 0.12
         property color sumi: "#928374"
         property string mono: "monospace"
     }

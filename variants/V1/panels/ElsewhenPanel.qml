@@ -12,6 +12,14 @@ Shared.ElsewhenPanel {
     frameBorderColor: panel.root.pillBorder
     frameBorderWidth: panel.root.pillBorderW
     buttonRadius: panel.root.tileRadius
+    actionButtonStyleOverride: ({
+        fillIdle: panel.root.fillIdle,
+        fillHover: panel.root.fillHover,
+        ink: panel.root.fg,
+        seal: panel.root.seal,
+        sep: panel.root.sep,
+        mono: panel.root.mono
+    })
     surfaceComponent: Component {
         Item {
             Native.PillShadow { parent: panel.surfaceHost; theme: panel.root }

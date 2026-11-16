@@ -1279,7 +1279,19 @@ case_static_contracts() {
       "$connected_panel" "V2 connected panel owner binding"
   done < <(grep -Rl --include='*.qml' 'ConnectedPanelSurface {' \
     "$REPO_ROOT/variants/V2/panels")
-  assert_eq "25" "$connected_panel_count" "V2 connected panel owner coverage"
+  assert_contains 'Native.ConnectedPanelSurface {' \
+    "$REPO_ROOT/variants/V2/panels/ElsewhenPanel.qml" "Elsewhen connected popup surface"
+  assert_contains 'ownerActive: panel.root.elsewhenVisible' \
+    "$REPO_ROOT/variants/V2/panels/ElsewhenPanel.qml" "Elsewhen connected surface owner"
+  assert_contains 'targetX: panel.root.elsewhenBarX' \
+    "$REPO_ROOT/variants/V2/panels/ElsewhenPanel.qml" "Elsewhen connected surface anchor"
+  assert_contains 'reveal: panel.reveal' \
+    "$REPO_ROOT/variants/V2/panels/ElsewhenPanel.qml" "Elsewhen connected surface reveal"
+  assert_contains 'Native.PillShadow {' \
+    "$REPO_ROOT/variants/V2/panels/ElsewhenPanel.qml" "Elsewhen panel shadow"
+  assert_contains 'Native.SidePanelPositioner {' \
+    "$REPO_ROOT/variants/V2/panels/ElsewhenPanel.qml" "Elsewhen positioner preserved"
+  assert_eq "25" "$connected_panel_count" "V2 connected panel owner coverage including Elsewhen"
   for theme_file in "$V1_THEME" "$V2_THEME"; do
     assert_contains 'omarchy-shell idle status' "$theme_file" "live Omarchy idle service probe"
     assert_contains 'omarchy-shell notifications ping' "$theme_file" "live Omarchy notification service probe"

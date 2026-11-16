@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
+import qs.Commons as Commons
 import "../../components" as SharedComponents
 import "Model.js" as Model
 import "GlobeModel.js" as Globe
@@ -12,8 +13,6 @@ Rectangle {
   required property var modelData
   required property int index
   required property var panel
-  property alias moveUpButton: moveUpButton
-  property alias moveDownButton: moveDownButton
   property alias removeButton: removeButton
   property alias peopleEditButton: peopleButton
   property alias dragArea: rowDragArea
@@ -29,18 +28,32 @@ Rectangle {
   readonly property bool keyboardFocused: panel.keyboardFocusId !== undefined
     && String(panel.keyboardFocusId || "") !== ""
     && String(panel.keyboardFocusId) === String(modelData.id || "")
-  readonly property color foreground: panel.root.ink
-  readonly property color dim: panel.root.sumi !== undefined ? panel.root.sumi : Qt.darker(foreground, 1.55)
+  readonly property color foreground: panel.palette.ink
+  readonly property color dim: panel.palette.sumi !== undefined ? panel.palette.sumi : Qt.darker(foreground, 1.55)
   readonly property color fainter: Qt.darker(foreground, 2.1)
-  readonly property string fontFamily: panel.root.mono
+  readonly property string fontFamily: panel.palette.mono
+  readonly property real dayFill: 0.10
+  readonly property real phaseFill: {
+    var phase = row.rowData.phase || "day"
+    if (phase === "night") return 0.035
+    if (phase === "day") return dayFill
+    return 0.07
+  }
+  readonly property real hoverLift: 0.05
+  readonly property real actionSize: Commons.Style.font.bodySmall
+    + (Commons.Style.space(22) - Commons.Style.font.bodySmall) * 0.85
+  readonly property real actionCenterOffset: -Commons.Style.space(22) * 5 / 24
+  readonly property color surfaceBase: panel.palette.bg !== undefined ? panel.palette.bg : panel.palette.fillIdle
+  readonly property bool picked: keyboardFocused
 
   width: parent ? parent.width : 340
-  height: 104
-  radius: panel.root.tileRadius !== undefined ? panel.root.tileRadius : 7
-  color: hovered ? panel.root.fillHover : panel.root.fillIdle
-  border.color: keyboardFocused ? panel.root.seal : panel.root.sep
-  border.width: 1
-  clip: true
+  height: 89
+  radius: panel.palette.tileRadius !== undefined ? panel.palette.tileRadius : 7
+  color: Model.mix(surfaceBase, foreground,
+    picked ? dayFill + hoverLift : hovered ? phaseFill + hoverLift : phaseFill)
+  border.color: keyboardFocused ? panel.palette.seal : panel.palette.sep
+  border.width: keyboardFocused ? 1 : 0
+  clip: false
 
   HoverHandler { id: rowHover }
 
@@ -88,6 +101,22 @@ Rectangle {
             font.family: row.fontFamily
             font.pixelSize: 9
             horizontalAlignment: Text.AlignRight
+          }
+        }
+
+        Item {
+          width: 18
+          height: 14
+          visible: row.panel.weatherGlyphFor !== undefined
+            && row.panel.weatherGlyphFor(row.rowData) !== ""
+          SharedComponents.UiText {
+            objectName: "elsewhen-weather-glyph"
+            anchors.fill: parent
+            text: row.panel.weatherGlyphFor !== undefined ? row.panel.weatherGlyphFor(row.rowData) : ""
+            color: row.dim
+            font.family: row.fontFamily
+            font.pixelSize: 10
+            horizontalAlignment: Text.AlignHCenter
           }
         }
       }
@@ -151,8 +180,8 @@ Rectangle {
         rightPadding: 7
         background: Rectangle {
           radius: 5
-          color: row.panel.root.bg
-          border.color: peopleField.activeFocus ? row.panel.root.seal : row.panel.root.sep
+          color: row.panel.palette.bg
+          border.color: peopleField.activeFocus ? row.panel.palette.seal : row.panel.palette.sep
           border.width: 1
         }
         onVisibleChanged: if (visible) {
@@ -306,7 +335,7 @@ Rectangle {
     moonPhase: row.panel.moonPhase !== undefined ? row.panel.moonPhase : Globe.moonPhase(nowMs)
     foreground: row.foreground
     fainter: row.fainter
-    daylightMarker: row.panel.root.seal
+    daylightMarker: row.panel.daylightMarker !== undefined ? row.panel.daylightMarker : row.panel.palette.seal
     onScrubStarted: function(fraction) { if (typeof row.panel.beginScrub === "function") row.panel.beginScrub(row.rowData, fraction) }
     onScrubMoved: function(fraction) { if (typeof row.panel.scrubTo === "function") row.panel.scrubTo(row.rowData, fraction) }
     onScrubEnded: if (typeof row.panel.endScrub === "function") row.panel.endScrub()
@@ -363,26 +392,32 @@ Rectangle {
   Rectangle {
     id: removeButton
     objectName: "elsewhen-city-remove"
-    width: 22
-    height: 22
+    width: row.actionSize
+    height: row.actionSize
     radius: width / 2
-    anchors.right: parent.right
-    anchors.rightMargin: 8
-    anchors.top: parent.top
-    anchors.topMargin: 6
-    color: row.panel.root.bg
-    border.color: row.panel.root.sep
-    visible: row.removable && row.hovered
+    anchors.horizontalCenter: parent.right
+    anchors.horizontalCenterOffset: row.actionCenterOffset
+    anchors.verticalCenter: parent.top
+    color: Model.mix(row.panel.palette.bg, row.foreground,
+      removePointer.containsMouse ? 0.24 : 0.14)
+    border.color: Model.mix(row.panel.palette.bg, row.foreground,
+      removePointer.containsMouse ? 0.65 : 0.35)
+    border.width: Commons.Style.space(1)
+    visible: row.removable && (row.hovered || removePointer.containsMouse)
+    Accessible.role: Accessible.Button
+    Accessible.name: "Remove " + String(row.rowData.label || row.modelData.label)
     Text {
       anchors.centerIn: parent
       text: "×"
-      color: row.dim
+      color: removePointer.containsMouse ? row.foreground : row.dim
       font.family: row.fontFamily
-      font.pixelSize: 13
+      font.pixelSize: Commons.Style.font.bodySmall
       renderType: Text.NativeRendering
     }
     MouseArea {
+      id: removePointer
       anchors.fill: parent
+      hoverEnabled: true
       cursorShape: Qt.PointingHandCursor
       onClicked: {
         if (typeof row.panel.removeCityAt === "function") row.panel.removeCityAt(row.index)
@@ -392,82 +427,34 @@ Rectangle {
   }
 
   Rectangle {
-    id: moveDownButton
-    objectName: "elsewhen-city-move-down"
-    width: 22
-    height: 22
-    radius: width / 2
-    anchors.right: peopleButton.left
-    anchors.rightMargin: 5
-    anchors.top: parent.top
-    anchors.topMargin: 6
-    color: row.panel.root.bg
-    border.color: row.panel.root.sep
-    visible: row.hovered && row.index < (row.panel.displayRows ? row.panel.displayRows.length - 1 : 0)
-    Text {
-      anchors.centerIn: parent
-      text: "↓"
-      color: row.dim
-      font.family: row.fontFamily
-      font.pixelSize: 11
-    }
-    MouseArea {
-      anchors.fill: parent
-      cursorShape: Qt.PointingHandCursor
-      onClicked: if (row.panel.service) row.panel.service.moveCity(row.index, row.index + 1)
-    }
-  }
-
-  Rectangle {
-    id: moveUpButton
-    objectName: "elsewhen-city-move-up"
-    width: 22
-    height: 22
-    radius: width / 2
-    anchors.right: moveDownButton.left
-    anchors.rightMargin: 5
-    anchors.top: parent.top
-    anchors.topMargin: 6
-    color: row.panel.root.bg
-    border.color: row.panel.root.sep
-    visible: row.hovered && row.index > 0
-    Text {
-      anchors.centerIn: parent
-      text: "↑"
-      color: row.dim
-      font.family: row.fontFamily
-      font.pixelSize: 11
-    }
-    MouseArea {
-      anchors.fill: parent
-      cursorShape: Qt.PointingHandCursor
-      onClicked: if (row.panel.service) row.panel.service.moveCity(row.index, row.index - 1)
-    }
-  }
-
-  Rectangle {
     id: peopleButton
     objectName: "elsewhen-people-edit"
-    width: removeButton.width
-    height: width
+    width: row.actionSize
+    height: row.actionSize
     radius: width / 2
-    anchors.right: removeButton.visible ? removeButton.left : parent.right
-    anchors.rightMargin: removeButton.visible ? 5 : 8
-    anchors.top: parent.top
-    anchors.topMargin: 6
-    color: row.panel.root.bg
-    border.color: row.panel.root.sep
-    visible: !row.editingPeople && row.hovered
+    anchors.horizontalCenter: parent.right
+    anchors.horizontalCenterOffset: row.actionCenterOffset - removeButton.width - Commons.Style.space(5)
+    anchors.verticalCenter: parent.top
+    color: Model.mix(row.panel.palette.bg, row.foreground,
+      peoplePointer.containsMouse ? 0.24 : 0.14)
+    border.color: Model.mix(row.panel.palette.bg, row.foreground,
+      peoplePointer.containsMouse ? 0.65 : 0.35)
+    border.width: Commons.Style.space(1)
+    visible: !row.editingPeople && (row.hovered || peoplePointer.containsMouse)
+    Accessible.role: Accessible.Button
+    Accessible.name: "Edit people for " + String(row.rowData.label || row.modelData.label)
     Text {
       anchors.centerIn: parent
-      text: "＋"
-      color: row.dim
+      text: "\udb80\udc14"
+      color: peoplePointer.containsMouse ? row.foreground : row.dim
       font.family: row.fontFamily
-      font.pixelSize: 13
+      font.pixelSize: Commons.Style.font.caption
       renderType: Text.NativeRendering
     }
     MouseArea {
+      id: peoplePointer
       anchors.fill: parent
+      hoverEnabled: true
       cursorShape: Qt.PointingHandCursor
       onClicked: row.panel.startPeopleEdit(row.index)
     }
