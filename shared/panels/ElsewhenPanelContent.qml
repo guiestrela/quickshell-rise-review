@@ -823,7 +823,7 @@ Item {
         SharedComponents.UiText {
             anchors.centerIn: parent
             text: cityAction.label
-            color: cityAction.highlighted ? panel.actionButtonStyle.seal : panel.actionButtonStyle.ink
+            color: panel.actionButtonStyle.ink
             font.family: panel.actionButtonStyle.mono
             font.pixelSize: 11
         }
@@ -876,6 +876,69 @@ Item {
                     x: 0
                     y: 0
                     spacing: 2
+
+                    Item {
+                        objectName: "elsewhen-panel-heading"
+                        width: parent.width
+                        height: 24
+
+                        SharedComponents.UiText {
+                            objectName: "elsewhen-panel-title"
+                            anchors.left: parent.left
+                            anchors.right: panelCloseText.left
+                            anchors.rightMargin: 12
+                            height: 24
+                            text: "Elsewhen"
+                            textFormat: Text.PlainText
+                            color: panel.root.ink
+                            verticalAlignment: Text.AlignVCenter
+                            font.family: panel.root.mono
+                            font.pixelSize: 13
+                            font.letterSpacing: 2
+                            font.weight: Font.Medium
+                            elide: Text.ElideRight
+                        }
+
+                        SharedComponents.UiText {
+                            id: panelCloseText
+                            objectName: "elsewhen-panel-close"
+                            anchors.right: parent.right
+                            anchors.verticalCenter: parent.verticalCenter
+                            text: "✕"
+                            color: panelCloseMouse.containsMouse ? panel.root.seal : panel.root.muted
+                            font.family: panel.root.mono
+                            font.pixelSize: 12
+                            Behavior on color { ColorAnimation { duration: 120 } }
+                            MouseArea {
+                                id: panelCloseMouse
+                                objectName: "elsewhen-panel-close-button"
+                                anchors.fill: parent
+                                anchors.margins: -8
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                activeFocusOnTab: true
+                                Accessible.role: Accessible.Button
+                                Accessible.name: "Close Elsewhen"
+                                onClicked: panel.root.elsewhenVisible = false
+                                Keys.onReturnPressed: panel.root.elsewhenVisible = false
+                                Keys.onSpacePressed: panel.root.elsewhenVisible = false
+                            }
+                        }
+                    }
+
+                    // Together with the two 2px Column gaps, keep 12px
+                    // between the title row and its separator.
+                    Item {
+                        width: parent.width
+                        height: 8
+                    }
+
+                    Rectangle {
+                        objectName: "elsewhen-world-clock-header-divider"
+                        width: parent.width
+                        height: 1
+                        color: panel.palette.sep
+                    }
 
                     Item {
                         objectName: "elsewhen-here-title-target"

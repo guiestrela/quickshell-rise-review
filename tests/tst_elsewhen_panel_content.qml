@@ -13,6 +13,7 @@ Item {
         id: fakeTheme
         property color bg: "#1d2021"
         property color ink: "#ebdbb2"
+        property color muted: "#a89984"
         property color seal: "#d79921"
         property color sep: "#504945"
         property color accent: "#cc241d"

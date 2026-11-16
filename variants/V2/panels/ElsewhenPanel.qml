@@ -39,7 +39,6 @@ Shared.ElsewhenPanel {
                 parent: panel.surfaceHost
                 z: -1
                 root: panel.root
-                surfaceFillColor: panel.root.barBg
                 ownerActive: panel.root.elsewhenVisible
                 targetX: panel.root.elsewhenBarX
                 reveal: panel.reveal

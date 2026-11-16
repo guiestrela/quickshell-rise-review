@@ -362,29 +362,87 @@ Item {
             }
         }
 
-        function test_v2_elsewhen_surface_fill_tracks_active_bar_alpha() {
+        function test_v2_elsewhen_surface_fill_matches_tooltip_surface() {
             var savedFrost = theme.barFrost
             var savedOpacity = theme.barOpacity
+            var savedBg = theme.bg
             try {
                 theme.barFrost = true
-                theme.barOpacity = 0.94
+                theme.barOpacity = 0.42
+                theme.bg = "#253247"
                 load("v2", false, "top")
                 var surface = findChild(panelLoader.item, "elsewhen-connected-panel-surface")
                 verify(surface !== null)
                 verify(surface.surfaceFillColor !== undefined,
                     "connected surface must expose the fill actually drawn by its silhouette")
-                compare(surface.surfaceFillColor.toString(), theme.barBg.toString())
-                compare(surface.surfaceFillColor.a, 0.68)
+                compare(surface.surfaceFillColor.toString(), theme.bg.toString())
+                verify(surface.surfaceFillColor.toString() !== theme.barBg.toString(),
+                    "panel/tooltip surface must not inherit the more transparent bar frost fill")
 
-                theme.barFrost = false
-                theme.barOpacity = 0.73
+                theme.bg = "#35465a"
                 tryVerify(function() {
-                    return surface.surfaceFillColor.toString() === theme.barBg.toString()
+                    return surface.surfaceFillColor.toString() === theme.bg.toString()
                 }, 500)
-                compare(surface.surfaceFillColor.a, 0.73)
             } finally {
                 theme.barFrost = savedFrost
                 theme.barOpacity = savedOpacity
+                theme.bg = savedBg
+            }
+        }
+
+        function test_v2_world_clock_header_has_panel_title_and_separator() {
+            load("v2", false, "top")
+            var header = findChild(panelLoader.item, "elsewhen-world-clock-header")
+            verify(header !== null)
+            var panelTitle = findChild(header, "elsewhen-panel-title")
+            verify(panelTitle !== null, "Elsewhen must appear above the top separator")
+            compare(panelTitle.text, "Elsewhen")
+            var titleRow = findChild(header, "elsewhen-world-title-row")
+            var worldTitle = findChild(header, "elsewhen-world-title")
+            var clockTitle = findChild(header, "elsewhen-clock-title")
+            var divider = findChild(header, "elsewhen-world-clock-header-divider")
+            verify(titleRow !== null && worldTitle !== null && clockTitle !== null)
+            verify(worldTitle.text !== "" && clockTitle.text !== "", "header name must remain visible")
+            verify(divider !== null, "World Clock needs the same subtle separator as V2 panel headers")
+            compare(divider.height, 1)
+            compare(divider.width, header.width)
+            compare(divider.color.toString(), theme.sep.toString())
+            var titlePoint = titleRow.mapToItem(header, 0, 0)
+            var dividerPoint = divider.mapToItem(header, 0, 0)
+            var panelTitlePoint = panelTitle.mapToItem(header, 0, 0)
+            var here = findChild(header, "elsewhen-here-title-target")
+            verify(here !== null)
+            var herePoint = here.mapToItem(header, 0, 0)
+            verify(dividerPoint.y >= panelTitlePoint.y + panelTitle.height + 12,
+                "top separator must leave at least 12px below the Elsewhen title")
+            verify(herePoint.y >= dividerPoint.y + divider.height,
+                "approved central content must stay below the top separator")
+            verify(titlePoint.y >= herePoint.y + here.height,
+                "World Clock must retain its position below the home-city caption")
+        }
+
+        function test_panel_heading_matches_native_style_and_close_works() {
+            for (var variant of ["v1", "v2"]) {
+                load(variant, false, "top")
+                var title = findChild(panelLoader.item, "elsewhen-panel-title")
+                verify(title !== null)
+                compare(title.font.family, theme.mono)
+                compare(title.font.pixelSize, 13)
+                compare(title.font.letterSpacing, 2)
+                compare(title.font.weight, Font.Medium)
+                compare(title.color.toString(), theme.ink.toString())
+                var close = findChild(panelLoader.item, "elsewhen-panel-close")
+                var hit = findChild(panelLoader.item, "elsewhen-panel-close-button")
+                verify(close !== null && hit !== null, "native header needs a working close button")
+                compare(close.text, "✕")
+                compare(close.font.family, theme.mono)
+                compare(close.font.pixelSize, 12)
+                mouseMove(testRoot, testRoot.width - 2, testRoot.height - 2)
+                tryCompare(close, "color", theme.muted, 500)
+                mouseMove(hit, hit.width / 2, hit.height / 2)
+                tryCompare(close, "color", theme.seal, 500)
+                mouseClick(hit, hit.width / 2, hit.height / 2, Qt.LeftButton)
+                tryCompare(theme, "elsewhenVisible", false, 500)
             }
         }
 
@@ -946,13 +1004,13 @@ Item {
                     mouseMove(addCity, addCity.width / 2, addCity.height / 2)
                     tryCompare(addCity, "color", hoverFill, 500)
                     compare(addCity.border.color.toString(), theme.seal.toString())
-                    compare(addLabel.color.toString(), theme.seal.toString())
+                    compare(addLabel.color.toString(), theme.fg.toString())
                     mouseMove(testRoot, testRoot.width - 2, testRoot.height - 2)
                     addCity.forceActiveFocus()
                     tryVerify(function() { return addCity.activeFocus }, 500)
                     compare(addCity.color.toString(), hoverFill.toString())
                     compare(addCity.border.color.toString(), theme.seal.toString())
-                    compare(addLabel.color.toString(), theme.seal.toString())
+                    compare(addLabel.color.toString(), theme.fg.toString())
 
                     content.forceActiveFocus()
                     var addDynamicRadius = variant === "v1" ? 12 : 14
@@ -972,7 +1030,7 @@ Item {
                     mouseMove(addCity, addCity.width / 2, addCity.height / 2)
                     tryCompare(addCity, "color", theme.fillHover, 500)
                     tryVerify(function() { return addCity.border.color.toString() === theme.seal.toString() }, 500)
-                    tryVerify(function() { return addLabel.color.toString() === theme.seal.toString() }, 500)
+                    tryVerify(function() { return addLabel.color.toString() === theme.fg.toString() }, 500)
                     mouseMove(testRoot, testRoot.width - 2, testRoot.height - 2)
                     content.forceActiveFocus()
 
@@ -1009,7 +1067,7 @@ Item {
                     mouseMove(jump, jump.width / 2, jump.height / 2)
                     tryCompare(jump, "color", hoverFill, 500)
                     compare(jump.border.color.toString(), theme.seal.toString())
-                    compare(jumpLabel.color.toString(), theme.seal.toString())
+                    compare(jumpLabel.color.toString(), theme.fg.toString())
                     mouseMove(testRoot, testRoot.width - 2, testRoot.height - 2)
                     content.forceActiveFocus()
 
@@ -1035,7 +1093,7 @@ Item {
                     mouseMove(jump, jump.width / 2, jump.height / 2)
                     tryCompare(jump, "color", theme.fillHover, 500)
                     tryVerify(function() { return jump.border.color.toString() === theme.seal.toString() }, 500)
-                    tryVerify(function() { return jumpLabel.color.toString() === theme.seal.toString() }, 500)
+                    tryVerify(function() { return jumpLabel.color.toString() === theme.fg.toString() }, 500)
                 }
             } finally {
                 theme.fillIdle = saved.fillIdle
