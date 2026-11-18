@@ -14,7 +14,7 @@ REPO = Path(__file__).resolve().parents[1]
 SCENARIOS = [(variant, vertical, count, reveal)
              for variant in ('V1', 'V2')
              for vertical in (False, True)
-             for count in (1, 3)
+             for count in (0, 1, 3)
              for reveal in (False, True)]
 
 
@@ -60,7 +60,8 @@ def make_qml(base, variant, vertical, count, reveal, image_path):
         property int reminderCount: 0
         property string reminderTooltip: "Reminder"
         property bool night: false
-        property bool silenced: true
+        property bool silenced: {str(count > 0).lower()}
+        readonly property bool hasActive: recording || silenced || awake
         property bool awake: {str(count == 3).lower()}
         property var notifications: ({{}})
         property var idle: ({{}})
@@ -164,9 +165,9 @@ Window {{
             var cells=[]; collectCells(host, cells)
             var glyphs=[]; collectGlyphs(host, glyphs)
             var clickTarget = findNamed(host, "indicator-mouse-Dnd")
-            if (!clickTarget) {{ console.error("ACTIVE_CLICK_TARGET_MISSING"); Qt.exit(1); return }}
-            clickTarget.clicked(null)
-            if (coordinator.activationCount !== 1 || coordinator.lastActivated !== "Dnd") {{
+            if (({count} > 0 || {str(reveal).lower()}) && !clickTarget) {{ console.error("ACTIVE_CLICK_TARGET_MISSING"); Qt.exit(1); return }}
+            if (clickTarget) clickTarget.clicked(null)
+            if (clickTarget && (coordinator.activationCount !== 1 || coordinator.lastActivated !== "Dnd")) {{
                 console.error("ACTIVE_CLICK_MOCK_FAILED"); Qt.exit(1); return
             }}
             console.log("INK_CASE " + JSON.stringify({{
@@ -245,12 +246,24 @@ with tempfile.TemporaryDirectory(prefix='rise-indicators-ink-', dir=os.environ.g
         if result.returncode or 'INK_CAPTURED' not in output or not match:
             raise SystemExit(f'FIXTURE_FAILED {variant} vertical={vertical} n={active_count}\n{output}')
         data = json.loads(match.group(1))
+        if active_count == 0 and not reveal:
+            ink = ink_bounds(image, 200, 220)
+            capsule = data['capsule']
+            assert ink, f'{variant}: neutral marker has no visible pixels'
+            dx = ink['centerX'] - (capsule['x'] + capsule['width'] / 2)
+            dy = ink['centerY'] - (capsule['y'] + capsule['height'] / 2)
+            assert abs(dx) <= 1.5 and abs(dy) <= 1.5, f'{variant}: neutral marker ink offset {dx},{dy}'
+            assert not data['cells'], f'{variant}: idle marker overlaps indicator cells'
+            print(f'{variant} vertical={vertical}: neutral marker ink centered ({dx:.2f},{dy:.2f})px')
+            if artifact_dir:
+                shutil.copy2(image, Path(artifact_dir) / image.name)
+            continue
         expected_count = 6 if reveal else active_count
         cells = data['cells']
         if len(cells) != expected_count:
             raise AssertionError(f'{variant} vertical={vertical} active={active_count} reveal={reveal}: '
                                  f'expected {expected_count} visible cells, got {len(cells)}')
-        active_ids = {'Dnd'} if active_count == 1 else {'ScreenRecording', 'Dnd', 'StayAwake'}
+        active_ids = set() if active_count == 0 else {'Dnd'} if active_count == 1 else {'ScreenRecording', 'Dnd', 'StayAwake'}
         expected_ids = (['PasswordlessSudo', 'ScreenRecording', 'Reminder', 'NightLight', 'Dnd', 'StayAwake']
                         if reveal else [name for name in ('ScreenRecording', 'Dnd', 'StayAwake') if name in active_ids])
         actual_ids = [cell['id'] for cell in cells]
@@ -313,4 +326,4 @@ with tempfile.TemporaryDirectory(prefix='rise-indicators-ink-', dir=os.environ.g
             shutil.copy2(image, Path(artifact_dir) / image.name)
     if failures:
         raise SystemExit('INDICATORS_INK_CENTER_FAIL\n' + '\n'.join(failures))
-    print('INDICATORS_INK_CENTER_PASS: rendered glyph bounds centered in V1/V2, horizontal/vertical, 1 and 3 active icons')
+    print('INDICATORS_INK_CENTER_PASS: rendered glyph bounds centered in V1/V2, horizontal/vertical, idle and 1/3 active icons')

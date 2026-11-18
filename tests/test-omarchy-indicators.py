@@ -133,14 +133,14 @@ function process(name) {
      test.check(v2Module.visible && v2Module.implicitWidth === 16, "V2 module remains hoverable when inactive")
      for (var emptyModule of [v1Module, v2Module]) {
       var marker = test.markerFor(emptyModule)
-      test.check(marker && marker.text === ">" && marker.visible, "empty module shows literal marker")
-      test.check(marker.rotation === 0, "horizontal empty marker points right")
+      test.check(marker && marker.text === "⋯" && marker.visible, "empty module shows neutral three-dot marker")
+      test.check(marker.rotation === 0, "horizontal neutral marker is unrotated")
       test.centered(marker, emptyModule, "empty marker")
      }
      theme.barVertical = true
      for (var railModule of [v1Module, v2Module]) {
       var railMarker = test.markerFor(railModule)
-      test.check(railMarker.rotation === 90, "vertical empty marker points down")
+      test.check(railMarker.text === "⋯" && railMarker.rotation === 0, "neutral marker does not depend on orientation")
       test.centered(railMarker, railModule, "vertical empty marker")
      }
      theme.barVertical = false
@@ -224,8 +224,8 @@ function process(name) {
        "inactive vertical modules retain hover targets: V1=" + v1Module.height + ", V2=" + v2Module.height)
      for (var emptyRail of [v1Module, v2Module]) {
       var restored = test.markerFor(emptyRail)
-      test.check(restored.visible && restored.text === ">", "empty marker returns after all indicators deactivate")
-      test.check(restored.rotation === 90, "restored vertical marker points down")
+      test.check(restored.visible && restored.text === "⋯", "neutral marker returns after all indicators deactivate")
+      test.check(restored.rotation === 0, "restored neutral marker remains unrotated")
       test.centered(restored, emptyRail, "restored vertical marker")
      }
      theme.modIndicators = false

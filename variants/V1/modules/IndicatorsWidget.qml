@@ -39,10 +39,10 @@ Item {
     Text {
         objectName: "indicators-empty-marker"
         anchors.centerIn: parent
-        text: ">"
+        text: "⋯"
         textFormat: Text.PlainText
         transformOrigin: Item.Center
-        rotation: module.vertical ? 90 : 0
+        rotation: 0
         font.family: module.root.mono
         font.pixelSize: 13
         color: module.root.seal

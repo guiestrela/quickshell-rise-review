@@ -26,7 +26,8 @@ for variant in ('V1', 'V2'):
     assert 'revealInactive: reveal.hovered' in module
     assert 'vertical: module.vertical' in module
     assert 'objectName: "indicators-empty-marker"' in module
-    assert 'text: ">"' in module
+    assert 'text: "⋯"' in module
+    assert 'rotation: 0' in module
     assert 'anchors.centerIn: parent' in module
     assert 'visible: module.root.modIndicators && !indicators.hasActive && !indicators.revealed' in module
 
