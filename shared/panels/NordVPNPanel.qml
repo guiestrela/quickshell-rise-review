@@ -31,12 +31,12 @@ PanelWindow {
     property alias testDnsInput: dnsInput
     property alias testDnsSetHandler: dnsSetMouse
     property alias testDnsResetHandler: dnsResetMouse
-    property bool countryChooserExpanded: false
-    property bool autoCountryChooserExpanded: false
+    property alias countryChooserExpanded: countrySelector.expanded
+    property alias autoCountryChooserExpanded: autoCountrySelector.expanded
     readonly property var countryOptions: controller.countryOptions || []
-    readonly property alias testCountrySelectHandler: countrySelectMouse
+    readonly property alias testCountrySelectHandler: countrySelector.mouseHandler
     readonly property alias testAutoConnectHandler: autoConnectMouse
-    readonly property alias testAutoCountrySelectHandler: autoCountrySelectMouse
+    readonly property alias testAutoCountrySelectHandler: autoCountrySelector.mouseHandler
     readonly property var pauseDurations: ["5m", "15m", "30m", "1h", "24h"]
     property string selectedPauseDuration: "15m"
     property bool pauseSelectorExpanded: false
@@ -56,10 +56,26 @@ PanelWindow {
     Connections {
         target: vpnPanel.root
         function onVpnVisibleChanged() {
-            if (!vpnPanel.root.vpnVisible) vpnPanel.pauseSelectorExpanded = false
+            if (!vpnPanel.root.vpnVisible) {
+                vpnPanel.pauseSelectorExpanded = false
+                countrySelector.cancel()
+                autoCountrySelector.cancel()
+            }
         }
     }
     function closePanel() { dnsEditorExpanded = false; pauseSelectorExpanded = false; countryChooserExpanded = false; autoCountryChooserExpanded = false; vpnPanel.root.vpnVisible = false }
+    function revealControl(item, withOptions) {
+        // Column geometry settles after a picker changes its list height.
+        Qt.callLater(function() {
+            if (!item || !item.activeFocus) return
+            const top = item.mapToItem(panelScroll.contentItem, 0, 0).y
+            const bottom = top + item.height + (withOptions && item.expanded ? item.popupHeight + 8 : 0)
+            let offset = panelScroll.contentY
+            if (bottom > offset + panelScroll.height) offset = bottom - panelScroll.height
+            if (top < offset) offset = top
+            panelScroll.contentY = Math.max(0, Math.min(offset, panelScroll.contentHeight - panelScroll.height))
+        })
+    }
     function selectCountry(country) {
         if (countryOptions.indexOf(String(country)) < 0) return false
         if (!controller.selectPreferredCountry(country, false)) return false
@@ -152,33 +168,40 @@ PanelWindow {
             CommonComponents.UiText { text: "COUNTRY · " + (vpnPanel.controller.countriesState === "Loading" ? "Loading…" : vpnPanel.controller.countriesState === "Error" ? "Unavailable" : vpnPanel.controller.countriesState === "Empty" ? "No countries" : "Select, then connect"); color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 0.5 }
             Row {
                 width: parent.width; spacing: 6
-                Rectangle {
-                    width: parent.width - 54; height: 28; radius: vpnPanel.buttonRadius
-                    color: countrySelectMouse.containsMouse ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle
-                    border.color: vpnPanel.countryChooserExpanded ? vpnPanel.root.seal : vpnPanel.root.sep
-                    CommonComponents.UiText { anchors.left: parent.left; anchors.leftMargin: 9; anchors.right: parent.right; anchors.rightMargin: 24; anchors.verticalCenter: parent.verticalCenter; text: vpnPanel.countryTarget || "Choose country"; color: vpnPanel.root.ink; font.family: vpnPanel.root.mono; font.pixelSize: 10; elide: Text.ElideRight }
-                    CommonComponents.UiText { anchors.right: parent.right; anchors.rightMargin: 8; anchors.verticalCenter: parent.verticalCenter; text: vpnPanel.countryChooserExpanded ? "▴" : "▾"; color: vpnPanel.root.sumiHi; font.pixelSize: 10 }
-                    MouseArea { id: countrySelectMouse; objectName: "vpn-country-select"; anchors.fill: parent; hoverEnabled: true; enabled: vpnPanel.controller.countriesState === "Ready"; onClicked: vpnPanel.countryChooserExpanded = !vpnPanel.countryChooserExpanded }
+                CommonComponents.CountrySelector {
+                    id: countrySelector
+                    width: parent.width - 54
+                    palette: vpnPanel.root; buttonRadius: vpnPanel.buttonRadius
+                    countries: vpnPanel.countryOptions; selectedCountry: vpnPanel.countryTarget
+                    enabled: vpnPanel.controller.countriesState === "Ready"
+                    selectCountry: function(country) { return vpnPanel.selectCountry(country) }
+                    listHost: countryListHost
+                    onActiveFocusChanged: if (activeFocus) vpnPanel.revealControl(countrySelector, 0)
+                    onExpandedChanged: if (expanded) {
+                        autoCountrySelector.cancel()
+                        vpnPanel.revealControl(countrySelector, true)
+                    }
                 }
                 Rectangle {
-                    width: 48; height: 28; radius: vpnPanel.buttonRadius; color: countryApplyMouse.containsMouse && countryApplyMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle; border.color: countryApplyMouse.containsMouse && countryApplyMouse.enabled ? vpnPanel.root.seal : vpnPanel.root.sep
+                    activeFocusOnTab: true
+                    onActiveFocusChanged: if (activeFocus) vpnPanel.revealControl(this, 0)
+                    enabled: vpnPanel.controller.canMutate && vpnPanel.countryTarget !== ""
+                    Keys.onPressed: function(event) {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                            vpnPanel.connectCountry(); event.accepted = true
+                        }
+                    }
+                    width: 48; height: 28; radius: vpnPanel.buttonRadius; color: countryApplyMouse.containsMouse && countryApplyMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle; border.color: activeFocus ? vpnPanel.root.seal : countryApplyMouse.containsMouse && countryApplyMouse.enabled ? vpnPanel.root.seal : vpnPanel.root.sep
                     opacity: countryApplyMouse.enabled ? 1 : 0.5
                     Behavior on color { ColorAnimation { duration: 120 } }
                     CommonComponents.UiText { anchors.centerIn: parent; text: "Connect"; color: vpnPanel.root.seal; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
                     MouseArea { id: countryApplyMouse; objectName: "vpn-country-connect"; anchors.fill: parent; hoverEnabled: true; enabled: vpnPanel.controller.canMutate && vpnPanel.countryTarget !== ""; onClicked: vpnPanel.connectCountry() }
                 }
             }
-            ListView {
-                objectName: "vpn-country-options"
-                width: parent.width; height: vpnPanel.countryChooserExpanded ? Math.min(contentHeight, 112) : 0
-                visible: vpnPanel.countryChooserExpanded; clip: true; model: vpnPanel.countryOptions; boundsBehavior: Flickable.StopAtBounds
-                delegate: Rectangle {
-                    id: entryDelegate1
-                    required property string modelData
-                    width: ListView.view.width; height: 26; color: countryOptionMouse.containsMouse ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle
-                    CommonComponents.UiText { anchors.left: parent.left; anchors.leftMargin: 8; anchors.verticalCenter: parent.verticalCenter; text: entryDelegate1.modelData.replace(/_/g, " "); color: vpnPanel.root.ink; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
-                    MouseArea { id: countryOptionMouse; objectName: "vpn-country-option-" + entryDelegate1.modelData; anchors.fill: parent; hoverEnabled: true; onClicked: vpnPanel.selectCountry(entryDelegate1.modelData) }
-                }
+            Item {
+                id: countryListHost
+                width: parent.width; height: countrySelector.popupHeight
+                visible: countrySelector.expanded
             }
             CommonComponents.UiText { text: "SETTINGS"; color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
             CommonComponents.UiText { text: "SELECTED · " + String(vpnPanel.controller.vpnSettings.technology || (vpnPanel.controller.vpnSettings["selection-notice"] ? "Unavailable" : "Checking…")).toUpperCase() + (vpnPanel.controller.vpnSettings.technology === "OPENVPN" && vpnPanel.controller.vpnSettings.protocol ? " (" + String(vpnPanel.controller.vpnSettings.protocol).toUpperCase() + ")" : ""); color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 0.5 }
@@ -238,38 +261,56 @@ PanelWindow {
             CommonComponents.UiText { text: "AUTO-CONNECT"; color: vpnPanel.root.sumiHi; font.family: vpnPanel.root.mono; font.pixelSize: 10; font.letterSpacing: 1 }
             Row {
                 width: parent.width; spacing: 6
-                Rectangle {
-                    width: parent.width - 112; height: 28; radius: vpnPanel.buttonRadius
-                    color: autoCountrySelectMouse.containsMouse ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle
-                    border.color: vpnPanel.autoCountryChooserExpanded ? vpnPanel.root.seal : vpnPanel.root.sep
-                    CommonComponents.UiText { anchors.left: parent.left; anchors.leftMargin: 8; anchors.right: parent.right; anchors.rightMargin: 8; anchors.verticalCenter: parent.verticalCenter; text: vpnPanel.autoCountryTarget || "Choose country"; color: vpnPanel.root.ink; font.family: vpnPanel.root.mono; font.pixelSize: 9; elide: Text.ElideRight }
-                    MouseArea { id: autoCountrySelectMouse; objectName: "vpn-autoconnect-country-select"; anchors.fill: parent; hoverEnabled: true; enabled: vpnPanel.controller.countriesState === "Ready"; onClicked: vpnPanel.autoCountryChooserExpanded = !vpnPanel.autoCountryChooserExpanded }
+                CommonComponents.CountrySelector {
+                    id: autoCountrySelector
+                    width: parent.width - 112
+                    palette: vpnPanel.root; buttonRadius: vpnPanel.buttonRadius
+                    countries: vpnPanel.countryOptions; selectedCountry: vpnPanel.autoCountryTarget
+                    enabled: vpnPanel.controller.countriesState === "Ready"
+                    namePrefix: "vpn-autoconnect-country"; optionPrefix: "vpn-autoconnect-country-"
+                    pixelSize: 9; rowHeight: 24; maximumListHeight: 96; showArrow: false
+                    selectCountry: function(country) { return vpnPanel.selectAutoCountry(country) }
+                    listHost: autoCountryListHost
+                    onActiveFocusChanged: if (activeFocus) vpnPanel.revealControl(autoCountrySelector, 0)
+                    onExpandedChanged: if (expanded) {
+                        countrySelector.cancel()
+                        vpnPanel.revealControl(autoCountrySelector, true)
+                    }
                 }
                 Rectangle {
-                    width: 48; height: 28; radius: vpnPanel.buttonRadius; color: vpnPanel.autoConnectEnabled ? vpnPanel.root.fillActive : autoConnectMouse.containsMouse && autoConnectMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle; border.color: vpnPanel.autoConnectEnabled || (autoConnectMouse.containsMouse && autoConnectMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep
+                    activeFocusOnTab: true
+                    onActiveFocusChanged: if (activeFocus) vpnPanel.revealControl(this, 0)
+                    enabled: vpnPanel.controller.canMutate
+                    Keys.onPressed: function(event) {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                            vpnPanel.controller.setAutoConnect(!vpnPanel.autoConnectEnabled, vpnPanel.autoCountryTarget); event.accepted = true
+                        }
+                    }
+                    width: 48; height: 28; radius: vpnPanel.buttonRadius; color: vpnPanel.autoConnectEnabled ? vpnPanel.root.fillActive : autoConnectMouse.containsMouse && autoConnectMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle; border.color: activeFocus || vpnPanel.autoConnectEnabled || (autoConnectMouse.containsMouse && autoConnectMouse.enabled) ? vpnPanel.root.seal : vpnPanel.root.sep
                     Behavior on color { ColorAnimation { duration: 120 } }
                     CommonComponents.UiText { anchors.centerIn: parent; text: vpnPanel.autoConnectEnabled ? "ON" : "OFF"; color: vpnPanel.autoConnectEnabled ? vpnPanel.root.seal : vpnPanel.root.sumi; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
                     MouseArea { id: autoConnectMouse; objectName: "vpn-autoconnect-toggle"; anchors.fill: parent; hoverEnabled: true; enabled: vpnPanel.controller.canMutate; onClicked: vpnPanel.controller.setAutoConnect(!vpnPanel.autoConnectEnabled, vpnPanel.autoCountryTarget) }
                 }
                 Rectangle {
-                    width: 54; height: 28; radius: vpnPanel.buttonRadius; color: autoConnectApplyMouse.containsMouse && autoConnectApplyMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle; border.color: autoConnectApplyMouse.containsMouse && autoConnectApplyMouse.enabled ? vpnPanel.root.seal : vpnPanel.root.sep
+                    activeFocusOnTab: true
+                    onActiveFocusChanged: if (activeFocus) vpnPanel.revealControl(this, 0)
+                    enabled: vpnPanel.controller.canMutate
+                    Keys.onPressed: function(event) {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                            vpnPanel.applyAutoConnect(); event.accepted = true
+                        }
+                    }
+                    width: 54; height: 28; radius: vpnPanel.buttonRadius; color: autoConnectApplyMouse.containsMouse && autoConnectApplyMouse.enabled ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle; border.color: activeFocus ? vpnPanel.root.seal : autoConnectApplyMouse.containsMouse && autoConnectApplyMouse.enabled ? vpnPanel.root.seal : vpnPanel.root.sep
                     opacity: autoConnectApplyMouse.enabled ? 1 : 0.5
                     Behavior on color { ColorAnimation { duration: 120 } }
                     CommonComponents.UiText { anchors.centerIn: parent; text: "Apply"; color: vpnPanel.root.seal; font.family: vpnPanel.root.mono; font.pixelSize: 10 }
                     MouseArea { id: autoConnectApplyMouse; objectName: "vpn-autoconnect-apply"; anchors.fill: parent; hoverEnabled: true; enabled: vpnPanel.controller.canMutate; onClicked: vpnPanel.applyAutoConnect() }
                 }
             }
-            ListView {
-                objectName: "vpn-autoconnect-country-options"
-                width: parent.width - 112; height: vpnPanel.autoCountryChooserExpanded ? Math.min(contentHeight, 96) : 0
-                visible: vpnPanel.autoCountryChooserExpanded; clip: true; model: vpnPanel.countryOptions; boundsBehavior: Flickable.StopAtBounds
-                delegate: Rectangle {
-                    id: entryDelegate3
-                    required property string modelData
-                    width: ListView.view.width; height: 24; color: autoCountryOptionMouse.containsMouse ? vpnPanel.root.fillHover : vpnPanel.root.fillIdle
-                    CommonComponents.UiText { anchors.left: parent.left; anchors.leftMargin: 8; anchors.verticalCenter: parent.verticalCenter; text: entryDelegate3.modelData.replace(/_/g, " "); color: vpnPanel.root.ink; font.family: vpnPanel.root.mono; font.pixelSize: 9 }
-                    MouseArea { id: autoCountryOptionMouse; objectName: "vpn-autoconnect-country-" + entryDelegate3.modelData; anchors.fill: parent; hoverEnabled: true; onClicked: vpnPanel.selectAutoCountry(entryDelegate3.modelData) }
-                }
+            Item {
+                id: autoCountryListHost
+                width: parent.width - 112; height: autoCountrySelector.popupHeight
+                visible: autoCountrySelector.expanded
             }
             Grid {
                 width: parent.width; columns: 2; rowSpacing: 5; columnSpacing: 10

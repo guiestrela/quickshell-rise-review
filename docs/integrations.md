@@ -85,13 +85,22 @@ sync. Required setup tools are `curl`, `jq`, `tar`, and `sha256sum`.
 
 ## NordVPN
 
-The network popup reports NordVPN status and supports connect, disconnect, and
-connecting to a country entered in the Rise panel. The bar pill adds a small
-VPN mark while connected. Install and authenticate the official NordVPN Linux
-client first; the controls use its `nordvpn` CLI. The panel also exposes the
-client's Firewall, Kill Switch, Real-time Protection, OpenVPN protocol, and
+The NordVPN widget opens its own panel for connection status, country selection,
+connect/disconnect, and auto-connect preferences. Install and authenticate the
+official NordVPN Linux client first; the controls use its `nordvpn` CLI. The panel
+also exposes Firewall, Kill Switch, Real-time Protection, OpenVPN protocol, and
 pause controls. Real-time Protection requires NordVPN DNS and may reset a
 custom DNS configuration.
+
+Both country selectors support mouse and keyboard input in V1 and V2. Focus a
+field with a click or Tab, then type to filter supported countries without case
+sensitivity; spaces match the displayed names of underscore-separated CLI tokens.
+Up/Down highlights a result and keeps it visible. Enter confirms that country;
+it does not connect or apply auto-connect settings. Escape first cancels the
+open chooser and preserves the previous selection; a subsequent Escape closes
+the panel. Tab/Shift+Tab changes focus without committing search text. Only one
+country chooser can remain open. Use the separate Connect or Apply button for
+the corresponding VPN action; arbitrary text is never a valid country selection.
 
 ## Wallpaper folder
 
