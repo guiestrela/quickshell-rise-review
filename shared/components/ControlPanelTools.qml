@@ -11,6 +11,8 @@ Item {
     property real anchorOffset: 35
     property real gap: 8
     property var healthRows: []
+    property var focusReturnRoot: null
+    property var focusReturnTarget: null
 
     signal closeRequested()
     signal destinationRequested(string target)
@@ -42,6 +44,13 @@ Item {
             searchInput.text = ""
             healthTab.selected = false
             selectedIndex = 0
+            const returnRoot = tools.focusReturnRoot
+            const returnTarget = tools.focusReturnTarget
+            Qt.callLater(function() {
+                if (!tools.open && returnRoot && returnRoot.controlVisible === true
+                        && returnTarget && returnTarget.visible && returnTarget.enabled)
+                    returnTarget.forceActiveFocus()
+            })
         }
     }
 
@@ -67,6 +76,12 @@ Item {
             ? tools.theme.panelOuterBorderW : tools.theme.pillBorderW
         focus: tools.open
         activeFocusOnTab: true
+        Keys.onPressed: function(event) {
+            if (event.key === Qt.Key_Escape && healthTab.selected) {
+                tools.closeRequested()
+                event.accepted = true
+            }
+        }
 
         MouseArea { anchors.fill: parent; onClicked: {} }
 

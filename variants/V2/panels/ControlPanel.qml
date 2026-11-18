@@ -307,6 +307,8 @@ PanelWindow {
                 width: parent.width
                 spacing: 6
                 Tile {
+                    id: searchToolsTile
+                    objectName: "control-panel-search-opener"
                     width: ctrlPanel.root.evenW((parent.width - 6) / 2)
                     label: "Search"
                     activeFocusOnTab: true
@@ -322,6 +324,8 @@ PanelWindow {
                     onActivated: { ctrlPanel.toolsStartInHealth = false; ctrlPanel.toolsOpen = true }
                 }
                 Tile {
+                    id: healthToolsTile
+                    objectName: "control-panel-health-opener"
                     width: ctrlPanel.root.evenW((parent.width - 6) / 2)
                     label: "Health"
                     activeFocusOnTab: true
@@ -1023,6 +1027,7 @@ PanelWindow {
     }
     Shared.ControlPanelTools {
         id: panelTools
+        objectName: "control-panel-tools-overlay"
         theme: ctrlPanel.root
         variantName: "V2"
         open: ctrlPanel.root.controlVisible && ctrlPanel.toolsOpen
@@ -1030,6 +1035,8 @@ PanelWindow {
         anchorOffset: ctrlPanel.root.v2BarHeight
         gap: ctrlPanel.gap
         healthRows: healthCapabilities.healthRows
+        focusReturnRoot: ctrlPanel.root
+        focusReturnTarget: ctrlPanel.toolsStartInHealth ? healthToolsTile : searchToolsTile
         onCloseRequested: ctrlPanel.toolsOpen = false
         onDestinationRequested: function(target) { ctrlPanel.openToolsDestination(target) }
     }

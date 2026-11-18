@@ -1,6 +1,14 @@
 // Shared behavior; owner is the active variant, environment supplies QML services.
 .pragma library
 
+function aiUsageMtimeFresh(riseOwner, riseEnvironment, mtime, nowSeconds) {
+    var timestamp = Number(mtime)
+    var now = Number(nowSeconds)
+    if (!isFinite(timestamp) || !isFinite(now) || timestamp <= 0 || now < timestamp)
+        return false
+    return now - timestamp < 900
+}
+
 function aiWindowLabel(riseOwner, riseEnvironment, minutes) {
     var riseState = riseOwner;
 
