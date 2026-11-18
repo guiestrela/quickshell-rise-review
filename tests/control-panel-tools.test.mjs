@@ -35,19 +35,3 @@ test('V1 and V2 catalogs preserve variant-specific destinations and G23', () => 
     assert.equal(v1.find((entry) => entry.id === 'indicators').target, 'widgets');
     assert.equal(v2.find((entry) => entry.id === 'indicators').target, 'widgets');
 });
-
-test('health rows label only local observations and explicitly omit external probes', () => {
-    const rows = plain(api.healthRows({
-        variant: 'v2', switching: false, outputName: '',
-        battery: true, backlight: false, networkMode: 'wifi'
-    }));
-    const byLabel = Object.fromEntries(rows.map((row) => [row.label, row]));
-    assert.equal(byLabel['Variant'].value, 'V2');
-    assert.equal(byLabel['Variant switch'].value, 'Idle');
-    assert.equal(byLabel['Popup output'].value, 'Not selected');
-    assert.equal(byLabel['Battery capability'].value, 'Detected');
-    assert.equal(byLabel['Backlight capability'].value, 'Not detected');
-    assert.equal(byLabel['Network widget mode'].value, 'Wi-Fi');
-    assert.equal(byLabel['External checks'].value, 'Not run');
-    assert.match(byLabel['External checks'].detail, /no account/i);
-});

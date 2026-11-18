@@ -10,14 +10,14 @@ Item {
     property bool startInHealth: false
     property real anchorOffset: 35
     property real gap: 8
-    property var healthSnapshot: ({})
+    property var healthRows: []
 
     signal closeRequested()
     signal destinationRequested(string target)
 
     readonly property var searchEntries: ToolsLogic.entriesForVariant(variantName)
     readonly property var filteredEntries: ToolsLogic.filterEntries(searchEntries, searchInput.text, 12)
-    readonly property var healthRows: ToolsLogic.healthRows(healthSnapshot)
+
     property int selectedIndex: filteredEntries.length > 0 ? 0 : -1
 
     visible: open

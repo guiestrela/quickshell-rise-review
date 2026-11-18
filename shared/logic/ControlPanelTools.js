@@ -1,4 +1,4 @@
-// Read-only search and health data shared by both ControlPanel variants.
+// Read-only search catalog shared by both ControlPanel variants.
 .pragma library
 
 var catalog = [
@@ -57,29 +57,4 @@ function filterEntries(entries, query, limit) {
         return terms.every(function(term) { return haystack.indexOf(term) >= 0; });
     });
     return matches.slice(0, cap);
-}
-
-function healthRows(snapshot) {
-    var state = snapshot || {};
-    var variant = state.variant === "v1" || state.variant === "v2"
-        ? state.variant.toUpperCase() : "Unknown";
-    var switching = state.switching === true ? "In progress"
-        : state.switching === false ? "Idle" : "Unknown";
-    var output = String(state.outputName || "").trim() || "Not selected";
-    var battery = state.battery === true ? "Detected"
-        : state.battery === false ? "Not detected" : "Unknown";
-    var backlight = state.backlight === true ? "Detected"
-        : state.backlight === false ? "Not detected" : "Unknown";
-    var networkModes = { wifi: "Wi-Fi", ethernet: "Ethernet", none: "Not reported" };
-    var network = networkModes[String(state.networkMode || "").toLowerCase()] || "Unknown";
-
-    return [
-        { label: "Variant", value: variant, detail: "Current variant host value; not a readiness guarantee." },
-        { label: "Variant switch", value: switching, detail: "Whether the variant host reports a switch in progress." },
-        { label: "Popup output", value: output, detail: "Current popup target only; this is not a monitor inventory." },
-        { label: "Battery capability", value: battery, detail: "Local UPower-backed capability flag; no battery action is run." },
-        { label: "Backlight capability", value: backlight, detail: "Local host capability flag; no brightness change is made." },
-        { label: "Network widget mode", value: network, detail: "Widget mode only; no Wi-Fi scan or connectivity test is run." },
-        { label: "External checks", value: "Not run", detail: "No account, credential, remote service, or external network probe is queried." }
-    ];
 }

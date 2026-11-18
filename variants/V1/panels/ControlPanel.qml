@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Wayland
 import "../modules"
 import "../../../shared/components" as CommonComponents
+import "../../../shared/services" as CommonServices
 
 PanelWindow {
     id: ctrlPanel
@@ -889,6 +890,10 @@ PanelWindow {
             }
         }
     }
+    CommonServices.ControlPanelCapabilities {
+        id: healthCapabilities
+        hostRoot: ctrlPanel.root
+    }
     CommonComponents.ControlPanelTools {
         id: panelTools
         theme: ctrlPanel.root
@@ -897,14 +902,7 @@ PanelWindow {
         startInHealth: ctrlPanel.toolsStartInHealth
         anchorOffset: ctrlPanel.barBottom
         gap: ctrlPanel.gap
-        healthSnapshot: ({
-            variant: ctrlPanel.root.variantHost ? ctrlPanel.root.variantHost.runningVariant : "",
-            switching: ctrlPanel.root.variantHost ? ctrlPanel.root.variantHost.switching : null,
-            outputName: ctrlPanel.root.activePopupScreenName,
-            battery: ctrlPanel.root.hasBattery,
-            backlight: ctrlPanel.root.hasBacklight,
-            networkMode: ctrlPanel.root.networkMode
-        })
+        healthRows: healthCapabilities.healthRows
         onCloseRequested: ctrlPanel.toolsOpen = false
         onDestinationRequested: function(target) { ctrlPanel.openToolsDestination(target) }
     }

@@ -11,9 +11,12 @@ RUNNER = shutil.which("qmltestrunner") or "/usr/lib/qt6/bin/qmltestrunner"
 for variant in ("V1", "V2"):
     source = (ROOT / f"variants/{variant}/panels/ControlPanel.qml").read_text(encoding="utf-8")
     assert f"variantName: \"{variant}\"" in source, f"{variant} ControlPanel is not wired to shared tools"
+    assert "ControlPanelCapabilities" in source, f"{variant} has no host-capability facade"
+    assert "hostRoot: ctrlPanel.root" in source, f"{variant} does not provide its local host root"
+    assert "healthRows: healthCapabilities.healthRows" in source, f"{variant} does not render facade output"
     assert "onDestinationRequested: function(target)" in source, f"{variant} has no search destination route"
     assert "onCloseRequested:" in source, f"{variant} has no tools dismissal route"
-    assert "healthSnapshot:" in source, f"{variant} has no read-only health snapshot"
+    assert "healthSnapshot:" not in source, f"{variant} bypasses normalized host capabilities"
 
 assert Path(RUNNER).is_file(), f"QtTest runner is required: {RUNNER}"
 env = os.environ.copy()
