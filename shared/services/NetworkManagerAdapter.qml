@@ -27,6 +27,9 @@ Item {
     property var savedProfiles: []
     property bool profilesLoaded: false
     property bool scanning: false
+    // Own one WifiDevice scanner request and restore its prior boolean on release.
+    property var ownedScanDevice: null
+    property bool ownedScanWasEnabled: false
 
     function findDevice(type) {
         var devices = networkDevices || []
@@ -35,6 +38,32 @@ Item {
                 return devices[i]
         }
         return null
+    }
+
+    function releaseOwnedScan() {
+        if (!ownedScanDevice) {
+            ownedScanWasEnabled = false
+            return
+        }
+        const previous = ownedScanDevice
+        const restoreEnabled = ownedScanWasEnabled
+        ownedScanDevice = null
+        ownedScanWasEnabled = false
+        if (previous.scannerEnabled !== restoreEnabled)
+            previous.scannerEnabled = restoreEnabled
+    }
+
+    function updateOwnedScan(device, enabled) {
+        const target = enabled ? device : null
+        if (ownedScanDevice !== target) {
+            releaseOwnedScan()
+            if (target) {
+                ownedScanDevice = target
+                ownedScanWasEnabled = target.scannerEnabled === true
+            }
+        }
+        if (target)
+            target.scannerEnabled = true
     }
 
     function signalBars(strength) {
@@ -208,8 +237,7 @@ Item {
             return
 
         scanning = true
-        if (wifiDevice)
-            wifiDevice.scannerEnabled = true
+        updateOwnedScan(wifiDevice, !wifiBlocked)
         scanClearTimer.restart()
         syncNetworks()
     }
@@ -295,8 +323,7 @@ Item {
     }
 
     function refresh() {
-        if (wifiDevice)
-            wifiDevice.scannerEnabled = panelOpen && !wifiBlocked
+        updateOwnedScan(wifiDevice, panelOpen && !wifiBlocked)
         if (panelOpen && !profileList.running)
             profileList.running = true
         syncNetworks()
@@ -315,8 +342,7 @@ Item {
 
     Component.onCompleted: refresh()
     Component.onDestruction: {
-        if (wifiDevice)
-            wifiDevice.scannerEnabled = false
+        releaseOwnedScan()
         profileList.running = false
         profileAction.running = false
     }
