@@ -119,8 +119,11 @@ def qml_value(name):
     return "''"
 
 
-root_fields = [f"{name}: {qml_value(name)}" for name in root_names]
-qml_root = ",\n        ".join(root_fields)
+root_fields = ['property string variant: "V1"'] + [
+    f"property {'bool' if name == 'controlVisible' else 'var'} {name}: {qml_value(name)}"
+    for name in root_names
+]
+qml_root = chr(10).join("            " + field for field in root_fields)
 source_urls = {name: json.dumps(sources[index].as_uri()) for index, name in enumerate(("V1", "V2"))}
 
 qml = f'''import QtQuick
@@ -135,6 +138,13 @@ Scope {{
     property int phase: 0
     property int ticks: 0
 
+    Component {{
+        id: nativeRootComponent
+        QtObject {{
+{qml_root}
+        }}
+    }}
+
     function fail(message) {{
         console.error("CONTROL_PANEL_NATIVE_FAIL " + currentVariant + " " + message)
         Qt.exit(1)
@@ -143,9 +153,7 @@ Scope {{
     function makeRoot(variant) {{
         if (!Quickshell.screens || Quickshell.screens.length === 0)
             return null
-        return ({{
-        {qml_root}
-        }})
+        return nativeRootComponent.createObject(testHost, {{ variant: variant }})
     }}
 
     function findByName(item, name, depth) {{
@@ -197,6 +205,8 @@ Scope {{
         currentPanel.destroy()
         currentPanel = null
         currentRoot.controlVisible = false
+        currentRoot.destroy()
+        currentRoot = null
         if (currentVariant === "V1") {{
             currentComponent = null
             Qt.callLater(function() {{ testHost.beginVariant("V2") }})
@@ -260,6 +270,10 @@ with tempfile.TemporaryDirectory(prefix="rise-control-panel-native-", dir=str(sc
     shell = root / "control-panel-native.qml"
     shell.write_text(qml, encoding="utf-8")
     if ARGS.lint_generated:
+        if ("id: nativeRootComponent" not in qml
+                or "property bool controlVisible: false" not in qml
+                or "nativeRootComponent.createObject(testHost, { variant: variant })" not in qml):
+            raise SystemExit("NATIVE_GATE_ROOT_CONTRACT_FAIL: the generated root must be a notifying QtObject")
         qmllint = shutil.which("qmllint") or "/usr/lib/qt6/bin/qmllint"
         if not Path(qmllint).is_file():
             blocked("qmllint is unavailable for generated-shell syntax validation")

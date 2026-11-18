@@ -77,7 +77,7 @@ Item {
         focus: tools.open
         activeFocusOnTab: true
         Keys.onPressed: function(event) {
-            if (event.key === Qt.Key_Escape && healthTab.selected) {
+            if (event.key === Qt.Key_Escape) {
                 tools.closeRequested()
                 event.accepted = true
             }

@@ -84,6 +84,21 @@ FocusScope {
             for(var ch of value) keyClick(Qt.Key_A+ch.toUpperCase().charCodeAt(0)-65)
             wait(50)
         }
+
+        function test_search_header_escape_via_tab_data() { return variants() }
+        function test_search_header_escape_via_tab(data) {
+            show(data.variant,false)
+            var input=child("control-panel-search-input")
+            verify(input.activeFocus)
+            keyClick(Qt.Key_Tab, Qt.ShiftModifier)
+            wait(50)
+            verify(child("control-panel-tools-close").activeFocus,"Backtab from search must focus the close control")
+            keyClick(Qt.Key_Escape)
+            compare(host.closed,1,"Escape must close Search from a keyboard-focused header")
+            wait(100)
+            verify(searchOpener.activeFocus,"Search opener focus must be restored")
+        }
+
         function test_health_escape_data() { return variants() }
         function test_health_escape(data) {
             show(data.variant,true)

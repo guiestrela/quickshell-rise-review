@@ -33,6 +33,22 @@ assert result.returncode == 0, f"ControlPanelTools component QtTest exited {resu
 for diagnostic in ("ReferenceError", "TypeError", "Binding loop", "Cannot assign", "Unable to assign"):
     assert diagnostic not in output, f"unexpected QML diagnostic {diagnostic!r}"
 
+reactive_root = subprocess.run(
+    [RUNNER, "-input", str(ROOT / "tests/qml/tst_ControlPanelNativeRoot.qml")],
+    cwd=ROOT, env=env, capture_output=True, text=True, timeout=60)
+reactive_root_output = reactive_root.stdout + reactive_root.stderr
+print(reactive_root_output, end="")
+assert reactive_root.returncode == 0, f"native harness root-notification QtTest exited {reactive_root.returncode}"
+for diagnostic in ("ReferenceError", "TypeError", "Binding loop", "Cannot assign", "Unable to assign"):
+    assert diagnostic not in reactive_root_output, f"unexpected QML diagnostic {diagnostic!r}"
+
+native_fixture = subprocess.run(
+    [sys.executable, str(ROOT / "tests/test-control-panel-native-composition.py"), "--lint-generated"],
+    cwd=ROOT, env=env, capture_output=True, text=True, timeout=60)
+native_fixture_output = native_fixture.stdout + native_fixture.stderr
+print(native_fixture_output, end="")
+assert native_fixture.returncode == 0, f"generated native fixture check exited {native_fixture.returncode}"
+
 independent = subprocess.run(
     [sys.executable, str(ROOT / "tests/test-control-panel-tools-independent.py")],
     cwd=ROOT, env=env, capture_output=True, text=True, timeout=120)
