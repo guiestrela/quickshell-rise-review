@@ -24,6 +24,7 @@ try {
     "variants/V1/modules/SidePanelPositioner.qml",
     "shared/panels/NordVPNPanel.qml",
     "shared/components/UiText.qml",
+    "shared/components/CountrySelector.qml",
   ]) {
     const target = resolve(scratch, file);
     mkdirSync(dirname(target), { recursive: true });

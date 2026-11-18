@@ -149,6 +149,8 @@ check "wallpaper widget actions" env TMPDIR="$tmp" python3 tests/test_qr04w_widg
 check "tray panel actions" python3 tests/test-tray-panel-runtime.py
 check "shared tray geometry" python3 tests/test-shared-tray-layout.py
 check "V1 compact AI and VPN widgets" python3 tests/test-v1-compact-widgets-runtime.py
+check "NordVPN country keyboard and filtering V1/V2" python3 tests/test-nordvpn-country-keyboard.py
+check "NordVPN native panel imports and preference actions" node tests/qr04n-panel-v1.mjs
 check "AI percentage label bindings" python3 tests/ai-percent-binding-runtime.py
 check "V1 media panel" python3 tests/test-mpris-panel-runtime.py
 check "V2 media panel" env RISE_MPRIS_SOURCE=variants/V2 python3 tests/test-mpris-panel-runtime.py
