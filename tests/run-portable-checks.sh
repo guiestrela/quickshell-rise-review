@@ -42,6 +42,8 @@ PYTHON
 check "shell syntax" check_shell_syntax
 check "Python syntax" check_python_syntax
 check "portable workflow contract" python3 tests/test-ci-workflow-contract.py
+check "PR CI security negative mutations" python3 tests/test_pr_ci_security.py
+check "PR CI security workflow parse" python3 tests/test_pr_ci_security.py --workflow .github/workflows/ci-portable.yml
 check "source layout and local imports" python3 tests/test-source-layout.py
 check "cache writes preserve argv boundaries" python3 tests/test-cache-write-argv.py
 check "AI authentication cache fallback" python3 tests/test-ai-auth-status.py
