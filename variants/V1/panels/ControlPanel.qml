@@ -28,7 +28,7 @@ PanelWindow {
     property bool wsOpen: false   // Workspaces collapsible inside the WW fly-out
     property bool compactOpen: false
     property bool toolsOpen: false
-    property bool toolsStartInHealth: false
+
     readonly property string barctlPath: Quickshell.env("HOME") + "/.config/quickshell/bin/qs-barctl"
 
     function switchBar(version) { return ControlPanelLogic.switchBar(ctrlPanel, {Quickshell: Quickshell}, version) }
@@ -37,19 +37,7 @@ PanelWindow {
 
     function runPowerAction(action) { return ControlPanelLogic.runPowerAction(ctrlPanel, {Quickshell: Quickshell}, action) }
 
-    function openToolsDestination(target) {
-        if (target === "power") powerOpen = true
-        else if (target === "splits") {
-            root.splitsSubVisible = true
-            root.wwSubVisible = false
-        } else if (target === "functions" || target === "widgets" || target === "workspaces"
-                   || target === "compact" || target === "styles" || target === "position" || target === "logo") {
-            root.wwSubVisible = true
-            root.splitsSubVisible = false
-            if (target === "workspaces") wsOpen = true
-            if (target === "compact") compactOpen = true
-        }
-    }
+
 
     property real reveal: ctrlPanel.root.controlVisible ? 1 : 0
     Behavior on reveal {
@@ -59,7 +47,7 @@ PanelWindow {
         }
     }
     visible: reveal > 0.001
-    onRevealChanged: if (reveal < 0.01) { powerOpen = false; wsOpen = false; compactOpen = false; toolsOpen = false; toolsStartInHealth = false; ctrlPanel.root.splitsSubVisible = false; ctrlPanel.root.wwSubVisible = false }  // reset when closed
+    onRevealChanged: if (reveal < 0.01) { powerOpen = false; wsOpen = false; compactOpen = false; toolsOpen = false; ctrlPanel.root.splitsSubVisible = false; ctrlPanel.root.wwSubVisible = false }  // reset when closed
     WlrLayershell.keyboardFocus: ctrlPanel.root.controlVisible ? WlrKeyboardFocus.Exclusive : WlrKeyboardFocus.None
 
     // ── reusable tile: neutral by default, highlights only on hover ──
@@ -295,39 +283,23 @@ PanelWindow {
             Row {
                 width: parent.width
                 spacing: 6
-                Tile {
-                    id: searchToolsTile
-                    objectName: "control-panel-search-opener"
-                    width: ctrlPanel.root.evenW((parent.width - 6) / 2)
-                    label: "Search"
-                    activeFocusOnTab: true
-                    Accessible.role: Accessible.Button
-                    Accessible.name: "Search Control Panel settings"
-                    Keys.onPressed: function(event) {
-                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
-                            ctrlPanel.toolsStartInHealth = false
-                            ctrlPanel.toolsOpen = true
-                            event.accepted = true
-                        }
-                    }
-                    onActivated: { ctrlPanel.toolsStartInHealth = false; ctrlPanel.toolsOpen = true }
-                }
+
                 Tile {
                     id: healthToolsTile
                     objectName: "control-panel-health-opener"
-                    width: ctrlPanel.root.evenW((parent.width - 6) / 2)
+                    width: parent.width
                     label: "Health"
                     activeFocusOnTab: true
                     Accessible.role: Accessible.Button
                     Accessible.name: "Read-only Control Panel health"
                     Keys.onPressed: function(event) {
                         if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
-                            ctrlPanel.toolsStartInHealth = true
+
                             ctrlPanel.toolsOpen = true
                             event.accepted = true
                         }
                     }
-                    onActivated: { ctrlPanel.toolsStartInHealth = true; ctrlPanel.toolsOpen = true }
+                    onActivated: ctrlPanel.toolsOpen = true
                 }
             }
 
@@ -904,14 +876,14 @@ PanelWindow {
         theme: ctrlPanel.root
         variantName: "V1"
         open: ctrlPanel.root.controlVisible && ctrlPanel.toolsOpen
-        startInHealth: ctrlPanel.toolsStartInHealth
+
         anchorOffset: ctrlPanel.barBottom
         gap: ctrlPanel.gap
         healthRows: healthCapabilities.healthRows
         focusReturnRoot: ctrlPanel.root
-        focusReturnTarget: ctrlPanel.toolsStartInHealth ? healthToolsTile : searchToolsTile
+        focusReturnTarget: healthToolsTile
         onCloseRequested: ctrlPanel.toolsOpen = false
-        onDestinationRequested: function(target) { ctrlPanel.openToolsDestination(target) }
+
     }
     SidePanelPositioner { root: ctrlPanel.root; target: card; anchorName: "launcher" }
 }

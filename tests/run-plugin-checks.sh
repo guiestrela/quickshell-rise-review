@@ -106,7 +106,7 @@ check_qml() {
 }
 check_qml
 check "source layout and local imports" python3 tests/test-source-layout.py
-check "ControlPanel search and read-only health V1/V2" python3 tests/test-control-panel-tools.py
+check "ControlPanel Search removal and read-only Health V1/V2" python3 tests/test-control-panel-tools.py
 check "native V1/V2 imports and inert monitor lifecycle" python3 tests/test-display-integration.py
 check "Omarchy native indicators" python3 tests/test-omarchy-indicators.py
 check "independent Indicators module V1/V2" python3 tests/test-v2-inline-indicators.py

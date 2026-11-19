@@ -27,7 +27,7 @@ PanelWindow {
     property bool powerOpen: false
     property bool wsOpen: false   // Workspaces collapsible inside the WW fly-out
     property bool toolsOpen: false
-    property bool toolsStartInHealth: false
+
     property string widgetColorMenuGid: ""
     property string widgetColorMenuLabel: ""
     readonly property string barctlPath: Quickshell.env("HOME") + "/.config/quickshell/bin/qs-barctl"
@@ -38,14 +38,7 @@ PanelWindow {
 
     function runPowerAction(action) { return ControlPanelLogic.runPowerAction(ctrlPanel, {Quickshell: Quickshell}, action) }
 
-    function openToolsDestination(target) {
-        if (target === "power") powerOpen = true
-        else if (target === "functions" || target === "widgets" || target === "workspaces"
-                 || target === "styles" || target === "position" || target === "logo") {
-            root.wwSubVisible = true
-            if (target === "workspaces") wsOpen = true
-        }
-    }
+
 
     property real reveal: ctrlPanel.root.controlVisible ? 1 : 0
     Behavior on reveal {
@@ -59,7 +52,7 @@ PanelWindow {
         powerOpen = false
         wsOpen = false
         toolsOpen = false
-        toolsStartInHealth = false
+
         widgetColorMenuGid = ""
         widgetColorMenuLabel = ""
         ctrlPanel.root.wwSubVisible = false
@@ -306,39 +299,23 @@ PanelWindow {
             Row {
                 width: parent.width
                 spacing: 6
-                Tile {
-                    id: searchToolsTile
-                    objectName: "control-panel-search-opener"
-                    width: ctrlPanel.root.evenW((parent.width - 6) / 2)
-                    label: "Search"
-                    activeFocusOnTab: true
-                    Accessible.role: Accessible.Button
-                    Accessible.name: "Search Control Panel settings"
-                    Keys.onPressed: function(event) {
-                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
-                            ctrlPanel.toolsStartInHealth = false
-                            ctrlPanel.toolsOpen = true
-                            event.accepted = true
-                        }
-                    }
-                    onActivated: { ctrlPanel.toolsStartInHealth = false; ctrlPanel.toolsOpen = true }
-                }
+
                 Tile {
                     id: healthToolsTile
                     objectName: "control-panel-health-opener"
-                    width: ctrlPanel.root.evenW((parent.width - 6) / 2)
+                    width: parent.width
                     label: "Health"
                     activeFocusOnTab: true
                     Accessible.role: Accessible.Button
                     Accessible.name: "Read-only Control Panel health"
                     Keys.onPressed: function(event) {
                         if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
-                            ctrlPanel.toolsStartInHealth = true
+
                             ctrlPanel.toolsOpen = true
                             event.accepted = true
                         }
                     }
-                    onActivated: { ctrlPanel.toolsStartInHealth = true; ctrlPanel.toolsOpen = true }
+                    onActivated: ctrlPanel.toolsOpen = true
                 }
             }
 
@@ -1031,13 +1008,13 @@ PanelWindow {
         theme: ctrlPanel.root
         variantName: "V2"
         open: ctrlPanel.root.controlVisible && ctrlPanel.toolsOpen
-        startInHealth: ctrlPanel.toolsStartInHealth
+
         anchorOffset: ctrlPanel.root.v2BarHeight
         gap: ctrlPanel.gap
         healthRows: healthCapabilities.healthRows
         focusReturnRoot: ctrlPanel.root
-        focusReturnTarget: ctrlPanel.toolsStartInHealth ? healthToolsTile : searchToolsTile
+        focusReturnTarget: healthToolsTile
         onCloseRequested: ctrlPanel.toolsOpen = false
-        onDestinationRequested: function(target) { ctrlPanel.openToolsDestination(target) }
+
     }
 }
