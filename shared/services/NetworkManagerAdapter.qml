@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell.Networking
 import Quickshell.Io
+import "../logic/WifiScanOwnership.js" as WifiScanOwnership
 
 Item {
     id: adapter
@@ -27,9 +28,10 @@ Item {
     property var savedProfiles: []
     property bool profilesLoaded: false
     property bool scanning: false
-    // Own one WifiDevice scanner request and restore its prior boolean on release.
+    // This adapter is one participant in a shared, device-identity request.
+    // The library snapshots the external boolean once and restores it on the
+    // final participating adapter release.
     property var ownedScanDevice: null
-    property bool ownedScanWasEnabled: false
 
     function findDevice(type) {
         var devices = networkDevices || []
@@ -41,16 +43,12 @@ Item {
     }
 
     function releaseOwnedScan() {
-        if (!ownedScanDevice) {
-            ownedScanWasEnabled = false
-            return
-        }
         const previous = ownedScanDevice
-        const restoreEnabled = ownedScanWasEnabled
+        if (!previous)
+            return
+
         ownedScanDevice = null
-        ownedScanWasEnabled = false
-        if (previous.scannerEnabled !== restoreEnabled)
-            previous.scannerEnabled = restoreEnabled
+        WifiScanOwnership.release(previous, adapter)
     }
 
     function updateOwnedScan(device, enabled) {
@@ -59,11 +57,12 @@ Item {
             releaseOwnedScan()
             if (target) {
                 ownedScanDevice = target
-                ownedScanWasEnabled = target.scannerEnabled === true
+                WifiScanOwnership.acquire(target, adapter)
             }
+        } else if (target) {
+            // Refresh is frequent; acquire is idempotent for this adapter.
+            WifiScanOwnership.acquire(target, adapter)
         }
-        if (target)
-            target.scannerEnabled = true
     }
 
     function signalBars(strength) {

@@ -18,6 +18,10 @@ with tempfile.TemporaryDirectory(prefix="rise-wifi-lease-", dir=os.environ.get("
         "import Quickshell.Io\n",
         'import "." as Fake\nimport "FakeTypes.js" as FakeTypes\n',
     )
+    ownership_import = 'import "../logic/WifiScanOwnership.js" as WifiScanOwnership'
+    assert ownership_import in service
+    service = service.replace(ownership_import,
+                              'import "./WifiScanOwnership.js" as WifiScanOwnership')
     service = service.replace("Networking.", "Fake.Networking.")
     service = service.replace("DeviceType.Wifi", "FakeTypes.Wifi")
     service = service.replace("NetworkBackendType.NetworkManager", "FakeTypes.NetworkManager")
@@ -31,6 +35,7 @@ with tempfile.TemporaryDirectory(prefix="rise-wifi-lease-", dir=os.environ.get("
     assert "Quickshell.Networking" not in service and "Quickshell.Io" not in service
     assert "Fake.Networking" in service
     (fixture / "NetworkManagerAdapter.qml").write_text(service, encoding="utf-8")
+    shutil.copyfile(ROOT / "shared/logic/WifiScanOwnership.js", fixture / "WifiScanOwnership.js")
     (fixture / "qmldir").write_text(
         "module RiseWifiLeaseFixture\n"
         "singleton Networking 1.0 Networking.qml\n"
