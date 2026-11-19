@@ -5,7 +5,6 @@ import Quickshell
 import Quickshell.Wayland
 import "../modules"
 import "../../../shared/components" as Shared
-import "../../../shared/services" as CommonServices
 
 PanelWindow {
     id: ctrlPanel
@@ -26,7 +25,6 @@ PanelWindow {
     // power sub-menu starts CLOSED — no destructive tile is ever pre-shown
     property bool powerOpen: false
     property bool wsOpen: false   // Workspaces collapsible inside the WW fly-out
-    property bool toolsOpen: false
 
     property string widgetColorMenuGid: ""
     property string widgetColorMenuLabel: ""
@@ -51,7 +49,6 @@ PanelWindow {
     onRevealChanged: if (reveal < 0.01) {
         powerOpen = false
         wsOpen = false
-        toolsOpen = false
 
         widgetColorMenuGid = ""
         widgetColorMenuLabel = ""
@@ -241,7 +238,6 @@ PanelWindow {
 
     Rectangle {
         id: card
-        visible: !ctrlPanel.toolsOpen
         width: 240
         height: col.implicitHeight + 24
         radius: ctrlPanel.reveal > 0.001 ? ctrlPanel.root.panelRadius : 0
@@ -295,29 +291,6 @@ PanelWindow {
             }
 
             Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
-
-            Row {
-                width: parent.width
-                spacing: 6
-
-                Tile {
-                    id: healthToolsTile
-                    objectName: "control-panel-health-opener"
-                    width: parent.width
-                    label: "Health"
-                    activeFocusOnTab: true
-                    Accessible.role: Accessible.Button
-                    Accessible.name: "Read-only Control Panel health"
-                    Keys.onPressed: function(event) {
-                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
-
-                            ctrlPanel.toolsOpen = true
-                            event.accepted = true
-                        }
-                    }
-                    onActivated: ctrlPanel.toolsOpen = true
-                }
-            }
 
             // ── ACTIONS ──
             Shared.UiText {
@@ -525,7 +498,7 @@ PanelWindow {
     // ── BAR FUNCTIONS sub-panel ──
     Rectangle {
         id: wwCard
-        visible: ctrlPanel.root.controlVisible && ctrlPanel.root.wwSubVisible && !ctrlPanel.toolsOpen
+        visible: ctrlPanel.root.controlVisible && ctrlPanel.root.wwSubVisible
         width: 320
         height: Math.min(wwCol.implicitHeight + 24, parent.height - 12)
         radius: (ctrlPanel.root.controlVisible && ctrlPanel.root.wwSubVisible) ? ctrlPanel.root.panelRadius : 0
@@ -997,24 +970,5 @@ PanelWindow {
                 }
             }
         }
-    }
-    CommonServices.ControlPanelCapabilities {
-        id: healthCapabilities
-        hostRoot: ctrlPanel.root
-    }
-    Shared.ControlPanelTools {
-        id: panelTools
-        objectName: "control-panel-tools-overlay"
-        theme: ctrlPanel.root
-        variantName: "V2"
-        open: ctrlPanel.root.controlVisible && ctrlPanel.toolsOpen
-
-        anchorOffset: ctrlPanel.root.v2BarHeight
-        gap: ctrlPanel.gap
-        healthRows: healthCapabilities.healthRows
-        focusReturnRoot: ctrlPanel.root
-        focusReturnTarget: healthToolsTile
-        onCloseRequested: ctrlPanel.toolsOpen = false
-
     }
 }

@@ -99,7 +99,7 @@ texts = [path.read_text(encoding="utf-8") for path in sources]
 root_names = sorted(set().union(*(
     set(re.findall(r"ctrlPanel\.root\.([A-Za-z_][A-Za-z0-9_]*)", text))
     for text in texts
-)) | {"activePopupScreenName", "hasBattery", "hasBacklight", "networkMode"})
+)))
 method_names = sorted(set().union(*(
     set(re.findall(r"ctrlPanel\.root\.([A-Za-z_][A-Za-z0-9_]*)\s*\(", text))
     for text in texts
@@ -248,14 +248,15 @@ Scope {{
         return nativeRootComponent.createObject(testHost, {{ variant: variant }})
     }}
 
-    function findByName(item, name, depth) {{
+    function findControlPanelHealth(item, depth) {{
         if (!item || depth > 40)
             return null
-        if (item.objectName === name)
+        var name = String(item.objectName || "")
+        if (name.indexOf("control-panel-health") >= 0 || name.indexOf("control-panel-tools") >= 0)
             return item
         var children = item.children || []
         for (var i = 0; i < children.length; i++) {{
-            var found = findByName(children[i], name, depth + 1)
+            var found = findControlPanelHealth(children[i], depth + 1)
             if (found)
                 return found
         }}
@@ -286,14 +287,12 @@ Scope {{
             return
         }}
         currentRoot.controlVisible = true
-
-        currentPanel.toolsOpen = true
         phase = 2
         ticks = 0
     }}
 
     function finishVariant() {{
-        console.log("CONTROL_PANEL_NATIVE_PASS " + currentVariant + " composed imports, Health focus, adapter close route and opener focus restoration")
+        console.log("CONTROL_PANEL_NATIVE_PASS " + currentVariant + " composed imports and inert ControlPanel lifecycle")
         currentPanel.destroy()
         currentPanel = null
         currentRoot.controlVisible = false
@@ -329,27 +328,13 @@ Scope {{
                 return
             }}
             var content = testHost.currentPanel ? testHost.currentPanel.contentItem : null
-            var overlay = testHost.findByName(content, "control-panel-tools-overlay", 0)
-            var card = testHost.findByName(overlay, "control-panel-tools", 0)
-            var opener = testHost.findByName(content, "control-panel-health-opener", 0)
             if (testHost.phase === 2) {{
-                if (!overlay || !card || !opener)
+                if (!content || !testHost.currentPanel.visible || !testHost.currentRoot.controlVisible)
                     return
-                if (!overlay.visible || !overlay.open || !card.activeFocus)
-                    return
-                if (overlay.variantName !== testHost.currentVariant
-                        || overlay.focusReturnRoot !== testHost.currentRoot
-                        || overlay.focusReturnTarget !== opener) {{
-                    testHost.fail("production adapter wiring does not match its active variant/opener")
-                    return
-                }}
-                overlay.closeRequested()
-                testHost.phase = 3
-                testHost.ticks = 0
-                return
-            }}
-            if (testHost.phase === 3 && !testHost.currentPanel.toolsOpen && opener.activeFocus)
+                if (testHost.findControlPanelHealth(content))
+                    testHost.fail("production ControlPanel still exposes Health")
                 testHost.finishVariant()
+            }}
         }}
     }}
 }}
