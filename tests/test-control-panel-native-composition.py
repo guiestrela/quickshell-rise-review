@@ -186,6 +186,7 @@ source_urls = {name: json.dumps(sources[index].as_uri()) for index, name in enum
 
 NATIVE_FAILURE_PATTERNS = (
     re.compile(r"\b(?:ReferenceError|TypeError)\b"),
+    re.compile(r"\bInvalid\s+assignment\b", re.IGNORECASE),
     re.compile(r"\bUnable\s+to\s+assign\b", re.IGNORECASE),
     re.compile(r"\bBinding\s+loop\s+detected\b", re.IGNORECASE),
     re.compile(r"\b(?:Could not|Unable to) evaluate (?:the )?binding\b", re.IGNORECASE),
@@ -372,6 +373,7 @@ with tempfile.TemporaryDirectory(prefix="rise-control-panel-native-", dir=str(sc
         samples = (
             "ReferenceError: fixture regression",
             "TypeError: fixture regression",
+            "QML: Invalid assignment to property value",
             "WARN: Unable to assign [undefined] to QColor",
             "WARN: Binding loop detected for property value",
             "QML Connections: no signal of the target matches the name onPaperChanged",
