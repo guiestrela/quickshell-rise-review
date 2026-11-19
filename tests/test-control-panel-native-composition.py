@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Run composed V1/V2 ControlPanel focus-return checks on a private Wayland runtime.
+"""Compose V1/V2 ControlPanel focus-return checks on Wayland.
 
-Requires RISE_TEST_PRIVATE_XDG_RUNTIME_DIR and RISE_TEST_PRIVATE_WAYLAND_DISPLAY.
-The runtime must be an isolated directory under profile TMPDIR with a private
-layer-shell compositor socket. This gate never falls back to the user's session.
+By default this gate requires an isolated Wayland runtime supplied through
+RISE_TEST_PRIVATE_XDG_RUNTIME_DIR and RISE_TEST_PRIVATE_WAYLAND_DISPLAY, beneath
+profile TMPDIR. The only exception is an explicit --allow-active-session opt-in
+for authorized inert fixtures; it identifies the live session truthfully and
+never changes the strict private-runtime default.
 """
 import argparse
 import json
@@ -19,10 +21,16 @@ from typing import NoReturn
 ROOT = Path(__file__).resolve().parents[1]
 PARSER = argparse.ArgumentParser(description=__doc__)
 PARSER.add_argument("--lint-generated", action="store_true", help="lint the generated test shell without a Wayland runtime")
+PARSER.add_argument("--allow-active-session", action="store_true",
+                    help="run inert panel fixtures on the explicitly identified current Wayland session")
 ARGS = PARSER.parse_args()
 SCRATCH = os.environ.get("TMPDIR")
-RUNTIME_VALUE = os.environ.get("RISE_TEST_PRIVATE_XDG_RUNTIME_DIR", "")
-DISPLAY = os.environ.get("RISE_TEST_PRIVATE_WAYLAND_DISPLAY", "")
+if ARGS.allow_active_session:
+    RUNTIME_VALUE = os.environ.get("XDG_RUNTIME_DIR", "")
+    DISPLAY = os.environ.get("WAYLAND_DISPLAY", "")
+else:
+    RUNTIME_VALUE = os.environ.get("RISE_TEST_PRIVATE_XDG_RUNTIME_DIR", "")
+    DISPLAY = os.environ.get("RISE_TEST_PRIVATE_WAYLAND_DISPLAY", "")
 
 
 def blocked(reason: str) -> NoReturn:
@@ -34,29 +42,53 @@ if not SCRATCH or not Path(SCRATCH).is_dir():
     blocked("TMPDIR must point to the profile scratch directory")
 
 scratch = Path(SCRATCH).resolve()
+runtime = None
 if not ARGS.lint_generated:
-    if not RUNTIME_VALUE or not DISPLAY:
-        blocked("provide RISE_TEST_PRIVATE_XDG_RUNTIME_DIR and RISE_TEST_PRIVATE_WAYLAND_DISPLAY; ambient session fallback is forbidden")
-    if DISPLAY == os.environ.get("WAYLAND_DISPLAY"):
-        blocked("the requested display matches ambient WAYLAND_DISPLAY; live-session use is forbidden")
-    if Path(DISPLAY).name != DISPLAY or DISPLAY in (".", ".."):
-        blocked("private display must be a socket basename inside its runtime directory")
-    runtime = Path(RUNTIME_VALUE).resolve()
-    try:
-        runtime.relative_to(scratch)
-    except ValueError:
-        blocked("private XDG_RUNTIME_DIR must be beneath profile TMPDIR")
-    if not runtime.is_dir():
-        blocked("private XDG_RUNTIME_DIR does not exist")
-    runtime_stat = runtime.stat()
-    if runtime_stat.st_uid != os.getuid() or stat.S_IMODE(runtime_stat.st_mode) & 0o077:
-        blocked("private runtime must be owned by this user and inaccessible to group/other")
-    ipc_probe = runtime / "quickshell" / "by-id" / "12345678" / "ipc.sock"
-    if len(os.fsencode(ipc_probe)) >= 108:
-        blocked("private runtime makes Quickshell's IPC path too long; use a verified short alias backed by profile TMPDIR")
-    socket_path = runtime / DISPLAY
-    if not socket_path.is_socket():
-        blocked("private Wayland socket is absent; no compositor was started by this gate")
+    if ARGS.allow_active_session:
+        if (os.environ.get("RISE_TEST_PRIVATE_XDG_RUNTIME_DIR")
+                or os.environ.get("RISE_TEST_PRIVATE_WAYLAND_DISPLAY")):
+            blocked("active-session opt-in must not use private-runtime overrides")
+        if not RUNTIME_VALUE or not DISPLAY:
+            blocked("active-session opt-in requires the current XDG_RUNTIME_DIR and WAYLAND_DISPLAY")
+        runtime = Path(RUNTIME_VALUE).resolve()
+        current_runtime = Path(os.environ["XDG_RUNTIME_DIR"]).resolve()
+        current_display = os.environ["WAYLAND_DISPLAY"]
+        if runtime != current_runtime or DISPLAY != current_display:
+            blocked("active-session identity must match the explicitly supplied current session")
+        if Path(DISPLAY).name != DISPLAY or DISPLAY in (".", ".."):
+            blocked("active Wayland display must be the current socket basename")
+        if not runtime.is_dir():
+            blocked("current XDG_RUNTIME_DIR does not exist")
+        runtime_stat = runtime.stat()
+        if runtime_stat.st_uid != os.getuid() or stat.S_IMODE(runtime_stat.st_mode) & 0o077:
+            blocked("current XDG_RUNTIME_DIR must be owned by this user and inaccessible to group/other")
+        socket_path = runtime / DISPLAY
+        if not socket_path.is_socket() or socket_path.stat().st_uid != os.getuid():
+            blocked("the explicitly named current Wayland socket is absent or not owned by this user")
+        print(f"ACTIVE_SESSION_TEST_AUTHORIZED: runtime={runtime} display={DISPLAY} uid={os.getuid()}; inert fixtures only")
+    else:
+        if not RUNTIME_VALUE or not DISPLAY:
+            blocked("provide RISE_TEST_PRIVATE_XDG_RUNTIME_DIR and RISE_TEST_PRIVATE_WAYLAND_DISPLAY; ambient session fallback is forbidden")
+        if DISPLAY == os.environ.get("WAYLAND_DISPLAY"):
+            blocked("the requested display matches ambient WAYLAND_DISPLAY; live-session use is forbidden")
+        if Path(DISPLAY).name != DISPLAY or DISPLAY in (".", ".."):
+            blocked("private display must be a socket basename inside its runtime directory")
+        runtime = Path(RUNTIME_VALUE).resolve()
+        try:
+            runtime.relative_to(scratch)
+        except ValueError:
+            blocked("private XDG_RUNTIME_DIR must be beneath profile TMPDIR")
+        if not runtime.is_dir():
+            blocked("private XDG_RUNTIME_DIR does not exist")
+        runtime_stat = runtime.stat()
+        if runtime_stat.st_uid != os.getuid() or stat.S_IMODE(runtime_stat.st_mode) & 0o077:
+            blocked("private runtime must be owned by this user and inaccessible to group/other")
+        ipc_probe = runtime / "quickshell" / "by-id" / "12345678" / "ipc.sock"
+        if len(os.fsencode(ipc_probe)) >= 108:
+            blocked("private runtime makes Quickshell's IPC path too long; use a verified short alias backed by profile TMPDIR")
+        socket_path = runtime / DISPLAY
+        if not socket_path.is_socket():
+            blocked("private Wayland socket is absent; no compositor was started by this gate")
 
 QS = shutil.which("qs") or ""
 if not ARGS.lint_generated and not QS:
@@ -72,6 +104,16 @@ method_names = sorted(set().union(*(
     set(re.findall(r"ctrlPanel\.root\.([A-Za-z_][A-Za-z0-9_]*)\s*\(", text))
     for text in texts
 )))
+# These nested native adapters consume the same ControlPanel root through
+# PillShadow, BarStylePreview, SidePanelPositioner, and ConnectedPanelSurface.
+# Keep their complete inert API explicit rather than guessing from direct
+# ctrlPanel.root references only.
+root_names = sorted(set(root_names) | {
+    "barVertical", "verticalBarWidth", "verticalAnchorY", "setPanelInsetX",
+    "panelInsetX", "panelInsetReady", "paper", "ink", "seal", "pillShadow",
+    "styleShadow",
+})
+method_names = sorted(set(method_names) | {"verticalAnchorY", "setPanelInsetX"})
 
 
 def qml_value(name):
@@ -91,6 +133,10 @@ def qml_value(name):
         return "function(value) { return String(value || 'Rise'); }"
     if name in {"paletteColor", "paletteContrastColor", "widgetAssignedColor"}:
         return "function() { return '#404040'; }"
+    if name == "verticalAnchorY":
+        return "function(anchorName) { return 180; }"
+    if name == "setPanelInsetX":
+        return "function(value) { if (isFinite(value) && value > 0) { inertRoot.panelInsetX = value; inertRoot.panelInsetReady = true; } }"
     if name in method_names:
         return "function() { return false; }"
     if name == "networkMode":
@@ -99,7 +145,11 @@ def qml_value(name):
         return "'top'"
     if name.endswith("Options"):
         return "[]"
-    if name in {"bg", "barColor", "fillActive", "fillHover", "fillIdle", "ink", "seal", "sep", "sumi", "sumiHi", "pillBorder", "styleBorder", "panelOuterBorderColor"}:
+    if name == "verticalBarWidth":
+        return "36"
+    if name == "panelInsetX":
+        return "0"
+    if name in {"bg", "barColor", "paper", "ink", "seal", "pillShadow", "fillActive", "fillHover", "fillIdle", "sep", "sumi", "sumiHi", "pillBorder", "styleBorder", "panelOuterBorderColor"}:
         return "'#404040'"
     if name.endswith("Alpha"):
         return "0.15"
@@ -107,7 +157,7 @@ def qml_value(name):
         return "8"
     if name.startswith(("has", "mod", "compact", "widgetHas")) or name in {
         "barUnlocked", "layoutProtected", "styleFrost", "barFrost", "spacerDotsEnabled",
-        "panelTooltipBorderEnabled"
+        "panelTooltipBorderEnabled", "barVertical", "styleShadow", "panelInsetReady"
     }:
         return "false"
     if name == "launcherLogoText":
@@ -119,12 +169,53 @@ def qml_value(name):
     return "''"
 
 
-root_fields = ['property string variant: "V1"'] + [
-    f"property {'bool' if name == 'controlVisible' else 'var'} {name}: {qml_value(name)}"
+def qml_type(name):
+    return {
+        "controlVisible": "bool", "barVertical": "bool", "styleShadow": "bool",
+        "panelInsetReady": "bool", "verticalBarWidth": "int", "panelInsetX": "real",
+        "paper": "color", "ink": "color", "seal": "color", "pillShadow": "color",
+    }.get(name, "var")
+
+
+root_fields = ["id: inertRoot", 'property string variant: "V1"'] + [
+    f"property {qml_type(name)} {name}: {qml_value(name)}"
     for name in root_names
 ]
 qml_root = chr(10).join("            " + field for field in root_fields)
 source_urls = {name: json.dumps(sources[index].as_uri()) for index, name in enumerate(("V1", "V2"))}
+
+NATIVE_FAILURE_PATTERNS = (
+    re.compile(r"\b(?:ReferenceError|TypeError)\b"),
+    re.compile(r"\bUnable\s+to\s+assign\b", re.IGNORECASE),
+    re.compile(r"\bBinding\s+loop\s+detected\b", re.IGNORECASE),
+    re.compile(r"\b(?:Could not|Unable to) evaluate (?:the )?binding\b", re.IGNORECASE),
+    re.compile(r"\bCannot\s+(?:assign|read|set)\b", re.IGNORECASE),
+    re.compile(r"\bis not a function\b", re.IGNORECASE),
+    re.compile(r"no signal of the target matches the name", re.IGNORECASE),
+)
+
+
+def native_runtime_errors(output):
+    return [line.strip() for line in output.splitlines()
+            if any(pattern.search(line) for pattern in NATIVE_FAILURE_PATTERNS)]
+
+
+def read_native_log(output, runtime):
+    match = re.search(r"Saving logs to [\"']([^\"']+)[\"']", output)
+    if not match:
+        return "", None, "Quickshell did not report its native log path"
+    log_path = Path(match.group(1)).resolve()
+    allowed_root = (runtime / "quickshell" / "by-id").resolve()
+    try:
+        log_path.relative_to(allowed_root)
+    except ValueError:
+        return "", None, "Quickshell log path is outside this test runtime"
+    if not log_path.is_file() or log_path.stat().st_uid != os.getuid():
+        return "", None, "Quickshell native log is absent or not owned by this user"
+    try:
+        return log_path.read_text(encoding="utf-8", errors="replace"), str(log_path), None
+    except OSError as error:
+        return "", None, "cannot read Quickshell native log: " + str(error)
 
 qml = f'''import QtQuick
 import Quickshell
@@ -272,8 +363,21 @@ with tempfile.TemporaryDirectory(prefix="rise-control-panel-native-", dir=str(sc
     if ARGS.lint_generated:
         if ("id: nativeRootComponent" not in qml
                 or "property bool controlVisible: false" not in qml
+                or "property color paper: '#404040'" not in qml
+                or "property color pillShadow: '#404040'" not in qml
+                or "function(anchorName) { return 180; }" not in qml
+                or "inertRoot.panelInsetReady = true" not in qml
                 or "nativeRootComponent.createObject(testHost, { variant: variant })" not in qml):
-            raise SystemExit("NATIVE_GATE_ROOT_CONTRACT_FAIL: the generated root must be a notifying QtObject")
+            raise SystemExit("NATIVE_GATE_ROOT_CONTRACT_FAIL: the generated root must expose the notifying inert adapter API")
+        samples = (
+            "ReferenceError: fixture regression",
+            "TypeError: fixture regression",
+            "WARN: Unable to assign [undefined] to QColor",
+            "WARN: Binding loop detected for property value",
+            "QML Connections: no signal of the target matches the name onPaperChanged",
+        )
+        if not all(native_runtime_errors(sample) for sample in samples):
+            raise SystemExit("NATIVE_GATE_ERROR_FILTER_FAIL: runtime defects must be fatal despite success markers")
         qmllint = shutil.which("qmllint") or "/usr/lib/qt6/bin/qmllint"
         if not Path(qmllint).is_file():
             blocked("qmllint is unavailable for generated-shell syntax validation")
@@ -282,8 +386,11 @@ with tempfile.TemporaryDirectory(prefix="rise-control-panel-native-", dir=str(sc
         print(lint.stdout + lint.stderr, end="")
         if lint.returncode:
             raise SystemExit(lint.returncode)
+        print("NATIVE_GATE_ERROR_FILTER_PASS; TypeError/ReferenceError/assignment/binding defects fail the gate")
         print("NATIVE_GATE_FIXTURE_QML_SYNTAX_PASS; no Quickshell process or compositor used")
         raise SystemExit(0)
+    if runtime is None:
+        blocked("runtime validation was skipped")
     env = os.environ.copy()
     for key in ("DISPLAY", "WAYLAND_SOCKET", "DBUS_SESSION_BUS_ADDRESS", "DBUS_SYSTEM_BUS_ADDRESS"):
         env.pop(key, None)
@@ -304,6 +411,23 @@ with tempfile.TemporaryDirectory(prefix="rise-control-panel-native-", dir=str(sc
                             capture_output=True, text=True, timeout=20)
     output = result.stdout + result.stderr
     print(output, end="")
-    if result.returncode != 0 or "CONTROL_PANEL_NATIVE_COMPOSITION_PASS V1+V2" not in output:
+    native_log, native_log_path, native_log_error = read_native_log(output, runtime)
+    if native_log_error:
+        print("NATIVE_COMPOSITION_LOG_CAPTURE_FAIL: " + native_log_error)
+    else:
+        print("NATIVE_COMPOSITION_LOG_CAPTURED: " + str(native_log_path))
+    required_markers = (
+        "CONTROL_PANEL_NATIVE_PASS V1",
+        "CONTROL_PANEL_NATIVE_PASS V2",
+        "CONTROL_PANEL_NATIVE_COMPOSITION_PASS V1+V2",
+    )
+    missing_markers = [marker for marker in required_markers if marker not in output]
+    runtime_errors = list(dict.fromkeys(native_runtime_errors(output) + native_runtime_errors(native_log)))
+    if result.returncode != 0 or missing_markers or runtime_errors or native_log_error:
         print("NATIVE_COMPOSITION_FAIL: " + str(result.returncode))
+        if missing_markers:
+            print("NATIVE_COMPOSITION_MISSING_MARKERS: " + "; ".join(missing_markers))
+        if runtime_errors:
+            print("NATIVE_COMPOSITION_RUNTIME_DEFECTS:")
+            print("\n".join("  " + line for line in runtime_errors))
         raise SystemExit(result.returncode or 1)
