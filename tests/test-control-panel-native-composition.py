@@ -286,7 +286,7 @@ Scope {{
             return
         }}
         currentRoot.controlVisible = true
-        currentPanel.toolsStartInHealth = true
+
         currentPanel.toolsOpen = true
         phase = 2
         ticks = 0

@@ -1,4 +1,4 @@
-// Independent actual-event tests; imports production component without edits.
+// Actual-event Health regression checks after removal of ControlPanel Search.
 import QtQuick
 import QtTest
 import "../../shared/components" as Shared
@@ -7,25 +7,14 @@ FocusScope {
     id: host
     width: 800; height: 600
     property var tools: null
-    property string target: ""
     property int closed: 0
     Rectangle {
-        id: searchOpener
-        objectName: "search-tools-opener"
+        id: healthOpener
         x: 8; y: 8; width: 120; height: 28
         focus: true
         activeFocusOnTab: true
     }
-    Rectangle {
-        id: healthOpener
-        objectName: "health-tools-opener"
-        x: 136; y: 8; width: 120; height: 28
-        activeFocusOnTab: true
-    }
-    QtObject {
-        id: focusRoot
-        property bool controlVisible: true
-    }
+    QtObject { id: focusRoot; property bool controlVisible: true }
     QtObject {
         id: fakeTheme
         property int launcherBarX: 400
@@ -38,7 +27,6 @@ FocusScope {
         property color bg: "#202020"
         property color pillBorder: "#555555"
         property int pillBorderW: 1
-        property color fillActive: "#40251e"
         property color fillHover: "#303030"
         property color fillIdle: "#242424"
         property color sep: "#454545"
@@ -54,139 +42,88 @@ FocusScope {
             theme: fakeTheme
             variantName: "V2"
             focusReturnRoot: focusRoot
-            focusReturnTarget: host.tools && host.tools.startInHealth ? healthOpener : searchOpener
-            onDestinationRequested: function(value) { host.target = value }
+            focusReturnTarget: healthOpener
+            healthRows: [{label:"State",value:"Local",detail:"Read-only"}]
             onCloseRequested: { host.closed++; open = false }
         }
     }
     TestCase {
-        name: "IndependentControlTools"
+        name: "IndependentHealthTools"
         when: windowShown
         function variants() { return [{tag:"V1",variant:"V1"},{tag:"V2",variant:"V2"}] }
         function init() {
-            host.width=800; host.height=600; fakeTheme.launcherBarX=400
-            host.closed=0; host.target=""
+            host.width=800; host.height=600
+            fakeTheme.launcherBarX=400; fakeTheme.barPosition="top"
+            focusRoot.controlVisible=true; host.closed=0
             host.tools=component.createObject(host)
             verify(host.tools!==null)
         }
         function cleanup() { host.tools.destroy(); host.tools=null; wait(20) }
-        function show(variant,health) {
-            var opener = health ? healthOpener : searchOpener
-            opener.forceActiveFocus()
-            verify(opener.activeFocus, "selected opener receives focus before opening tools")
+        function show(variant) {
+            healthOpener.forceActiveFocus()
+            verify(healthOpener.activeFocus)
             host.tools.variantName=variant
-            host.tools.startInHealth=health
             host.tools.open=true
-            wait(100)
+            wait(30) // Flush the deferred initial-focus callback before sending keys.
+            tryVerify(function(){return findChild(host.tools,"control-panel-tools").activeFocus})
         }
         function child(name) { var item=findChild(host.tools,name); verify(item!==null,name); return item }
-        function typeQuery(value) {
-            for(var ch of value) keyClick(Qt.Key_A+ch.toUpperCase().charCodeAt(0)-65)
-            wait(50)
-        }
-
-        function test_search_header_escape_via_tab_data() { return variants() }
-        function test_search_header_escape_via_tab(data) {
-            show(data.variant,false)
-            var input=child("control-panel-search-input")
-            verify(input.activeFocus)
-            keyClick(Qt.Key_Tab, Qt.ShiftModifier)
-            wait(50)
-            verify(child("control-panel-tools-close").activeFocus,"Backtab from search must focus the close control")
-            keyClick(Qt.Key_Escape)
-            compare(host.closed,1,"Escape must close Search from a keyboard-focused header")
-            wait(100)
-            verify(searchOpener.activeFocus,"Search opener focus must be restored")
-        }
-
-        function test_health_escape_data() { return variants() }
-        function test_health_escape(data) {
-            show(data.variant,true)
-            verify(child("control-panel-tools").activeFocus)
-            keyClick(Qt.Key_Escape)
-            compare(host.closed,1,"Escape must dismiss Health, not remain trapped")
-        }
-        function test_health_escape_restores_opener_data() { return variants() }
-        function test_health_escape_restores_opener(data) {
-            show(data.variant,true)
-            keyClick(Qt.Key_Escape)
+        function verifyClosed() {
             compare(host.closed,1)
-            wait(100)
-            verify(healthOpener.activeFocus, "closing Health must return focus to the Health opener")
+            verify(!host.tools.open)
+            tryVerify(function(){return healthOpener.activeFocus})
         }
-        function test_health_escape_from_header_focus_data() { return variants() }
-        function test_health_escape_from_header_focus(data) {
-            show(data.variant,true)
+        function test_search_removed_data() { return variants() }
+        function test_search_removed(data) {
+            show(data.variant)
+            compare(findChild(host.tools,"control-panel-search-tab"),null)
+            compare(findChild(host.tools,"control-panel-search-input"),null)
+            compare(findChild(host.tools,"control-panel-search-result-nordvpn"),null)
+            compare(child("control-panel-tools-results").count,1)
+        }
+        function test_escape_data() { return variants() }
+        function test_escape(data) { show(data.variant); keyClick(Qt.Key_Escape); verifyClosed() }
+        function test_header_escape_data() { return variants() }
+        function test_header_escape(data) {
+            show(data.variant)
             var close=child("control-panel-tools-close")
-            close.forceActiveFocus()
-            verify(close.activeFocus, "header close control should receive focus")
+            keyClick(Qt.Key_Tab)
+
+            tryVerify(function(){return close.activeFocus})
             keyClick(Qt.Key_Escape)
-            compare(host.closed,1)
-            wait(100)
-            verify(healthOpener.activeFocus, "Escape from a Health header control returns to its opener")
+            verifyClosed()
         }
-        function test_health_escape_reopen_preserves_focus_return_data() { return variants() }
-        function test_health_escape_reopen_preserves_focus_return(data) {
-            show(data.variant,true)
-            keyClick(Qt.Key_Escape)
-            compare(host.closed,1)
-            wait(100)
-            verify(healthOpener.activeFocus)
-            host.tools.startInHealth=true
+        function test_close_enter_data() { return variants() }
+        function test_close_enter(data) {
+            show(data.variant)
+            child("control-panel-tools-close").forceActiveFocus()
+            keyClick(Qt.Key_Return)
+            verifyClosed()
+        }
+        function test_reopen_data() { return variants() }
+        function test_reopen(data) {
+            show(data.variant); keyClick(Qt.Key_Escape); verifyClosed()
             host.tools.open=true
-            wait(100)
-            verify(child("control-panel-tools").activeFocus)
+            tryVerify(function(){return child("control-panel-tools").activeFocus})
             keyClick(Qt.Key_Escape)
             compare(host.closed,2)
-            wait(100)
-            verify(healthOpener.activeFocus, "reopened Health must restore focus to the original opener")
+            tryVerify(function(){return healthOpener.activeFocus})
         }
-        function test_health_tab_escape_data() { return variants() }
-        function test_health_tab_escape(data) {
-            show(data.variant,false)
-            var tab=child("control-panel-health-tab")
-            mouseClick(tab,tab.width/2,tab.height/2)
-            wait(50)
-            keyClick(Qt.Key_Escape)
-            compare(host.closed,1,"Escape after switching to Health must dismiss")
+        function test_narrow_pointer_close_data() {
+            return [{tag:"V1-top",variant:"V1",position:"top"},{tag:"V1-bottom",variant:"V1",position:"bottom"},
+                    {tag:"V2-top",variant:"V2",position:"top"},{tag:"V2-bottom",variant:"V2",position:"bottom"}]
         }
-        function test_second_click_edits_caret_data() { return variants() }
-        function test_second_click_edits_caret(data) {
-            show(data.variant,false)
-            var input=child("control-panel-search-input")
-            typeQuery("network")
-            compare(input.text,"network")
-            mouseClick(input,2,input.height/2)
-            wait(30)
-            keyClick(Qt.Key_Home)
-            keyClick(Qt.Key_X)
-            compare(input.text,"xnetwork")
-            compare(host.target,"")
-        }
-        function test_search_route_and_escape_data() { return variants() }
-        function test_search_route_and_escape(data) {
-            show(data.variant,false)
-            typeQuery("nordvpn")
-            compare(child("control-panel-tools-results").count,1)
-            keyClick(Qt.Key_Return)
-            compare(host.target,"widgets")
-            compare(host.closed,1)
-            wait(100)
-            verify(searchOpener.activeFocus, "opening a destination must return focus to Search")
-        }
-        function test_narrow_card_bounds_data() { return variants() }
-        function test_narrow_card_bounds(data) {
+        function test_narrow_pointer_close(data) {
             host.width=320; host.height=480; fakeTheme.launcherBarX=160
-            show(data.variant,false)
+            fakeTheme.barPosition=data.position
+            show(data.variant)
             var card=child("control-panel-tools")
-            verify(card.x>=0 && card.y>=0,"top/left must stay in viewport")
-            verify(card.x+card.width<=host.width,"right edge")
-            verify(card.y+card.height<=host.height,"bottom edge")
+            verify(card.x>=0 && card.y>=0)
+            verify(card.x+card.width<=host.width)
+            verify(card.y+card.height<=host.height)
             var close=child("control-panel-tools-close")
             mouseClick(close,close.width/2,close.height/2)
-            compare(host.closed,1)
-            wait(100)
-            verify(searchOpener.activeFocus, "pointer close must restore focus to the Search opener")
+            verifyClosed()
         }
     }
 }

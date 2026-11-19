@@ -8,9 +8,9 @@ Item {
     width: 800
     height: 600
     property var tools: null
-    property string selectedTarget: ""
+
     property int closeRequests: 0
-    property int externalCalls: 0
+
     property var probeHost: ({})
 
     QtObject {
@@ -61,7 +61,7 @@ Item {
             variantName: "V2"
             open: false
             healthRows: healthCapabilities.healthRows
-            onDestinationRequested: function(target) { host.selectedTarget = target }
+
             onCloseRequested: host.closeRequests++
         }
     }
@@ -72,9 +72,9 @@ Item {
         function loadTools() {
             host.tools = toolsComponent.createObject(host)
             verify(host.tools !== null)
-            host.selectedTarget = ""
+
             host.closeRequests = 0
-            host.externalCalls = 0
+
             host.tools.open = true
             wait(30)
         }
@@ -85,60 +85,20 @@ Item {
             }
             wait(20)
         }
-        function typeText(value) {
-            for (var ch of value) {
-                if (/[a-z]/i.test(ch)) {
-                    var key = Qt.Key_A + ch.toUpperCase().charCodeAt(0) - 65
-                    keyClick(key, ch === ch.toUpperCase() ? Qt.ShiftModifier : Qt.NoModifier)
-                } else if (ch === " ") keyClick(Qt.Key_Space)
-                else if (ch === "-") keyClick(Qt.Key_Minus)
-            }
-        }
+
         function init() { loadTools() }
         function cleanup() { clearTools() }
 
-        function test_search_keyboard_and_routes_without_actions() {
-            var input = findChild(host.tools, "control-panel-search-input")
-            verify(input !== null)
-            verify(input.activeFocus, "Search input should take keyboard focus when opened")
-            typeText("nordvpn countries")
-            wait(30)
-            var results = findChild(host.tools, "control-panel-tools-results")
-            compare(results.count, 1)
-            keyClick(Qt.Key_Return)
-            compare(host.selectedTarget, "widgets")
-            compare(host.closeRequests, 1)
-            compare(host.externalCalls, 0, "Searching must not query network/accounts or call services")
-        }
-
-        function test_qml_search_normalizes_accents() {
-            var input = findChild(host.tools, "control-panel-search-input")
-            input.text = "BAR POSIÇÃO"
-            wait(20)
-            var results = findChild(host.tools, "control-panel-tools-results")
-            compare(results.count, 1)
-            compare(results.itemAtIndex(0).modelData.id, "position")
-        }
-
-        function test_escape_clears_then_closes_and_no_match_is_honest() {
-            var input = findChild(host.tools, "control-panel-search-input")
-            typeText("not-a-control")
-            wait(20)
-            compare(findChild(host.tools, "control-panel-tools-results").count, 0)
-            verify(findChild(host.tools, "control-panel-tools-no-results").visible)
-            keyClick(Qt.Key_Escape)
-            compare(input.text, "")
-            compare(host.closeRequests, 0)
+        function test_search_controls_are_removed() {
+            compare(findChild(host.tools, "control-panel-search-input"), null)
+            compare(findChild(host.tools, "control-panel-search-tab"), null)
+            verify(findChild(host.tools, "control-panel-tools").activeFocus)
             keyClick(Qt.Key_Escape)
             compare(host.closeRequests, 1)
-            compare(host.selectedTarget, "")
         }
 
         function test_health_is_read_only_and_labels_local_observations() {
-            var tab = findChild(host.tools, "control-panel-health-tab")
-            verify(tab !== null)
-            mouseClick(tab, tab.width / 2, tab.height / 2)
-            wait(20)
+
             var results = findChild(host.tools, "control-panel-tools-results")
             compare(results.count, 8)
             var first = results.itemAtIndex(0)
@@ -147,7 +107,7 @@ Item {
             compare(first.modelData.value, "V2")
             verify(findChild(host.tools, "control-panel-health-row-variant").visible)
             verify(findChild(host.tools, "control-panel-health-disclaimer").visible)
-            compare(host.externalCalls, 0)
+
             verify(host.tools.visible)
         }
 

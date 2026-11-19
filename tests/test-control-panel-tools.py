@@ -15,10 +15,11 @@ for variant in ("V1", "V2"):
     assert "ControlPanelCapabilities" in source, f"{variant} has no host-capability facade"
     assert "hostRoot: ctrlPanel.root" in source, f"{variant} does not provide its local host root"
     assert "healthRows: healthCapabilities.healthRows" in source, f"{variant} does not render facade output"
-    assert "onDestinationRequested: function(target)" in source, f"{variant} has no search destination route"
+    assert "control-panel-search-opener" not in source, f"{variant} still exposes Search"
+    assert "openToolsDestination" not in source, f"{variant} retains Search routing"
     assert "onCloseRequested:" in source, f"{variant} has no tools dismissal route"
     assert "focusReturnRoot: ctrlPanel.root" in source, f"{variant} tools cannot confirm parent visibility"
-    assert "focusReturnTarget: ctrlPanel.toolsStartInHealth ? healthToolsTile : searchToolsTile" in source, f"{variant} does not restore focus to its opener"
+    assert "focusReturnTarget: healthToolsTile" in source, f"{variant} does not restore focus to Health"
     assert "healthSnapshot:" not in source, f"{variant} bypasses normalized host capabilities"
 
 assert Path(RUNNER).is_file(), f"QtTest runner is required: {RUNNER}"
@@ -55,4 +56,4 @@ independent = subprocess.run(
 independent_output = independent.stdout + independent.stderr
 print(independent_output, end="")
 assert independent.returncode == 0, f"independent ControlPanelTools QtTest exited {independent.returncode}"
-print("Shared Search/Health component tests PASS; native V1/V2 ControlPanel composition remains a separate gate")
+print("Search removal and read-only Health component tests PASS; native V1/V2 ControlPanel composition remains a separate gate")
