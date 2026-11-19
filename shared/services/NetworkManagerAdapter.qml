@@ -1,6 +1,7 @@
 import QtQuick
 import Quickshell.Networking
 import Quickshell.Io
+import "../logic/WifiScanOwnership.js" as WifiScanOwnership
 
 Item {
     id: adapter
@@ -27,6 +28,10 @@ Item {
     property var savedProfiles: []
     property bool profilesLoaded: false
     property bool scanning: false
+    // This adapter is one participant in a shared, device-identity request.
+    // The library snapshots the external boolean once and restores it on the
+    // final participating adapter release.
+    property var ownedScanDevice: null
 
     function findDevice(type) {
         var devices = networkDevices || []
@@ -35,6 +40,29 @@ Item {
                 return devices[i]
         }
         return null
+    }
+
+    function releaseOwnedScan() {
+        const previous = ownedScanDevice
+        if (!previous)
+            return
+
+        ownedScanDevice = null
+        WifiScanOwnership.release(previous, adapter)
+    }
+
+    function updateOwnedScan(device, enabled) {
+        const target = enabled ? device : null
+        if (ownedScanDevice !== target) {
+            releaseOwnedScan()
+            if (target) {
+                ownedScanDevice = target
+                WifiScanOwnership.acquire(target, adapter)
+            }
+        } else if (target) {
+            // Refresh is frequent; acquire is idempotent for this adapter.
+            WifiScanOwnership.acquire(target, adapter)
+        }
     }
 
     function signalBars(strength) {
@@ -208,8 +236,7 @@ Item {
             return
 
         scanning = true
-        if (wifiDevice)
-            wifiDevice.scannerEnabled = true
+        updateOwnedScan(wifiDevice, !wifiBlocked)
         scanClearTimer.restart()
         syncNetworks()
     }
@@ -295,8 +322,7 @@ Item {
     }
 
     function refresh() {
-        if (wifiDevice)
-            wifiDevice.scannerEnabled = panelOpen && !wifiBlocked
+        updateOwnedScan(wifiDevice, panelOpen && !wifiBlocked)
         if (panelOpen && !profileList.running)
             profileList.running = true
         syncNetworks()
@@ -315,8 +341,7 @@ Item {
 
     Component.onCompleted: refresh()
     Component.onDestruction: {
-        if (wifiDevice)
-            wifiDevice.scannerEnabled = false
+        releaseOwnedScan()
         profileList.running = false
         profileAction.running = false
     }

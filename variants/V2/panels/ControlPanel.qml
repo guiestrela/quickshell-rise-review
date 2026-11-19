@@ -5,6 +5,7 @@ import Quickshell
 import Quickshell.Wayland
 import "../modules"
 import "../../../shared/components" as Shared
+import "../../../shared/services" as CommonServices
 
 PanelWindow {
     id: ctrlPanel
@@ -25,6 +26,8 @@ PanelWindow {
     // power sub-menu starts CLOSED — no destructive tile is ever pre-shown
     property bool powerOpen: false
     property bool wsOpen: false   // Workspaces collapsible inside the WW fly-out
+    property bool toolsOpen: false
+    property bool toolsStartInHealth: false
     property string widgetColorMenuGid: ""
     property string widgetColorMenuLabel: ""
     readonly property string barctlPath: Quickshell.env("HOME") + "/.config/quickshell/bin/qs-barctl"
@@ -34,6 +37,15 @@ PanelWindow {
     function reloadBar() { return ControlPanelLogic.reloadBar(ctrlPanel, {Quickshell: Quickshell}) }
 
     function runPowerAction(action) { return ControlPanelLogic.runPowerAction(ctrlPanel, {Quickshell: Quickshell}, action) }
+
+    function openToolsDestination(target) {
+        if (target === "power") powerOpen = true
+        else if (target === "functions" || target === "widgets" || target === "workspaces"
+                 || target === "styles" || target === "position" || target === "logo") {
+            root.wwSubVisible = true
+            if (target === "workspaces") wsOpen = true
+        }
+    }
 
     property real reveal: ctrlPanel.root.controlVisible ? 1 : 0
     Behavior on reveal {
@@ -46,6 +58,8 @@ PanelWindow {
     onRevealChanged: if (reveal < 0.01) {
         powerOpen = false
         wsOpen = false
+        toolsOpen = false
+        toolsStartInHealth = false
         widgetColorMenuGid = ""
         widgetColorMenuLabel = ""
         ctrlPanel.root.wwSubVisible = false
@@ -234,6 +248,7 @@ PanelWindow {
 
     Rectangle {
         id: card
+        visible: !ctrlPanel.toolsOpen
         width: 240
         height: col.implicitHeight + 24
         radius: ctrlPanel.reveal > 0.001 ? ctrlPanel.root.panelRadius : 0
@@ -287,6 +302,45 @@ PanelWindow {
             }
 
             Rectangle { width: parent.width; height: 1; color: ctrlPanel.root.sep }
+
+            Row {
+                width: parent.width
+                spacing: 6
+                Tile {
+                    id: searchToolsTile
+                    objectName: "control-panel-search-opener"
+                    width: ctrlPanel.root.evenW((parent.width - 6) / 2)
+                    label: "Search"
+                    activeFocusOnTab: true
+                    Accessible.role: Accessible.Button
+                    Accessible.name: "Search Control Panel settings"
+                    Keys.onPressed: function(event) {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                            ctrlPanel.toolsStartInHealth = false
+                            ctrlPanel.toolsOpen = true
+                            event.accepted = true
+                        }
+                    }
+                    onActivated: { ctrlPanel.toolsStartInHealth = false; ctrlPanel.toolsOpen = true }
+                }
+                Tile {
+                    id: healthToolsTile
+                    objectName: "control-panel-health-opener"
+                    width: ctrlPanel.root.evenW((parent.width - 6) / 2)
+                    label: "Health"
+                    activeFocusOnTab: true
+                    Accessible.role: Accessible.Button
+                    Accessible.name: "Read-only Control Panel health"
+                    Keys.onPressed: function(event) {
+                        if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
+                            ctrlPanel.toolsStartInHealth = true
+                            ctrlPanel.toolsOpen = true
+                            event.accepted = true
+                        }
+                    }
+                    onActivated: { ctrlPanel.toolsStartInHealth = true; ctrlPanel.toolsOpen = true }
+                }
+            }
 
             // ── ACTIONS ──
             Shared.UiText {
@@ -494,7 +548,7 @@ PanelWindow {
     // ── BAR FUNCTIONS sub-panel ──
     Rectangle {
         id: wwCard
-        visible: ctrlPanel.root.controlVisible && ctrlPanel.root.wwSubVisible
+        visible: ctrlPanel.root.controlVisible && ctrlPanel.root.wwSubVisible && !ctrlPanel.toolsOpen
         width: 320
         height: Math.min(wwCol.implicitHeight + 24, parent.height - 12)
         radius: (ctrlPanel.root.controlVisible && ctrlPanel.root.wwSubVisible) ? ctrlPanel.root.panelRadius : 0
@@ -966,5 +1020,24 @@ PanelWindow {
                 }
             }
         }
+    }
+    CommonServices.ControlPanelCapabilities {
+        id: healthCapabilities
+        hostRoot: ctrlPanel.root
+    }
+    Shared.ControlPanelTools {
+        id: panelTools
+        objectName: "control-panel-tools-overlay"
+        theme: ctrlPanel.root
+        variantName: "V2"
+        open: ctrlPanel.root.controlVisible && ctrlPanel.toolsOpen
+        startInHealth: ctrlPanel.toolsStartInHealth
+        anchorOffset: ctrlPanel.root.v2BarHeight
+        gap: ctrlPanel.gap
+        healthRows: healthCapabilities.healthRows
+        focusReturnRoot: ctrlPanel.root
+        focusReturnTarget: ctrlPanel.toolsStartInHealth ? healthToolsTile : searchToolsTile
+        onCloseRequested: ctrlPanel.toolsOpen = false
+        onDestinationRequested: function(target) { ctrlPanel.openToolsDestination(target) }
     }
 }

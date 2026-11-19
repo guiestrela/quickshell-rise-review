@@ -684,7 +684,7 @@ Item {
             onStreamFinished: {
                 var raw = this.text, nl = raw.indexOf("\n")
                 var mtime = nl > 0 ? (parseInt(raw.substring(0, nl)) || 0) : 0
-                var ageOk = mtime > 0 && (Date.now() / 1000 - mtime) < 900
+                var ageOk = ThemeAiUsage.aiUsageMtimeFresh(theme, {}, mtime, Date.now() / 1000)
                 try {
                     var d = JSON.parse((nl > 0 ? raw.substring(nl + 1) : "").trim())
                     theme.aiClHas = true
@@ -717,7 +717,7 @@ Item {
             onStreamFinished: {
                 var raw = this.text, nl = raw.indexOf("\n")
                 var mtime = nl > 0 ? (parseInt(raw.substring(0, nl)) || 0) : 0
-                var ageOk = mtime > 0 && (Date.now() / 1000 - mtime) < 900
+                var ageOk = ThemeAiUsage.aiUsageMtimeFresh(theme, {}, mtime, Date.now() / 1000)
                 try {
                     var d = JSON.parse((nl > 0 ? raw.substring(nl + 1) : "").trim())
                     theme.aiApplyCodexCache(d, ageOk)
@@ -742,7 +742,7 @@ Item {
             onStreamFinished: {
                 var raw = this.text, nl = raw.indexOf("\n")
                 var mtime = nl > 0 ? (parseInt(raw.substring(0, nl)) || 0) : 0
-                var ageOk = mtime > 0 && (Date.now() / 1000 - mtime) < 900
+                var ageOk = ThemeAiUsage.aiUsageMtimeFresh(theme, {}, mtime, Date.now() / 1000)
                 try {
                     var d = JSON.parse((nl > 0 ? raw.substring(nl + 1) : "").trim())
                     theme.aiOcHas = true
@@ -775,7 +775,7 @@ Item {
             onStreamFinished: {
                 var raw = this.text, nl = raw.indexOf("\n")
                 var mtime = nl > 0 ? (parseInt(raw.substring(0, nl)) || 0) : 0
-                var ageOk = mtime > 0 && (Date.now() / 1000 - mtime) < 900
+                var ageOk = ThemeAiUsage.aiUsageMtimeFresh(theme, {}, mtime, Date.now() / 1000)
                 try {
                     theme.aiApplyCopilotCache(JSON.parse((nl > 0 ? raw.substring(nl + 1) : "").trim()), ageOk)
                 } catch (e) {
