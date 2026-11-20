@@ -39,7 +39,13 @@ assert_not_contains() {
 
 init_fixture() {
   local root="$1"
-  mkdir -p "$root/bin" "$root/home" "$root/state"
+  mkdir -p "$root/bin" "$root/home" "$root/state" \
+    "$root/home/.local/bin" "$root/home/.local/share" "$root/home/.config/systemd/user"
+  : > "$root/home/.local/bin/qs-aur-blacklist-fetch.sh"
+  chmod +x "$root/home/.local/bin/qs-aur-blacklist-fetch.sh"
+  : > "$root/home/.config/systemd/user/qs-aur-blacklist-fetch.service"
+  : > "$root/home/.config/systemd/user/qs-aur-blacklist-fetch.timer"
+  printf 'fixture-known-name\n' > "$root/home/.local/share/qs-aur-blacklist.txt"
   cat > "$root/bin/notify-send" <<'SCRIPT'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$FAKE_NOTIFY_LOG"
@@ -667,6 +673,82 @@ test_checkupdates_bad_exit_fails_even_without_stderr() {
   [ ! -e "$root/home/.cache/qs-arch-updates.json" ] || fail "check wrote state after bad checkupdates exit code"
 }
 
+test_gate_reports_missing_blacklist_bootstrap_fail_closed() {
+  local root="$WORK/missing-blacklist-bootstrap"
+  init_fixture "$root"
+  rm -f "$root/home/.local/bin/qs-aur-blacklist-fetch.sh" \
+    "$root/home/.config/systemd/user/qs-aur-blacklist-fetch.service" \
+    "$root/home/.config/systemd/user/qs-aur-blacklist-fetch.timer" \
+    "$root/home/.local/share/qs-aur-blacklist.txt"
+  printf 'anydesk-bin|aur|8.1.0-2|8.1.1-1\n' \
+    | env_common "$root" env \
+        QS_AUR_BLACKLIST_FETCHER="$root/home/.local/bin/qs-aur-blacklist-fetch.sh" \
+        QS_AUR_BLACKLIST_SERVICE="$root/home/.config/systemd/user/qs-aur-blacklist-fetch.service" \
+        QS_AUR_BLACKLIST_TIMER="$root/home/.config/systemd/user/qs-aur-blacklist-fetch.timer" \
+        QS_AUR_BLACKLIST_LIST="$root/home/.local/share/qs-aur-blacklist.txt" \
+        QS_AUR_BLACKLIST_META="$root/home/.local/share/qs-aur-blacklist.txt.meta.json" \
+        "$GATE" > "$root/gate.out"
+  jq -e 'select(.meta == "gate" and .bootstrap_missing == true and .list_missing == true and .degraded == true)' \
+    "$root/gate.out" >/dev/null || fail "missing bootstrap/list was not explicitly reported as degraded"
+  jq -e 'select(.pkg == "anydesk-bin" and .verdict == "WARN" and (.reason | contains("AUR package")))' \
+    "$root/gate.out" >/dev/null || fail "missing bootstrap changed the AUR manual-review warning"
+}
+
+test_explicit_blacklist_setup_installs_user_units_and_primes_list() {
+  local root="$WORK/explicit-blacklist-setup"
+  local setup="$REPO_ROOT/scripts/qs-aur-blacklist-setup.sh" backup_count
+  mkdir -p "$root/home/.local/share" "$root/home/.local/bin" "$root/home/.config/systemd/user" "$root/bin" "$root/tmp"
+  printf 'legacy fetcher\\n' > "$root/home/.local/bin/qs-aur-blacklist-fetch.sh"
+  printf 'legacy service\\n' > "$root/home/.config/systemd/user/qs-aur-blacklist-fetch.service"
+  printf 'legacy timer\\n' > "$root/home/.config/systemd/user/qs-aur-blacklist-fetch.timer"
+  printf 'legacy-list-entry\\n' > "$root/home/.local/share/qs-aur-blacklist.txt"
+  printf '{"legacy":true}\\n' > "$root/home/.local/share/qs-aur-blacklist.txt.meta.json"
+  printf 'local-supplement-entry\n' > "$root/home/.local/share/qs-aur-blacklist.local.txt"
+  cat > "$root/bin/systemctl" <<'SCRIPT'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "$FAKE_SYSTEMCTL_LOG"
+SCRIPT
+  cat > "$root/bin/curl" <<'SCRIPT'
+#!/usr/bin/env bash
+out=""
+while [ "$#" -gt 0 ]; do
+  if [ "$1" = "-o" ]; then out="$2"; shift 2; else shift; fi
+done
+[ -n "$out" ] || exit 2
+printf 'fixture-known-name\n' > "$out"
+SCRIPT
+  chmod +x "$root/bin/systemctl" "$root/bin/curl"
+  if ! PATH="$root/bin:/usr/bin:/bin" HOME="$root/home" TMPDIR="$root/tmp" \
+       QS_GATE_MIN=0 FAKE_SYSTEMCTL_LOG="$root/systemctl.log" \
+       bash "$setup" >"$root/setup.out" 2>"$root/setup.err"; then
+    fail "explicit blacklist setup failed: $(cat "$root/setup.err")"
+  fi
+  [ -x "$root/home/.local/bin/qs-aur-blacklist-fetch.sh" ] || fail "setup did not install the fetcher"
+  [ -r "$root/home/.config/systemd/user/qs-aur-blacklist-fetch.service" ] || fail "setup did not install the user service"
+  [ -r "$root/home/.config/systemd/user/qs-aur-blacklist-fetch.timer" ] || fail "setup did not install the user timer"
+  [ -s "$root/home/.local/share/qs-aur-blacklist.txt" ] || fail "setup did not prime the blacklist"
+  backup_count="$(find "$root/home" -type f -name '*.pre-qs-aur-setup.*' | wc -l | tr -d ' ')"
+  [ "$backup_count" -eq 5 ] || fail "setup did not preserve all pre-existing files ($backup_count backups)"
+  grep -Fxq "local-supplement-entry" "$root/home/.local/share/qs-aur-blacklist.txt" \
+    || fail "setup removed or omitted the local blacklist supplement"
+  assert_contains "daemon-reload" "$root/systemctl.log" "setup did not reload user units"
+  assert_contains "enable --now qs-aur-blacklist-fetch.timer" "$root/systemctl.log" "setup did not explicitly enable the weekly timer"
+  assert_contains "installed and initial refresh succeeded" "$root/setup.out" "setup did not report successful completion"
+
+  mkdir -p "$root/home/.cache"
+  printf '{"scanId":"fixture","systemHash":"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855","systemCount":0}\n' \
+    > "$root/home/.cache/qs-arch-updates.json"
+  printf 'anydesk-bin|aur|8.1.0-2|8.1.1-1\n' \
+    | env PATH="$root/bin:/usr/bin:/bin" HOME="$root/home" QS_GATE_MIN=0 \
+        QS_ARCH_UPDATE_STATE="$root/home/.cache/qs-arch-updates.json" \
+        QS_ARCH_GATE_STATE="$root/home/.cache/qs-arch-gate.json" \
+        "$GATE" > "$root/gate-after-setup.out"
+  jq -e 'select(.meta == "gate" and .bootstrap_missing == false and .list_missing == false and .degraded == false)' \
+    "$root/gate-after-setup.out" >/dev/null || fail "setup artifacts did not restore complete gate metadata"
+  jq -e 'select(.pkg == "anydesk-bin" and .verdict == "WARN" and (.reason | contains("AUR package")))' \
+    "$root/gate-after-setup.out" >/dev/null || fail "setup suppressed the AUR manual-review warning"
+}
+
 test_blacklist_fetch_service_has_bounded_retries() {
   local service="$REPO_ROOT/systemd/qs-aur-blacklist-fetch.service"
   assert_contains "StartLimitIntervalSec=1h" "$service" "blacklist fetch service missing retry interval limit"
@@ -735,6 +817,8 @@ test_malformed_checkupdates_line_fails_check
 test_invalid_checkupdates_package_name_fails_check
 test_malformed_rescan_aborts_before_pacman
 test_checkupdates_bad_exit_fails_even_without_stderr
+test_gate_reports_missing_blacklist_bootstrap_fail_closed
+test_explicit_blacklist_setup_installs_user_units_and_primes_list
 test_blacklist_fetch_service_has_bounded_retries
 test_arch_panel_refresh_updates_freshness_clock
 

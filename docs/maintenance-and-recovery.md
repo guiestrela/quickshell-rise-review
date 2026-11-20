@@ -48,6 +48,37 @@ Package updates run through the ArchUpdater panel, with two explicit execution m
 - On plain Arch, the security gate checks every displayed repository package against the known-infected Arch User Repository (AUR) list. The apply helper requires explicit `--run` intent and an affirmative confirmation before requesting sudo authentication; missing intent fails closed and declining never reaches sudo. It then re-scans and re-runs the gate after authentication before it can execute the complete `pacman -Syu` transaction.
 - On Omarchy, the package results are advisory. The update button opens Omarchy's official updater, which owns its broader system, migration, AUR, and tooling transaction. The Quickshell gate neither filters nor claims to authorize that upstream transaction.
 
+### AUR protection bootstrap on the Omarchy plugin
+
+The Omarchy plugin manager does not run Rise's legacy `install.sh`. If the Packages tab reports a missing blacklist or refresh helper/user units, it shows the exact setup command. Run it explicitly in a terminal; the dedicated per-user helper installs the fetcher and systemd user units, enables the weekly timer, and attempts an initial network refresh. The helper creates timestamped `.pre-qs-aur-setup.*` backups of any existing fetcher, user units, list, and metadata before replacing/refreshing them. It uses no `sudo`, leaves the local blacklist supplement untouched, and does not change Arch update policy. A failed refresh leaves the gate degraded; AUR packages remain marked for manual review and are not treated as malware.
+
+Run this command from a terminal when needed:
+
+```bash
+bash "$HOME/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/scripts/qs-aur-blacklist-setup.sh"
+```
+
+Inspect the user timer and current list with:
+
+```bash
+systemctl --user status qs-aur-blacklist-fetch.timer
+wc -l "$HOME/.local/share/qs-aur-blacklist.txt"
+```
+
+To disable and remove only the newly provisioned refresh components (leaving the list, metadata, backups, and local supplement in place):
+
+```bash
+systemctl --user disable --now qs-aur-blacklist-fetch.timer
+rm -f "$HOME/.config/systemd/user/qs-aur-blacklist-fetch.service" \
+  "$HOME/.config/systemd/user/qs-aur-blacklist-fetch.timer" \
+  "$HOME/.local/bin/qs-aur-blacklist-fetch.sh"
+systemctl --user daemon-reload
+```
+
+If the helper replaced files from an earlier setup, restore the corresponding `.pre-qs-aur-setup.*` backup only after reviewing it. Do not delete the local supplement or cached blacklist as part of rollback.
+
+Do not run the full legacy installer merely to bootstrap this optional updater protection.
+
 ## Read Quickshell logs
 
 Select the installed configuration by its exact path:

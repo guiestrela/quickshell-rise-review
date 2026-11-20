@@ -40,6 +40,7 @@ PanelWindow {
     readonly property string packageFrontendScript: decodeURIComponent(
         String(packageFrontendUrl).replace(/^(file|qs):\/\//, ""))
     readonly property string packageApplyScript: decodeURIComponent(String(Qt.resolvedUrl("../../scripts/qs-arch-apply-update.sh")).replace(/^(file|qs):\/\//, ""))
+
     property string packageUpdateBackend: "detecting"
     property string packageUpdateMode: ""
     property string packageUpdateCommand: ""
@@ -863,6 +864,7 @@ PanelWindow {
             //    blacklist part is a link that opens the local list. ──
             Text {
                 id: statusLine   // RichText, native-rendered
+                objectName: "statusLine"
                 width: parent.width
                 visible: text.length > 0
                 textFormat: Text.RichText
@@ -887,7 +889,9 @@ PanelWindow {
                     if (archPanel.root.archGateStale) p.push(seg("⚠ source stale", archPanel.root.seal))
                     if (archPanel.root.archGateMirrorsAgree && !archPanel.root.archGateDegraded) p.push(seg("mirrors ✓", archPanel.root.green))
                     if (archPanel.root.archGateMirrorMismatch) p.push(seg("⚠ mirror mismatch", archPanel.root.seal))
-                    if (archPanel.root.archGateBlacklist > 0) {
+                    if (archPanel.root.archGateListMissing) {
+                        p.push(seg("blacklist missing", archPanel.root.seal))
+                    } else if (archPanel.root.archGateBlacklist > 0) {
                         var b = "blacklist " + archPanel.root.archGateBlacklist
                         if (archPanel.root.archGateListDate !== "") b += " · " + archPanel.root.archGateListDate
                         p.push('<a href="bl">' + seg(b, archPanel.root.ink) + '</a>')   // only this part is clickable
@@ -904,6 +908,18 @@ PanelWindow {
                     hoverEnabled: true
                     cursorShape: statusLine.hoveredLink !== "" ? Qt.PointingHandCursor : Qt.ArrowCursor
                 }
+            }
+
+            CommonComponents.UiText {
+                objectName: "blacklistSetupDiagnostic"
+                visible: archPanel.root.archGateBootstrapMissing || archPanel.root.archGateListMissing
+                width: parent.width
+                text: archPanel.root.archGateBootstrapMissing
+                    ? "AUR protection setup is incomplete (fetcher or user refresh units missing). Run from a terminal: bash ~/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/scripts/qs-aur-blacklist-setup.sh"
+                    : "The fetched AUR blacklist is missing. Run from a terminal: bash ~/.config/omarchy/plugins/io.github.guiestrela.quickshell-rise/scripts/qs-aur-blacklist-setup.sh"
+                color: archPanel.root.seal
+                font.family: archPanel.root.mono; font.pixelSize: 10
+                wrapMode: Text.WordWrap
             }
 
             // ── escalation: a FAIL means the INSTALLED copy is on the list, i.e.

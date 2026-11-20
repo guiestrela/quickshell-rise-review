@@ -19,6 +19,9 @@ set -uo pipefail
 #   2. KNOWN_INFECTED array embedded in the Atomic Arch scanner script
 PLAIN_LIST="${QS_AUR_BLACKLIST_LIST:-$HOME/.local/share/qs-aur-blacklist.txt}"
 META="${QS_AUR_BLACKLIST_META:-$PLAIN_LIST.meta.json}"   # written by the fetcher
+FETCHER="${QS_AUR_BLACKLIST_FETCHER:-$HOME/.local/bin/qs-aur-blacklist-fetch.sh}"
+FETCH_SERVICE="${QS_AUR_BLACKLIST_SERVICE:-$HOME/.config/systemd/user/qs-aur-blacklist-fetch.service}"
+FETCH_TIMER="${QS_AUR_BLACKLIST_TIMER:-$HOME/.config/systemd/user/qs-aur-blacklist-fetch.timer}"
 SCAN_STATE="${QS_ARCH_UPDATE_STATE:-$HOME/.cache/qs-arch-updates.json}"
 GATE_STATE="${QS_ARCH_GATE_STATE:-$HOME/.cache/qs-arch-gate.json}"
 if [ -n "${QS_AUR_BLACKLIST:-}" ]; then
@@ -31,6 +34,16 @@ else
 fi
 MIN_COUNT="${QS_GATE_MIN:-1500}"          # below this the blacklist is treated as degraded
 STALE_DAYS="${QS_GATE_STALE_DAYS:-7}"     # list older than this ⇒ stale ⇒ degraded
+
+# Omarchy's plugin manager does not run the legacy installer. Report missing
+# per-user bootstrap artifacts explicitly; do not infer setup from the plugin
+# files themselves or silently treat a missing feed as healthy.
+bootstrap_missing=false
+[ -x "$FETCHER" ] || bootstrap_missing=true
+[ -r "$FETCH_SERVICE" ] || bootstrap_missing=true
+[ -r "$FETCH_TIMER" ] || bootstrap_missing=true
+list_missing=false
+[ -s "$PLAIN_LIST" ] || list_missing=true
 
 # --- 1. Load blacklist WITHOUT eval --------------------------------------
 # Script source: extract the body between `KNOWN_INFECTED=(` and the closing
@@ -90,6 +103,8 @@ fi
 set +u; blacklist_count=${#INFECTED[@]}; set -u
 degraded=false
 [ "$blacklist_count" -lt "$MIN_COUNT" ] && degraded=true   # too few names = weak protection
+[ "$bootstrap_missing" = true ] && degraded=true            # refresh bootstrap absent
+[ "$list_missing" = true ] && degraded=true                 # no fetched plain list
 $meta_degraded && degraded=true                            # fetcher kept an old list / fetch failed
 $meta_pending  && degraded=true                            # a large jump is quarantined, unadopted
 $stale         && degraded=true                            # protection list is too old
@@ -140,8 +155,8 @@ emit() { # pkg repo old new verdict reason
 }
 
 # --- meta line first so the UI can show a degraded/limited-protection state
-printf '{"meta":"gate","blacklist":%d,"degraded":%s,"list_date":"%s","stale":%s,"mirrors_agree":%s,"mirror_mismatch":%s}\n' \
-  "$blacklist_count" "$degraded" "$list_date" "$stale" "$mirrors_agree" "$mirror_mismatch"
+printf '{"meta":"gate","blacklist":%d,"degraded":%s,"list_date":"%s","stale":%s,"mirrors_agree":%s,"mirror_mismatch":%s,"bootstrap_missing":%s,"list_missing":%s}\n' \
+  "$blacklist_count" "$degraded" "$list_date" "$stale" "$mirrors_agree" "$mirror_mismatch" "$bootstrap_missing" "$list_missing"
 
 # --- 4. Classify each update candidate -----------------------------------
 ok_count=0

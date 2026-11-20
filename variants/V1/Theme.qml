@@ -1763,6 +1763,8 @@ Item {
     property int    archGateFail: 0
     property int    archGateBlacklist: 0
     property bool   archGateDegraded: false
+    property bool   archGateBootstrapMissing: true
+    property bool   archGateListMissing: true
     property string archGateListDate: ""   // freshest blacklist date (meta updated_at, else mtime)
     property bool   archGateStale: false          // protection list older than the gate's stale window
     property bool   archGateMirrorsAgree: false   // both feed mirrors produced an identical list
@@ -1792,6 +1794,7 @@ Item {
             theme.archGateResults = []
             theme.archGateOk = 0; theme.archGateWarn = 0; theme.archGateFail = 0
             theme.archGateBlacklist = 0; theme.archGateDegraded = false
+            theme.archGateBootstrapMissing = true; theme.archGateListMissing = true
             theme.archGateStale = false; theme.archGateMirrorsAgree = false; theme.archGateMirrorMismatch = false
             // Run the gate even with 0 updates — it still emits the meta line, so the
             // panel can always show the blacklist size / protection status.
@@ -1822,6 +1825,8 @@ Item {
                     if (o.meta === "gate") {
                         sawMeta = true
                         theme.archGateBlacklist = o.blacklist || 0
+                        theme.archGateBootstrapMissing = (o.bootstrap_missing !== false)
+                        theme.archGateListMissing = (o.list_missing !== false)
                         if (o.degraded) theme.archGateDegraded = true
                         if (o.list_date) theme.archGateListDate = o.list_date
                         if (o.stale) theme.archGateStale = true
@@ -1841,6 +1846,10 @@ Item {
                 // claim "clean". An empty/short answer means "unverified", not "safe".
                 if (!sawMeta || results.length !== (theme.archUpdates || []).length)
                     theme.archGateDegraded = true
+                if (!sawMeta) {
+                    theme.archGateBootstrapMissing = true
+                    theme.archGateListMissing = true
+                }
                 theme.archGateState =
                     fail > 0 ? "blocked"
                     : theme.archGateDegraded ? "degraded"
