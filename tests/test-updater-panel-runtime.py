@@ -9,7 +9,7 @@ import tempfile
 from qml_fixture_source import qml_fixture_text, qml_fixture_bytes
 
 repo = Path(__file__).resolve().parents[1]
-with tempfile.TemporaryDirectory(prefix='rise-updater-panel-', dir='/tmp') as directory:
+with tempfile.TemporaryDirectory(prefix='rise-updater-panel-', dir=os.environ.get('TMPDIR', '/tmp')) as directory:
     temp = Path(directory)
     runtime = temp / 'runtime'
     runtime.mkdir(mode=0o700)
@@ -42,7 +42,7 @@ QtObject { property string path; property bool watchChanges:false; property stri
         colors = {'bg','pillBorder','panelBorder','fillActive','fillHover','fillIdle','fillPrimaryHover','green','indigo','ink','inkDeep','paper','seal','sealRaw','sep','sumi'}
         strings = {'activeUpdateTab':'packages','archGateState':'clean','archGateListDate':'','archScanError':'','archScanHash':'fixture','archScanId':'fixture','themeUpdChecked':'','themeNamePath':'/fixture/theme.name','mono':'monospace','barPosition':'top','omarchyInstallRoot':'/fixture'}
         arrays = {'archUpdates','archGateResults','themeUpdList'}
-        booleans = {'archVisible','archRefreshing','archGateDegraded','themeUpdChecking','themeUpdCurrentStale','themeUpdDegraded'}
+        booleans = {'archVisible','archRefreshing','archGateDegraded','archGateBootstrapMissing','archGateListMissing','themeUpdChecking','themeUpdCurrentStale','themeUpdDegraded'}
         numbers = {'pillRadius':6,'panelRadius':12,'tileRadius':4,'panelButtonRadius':8,'pillBorderW':1,'v2BarHeight':33,'archBarX':400,'archCaretBarX':410,'archScanMaxAge':3600,'fillHoverAlpha':0.2}
         fields = sorted(set(re.findall(r'\broot\.(\w+)', text + '\n' + adapter)))
         theme = []
@@ -104,6 +104,18 @@ Item {
    card.forceActiveFocus();keyClick(Qt.Key_Escape);compare(theme.archVisible,false)
    verify(!runner.running);compare(runner.command.length,0)
    verify(!findChild(panel,"themeRemoveProc").running)
+  }
+  function test_missing_security_setup_diagnostic_is_actionable() {
+   theme.archGateBootstrapMissing=true;theme.archGateListMissing=true;theme.archVisible=true
+   tryCompare(panel,"reveal",1)
+   var diagnostic=findChild(panel,"blacklistSetupDiagnostic"), statusLine=findChild(panel,"statusLine")
+   tryVerify(function(){return diagnostic!==null && diagnostic.visible})
+   verify(diagnostic.text.indexOf("qs-aur-blacklist-setup.sh")>=0)
+   verify(diagnostic.text.indexOf("user refresh units missing")>=0)
+   verify(statusLine.text.indexOf("blacklist missing")>=0)
+   verify(statusLine.text.indexOf('href="bl"')<0)
+   theme.archGateBootstrapMissing=false;theme.archGateListMissing=false
+   tryVerify(function(){return !diagnostic.visible})
   }
  }
 }
