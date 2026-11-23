@@ -50,7 +50,7 @@ Item {
 
     Process {
         id: tzRunner
-        command: ["bash", "-c", "omarchy-launch-floating-terminal-with-presentation omarchy-tz-select 2>/dev/null"]
+        command: ["omarchy-menu-timezone"]
     }
 
     MouseArea {
@@ -65,7 +65,7 @@ Item {
                 rootMod.root.clock12h = !rootMod.root.clock12h;          // toggle 24h / 12h
             } else if (e.button === Qt.RightButton) {
                 tip.hide();
-                tzRunner.running = false;                // timezone picker (unchanged)
+                tzRunner.running = false;                // native Omarchy timezone menu
                 tzRunner.running = true;
             }
         }

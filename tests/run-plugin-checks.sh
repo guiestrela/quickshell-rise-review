@@ -118,6 +118,7 @@ check "weather radar lifecycle" python3 tests/test-weather-radar-lifecycle.py
 check "shared telemetry and V1/V2 widget parity" python3 tests/test-shared-telemetry-widgets.py
 check "V1 empty slots and drag" python3 tests/test-v1-empty-slots.py
 check "V1 new widgets layout" node --test tests/v1-new-widgets-layout.test.mjs
+check "Clock V1/V2 native timezone menu clicks" python3 tests/test-clock-timezone-menu.py
 check "Elsewhen widget state and actions" python3 tests/test-elsewhen-widget.py
 check "Elsewhen shared popup routing" python3 tests/test-elsewhen-theme-panels.py
 check "Elsewhen first-run preference lifecycle" python3 tests/test-elsewhen-first-run.py
