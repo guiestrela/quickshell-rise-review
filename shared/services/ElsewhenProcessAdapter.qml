@@ -20,6 +20,18 @@ Item {
     property bool geocodeBusy: false
     property var pendingGeocode: null
 
+    // Defer until the adapter's signal connections and Process children exist.
+    Component.onCompleted: bootstrapTimer.restart()
+    onServiceChanged: Qt.callLater(function() { bootstrapTimer.restart() })
+    Timer {
+        id: bootstrapTimer
+        interval: 0
+        onTriggered: {
+            if (adapter.service && typeof adapter.service.recoverTimeQueries === "function")
+                adapter.service.recoverTimeQueries(probeProcess.running, catalogProcess.running)
+        }
+    }
+
     function stopAll() {
         pendingGeocode = null
         if (probeProcess.running) probeProcess.running = false
@@ -129,6 +141,12 @@ Item {
         function onWeatherRequested(keys, points, serial) { adapter.startWeather(keys, points, serial) }
         function onProfilesRequested(handles, serial) { adapter.startProfiles(handles, serial) }
         function onCancelRequested() { adapter.stopAll() }
+        function onProbeAbortRequested(serial) {
+            if (probeProcess.requestSerial === serial && probeProcess.running)
+                probeProcess.running = false
+        }
+        function onActiveChanged() { bootstrapTimer.restart() }
+        function onSettingsReadyChanged() { bootstrapTimer.restart() }
     }
 
     Process {

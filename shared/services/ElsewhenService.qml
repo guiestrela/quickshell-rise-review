@@ -41,6 +41,7 @@ Item {
     property double nowMs: Date.now()
     property bool probeRunning: false
     property bool probeQueued: false
+    property int probeTimeoutMs: 10000
     property var transientZones: []
     property var worldData: []
     property var cityData: []
@@ -94,6 +95,7 @@ Item {
     signal timezoneChanged(string zone)
     signal timezoneChangeFailed(string zone, string error)
     signal cancelRequested()
+    signal probeAbortRequested(int serial)
     signal settingsLoaded()
 
     function persistPreferences(next) {
@@ -332,6 +334,26 @@ Item {
         return Model.mergePlaces(offline, places, cities, maxResults)
     }
 
+    // Requests can predate the adapter's Connections during host startup.
+    // Only recover orphaned requests; never interrupt a live adapter process.
+    function recoverTimeQueries(probeActive, catalogActive) {
+        if (!active || !settingsReady || !autoRefresh) return false
+        var lostProbe = probeRunning && !probeActive
+        var lostCatalog = catalogRunning && !catalogActive
+        if (lostProbe) {
+            requestSerial++
+            probeRunning = false
+            probeQueued = false
+        }
+        if (lostCatalog) {
+            catalogSerial++
+            catalogRunning = false
+        }
+        if (!catalogActive && !catalogRunning && (lostCatalog || zoneCatalogText === "")) requestCatalog()
+        if (!probeActive && !probeRunning && (lostProbe || Object.keys(probe).length === 0)) refresh()
+        return true
+    }
+
     function refresh() {
         if (!active || !settingsReady) return false
         if (probeRunning) {
@@ -518,6 +540,20 @@ Item {
         }
         onSaveFailed: function(error) {
             service.lastError = "Elsewhen settings could not be saved (" + error + ")"
+        }
+    }
+
+    Timer {
+        interval: Math.max(1, service.probeTimeoutMs)
+        running: service.probeRunning
+        onTriggered: {
+            var expired = service.requestSerial
+            // Invalidate before stopping the child, whose exit may arrive late.
+            service.requestSerial++
+            service.probeRunning = false
+            service.probeQueued = false
+            service.lastError = "Time-zone probe timed out; retry to refresh city clocks"
+            service.probeAbortRequested(expired)
         }
     }
 
