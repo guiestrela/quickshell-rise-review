@@ -124,6 +124,7 @@ check "Elsewhen first-run preference lifecycle" python3 tests/test-elsewhen-firs
 check "Elsewhen settings error recovery" python3 tests/test-elsewhen-settings-errors.py
 check "Elsewhen service lifecycle, persistence and reopen" python3 tests/test-elsewhen-service.py
 check "Elsewhen inert process adapter" python3 tests/test-elsewhen-process-adapter.py
+check "Elsewhen delayed probe connection and timeout recovery" python3 tests/test-elsewhen-probe-recovery.py
 check "Elsewhen shared IPC ownership" python3 tests/test-elsewhen-ipc.py
 check "Elsewhen world-clock content actions" python3 tests/test-elsewhen-panel-content.py
 check "Elsewhen V1/V2 panel adapters" python3 tests/test-elsewhen-panel-adapters.py
