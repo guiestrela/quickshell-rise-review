@@ -117,6 +117,35 @@ Item {
    theme.archGateBootstrapMissing=false;theme.archGateListMissing=false
    tryVerify(function(){return !diagnostic.visible})
   }
+  function test_status_metadata_stays_inside_popup() {
+   theme.archGateBootstrapMissing=false;theme.archGateListMissing=false
+   theme.archUpdates=[{name:"firefox",source:"system",oldVer:"158.0.1-1",newVer:"160.0.1-2"}]
+   theme.archGateOk=1;theme.archGateWarn=2;theme.archGateFail=1
+   theme.archGateDegraded=true;theme.archGateStale=true;theme.archGateMirrorMismatch=true
+   theme.archGateBlacklist=1935;theme.archGateListDate="2026-11-24"
+   theme.archScanCheckedEpoch=Math.floor(Date.now()/1000)
+   theme.archVisible=true;tryCompare(panel,"reveal",1)
+   var status=findChild(panel,"statusLine"),card=panel.surfaceHost
+   verify(status!==null)
+   for (var width of [520,360]) {
+    card.width=width
+    wait(30)
+    verify(status.contentWidth<=status.width+1,"Status text overflows its width at "+width)
+    verify(status.height>=status.contentHeight-1,"Wrapped content exceeds allocated height")
+    verify(status.height>status.font.pixelSize*1.6,"Long status must wrap, not hide metadata")
+    verify(status.text.indexOf("last check")>=0)
+    verify(status.text.indexOf('href="bl"')>=0,"Blacklist link must be retained")
+    var hit=false
+    for(var y=0;y<status.height && !hit;y+=2)
+     for(var x=0;x<status.width && !hit;x+=2) hit=status.linkAt(x,y)==="bl"
+    verify(hit,"Blacklist link must have a hit target within the wrapped text")
+    var headers=null
+    for(var item of status.parent.children)
+     if(item.children && item.children.length && item.children[0].text==="Package") headers=item
+    verify(headers!==null)
+    verify(headers.y>=status.y+status.height,"Wrapped status overlaps the package headers")
+   }
+  }
  }
 }
 '''.replace('VARIANT',variant).replace('THEME','\n'.join(theme))

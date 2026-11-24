@@ -869,8 +869,9 @@ PanelWindow {
                 visible: text.length > 0
                 textFormat: Text.RichText
                 renderType: Text.NativeRendering
-                wrapMode: Text.NoWrap
-                elide: Text.ElideRight
+                // RichText does not support elision; wrap so all metadata and
+                // the blacklist link remain inside the popup and reserve height.
+                wrapMode: Text.Wrap
                 font.family: archPanel.root.mono; font.pixelSize: 10
                 linkColor: archPanel.root.ink
                 text: {
